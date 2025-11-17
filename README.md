@@ -104,10 +104,6 @@ SANDBOX_ROOT/.agent_logs/commands.log
 *(Shared identity with RAGGAE to unify the ecosystem.)*
 
 ```mermaid
----
-config:
-  theme: redux-color
----
 mindmap
   root((🧬 RAGIX))
     🤖 Local Agents
@@ -137,12 +133,6 @@ mindmap
 # 3. Architecture
 
 ```mermaid
----
-config:
-  layout: elk
-  look: neo
-  theme: neutral
----
 flowchart TB
  subgraph ORCH_SUB["🧠 Orchestration Layer"]
         ROUTE["🧵 Action Planner"]
