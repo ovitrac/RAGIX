@@ -12,7 +12,7 @@
 > **LLM reasoning**, **sandboxed shell execution**, **structured JSON tools**,
 > and **Unix-RAG** (grep, find, awk, sed, python).
 >
-> Part of the **RADIX** ecosystem — sister project to **RAGGAE**
+> Part of the **RAGIX** ecosystem — sister project to **RAGGAE**
 > (*Retrieval-Augmented Generation Generalized Architecture for Enterprise*).
 
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/downloads/)
@@ -99,7 +99,7 @@ SANDBOX_ROOT/.agent_logs/commands.log
 
 ---
 
-# 2. RADIX: Functional Overview (mindmap)
+# 2. RAGIX: Functional Overview (mindmap)
 
 *(Shared identity with RAGGAE to unify the ecosystem.)*
 
@@ -136,7 +136,7 @@ mindmap
 flowchart TB
  subgraph ORCH_SUB["🧠 Orchestration Layer"]
         ROUTE["🧵 Action Planner"]
-        ORCH["🧬 RADIX Orchestrator"]
+        ORCH["🧬 RAGIX Orchestrator"]
         CTX["📦 Context Builder (Unix-RAG + history)"]
         POLICY["📏 Safety & Profiles"]
   end
@@ -221,7 +221,7 @@ You: propose a fix and apply the edit
 
 ---
 
-# 7. RAGIX and RAGGAE: The RADIX Duo
+# 7. RAGIX and RAGGAE: The RAGIX Duo
 
 | Capability | **RAGIX** (Dev)            | **RAGGAE** (Enterprise RAG)         |
 | ---------- | -------------------------- | ----------------------------------- |
@@ -232,7 +232,7 @@ You: propose a fix and apply the edit
 | Output     | diffs, summaries, patches  | JSON schemas, NLI evaluation        |
 | Use cases  | debugging, refactoring, CI | tender analysis, compliance scoring |
 
-Both projects are meant to live under **RADIX**, sharing:
+Both projects are meant to live under **RAGIX**, sharing:
 
 * sovereignty
 * zero-cloud dependency
