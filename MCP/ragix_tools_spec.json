@@ -1,0 +1,293 @@
+{
+  "name": "ragix_unix_toolbox",
+  "version": "0.1",
+  "description": "ragix Unix Toolbox: robust filesystem and text helpers for sovereign/local LLMs.",
+  "tools": [
+    {
+      "name": "rt_find",
+      "description": "Recursive file listing with filters.",
+      "command": "python3 ragix_tools.py find",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string",
+            "description": "Root directory to scan."
+          },
+          "ext": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Optional list of file extensions to include (e.g. ['py','md'])."
+          },
+          "name": {
+            "type": "string",
+            "description": "Substring filter on filename."
+          },
+          "max_depth": {
+            "type": "integer",
+            "description": "Maximum recursion depth (0 = only root)."
+          },
+          "min_size": {
+            "type": "integer",
+            "description": "Minimum file size in bytes."
+          },
+          "max_size": {
+            "type": "integer",
+            "description": "Maximum file size in bytes."
+          },
+          "since": {
+            "type": "string",
+            "description": "Minimum modification date (ISO, e.g. '2025-01-01')."
+          },
+          "until": {
+            "type": "string",
+            "description": "Maximum modification date (ISO)."
+          },
+          "json": {
+            "type": "boolean",
+            "description": "If true, output JSON instead of TSV."
+          }
+        },
+        "required": ["root"]
+      }
+    },
+    {
+      "name": "rt_stats",
+      "description": "Global and per-extension statistics for a directory tree.",
+      "command": "python3 ragix_tools.py stats",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string",
+            "description": "Root directory to scan."
+          },
+          "max_depth": {
+            "type": "integer",
+            "description": "Maximum recursion depth."
+          },
+          "with_lines": {
+            "type": "boolean",
+            "description": "If true, count text lines (slower)."
+          },
+          "by_ext": {
+            "type": "boolean",
+            "description": "If true, aggregate stats per file extension."
+          },
+          "json": {
+            "type": "boolean",
+            "description": "If true, output JSON instead of TSV."
+          }
+        },
+        "required": ["root"]
+      }
+    },
+    {
+      "name": "rt_top",
+      "description": "Show top-N files by size, mtime, or line count.",
+      "command": "python3 ragix_tools.py top",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string",
+            "description": "Root directory to scan."
+          },
+          "n": {
+            "type": "integer",
+            "description": "Number of files to return.",
+            "default": 20
+          },
+          "max_depth": {
+            "type": "integer",
+            "description": "Maximum recursion depth."
+          },
+          "by": {
+            "type": "string",
+            "enum": ["size", "mtime", "lines"],
+            "description": "Metric to sort on."
+          },
+          "ascending": {
+            "type": "boolean",
+            "description": "If true, sort ascending instead of descending."
+          },
+          "json": {
+            "type": "boolean",
+            "description": "If true, output JSON."
+          }
+        },
+        "required": ["root"]
+      }
+    },
+    {
+      "name": "rt_lines",
+      "description": "Count lines per file.",
+      "command": "python3 ragix_tools.py lines",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string",
+            "description": "Root directory to scan."
+          },
+          "max_depth": {
+            "type": "integer",
+            "description": "Maximum recursion depth."
+          },
+          "ext": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Optional list of file extensions to include."
+          },
+          "skip_binary": {
+            "type": "boolean",
+            "description": "If true, skip files detected as binary."
+          },
+          "json": {
+            "type": "boolean",
+            "description": "If true, output JSON."
+          }
+        },
+        "required": ["root"]
+      }
+    },
+    {
+      "name": "rt_grep",
+      "description": "Search text in files (patterns are ORed; AND logic via piping between calls).",
+      "command": "python3 ragix_tools.py grep",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string",
+            "description": "Root directory to scan (ignored if from_stdin=true)."
+          },
+          "max_depth": {
+            "type": "integer",
+            "description": "Maximum recursion depth."
+          },
+          "ext": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Optional list of file extensions to include."
+          },
+          "from_stdin": {
+            "type": "boolean",
+            "description": "If true, read file paths from stdin instead of scanning root."
+          },
+          "pattern": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of patterns to search for (OR semantics)."
+          },
+          "regex": {
+            "type": "boolean",
+            "description": "If true, treat patterns as regular expressions."
+          },
+          "ignore_case": {
+            "type": "boolean",
+            "description": "If true, search is case-insensitive."
+          },
+          "skip_binary": {
+            "type": "boolean",
+            "description": "If true, skip binary files."
+          },
+          "files_with_matches": {
+            "type": "boolean",
+            "description": "If true, output only filenames that have matches."
+          },
+          "max_matches_per_file": {
+            "type": "integer",
+            "description": "Optional max number of matches per file."
+          },
+          "json": {
+            "type": "boolean",
+            "description": "If true, output JSON instead of grep-like text."
+          }
+        },
+        "required": ["pattern"]
+      }
+    },
+    {
+      "name": "rt_replace",
+      "description": "Safe bulk text replacement with optional backups.",
+      "command": "python3 ragix_tools.py replace",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "root": {
+            "type": "string",
+            "description": "Root directory to scan (ignored if from_stdin=true)."
+          },
+          "max_depth": {
+            "type": "integer",
+            "description": "Maximum recursion depth."
+          },
+          "ext": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Optional list of file extensions to include."
+          },
+          "from_stdin": {
+            "type": "boolean",
+            "description": "If true, read file paths from stdin instead of scanning root."
+          },
+          "old": {
+            "type": "string",
+            "description": "Text or regex pattern to replace."
+          },
+          "new": {
+            "type": "string",
+            "description": "Replacement text (can be empty)."
+          },
+          "regex": {
+            "type": "boolean",
+            "description": "If true, treat 'old' as a regular expression."
+          },
+          "dry_run": {
+            "type": "boolean",
+            "description": "If true, do not modify files, just report."
+          },
+          "no_backup": {
+            "type": "boolean",
+            "description": "If true, do not create backups."
+          },
+          "backup_ext": {
+            "type": "string",
+            "description": "Backup extension (default '.bak')."
+          }
+        },
+        "required": ["old"]
+      }
+    },
+    {
+      "name": "rt_doc2md",
+      "description": "Convert docx/odt/pdf documents to Markdown using pandoc.",
+      "command": "python3 ragix_tools.py doc2md",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "inputs": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of input files or directories to convert."
+          },
+          "out_dir": {
+            "type": "string",
+            "description": "Output directory for .md files.",
+            "default": "md_out"
+          },
+          "overwrite": {
+            "type": "boolean",
+            "description": "If true, overwrite existing .md files."
+          },
+          "json": {
+            "type": "boolean",
+            "description": "If true, output JSON summary."
+          }
+        },
+        "required": ["inputs"]
+      }
+    }
+  ]
+}
