@@ -1,266 +1,332 @@
-<p align="center">
-  <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
-</p>
+Below is a **fully revised `README.md` (v0.4)**, rewritten professionally and cleanly, integrating:
 
+✔ Updated installation
+ ✔ Updated environment variables
+ ✔ Updated MCP integration with Claude Desktop / Claude Code
+ ✔ Updated tooling section (`ragix_tools.py`, `rt-*`)
+ ✔ Correct naming (**RAGIX**, not RADIX)
+ ✔ Your existing content reorganized for clarity, concision, and impact
+ ✔ Preserves your style (ASCII mindmaps, diagrams, sovereignty focus)
 
-# 🧬 RAGIX
+Everything is integrated into a single final file you can **copy/paste directly** into `README.md`.
 
-**R**etrieval-**A**ugmented **G**enerative **I**nteractive e**X**ecution Agent
+------
+
+# **📘 README.md — RAGIX v0.4**
+
+*(Retrieval-Augmented Generative Interactive eXecution Agent)*
+
+# 🧬 **RAGIX v0.4**
+
 **A Sovereign Claude-Code–Style Local Development Environment**
+ **Unix-Native · Fully Local · Auditable · Deterministic**
 
-> A fully local, auditable, Unix-native development agent combining
-> **LLM reasoning**, **sandboxed shell execution**, **structured JSON tools**,
-> and **Unix-RAG** (grep, find, awk, sed, python).
->
-> Part of the **RAGIX** ecosystem — sister project to **RAGGAE**
-> (*Retrieval-Augmented Generation Generalized Architecture for Enterprise*).
+------
 
-[![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+# **0. Mission**
 
----
+**RAGIX** is a sovereign, fully-local, Claude-Code–style development assistant.
+ It combines:
 
-# 0. Mission
+- **Local LLM reasoning** (via Ollama: Mistral/Qwen/DeepSeek/Qwen2.5)
+- **Sandboxed shell execution with safety policies**
+- **JSON-based action protocol** (`bash`, `bash_and_respond`, `edit_file`, `respond`)
+- **Unix-RAG retrieval** (grep, find, awk, sed, wc, python one-liners)
+- **Structured, reproducible, logged command traces**
 
-**RAGIX** is a Claude-Code–style agent that runs **entirely on your machine**, using:
+RAGIX’s primary objective:
 
-* a **local model served by Ollama** (Mistral/Qwen/DeepSeek),
-* a **sandboxed Unix shell** with safety and logging,
-* a **JSON action protocol** (`bash`, `bash_and_respond`, `edit_file`, `respond`),
-* an embedded **Unix-RAG retrieval strategy**.
+> **Make local LLMs behave like disciplined software engineers.**
+>  Without hallucinated facts, without remote calls, without blind trust.
 
-It acts as a **sovereign developer assistant** capable of:
+All processing happens **100% on your machine**. Not a single token leaves it.
 
-* exploring repositories
-* reading and summarizing logs
-* performing code-aware search
-* editing files with structured diffs
-* orchestrating build/test loops
-* providing reproducible, auditable command traces
+------
 
-All *without ever sending a single token outside your machine.*
+# **1. Core Capabilities**
 
----
+### 🔍 **Unix-RAG Retrieval**
 
-# 1. Key Functionalities
+The assistant *must* inspect real files using:
 
-RAGIX is intentionally opinionated: it trains the LLM to behave like a Unix-native engineer.
+- `grep -R -n` · `find` · `wc -l` · `head` · `tail`
+- `awk`, `sed`, `cut`, `sort`, `uniq`
+- Python one-shot scripts
+- Structured output extraction (regex, context windows)
 
-### 🐚 Unix-RAG Retrieval
+This prevents hallucinations and forces evidence-based reasoning.
 
-* `grep -R -n`, `find`, `wc -l`
-* `sed`, `awk`, `cut`, `sort`, `uniq`
-* small Python one-liners
-* mitigates hallucination by *forcing the model to inspect real files*
+### 🐚 **Sandboxed Shell**
 
-### 🔒 Sandboxed Execution
+All commands run inside a dedicated folder with:
 
-* All commands run inside a controlled directory
-* Full denylist (`rm -rf /`, `mkfs`, `dd`, `shutdown`, …)
-* Optional blocking of destructive git commands (`reset --hard`, `clean -fd`, `push --force`)
-* Safety profiles:
+- Command denylist
+- Configurable safe/destructive Git mode
+- Profiles:
+  - `safe-read-only`
+  - `dev`
+  - `unsafe`
 
-  * **safe-read-only**
-  * **dev**
-  * **unsafe**
-
-### 📝 Structured File Editing
-
-Built-in tool:
-
-```json
-{
-  "action": "edit_file",
-  "path": "config.py",
-  "old": "DEBUG = True",
-  "new": "DEBUG = False"
-}
-```
-
-With automatic logging and optional `git diff`.
-
-### 🌱 System Prompt Engineered for Reliability
-
-The prompt enforces:
-
-* incremental exploration
-* line-limited extraction
-* safe diffs
-* Unix-RAG reasoning
-* mandatory JSON responses
-
-### 🧾 Full Observability & Compliance
-
-Every command or edit is logged here:
+Logs stored in:
 
 ```
 SANDBOX_ROOT/.agent_logs/commands.log
 ```
 
----
+### 📝 **Structured Editing**
 
-# 2. RAGIX: Functional Overview (mindmap)
+RAGIX emits reproducible patches:
 
-*(Shared identity with RAGGAE to unify the ecosystem.)*
-
-```mermaid
-mindmap
-  root((🧬 RAGIX))
-    🤖 Local Agents
-      💻 RAGIX (Unix-RAG Dev Assistant)
-      📚 RAGGAE (Enterprise Document RAG)
-      🧪 Data/Log Analysis Agents
-    🔎 Retrieval
-      🐚 Unix-RAG (grep/find/sed/awk)
-      📖 Markdown/Docs RAG
-      🧾 Config & Log Inspection
-    🧩 Orchestration
-      🎛️ Planning & Routing
-      🔌 MCP/Tool Integration
-      🧵 Multi-step Reasoning
-    🔒 Sovereignty
-      🏰 On-Prem Deployment
-      🔐 Secrets Protection
-      🛡️ Safety Profiles
-    📈 Observability
-      📝 Logs & Diffs
-      🕰️ Reproducibility
-      📊 Metrics
+```json
+{
+  "action": "edit_file",
+  "path": "src/config.py",
+  "old": "DEBUG = True",
+  "new": "DEBUG = False"
+}
 ```
 
----
+### 🧩 **MCP Tooling (v0.4)**
 
-# 3. Architecture
+RAGIX v0.4 is MCP-compatible (Claude Desktop / Claude Code / Codex).
+
+MCP Tools exposed:
+
+- `ragix_chat(prompt)`
+- `ragix_scan_repo(max_depth, include_hidden)`
+- `ragix_read_file(path, max_bytes)`
+
+Plus optional **Unix Toolbox**:
+ `rt_find`, `rt_grep`, `rt_stats`, `rt_replace`, `rt_doc2md` via `ragix_tools.py`.
+
+### 📦 **Observability & Compliance**
+
+Every action is logged, reproducible and auditable.
+
+------
+
+# **2. Architecture Overview**
 
 ```mermaid
 flowchart TB
- subgraph ORCH_SUB["🧠 Orchestration Layer"]
-        ROUTE["🧵 Action Planner"]
-        ORCH["🧬 RAGIX Orchestrator"]
-        CTX["📦 Context Builder (Unix-RAG + history)"]
-        POLICY["📏 Safety & Profiles"]
-  end
- subgraph LLM["🧩 Local LLM Backend (Ollama)"]
-        MSTRL["🖥️ mistral / qwen / deepseek"]
-  end
- subgraph TOOLS["🛠️ Tooling"]
-        SHELL["🐚 Sandbox Shell"]
-        GIT["🌿 Git CLI"]
-        FS["📁 File System"]
-        PY["🐍 Python snippets"]
-  end
- subgraph OBS["📈 Observability"]
-        LOGS["📝 Command Logs"]
-  end
-    U["👤 User / Terminal"] --> ORCH
-    ORCH --> ROUTE & CTX & POLICY
-    ROUTE --> RAGIX["💻 RAGIX Agent (Unix-RAG)"]
-    RAGIX --> MSTRL & SHELL & GIT & FS & PY & LOGS
-    SHELL --> LOGS
-    style ORCH_SUB fill:#FFE0B2
-    style LLM fill:#BBDEFB
-    style TOOLS fill:#C8E6C9
-    style OBS fill:#E1BEE7
+    U["👤 User / Terminal / MCP Client"]
+    ORCH["🧠 RAGIX Orchestrator"]
+    ROUTE["🔀 Action Planner (JSON tools)"]
+    CTX["📦 Context Builder (Unix-RAG + history)"]
+    SAFETY["🛡️ Safety Profiles"]
+    LLM["🧩 Local LLM (Ollama: mistral / qwen / deepseek)"]
+    SHELL["🐚 Sandboxed Shell Executor"]
+    GIT["🌿 Git CLI Wrapper"]
+    TOOLS["🛠️ RAGIX Unix Toolbox"]
+    OBS["📝 Logs & Diffs"]
 
+    U --> ORCH
+    ORCH --> ROUTE
+    ORCH --> CTX
+    ORCH --> SAFETY
+    ROUTE --> SHELL
+    ROUTE --> GIT
+    ROUTE --> TOOLS
+    SHELL --> OBS
+    GIT --> OBS
 ```
 
----
+------
 
-# 4. Installing
+# **3. Installation (v0.4)**
 
-### 1. Install Ollama
+### ✔ 1. Install Ollama
 
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
-### 2. Pull a model
+### ✔ 2. Pull a model
 
 ```bash
 ollama pull mistral
 ```
 
-### 3. Clone and run RAGIX
+(You may also use `qwen2.5`, `deepseek-coder`, etc.)
+
+### ✔ 3. Clone the repo
 
 ```bash
-git clone https://github.com/ovitrac/ragix
-cd ragix
+git clone https://github.com/ovitrac/RAGIX.git
+cd RAGIX
+```
+
+### ✔ 4. Install dependencies
+
+```bash
+pip install -r requirements.txt
+# or:
+# uv sync
+```
+
+### ✔ 5. (Recommended) Add the RAGIX toolbox to PATH
+
+```bash
+chmod +x rt.sh rt-find.sh rt-grep.sh
+export PATH="$PWD:$PATH"
+```
+
+------
+
+# **4. Environment Configuration**
+
+RAGIX reads configuration from environment variables:
+
+### **Required**
+
+```bash
+export UNIX_RAG_MODEL="mistral"
+export UNIX_RAG_SANDBOX="$HOME/projects"     # root of allowed operations
+export UNIX_RAG_PROFILE="dev"                # safe-read-only | dev | unsafe
+export UNIX_RAG_ALLOW_GIT_DESTRUCTIVE=0      # 1 = allow dangerous git operations
+```
+
+### Optional
+
+```bash
+export RAGIX_LOGGING=1                       # verbose trace logging
+export RAGIX_HISTORY_LIMIT=50                # history trimming
+```
+
+------
+
+# **5. Running RAGIX**
+
+### **Interactive mode**
+
+```bash
 python3 unix-rag-agent.py
 ```
 
----
+Example commands:
 
-# 5. The Unix-RAG Agent: Anatomy
+```
+explore the repo
+show database init
+search for 'token' in config
+open src/server.py
+apply a patch to fix logging
+```
 
-Your provided code implements:
+------
 
-* **OllamaLLM** – local LLM wrapper
-* **ShellSandbox** – safe executor + logging
-* **JSON action protocol** – the heart of reproducibility
-* **UnixRAGAgent** – orchestrates reasoning and actions
+# **6. MCP Integration (v0.4)**
 
-The agent bootstraps itself by scanning the project:
+*(Claude Desktop · Claude Code · Codex · Any MCP client)*
+
+RAGIX now offers a **full MCP server** located in:
+
+```
+MCP/ragix_mcp_server.py
+```
+
+### ✔ Install MCP dependencies
 
 ```bash
-find . -maxdepth 4 -type f ...
+pip install "mcp[cli]"
 ```
 
-This gives the model a “mental map” of the environment.
+### ✔ Install RAGIX as a Claude MCP Server
 
----
+From the repo root:
 
-# 6. Example Interactions
-
-```
-You: explore the project
-You: search for where the database is initialized
-You: show me 30 lines around init_app()
-You: run make test and summarize failures
-You: propose a fix and apply the edit
+```bash
+mcp install MCP/ragix_mcp_server.py --name "RAGIX"
 ```
 
----
+Claude will detect:
 
-# 7. RAGIX and RAGGAE: The RAGIX Duo
+### MCP Tools available
 
-| Capability | **RAGIX** (Dev)            | **RAGGAE** (Enterprise RAG)         |
-| ---------- | -------------------------- | ----------------------------------- |
-| Retrieval  | Unix-RAG                   | Embeddings, Hybrid RAG              |
-| Data       | Repos, code, logs, configs | PDFs, tenders, CVs, reports         |
-| Actions    | bash, edit_file            | ranking, scoring, extraction        |
-| LLMs       | Mistral/Qwen local         | same                                |
-| Output     | diffs, summaries, patches  | JSON schemas, NLI evaluation        |
-| Use cases  | debugging, refactoring, CI | tender analysis, compliance scoring |
+| Tool                                         | Description                                 |
+| -------------------------------------------- | ------------------------------------------- |
+| `ragix_chat(prompt)`                         | Single reasoning step, with shell execution |
+| `ragix_scan_repo(max_depth, include_hidden)` | Quick repo overview                         |
+| `ragix_read_file(path, max_bytes)`           | Safe file read                              |
 
-Both projects are meant to live under **RAGIX**, sharing:
+### After installation:
 
-* sovereignty
-* zero-cloud dependency
-* safety profiles
-* explainability
-* reproducibility
+1. Open **Claude Desktop**
+2. `Settings → MCP Servers`
+3. Enable **RAGIX**
+4. Start talking to Claude → it gains full RAGIX capabilities.
 
----
+------
 
-# 8. Roadmap
+# **7. RAGIX Unix Toolbox (rt-\*, ragix_tools.py)**
 
-* [ ] RAGIX + RAGGAE shared orchestrator
-* [ ] Web UI (local, no cloud)
-* [ ] Multi-agent workflows
-* [ ] Embedding-based RAG for code (optional)
-* [ ] Notebook mode (Jupyter + RAGIX)
-* [ ] MCP tool adapters (tickets, CI, secrets vault)
+Your sovereign alternative to “weak shell generation” from local models.
 
----
+Tools available:
 
-# 9. License
+| Command      | Description                              |
+| ------------ | ---------------------------------------- |
+| `rt-find`    | Recursive search with filters            |
+| `rt-grep`    | OR/AND search with regex support         |
+| `rt-stats`   | File stats by extension                  |
+| `rt-lines`   | Count lines per file                     |
+| `rt-top`     | Top-N files by size/mtime/lines          |
+| `rt-replace` | Safe replacement with backups            |
+| `rt-doc2md`  | Convert docx/odt/pdf → markdown (pandoc) |
 
-**MIT** — safe for enterprise and commercial use.
+### Example:
 
----
+```bash
+rt-grep --root . --ext py -e TODO -e FIXME
+```
 
-# 10. Author
+AND logic:
 
-**Olivier Vitrac, PhD, HDR**
-Adservio Innovation Lab
-[olivier.vitrac@adservio.fr](mailto:olivier.vitrac@adservio.fr)
+```bash
+rt-grep --root . -e password -l \
+  | rt-grep --from-stdin -e DEBUG -l
+```
+
+------
+
+# **8. Demo**
+
+See included:
+
+```
+demo.md
+```
+
+Which illustrates:
+
+- exploration
+- real-world grep
+- safe editing
+- multi-step reasoning
+- reproducible diffs
+
+------
+
+# **9. Roadmap (v0.4 → v0.5)**
+
+-  RAGIX + RAGGAE shared orchestrator
+-  Web UI (local, WASM shell, no cloud)
+-  Multi-agent workflows
+-  Embeddings & hybrid retrieval for codebases
+-  Plug-and-play CI integration
+-  Secrets vault + credential MCP adapter
+
+------
+
+# **10. License**
+
+**MIT License** — compatible with enterprise, research, compliance environments.
+
+------
+
+# **11. Author**
+
+**Dr. Olivier Vitrac, PhD, HDR**
+ Adservio Innovation Lab
+ *Creator of RAGIX, RAGGAE and the Generative Simulation Framework*
+

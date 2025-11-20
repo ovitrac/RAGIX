@@ -1,0 +1,9 @@
+# Core dependencies for RAGIX Unix-RAG agent + MCP server
+# If you use uv instead of pip:
+# uv add "requests>=2.31.0" "mcp[cli]>=0.1.0"
+
+# LLM / HTTP client
+requests>=2.31.0
+
+# Model Context Protocol (MCP) server + CLI
+mcp[cli]>=0.1.0

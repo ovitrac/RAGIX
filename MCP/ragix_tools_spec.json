@@ -1,7 +1,7 @@
 {
   "name": "ragix_unix_toolbox",
   "version": "0.1",
-  "description": "ragix Unix Toolbox: robust filesystem and text helpers for sovereign/local LLMs.",
+  "description": "RAGIX Unix Toolbox: robust filesystem and text helpers for sovereign/local LLMs.",
   "tools": [
     {
       "name": "rt_find",

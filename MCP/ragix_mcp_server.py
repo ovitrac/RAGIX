@@ -67,12 +67,13 @@ from mcp.server.fastmcp import Context
 # ---------------------------------------------------------------------------
 
 _THIS_DIR = Path(__file__).resolve().parent
-_UNIX_RAG_AGENT_PATH = _THIS_DIR / "unix-rag-agent.py"
+_REPO_ROOT = _THIS_DIR.parent
+_UNIX_RAG_AGENT_PATH = _REPO_ROOT / "unix-rag-agent.py"
 
 if not _UNIX_RAG_AGENT_PATH.exists():
     raise RuntimeError(
         f"Cannot find unix-rag-agent.py at {_UNIX_RAG_AGENT_PATH}. "
-        "Make sure you place ragix_mcp_server.py next to unix-rag-agent.py."
+        "Make sure you run the MCP server from the RAGIX repo root."
     )
 
 _spec = importlib.util.spec_from_file_location("unix_rag_agent", _UNIX_RAG_AGENT_PATH)

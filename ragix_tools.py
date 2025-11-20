@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Ragix Unix Toolbox (v0.4)
+RIAGIX Unix Toolbox (v0.4)
 =========================
 
 Small, robust CLI helpers for sovereign/local LLMs.
