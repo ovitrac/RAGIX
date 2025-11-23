@@ -166,8 +166,163 @@ Each exposes:
 
 ------
 
-# 5. Notes
+# 5. SWE-Style Tools (v0.4)
+
+## 5.1 Navigation — `open` and `scroll`
+
+**Purpose:** Systematic file viewing with 100-line windows (SWE-Agent compatible)
+
+```bash
+# Open from beginning
+rt open path
+
+# Center around specific line
+rt open path:line
+
+# Explicit range
+rt open path:start-end
+
+# Scroll up/down with 2-line overlap
+rt scroll path +    # scroll down
+rt scroll path -    # scroll up
+```
+
+**Features:**
+- 100-line windows by default (configurable with `--chunk-size`)
+- 2-line overlap between scroll operations
+- State tracking via `.ragix_view_state.json` (git-ignored)
+- Line numbers displayed (1-based)
+
+**Example:**
+```bash
+# Find where "def compute_safety_margin" appears
+rt grep "def compute_safety_margin" src/
+
+# Jump to that line
+rt open src/sim/gas_flow_model.py:123
+
+# Scroll down to see more
+rt scroll src/sim/gas_flow_model.py +
+```
+
+---
+
+## 5.2 Single-file search — `grep-file`
+
+**Purpose:** Search within a specific file (vs. recursive `grep`)
+
+```bash
+rt grep-file "<pattern>" <path> [--regex] [-i] [--max-matches N]
+```
+
+**Options:**
+- `--regex`: treat pattern as regular expression
+- `-i, --ignore-case`: case-insensitive search
+- `--max-matches N`: stop after N matches
+
+**Output:** `line_no: matching text`
+
+**Example:**
+```bash
+rt grep-file "safety_margin" src/sim/gas_flow_model.py
+```
+
+---
+
+## 5.3 Line-based editing — `edit` and `insert`
+
+**Purpose:** Precise line-range edits (safer than full-file rewrites)
+
+```bash
+# Replace line range
+rt edit <path> <start_line> <end_line> << 'EOF'
+<new content>
+EOF
+
+# Insert before line
+rt insert <path> <line> << 'EOF'
+<new content>
+EOF
+```
+
+**Features:**
+- Automatic `.bak` backups
+- Profile-aware (blocked in `safe-read-only`)
+- Atomic writes via temp files
+- Shows edited region preview
+- Optional `--show-diff` for git diff
+
+**Environment variables:**
+- `RAGIX_AUTO_DIFF=1`: always show git diff after edits
+- `UNIX_RAG_PROFILE=safe-read-only`: blocks edit operations
+- `RAGIX_ENABLE_SWE=0`: disables all SWE tools
+
+**Example:**
+```bash
+# Replace function implementation
+rt edit src/sim/gas_flow_model.py 120 135 << 'EOF'
+def compute_safety_margin(flow_rate: float, pressure: float) -> float:
+    """Updated safety margin calculation (2025 specs)."""
+    return max(0.0, pressure - 1.1 * flow_rate)
+EOF
+
+# Verify changes
+git diff -- src/sim/gas_flow_model.py
+```
+
+---
+
+## 5.4 Environment Variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `RAGIX_ENABLE_SWE` | `1` | Enable/disable SWE tools globally |
+| `RAGIX_AUTO_DIFF` | `0` | Auto-show git diff after edits |
+| `UNIX_RAG_PROFILE` | `dev` | Profile: `dev`, `unsafe`, `safe-read-only` |
+
+---
+
+## 5.5 Profile Behavior Matrix
+
+| Profile | Navigation (open/scroll) | Search (grep-file) | Edit (edit/insert) |
+|---------|-------------------------|--------------------|--------------------|
+| `dev` | ✅ Full access | ✅ Full access | ✅ Full access |
+| `unsafe` | ✅ Full access | ✅ Full access | ✅ Full access |
+| `safe-read-only` | ✅ Full access | ✅ Full access | ❌ Blocked with clear error |
+
+---
+
+## 5.6 SWE Workflow Best Practices
+
+1. **Discovery phase**: Use `rt find` and `rt grep` to locate relevant code
+2. **Navigation phase**: Use `rt open path:line` to jump to specific locations (from grep results)
+3. **Avoid repeated scrolls**: Prefer direct jumps when line numbers are known
+4. **Editing phase**: Use `rt edit`/`rt insert` for line-based changes
+5. **Verification**: Run `git diff` or re-open the region to review changes
+
+**Typical session:**
+```bash
+# 1. Find all occurrences
+rt grep "old_function_name" src/
+
+# 2. Jump to first occurrence
+rt open src/module.py:42
+
+# 3. Edit the range
+rt edit src/module.py 42 47 << 'EOF'
+def new_function_name(x):
+    return x * 2
+EOF
+
+# 4. Verify
+git diff -- src/module.py
+```
+
+------
+
+# 6. Notes
 
 - Output can be piped into other Unix commands
 - JSON mode recommended for agent workflows
 - Works well with **RAGIX**, **RAGGAE**, and external MCP servers
+- SWE tools follow the approved conventions (see `SWE_TOOLING.md`)

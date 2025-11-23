@@ -28,9 +28,11 @@ Contact: olivier.vitrac@adservio.fr
 
 import argparse
 import json
+import os
 import sys
 import subprocess
 import shutil
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Iterable, Optional, Tuple
@@ -588,6 +590,549 @@ def cmd_doc2md(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
+# SWE Navigation (v0.4)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ViewState:
+    """Track last viewed window per file for scroll operations."""
+    file_windows: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    # Structure: {path: {"start_line": N, "chunk_size": 100, "overlap": 2}}
+
+    @classmethod
+    def load(cls, state_file: Path) -> "ViewState":
+        """Load from JSON, return empty if missing/invalid."""
+        if not state_file.exists():
+            return cls()
+        try:
+            with state_file.open("r") as f:
+                data = json.load(f)
+            return cls(file_windows=data.get("file_windows", {}))
+        except Exception:
+            # Corrupted or invalid - return empty state
+            return cls()
+
+    def save(self, state_file: Path):
+        """Save to JSON atomically."""
+        data = {"file_windows": self.file_windows}
+        temp_file = state_file.with_suffix(".tmp")
+        try:
+            with temp_file.open("w") as f:
+                json.dump(data, f, indent=2)
+            temp_file.replace(state_file)
+        except Exception as e:
+            if temp_file.exists():
+                temp_file.unlink()
+            raise e
+
+    def get_window(self, path: str) -> Optional[Dict[str, int]]:
+        """Get last window for path."""
+        return self.file_windows.get(path)
+
+    def set_window(self, path: str, start_line: int, chunk_size: int = 100, overlap: int = 2):
+        """Update window for path."""
+        self.file_windows[path] = {
+            "start_line": start_line,
+            "chunk_size": chunk_size,
+            "overlap": overlap,
+        }
+
+
+def open_window(
+    path: Path,
+    start: Optional[int] = None,
+    center_line: Optional[int] = None,
+    line_range: Optional[Tuple[int, int]] = None,
+    chunk_size: int = 100,
+    max_window: int = 200
+) -> str:
+    """
+    Open a file window with line numbers.
+
+    Modes:
+    - open_window(path) → lines 1-100
+    - open_window(path, center_line=50) → centered 100-line window around line 50
+    - open_window(path, line_range=(10, 50)) → explicit range (enforces max_window)
+    - open_window(path, start=100) → lines 100-199
+
+    Returns formatted output:
+    --- path (lines start-end) ---
+    start: first line
+    start+1: second line
+    ...
+    """
+    if not path.exists() or not path.is_file():
+        return f"Error: file not found or not accessible: {path}"
+
+    # Read all lines
+    try:
+        with path.open("r", encoding="utf-8", errors="ignore") as f:
+            lines = f.readlines()
+    except Exception as e:
+        return f"Error reading {path}: {e}"
+
+    total_lines = len(lines)
+    if total_lines == 0:
+        return f"--- {path} (empty file) ---"
+
+    # Determine window boundaries
+    if line_range is not None:
+        start_line, end_line = line_range
+        # Enforce max_window
+        if end_line - start_line + 1 > max_window:
+            end_line = start_line + max_window - 1
+    elif center_line is not None:
+        half = chunk_size // 2
+        start_line = max(1, center_line - half)
+        end_line = min(total_lines, start_line + chunk_size - 1)
+    elif start is not None:
+        start_line = start
+        end_line = min(total_lines, start_line + chunk_size - 1)
+    else:
+        # Default: from beginning
+        start_line = 1
+        end_line = min(total_lines, chunk_size)
+
+    # Clamp boundaries
+    start_line = max(1, min(start_line, total_lines))
+    end_line = max(start_line, min(end_line, total_lines))
+
+    # Format output
+    output_lines = [f"--- {path} (lines {start_line}-{end_line} of {total_lines}) ---"]
+    for i in range(start_line - 1, end_line):
+        output_lines.append(f"{i+1:6d}: {lines[i].rstrip()}")
+
+    return "\n".join(output_lines)
+
+
+def scroll_window(
+    path: Path,
+    direction: str,
+    state_file: Path,
+    chunk_size: int = 100,
+    overlap: int = 2
+) -> str:
+    """
+    Scroll view window up/down with overlap.
+
+    Uses ViewState to track last position.
+    If no prior view, behaves like open_window(path).
+    """
+    if not path.exists() or not path.is_file():
+        return f"Error: file not found: {path}"
+
+    # Load state
+    state = ViewState.load(state_file)
+    window = state.get_window(str(path))
+
+    if window is None:
+        # No prior view - start from beginning
+        result = open_window(path, start=1, chunk_size=chunk_size)
+        state.set_window(str(path), 1, chunk_size, overlap)
+        state.save(state_file)
+        return result
+
+    # Calculate new start_line
+    prev_start = window["start_line"]
+    prev_chunk = window.get("chunk_size", chunk_size)
+    prev_overlap = window.get("overlap", overlap)
+
+    if direction == "+":
+        new_start = prev_start + prev_chunk - prev_overlap
+    else:  # "-"
+        new_start = max(1, prev_start - prev_chunk + prev_overlap)
+
+    # Open window at new position
+    result = open_window(path, start=new_start, chunk_size=chunk_size)
+
+    # Update state
+    state.set_window(str(path), new_start, chunk_size, overlap)
+    state.save(state_file)
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# SWE Search (single file)
+# ---------------------------------------------------------------------------
+
+def grep_file(
+    path: Path,
+    pattern: str,
+    regex: bool = False,
+    ignore_case: bool = False,
+    max_matches: Optional[int] = None
+) -> str:
+    """
+    Search within a single file.
+
+    Returns:
+    line_no: matching text
+    line_no: matching text
+    ...
+    """
+    if not path.exists() or not path.is_file():
+        return f"Error: file not found: {path}"
+
+    if is_binary_file(path):
+        return f"Error: binary file (skipped): {path}"
+
+    # Prepare pattern
+    if regex:
+        try:
+            pat = re.compile(pattern, re.IGNORECASE if ignore_case else 0)
+        except re.error as e:
+            return f"Error: invalid regex: {e}"
+    else:
+        if ignore_case:
+            pattern_cmp = pattern.lower()
+        else:
+            pattern_cmp = pattern
+
+    # Search
+    results = []
+    try:
+        with path.open("r", encoding="utf-8", errors="ignore") as f:
+            for lineno, line in enumerate(f, start=1):
+                text = line.rstrip("\n")
+
+                if regex:
+                    match = pat.search(text)
+                else:
+                    hay = text.lower() if ignore_case else text
+                    match = pattern_cmp in hay
+
+                if match:
+                    results.append(f"{lineno:6d}: {text}")
+                    if max_matches is not None and len(results) >= max_matches:
+                        break
+    except Exception as e:
+        return f"Error reading {path}: {e}"
+
+    if not results:
+        return f"No matches found in {path}"
+
+    return "\n".join(results)
+
+
+# ---------------------------------------------------------------------------
+# SWE Edit (line-based)
+# ---------------------------------------------------------------------------
+
+def check_swe_edit_allowed(profile: str) -> Tuple[bool, str]:
+    """
+    Check if SWE edit operations are allowed in current profile.
+
+    Returns (allowed: bool, message: str)
+    """
+    ragix_enable_swe = os.environ.get("RAGIX_ENABLE_SWE", "1") == "1"
+
+    if not ragix_enable_swe:
+        return False, "SWE tools disabled (RAGIX_ENABLE_SWE=0)"
+
+    if profile == "safe-read-only":
+        return False, "Edit operations blocked in safe-read-only profile"
+
+    return True, ""
+
+
+def edit_range(
+    path: Path,
+    start_line: int,
+    end_line: int,
+    new_text: str,
+    show_diff: bool = False,
+    profile: str = "dev",
+    backup_ext: str = ".bak"
+) -> str:
+    """
+    Replace lines [start_line, end_line] (1-based, inclusive) with new_text.
+
+    Safety:
+    - Respects profile: blocks in "safe-read-only" or shows dry-run
+    - Creates .bak backup
+    - Atomic write via temp file
+
+    Returns:
+    ✓ Edited path:start-end
+    [edited region preview]
+    [optional: git diff if show_diff=True]
+    """
+    if not path.exists() or not path.is_file():
+        return f"Error: file not found: {path}"
+
+    if is_binary_file(path):
+        return f"Error: binary file (cannot edit): {path}"
+
+    # Profile check
+    allowed, msg = check_swe_edit_allowed(profile)
+    if not allowed:
+        return f"Error: {msg}"
+
+    # Read lines
+    try:
+        with path.open("r", encoding="utf-8", errors="ignore") as f:
+            lines = f.readlines()
+    except Exception as e:
+        return f"Error reading {path}: {e}"
+
+    total_lines = len(lines)
+
+    # Validate range
+    if start_line < 1 or end_line < start_line or start_line > total_lines:
+        return f"Error: invalid line range {start_line}-{end_line} (file has {total_lines} lines)"
+
+    # Clamp end_line
+    end_line = min(end_line, total_lines)
+
+    # Backup
+    backup_path = path.with_suffix(path.suffix + backup_ext)
+    try:
+        shutil.copy2(path, backup_path)
+    except Exception as e:
+        return f"Error creating backup: {e}"
+
+    # Prepare new content
+    new_lines = new_text.splitlines(keepends=True)
+    # Ensure last line has newline if new_text was non-empty
+    if new_lines and not new_lines[-1].endswith("\n"):
+        new_lines[-1] += "\n"
+
+    # Replace range
+    updated = lines[: start_line - 1] + new_lines + lines[end_line:]
+
+    # Write atomically
+    temp_path = path.with_suffix(".tmp")
+    try:
+        with temp_path.open("w", encoding="utf-8") as f:
+            f.writelines(updated)
+        temp_path.replace(path)
+    except Exception as e:
+        if temp_path.exists():
+            temp_path.unlink()
+        return f"Error writing {path}: {e}"
+
+    # Format output
+    output_lines = [f"✓ Edited {path}:{start_line}-{end_line}"]
+
+    # Show edited region (±2 lines context)
+    preview_start = max(0, start_line - 3)
+    preview_end = min(len(updated), start_line + len(new_lines) + 2)
+    output_lines.append("\n--- Edited region ---")
+    for i in range(preview_start, preview_end):
+        output_lines.append(f"{i+1:6d}: {updated[i].rstrip()}")
+
+    # Optional diff
+    if show_diff or os.environ.get("RAGIX_AUTO_DIFF", "0") == "1":
+        try:
+            result = subprocess.run(
+                ["git", "diff", "--", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                output_lines.append("\n--- git diff ---")
+                output_lines.append(result.stdout)
+        except Exception:
+            pass  # Git not available or timeout
+
+    return "\n".join(output_lines)
+
+
+def insert_at(
+    path: Path,
+    line: int,
+    new_text: str,
+    show_diff: bool = False,
+    profile: str = "dev",
+    backup_ext: str = ".bak"
+) -> str:
+    """
+    Insert new_text before line (1-based).
+
+    line=N+1 appends to end.
+    Returns formatted confirmation + preview.
+    """
+    if not path.exists() or not path.is_file():
+        return f"Error: file not found: {path}"
+
+    if is_binary_file(path):
+        return f"Error: binary file (cannot edit): {path}"
+
+    # Profile check
+    allowed, msg = check_swe_edit_allowed(profile)
+    if not allowed:
+        return f"Error: {msg}"
+
+    # Read lines
+    try:
+        with path.open("r", encoding="utf-8", errors="ignore") as f:
+            lines = f.readlines()
+    except Exception as e:
+        return f"Error reading {path}: {e}"
+
+    total_lines = len(lines)
+
+    # Validate line
+    if line < 1 or line > total_lines + 1:
+        return f"Error: invalid line {line} (file has {total_lines} lines, max insert at {total_lines + 1})"
+
+    # Backup
+    backup_path = path.with_suffix(path.suffix + backup_ext)
+    try:
+        shutil.copy2(path, backup_path)
+    except Exception as e:
+        return f"Error creating backup: {e}"
+
+    # Prepare new content
+    new_lines = new_text.splitlines(keepends=True)
+    if new_lines and not new_lines[-1].endswith("\n"):
+        new_lines[-1] += "\n"
+
+    # Insert
+    updated = lines[: line - 1] + new_lines + lines[line - 1 :]
+
+    # Write atomically
+    temp_path = path.with_suffix(".tmp")
+    try:
+        with temp_path.open("w", encoding="utf-8") as f:
+            f.writelines(updated)
+        temp_path.replace(path)
+    except Exception as e:
+        if temp_path.exists():
+            temp_path.unlink()
+        return f"Error writing {path}: {e}"
+
+    # Format output
+    output_lines = [f"✓ Inserted at {path}:{line}"]
+
+    # Show inserted region (±2 lines context)
+    preview_start = max(0, line - 3)
+    preview_end = min(len(updated), line + len(new_lines) + 2)
+    output_lines.append("\n--- Inserted region ---")
+    for i in range(preview_start, preview_end):
+        output_lines.append(f"{i+1:6d}: {updated[i].rstrip()}")
+
+    # Optional diff
+    if show_diff or os.environ.get("RAGIX_AUTO_DIFF", "0") == "1":
+        try:
+            result = subprocess.run(
+                ["git", "diff", "--", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                output_lines.append("\n--- git diff ---")
+                output_lines.append(result.stdout)
+        except Exception:
+            pass
+
+    return "\n".join(output_lines)
+
+
+# ---------------------------------------------------------------------------
+# SWE CLI Commands
+# ---------------------------------------------------------------------------
+
+def cmd_open(args: argparse.Namespace) -> int:
+    """Handle 'open' command: rt open path[:line|start-end]"""
+    path_spec = args.path_spec
+    chunk_size = args.chunk_size
+
+    # Parse path_spec: path, path:line, or path:start-end
+    if ":" in path_spec:
+        path_str, spec = path_spec.rsplit(":", 1)
+        path = Path(path_str).expanduser().resolve()
+
+        if "-" in spec:
+            # Range: path:start-end
+            try:
+                start, end = spec.split("-")
+                start_line = int(start)
+                end_line = int(end)
+                result = open_window(path, line_range=(start_line, end_line), chunk_size=chunk_size)
+            except ValueError:
+                sys.stderr.write(f"Invalid range spec: {spec}\n")
+                return 1
+        else:
+            # Center line: path:line
+            try:
+                center = int(spec)
+                result = open_window(path, center_line=center, chunk_size=chunk_size)
+            except ValueError:
+                sys.stderr.write(f"Invalid line number: {spec}\n")
+                return 1
+    else:
+        # Simple path: from beginning
+        path = Path(path_spec).expanduser().resolve()
+        result = open_window(path, chunk_size=chunk_size)
+
+    sys.stdout.write(result + "\n")
+    return 0
+
+
+def cmd_scroll(args: argparse.Namespace) -> int:
+    """Handle 'scroll' command: rt scroll path +/-"""
+    path = Path(args.path).expanduser().resolve()
+    direction = args.direction
+    chunk_size = args.chunk_size
+    overlap = args.overlap
+
+    # State file in current directory
+    state_file = Path(".ragix_view_state.json")
+
+    result = scroll_window(path, direction, state_file, chunk_size, overlap)
+    sys.stdout.write(result + "\n")
+    return 0
+
+
+def cmd_grep_file(args: argparse.Namespace) -> int:
+    """Handle 'grep-file' command: rt grep-file pattern path"""
+    path = Path(args.path).expanduser().resolve()
+    pattern = args.pattern
+    regex = args.regex
+    ignore_case = args.ignore_case
+    max_matches = getattr(args, "max_matches", None)
+
+    result = grep_file(path, pattern, regex, ignore_case, max_matches)
+    sys.stdout.write(result + "\n")
+    return 0
+
+
+def cmd_edit(args: argparse.Namespace) -> int:
+    """Handle 'edit' command: rt edit path start_line end_line < new_text"""
+    path = Path(args.path).expanduser().resolve()
+    start_line = args.start_line
+    end_line = args.end_line
+    show_diff = args.show_diff
+    profile = os.environ.get("UNIX_RAG_PROFILE", "dev").lower()
+
+    # Read new text from stdin
+    new_text = sys.stdin.read()
+
+    result = edit_range(path, start_line, end_line, new_text, show_diff, profile)
+    sys.stdout.write(result + "\n")
+    return 0
+
+
+def cmd_insert(args: argparse.Namespace) -> int:
+    """Handle 'insert' command: rt insert path line < new_text"""
+    path = Path(args.path).expanduser().resolve()
+    line = args.line
+    show_diff = args.show_diff
+    profile = os.environ.get("UNIX_RAG_PROFILE", "dev").lower()
+
+    # Read new text from stdin
+    new_text = sys.stdin.read()
+
+    result = insert_at(path, line, new_text, show_diff, profile)
+    sys.stdout.write(result + "\n")
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -681,6 +1226,44 @@ def build_parser() -> argparse.ArgumentParser:
                     help="overwrite existing .md files")
     pd.add_argument("--json", action="store_true", help="output JSON summary")
     pd.set_defaults(func=cmd_doc2md)
+
+    # SWE tools: open
+    po = sub.add_parser("open", help="Open file window with line numbers (SWE)")
+    po.add_argument("path_spec", help="path, path:line, or path:start-end")
+    po.add_argument("--chunk-size", type=int, default=100, help="window size (default 100)")
+    po.set_defaults(func=cmd_open)
+
+    # SWE tools: scroll
+    psc = sub.add_parser("scroll", help="Scroll file view up/down (SWE)")
+    psc.add_argument("path", help="file path")
+    psc.add_argument("direction", choices=["+", "-"], help="scroll direction")
+    psc.add_argument("--chunk-size", type=int, default=100, help="window size")
+    psc.add_argument("--overlap", type=int, default=2, help="line overlap between windows")
+    psc.set_defaults(func=cmd_scroll)
+
+    # SWE tools: grep-file
+    pgf = sub.add_parser("grep-file", help="Search within single file (SWE)")
+    pgf.add_argument("pattern", help="search pattern")
+    pgf.add_argument("path", help="file path")
+    pgf.add_argument("--regex", action="store_true", help="treat pattern as regex")
+    pgf.add_argument("-i", "--ignore-case", action="store_true", help="case-insensitive search")
+    pgf.add_argument("--max-matches", type=int, help="stop after N matches")
+    pgf.set_defaults(func=cmd_grep_file)
+
+    # SWE tools: edit
+    pe = sub.add_parser("edit", help="Replace line range (SWE, reads from stdin)")
+    pe.add_argument("path", help="file path")
+    pe.add_argument("start_line", type=int, help="start line (1-based)")
+    pe.add_argument("end_line", type=int, help="end line (inclusive)")
+    pe.add_argument("--show-diff", action="store_true", help="show git diff after edit")
+    pe.set_defaults(func=cmd_edit)
+
+    # SWE tools: insert
+    pi = sub.add_parser("insert", help="Insert before line (SWE, reads from stdin)")
+    pi.add_argument("path", help="file path")
+    pi.add_argument("line", type=int, help="line number (1-based)")
+    pi.add_argument("--show-diff", action="store_true", help="show git diff after insert")
+    pi.set_defaults(func=cmd_insert)
 
     return p
 

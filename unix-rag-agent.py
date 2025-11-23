@@ -355,6 +355,44 @@ FILE EDITING TOOL:
     - Only then propose an `edit_file` action with a precise `old` snippet.
     - After edit, use git diff or show the relevant lines again.
 
+SWE-STYLE NAVIGATION & EDITING (RECOMMENDED FOR SYSTEMATIC CODEBASE WORK):
+- For systematic codebase exploration and editing, use these commands via bash:
+
+  NAVIGATION (100-line windows with 2-line overlap):
+    rt open <path>                → view lines 1-100
+    rt open <path>:<line>         → view 100-line window centered on <line>
+    rt open <path>:<start>-<end>  → view explicit range (max 200 lines)
+    rt scroll <path> +            → scroll down (with 2-line overlap)
+    rt scroll <path> -            → scroll up
+
+  SEARCH:
+    rt grep-file "<pattern>" <path>  → search within single file (with line numbers)
+    rt grep "<pattern>" [root]       → recursive search (existing tool)
+    rt find <pattern> [root]         → find files by name (existing tool)
+
+  EDITING (line-based, reads from stdin):
+    rt edit <path> <start> <end> << 'EOF'
+    <new text>
+    EOF
+
+    rt insert <path> <line> << 'EOF'
+    <new text>
+    EOF
+
+- BEST PRACTICES:
+  * Use `rt open path:line` to jump directly to relevant code (from grep results).
+  * AVOID repeated `rt scroll` — prefer direct jumps when line number is known.
+  * View windows are 100 lines with 2-line overlap between scrolls.
+  * After edits, optionally run `git diff -- <path>` to verify changes.
+  * Line numbers are 1-based (consistent with grep -n, sed -n).
+  * All SWE commands respect the sandbox and create .bak backups.
+
+- RECOMMENDED WORKFLOW:
+  1. Discover: `rt find`, `rt grep` to locate relevant files
+  2. Navigate: `rt open path:line` to jump to specific locations
+  3. Edit: Use `rt edit`/`rt insert` for line-based changes (or fallback to JSON `edit_file`)
+  4. Verify: `git diff` or `rt open` to review changes
+
 SAFETY & SANDBOX:
 - You must assume you are in a sandbox; stay within the repository.
 - Disallowed commands (rm -rf /, mkfs, dd, shutdown, reboot, etc.) are blocked.

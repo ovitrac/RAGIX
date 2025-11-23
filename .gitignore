@@ -152,6 +152,10 @@ release/
 .backups/
 .adservio_backups/
 
+# SWE tooling state and backups (v0.4)
+.ragix_view_state.json
+*.bak
+
 # All zip files
 *.zip
 
@@ -166,3 +170,4 @@ inject_global_menu.py
 
 # Claude files
 CLAUDE.md
+QUICKSTART_CLAUDE_CODE.md
