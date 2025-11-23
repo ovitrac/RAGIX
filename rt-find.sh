@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
-RADIX_TOOLS="${RADIX_TOOLS:-radix_tools.py}"
-python3 "$RADIX_TOOLS" find "$@"
+# Wrapper for ragix_tools.py find command
+# Author: Olivier Vitrac | Adservio Innovation Lab | olivier.vitrac@adservio.fr
+
+RAGIX_TOOLS="${RAGIX_TOOLS:-ragix_tools.py}"
+python3 "$RAGIX_TOOLS" find "$@"
 
