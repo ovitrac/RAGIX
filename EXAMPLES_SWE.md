@@ -1,9 +1,27 @@
-# SWE Tooling Examples for RAGIX v0.4
+# SWE Tooling Examples for RAGIX v0.5
 
 **Author:** Olivier Vitrac, PhD, HDR | Adservio Innovation Lab | olivier.vitrac@adservio.fr
-**Date:** 2025-11-23
+**Date:** 2025-11-24
+**Updated for:** RAGIX v0.5 modular package structure
 
 This document provides practical examples of using RAGIX SWE tools for systematic codebase exploration and editing, following the conventions defined in `SWE_TOOLING.md`.
+
+## Installation and Setup (v0.5)
+
+```bash
+# Install RAGIX modular package
+cd /path/to/RAGIX
+pip install -e .
+
+# Start agent with SWE tools (rt commands available)
+ragix-unix-agent --profile dev --sandbox-root ~/my-project
+
+# Or run directly without install
+python3 -m ragix_unix.cli --profile dev --sandbox-root ~/my-project
+
+# With debug logging
+python3 -m ragix_unix.cli --profile dev --debug --sandbox-root ~/project
+```
 
 ---
 

@@ -1,11 +1,39 @@
-# Unix-RAG Examples for RAGIX v0.4
+# Unix-RAG Examples for RAGIX v0.5
 
 **Author:** Olivier Vitrac, PhD, HDR | Adservio Innovation Lab | olivier.vitrac@adservio.fr
-**Date:** 2025-11-23
+**Date:** 2025-11-24
+**Updated for:** RAGIX v0.5 modular package structure
 
 This document provides practical examples of using RAGIX in **pure Unix-RAG style** — using classic Unix tools (`grep`, `sed`, `head`, `tail`, `awk`, etc.) instead of SWE commands. This approach emphasizes composability, pipelines, and traditional Unix philosophy.
 
 **Note:** These examples complement `EXAMPLES_SWE.md`. SWE tools are recommended for systematic navigation and editing, but Unix-RAG style remains powerful for quick exploration and one-off operations.
+
+## Installation (v0.5)
+
+```bash
+# Install RAGIX in editable mode
+cd /path/to/RAGIX
+pip install -e .
+
+# Verify installation
+ragix-unix-agent --help
+```
+
+## Starting the Agent (v0.5)
+
+```bash
+# After installing with pip install -e .
+ragix-unix-agent --profile dev --sandbox-root ~/my-project
+
+# Or run directly without install
+python3 -m ragix_unix.cli --profile dev --sandbox-root ~/my-project
+
+# With custom model and logging
+python3 -m ragix_unix.cli --model mistral:instruct --log-level DEBUG --sandbox-root ~/project
+
+# Backward compatibility (still works)
+python3 unix-rag-agent-new.py
+```
 
 ---
 

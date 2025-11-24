@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ragix"
+version = "0.5.0-dev"
+description = "RAGIX - Retrieval-Augmented Generative Interactive eXecution Agent"
+authors = [
+    {name = "Olivier Vitrac", email = "olivier.vitrac@adservio.fr"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp[cli]>=0.1.0"]
+dev = ["pytest>=7.0", "black", "ruff"]
+
+[project.scripts]
+ragix-unix-agent = "ragix_unix.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ovitrac/RAGIX"
+Repository = "https://github.com/ovitrac/RAGIX"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ragix_core*", "ragix_unix*"]
+exclude = ["tests*", "MCP*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
