@@ -1,0 +1,53 @@
+# RAGIX Playbook: Testing Workflow
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-24
+
+name: "Test Suite Execution"
+description: "Run pytest with coverage and generate reports"
+
+# Configuration
+fail_fast: true  # Stop on first failure
+max_parallel: 1
+model: "mistral:instruct"
+profile: "dev"  # Allow test execution
+sandbox_root: "."
+
+# Environment variables
+environment:
+  PYTHONPATH: "."
+  PYTEST_PLUGINS: "pytest_cov"
+
+# Workflows
+workflows:
+  - name: "Unit Tests"
+    type: "linear"
+    context:
+      description: "Run unit tests with coverage"
+    steps:
+      - name: "discover_tests"
+        agent: "test_agent"
+        tools: ["bash", "search_project"]
+        config:
+          task: "List all test files and count test functions"
+
+      - name: "run_pytest"
+        agent: "test_agent"
+        tools: ["bash"]
+        config:
+          command: "pytest tests/ -v --cov=ragix_core --cov=ragix_unix --cov-report=term --cov-report=html"
+
+      - name: "check_coverage"
+        agent: "test_agent"
+        tools: ["bash"]
+        config:
+          command: "coverage report --fail-under=70"
+
+  - name: "Integration Tests"
+    type: "linear"
+    context:
+      description: "Run integration tests"
+    steps:
+      - name: "run_integration_tests"
+        agent: "test_agent"
+        tools: ["bash"]
+        config:
+          command: "pytest tests/integration/ -v --maxfail=3"

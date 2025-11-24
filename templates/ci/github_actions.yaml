@@ -1,0 +1,73 @@
+# GitHub Actions workflow for RAGIX CI
+# Place this file in .github/workflows/ragix-ci.yml
+
+name: RAGIX CI Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ragix-ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama pull mistral:instruct
+
+      - name: Install RAGIX
+        run: |
+          pip install -e ".[ci]"
+
+      - name: Run RAGIX CI checks
+        run: |
+          ragix-batch .ragix/ci_checks.yaml \
+            --json-report ragix-report.json \
+            --verbose
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: ragix-ci-results
+          path: ragix-report.json
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('ragix-report.json', 'utf8'));
+
+            const body = `## RAGIX CI Results
+
+            - **Duration**: ${report.duration.toFixed(2)}s
+            - **Workflows**: ${report.successful_workflows}/${report.total_workflows} passed
+            - **Exit Code**: ${report.exit_code}
+
+            ${report.workflow_results.map(wr =>
+              `### ${wr.success ? '✅' : '❌'} ${wr.workflow_name}
+              - Duration: ${wr.duration.toFixed(2)}s
+              - Nodes: ${wr.nodes_completed} completed, ${wr.nodes_failed} failed
+              `
+            ).join('\n')}`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });

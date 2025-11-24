@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAGIX Web UI</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1>RAGIX</h1>
+                <span class="version">v0.6-dev</span>
+            </div>
+            <div class="header-right">
+                <span id="status" class="status status-disconnected">Disconnected</span>
+                <button id="settingsBtn" class="btn btn-icon" title="Settings">⚙️</button>
+            </div>
+        </header>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h3>Session</h3>
+                    <div id="sessionInfo" class="session-info">
+                        <div class="info-row">
+                            <span class="label">Sandbox:</span>
+                            <span id="sandboxPath" class="value">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Model:</span>
+                            <span id="modelName" class="value">-</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Profile:</span>
+                            <span id="profileName" class="value">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Tools</h3>
+                    <div class="tool-list">
+                        <button class="tool-btn" onclick="app.showLogs()">📋 View Logs</button>
+                        <button class="tool-btn" onclick="app.showTraces()">🔍 View Traces</button>
+                        <button class="tool-btn" onclick="app.clearChat()">🗑️ Clear Chat</button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Chat Area -->
+            <main class="chat-area">
+                <div id="chatMessages" class="chat-messages"></div>
+
+                <div class="chat-input-container">
+                    <textarea
+                        id="chatInput"
+                        class="chat-input"
+                        placeholder="Type your message... (Shift+Enter for new line, Enter to send)"
+                        rows="3"
+                    ></textarea>
+                    <button id="sendBtn" class="btn btn-primary">Send</button>
+                </div>
+            </main>
+
+            <!-- Trace Panel (collapsible) -->
+            <aside id="tracePanel" class="trace-panel hidden">
+                <div class="trace-header">
+                    <h3>Tool Traces</h3>
+                    <button onclick="app.closeTraces()" class="btn btn-icon">✕</button>
+                </div>
+                <div id="traceContent" class="trace-content">
+                    <p class="trace-empty">No traces yet. Start chatting to see tool calls here.</p>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button onclick="app.closeSettings()" class="btn btn-icon">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Session ID:</label>
+                    <input type="text" id="sessionIdInput" value="default" />
+                </div>
+                <div class="form-group">
+                    <label>Sandbox Root:</label>
+                    <input type="text" id="sandboxInput" value="~/ragix-workspace" />
+                </div>
+                <div class="form-group">
+                    <label>Model:</label>
+                    <input type="text" id="modelInput" value="mistral" />
+                </div>
+                <div class="form-group">
+                    <label>Profile:</label>
+                    <select id="profileInput">
+                        <option value="strict">Strict (Read-only)</option>
+                        <option value="dev" selected>Dev (Default)</option>
+                        <option value="unsafe">Unsafe (Expert)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="app.closeSettings()" class="btn">Cancel</button>
+                <button onclick="app.saveSettings()" class="btn btn-primary">Save & Reconnect</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

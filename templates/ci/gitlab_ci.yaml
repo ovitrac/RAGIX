@@ -1,0 +1,49 @@
+# GitLab CI configuration for RAGIX
+# Place this in .gitlab-ci.yml or include it in your existing CI config
+
+ragix-ci:
+  image: python:3.10-slim
+  stage: test
+
+  before_script:
+    # Install Ollama
+    - curl -fsSL https://ollama.com/install.sh | sh
+    - ollama serve &
+    - sleep 5
+    - ollama pull mistral:instruct
+
+    # Install RAGIX
+    - pip install -e ".[ci]"
+
+  script:
+    # Run RAGIX CI checks
+    - ragix-batch .ragix/ci_checks.yaml --json-report ragix-report.json --verbose
+
+  after_script:
+    # Generate badge
+    - |
+      if [ -f ragix-report.json ]; then
+        exit_code=$(jq -r '.exit_code' ragix-report.json)
+        if [ "$exit_code" -eq 0 ]; then
+          echo "RAGIX CI: PASSED" > ragix-badge.txt
+        else
+          echo "RAGIX CI: FAILED" > ragix-badge.txt
+        fi
+      fi
+
+  artifacts:
+    reports:
+      junit: ragix-report.json
+    paths:
+      - ragix-report.json
+      - ragix-badge.txt
+    when: always
+    expire_in: 30 days
+
+  only:
+    - main
+    - develop
+    - merge_requests
+
+  tags:
+    - docker

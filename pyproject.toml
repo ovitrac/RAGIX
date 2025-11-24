@@ -28,9 +28,18 @@ dependencies = [
 [project.optional-dependencies]
 mcp = ["mcp[cli]>=0.1.0"]
 dev = ["pytest>=7.0", "black", "ruff"]
+web = ["fastapi>=0.104.0", "uvicorn>=0.24.0", "websockets>=12.0"]
+retrieval = ["sentence-transformers>=2.2.0", "numpy>=1.24.0"]
+vault = ["cryptography>=41.0.0"]
+ci = ["pyyaml>=6.0"]
+all = ["ragix[mcp,web,retrieval,vault,ci]"]
 
 [project.scripts]
 ragix-unix-agent = "ragix_unix.cli:main"
+ragix-web = "ragix_web.server:main"
+ragix-index = "ragix_unix.index_cli:main"
+ragix-batch = "ragix_unix.batch_cli:main"
+ragix-vault = "ragix_unix.vault_cli:main"
 
 [project.urls]
 Homepage = "https://github.com/ovitrac/RAGIX"
@@ -38,7 +47,7 @@ Repository = "https://github.com/ovitrac/RAGIX"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["ragix_core*", "ragix_unix*"]
+include = ["ragix_core*", "ragix_unix*", "ragix_web*"]
 exclude = ["tests*", "MCP*"]
 
 [tool.ruff]

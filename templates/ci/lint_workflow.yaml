@@ -1,0 +1,51 @@
+# RAGIX Playbook: Linting Workflow
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-24
+
+name: "Python Linting Checks"
+description: "Run Black, Ruff, and MyPy on Python codebase"
+
+# Configuration
+fail_fast: false  # Run all checks even if one fails
+max_parallel: 3   # Run checks in parallel
+model: "mistral:instruct"
+profile: "safe-read-only"  # Read-only for CI
+sandbox_root: "."
+
+# Environment variables
+environment:
+  PYTHONPATH: "."
+
+# Workflows
+workflows:
+  - name: "Black Format Check"
+    type: "linear"
+    context:
+      description: "Check if code is formatted with Black"
+    steps:
+      - name: "run_black_check"
+        agent: "code_agent"
+        tools: ["bash"]
+        config:
+          command: "black --check --diff ."
+
+  - name: "Ruff Linting"
+    type: "linear"
+    context:
+      description: "Run Ruff linter for code quality"
+    steps:
+      - name: "run_ruff"
+        agent: "code_agent"
+        tools: ["bash"]
+        config:
+          command: "ruff check . --output-format=json"
+
+  - name: "MyPy Type Checking"
+    type: "linear"
+    context:
+      description: "Static type checking with MyPy"
+    steps:
+      - name: "run_mypy"
+        agent: "code_agent"
+        tools: ["bash"]
+        config:
+          command: "mypy --strict ragix_core ragix_unix ragix_web"
