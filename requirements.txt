@@ -1,9 +1,76 @@
-# Core dependencies for RAGIX Unix-RAG agent + MCP server
-# If you use uv instead of pip:
-# uv add "requests>=2.31.0" "mcp[cli]>=0.1.0"
+# =============================================================================
+# RAGIX v0.7 Requirements
+# =============================================================================
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-25
+#
+# Install:
+#   pip install -r requirements.txt
+#
+# Or use conda environment:
+#   conda env create -f environment.yaml
+#   conda activate ragix-env
+#
+# =============================================================================
 
-# LLM / HTTP client
+# -----------------------------------------------------------------------------
+# Core Dependencies (Required)
+# -----------------------------------------------------------------------------
+
+# HTTP client for Ollama API
 requests>=2.31.0
 
 # Model Context Protocol (MCP) server + CLI
 mcp[cli]>=0.1.0
+
+# -----------------------------------------------------------------------------
+# Semantic Search (Recommended)
+# -----------------------------------------------------------------------------
+
+# Sentence embeddings for vector search
+sentence-transformers>=2.2.0
+
+# Vector similarity search
+faiss-cpu>=1.7.4
+
+# -----------------------------------------------------------------------------
+# Web UI (Optional - for ragix_app.py)
+# -----------------------------------------------------------------------------
+
+# Streamlit web framework
+streamlit>=1.28.0
+
+# -----------------------------------------------------------------------------
+# Cloud LLM Backends (Optional - breaks sovereignty)
+# -----------------------------------------------------------------------------
+
+# Anthropic Claude API (optional)
+# anthropic>=0.18.0
+
+# OpenAI ChatGPT API (optional)
+# openai>=1.12.0
+
+# -----------------------------------------------------------------------------
+# Monitoring & Resilience (Optional)
+# -----------------------------------------------------------------------------
+
+# System monitoring
+psutil>=5.9.0
+
+# Cryptography for encrypted vaults
+cryptography>=41.0.0
+
+# -----------------------------------------------------------------------------
+# Development (Optional)
+# -----------------------------------------------------------------------------
+
+# Testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+
+# Type checking
+mypy>=1.0.0
+
+# Code formatting
+black>=23.0.0
+isort>=5.12.0

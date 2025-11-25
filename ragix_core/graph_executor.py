@@ -7,12 +7,15 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-
 """
 
 import asyncio
-from typing import Dict, Any, Optional, List, Set, Callable
+import logging
+from typing import Dict, Any, Optional, List, Set, Callable, AsyncIterator, Union
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
 from .agent_graph import AgentGraph, AgentNode, AgentEdge, NodeStatus, TransitionCondition
+
+logger = logging.getLogger(__name__)
 
 
 class ExecutionStatus(str, Enum):
@@ -93,6 +96,28 @@ class ExecutionResult:
     error: Optional[Exception] = None
 
 
+@dataclass
+class StreamEvent:
+    """
+    Event emitted during streaming execution.
+
+    Used to provide real-time updates about workflow progress.
+    """
+    event_type: str  # node_started, node_completed, node_failed, output, progress
+    node_id: Optional[str] = None
+    data: Any = None
+    timestamp: datetime = field(default_factory=datetime.now)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "event_type": self.event_type,
+            "node_id": self.node_id,
+            "data": self.data,
+            "timestamp": self.timestamp.isoformat(),
+        }
+
+
 class GraphExecutor:
     """
     Executes agent workflow graphs.
@@ -109,15 +134,19 @@ class GraphExecutor:
         result = await executor.execute(agent_factory)
     """
 
-    def __init__(self, graph: AgentGraph):
+    def __init__(self, graph: AgentGraph, stop_on_failure: bool = False):
         """
         Initialize executor.
 
         Args:
             graph: AgentGraph to execute
+            stop_on_failure: Stop execution on first node failure
         """
         self.graph = graph
         self.status = ExecutionStatus.IDLE
+        self.stop_on_failure = stop_on_failure
+        self._event_queue: Optional[asyncio.Queue] = None
+        self._cancelled = False
 
         # Validate graph before execution
         errors = self.graph.validate()
@@ -194,6 +223,222 @@ class GraphExecutor:
             self.status = ExecutionStatus.FAILED
 
         return result
+
+    async def execute_streaming(
+        self,
+        agent_factory: Callable[[str, AgentNode], Any],
+        context: Optional[ExecutionContext] = None,
+        max_parallel: int = 3
+    ) -> AsyncIterator[Union[StreamEvent, ExecutionResult]]:
+        """
+        Execute the workflow graph with streaming events.
+
+        Yields events as execution progresses, allowing real-time UI updates.
+
+        Args:
+            agent_factory: Function that creates agent instances
+            context: Optional existing execution context
+            max_parallel: Maximum number of nodes to execute in parallel
+
+        Yields:
+            StreamEvent objects during execution, final ExecutionResult at end
+        """
+        # Initialize event queue for streaming
+        self._event_queue = asyncio.Queue()
+        self._cancelled = False
+
+        # Initialize context
+        if context is None:
+            context = ExecutionContext(
+                workflow_id=f"wf_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                start_time=datetime.now()
+            )
+
+        self.status = ExecutionStatus.RUNNING
+        result = ExecutionResult(
+            status=ExecutionStatus.RUNNING,
+            context=context
+        )
+
+        # Emit start event
+        yield StreamEvent(
+            event_type="workflow_started",
+            data={"workflow_id": context.workflow_id, "node_count": len(self.graph.nodes)}
+        )
+
+        try:
+            # Get execution order
+            execution_order = self._compute_execution_order()
+            total_levels = len(execution_order)
+
+            # Execute nodes in order
+            for level_idx, level_nodes in enumerate(execution_order):
+                if self._cancelled:
+                    yield StreamEvent(event_type="workflow_cancelled")
+                    break
+
+                # Emit level start
+                yield StreamEvent(
+                    event_type="level_started",
+                    data={"level": level_idx + 1, "total_levels": total_levels, "nodes": [n.id for n in level_nodes]}
+                )
+
+                # Execute level with streaming
+                async for event in self._execute_level_streaming(
+                    level_nodes,
+                    agent_factory,
+                    context,
+                    result,
+                    max_parallel
+                ):
+                    yield event
+
+                # Check if we should stop
+                if self._should_stop_execution(context, result):
+                    break
+
+            # Finalize result
+            context.end_time = datetime.now()
+            if context.start_time:
+                duration = (context.end_time - context.start_time).total_seconds()
+                result.duration_seconds = duration
+
+            # Determine final status
+            if self._cancelled:
+                result.status = ExecutionStatus.CANCELLED
+                self.status = ExecutionStatus.CANCELLED
+            elif result.failed_nodes:
+                result.status = ExecutionStatus.FAILED
+                self.status = ExecutionStatus.FAILED
+            else:
+                result.status = ExecutionStatus.COMPLETED
+                self.status = ExecutionStatus.COMPLETED
+
+        except Exception as e:
+            context.end_time = datetime.now()
+            result.status = ExecutionStatus.FAILED
+            result.error = e
+            self.status = ExecutionStatus.FAILED
+            yield StreamEvent(event_type="workflow_error", data={"error": str(e)})
+
+        # Emit completion
+        yield StreamEvent(
+            event_type="workflow_completed",
+            data={
+                "status": result.status.value,
+                "duration": result.duration_seconds,
+                "completed": len(result.completed_nodes),
+                "failed": len(result.failed_nodes),
+            }
+        )
+
+        # Yield final result
+        yield result
+
+    async def _execute_level_streaming(
+        self,
+        nodes: List[AgentNode],
+        agent_factory: Callable,
+        context: ExecutionContext,
+        result: ExecutionResult,
+        max_parallel: int
+    ) -> AsyncIterator[StreamEvent]:
+        """Execute a level with streaming events."""
+        tasks = []
+        task_nodes = []
+
+        for node in nodes:
+            if self._cancelled:
+                return
+
+            if not self._should_execute_node(node, context):
+                node.status = NodeStatus.SKIPPED
+                result.skipped_nodes.append(node.id)
+                yield StreamEvent(event_type="node_skipped", node_id=node.id)
+                continue
+
+            task = self._execute_node_streaming(node, agent_factory, context, result)
+            tasks.append(task)
+            task_nodes.append(node)
+
+        if not tasks:
+            return
+
+        # Execute with semaphore for concurrency limit
+        semaphore = asyncio.Semaphore(max_parallel)
+
+        async def bounded_execution(node, task):
+            async with semaphore:
+                async for event in task:
+                    yield event
+
+        # Create bounded tasks
+        bounded_tasks = [bounded_execution(node, task) for node, task in zip(task_nodes, tasks)]
+
+        # Gather events from all tasks
+        for task in asyncio.as_completed([self._collect_events(t) for t in bounded_tasks]):
+            events = await task
+            for event in events:
+                yield event
+
+    async def _collect_events(self, async_gen: AsyncIterator[StreamEvent]) -> List[StreamEvent]:
+        """Collect all events from an async generator."""
+        events = []
+        async for event in async_gen:
+            events.append(event)
+        return events
+
+    async def _execute_node_streaming(
+        self,
+        node: AgentNode,
+        agent_factory: Callable,
+        context: ExecutionContext,
+        result: ExecutionResult
+    ) -> AsyncIterator[StreamEvent]:
+        """Execute a single node with streaming events."""
+        node.status = NodeStatus.RUNNING
+        yield StreamEvent(event_type="node_started", node_id=node.id, data={"task": node.task[:100]})
+
+        try:
+            # Create agent instance
+            agent = agent_factory(context.workflow_id, node)
+
+            # Check for streaming support
+            if hasattr(agent, 'run_streaming'):
+                # Agent supports streaming
+                async for output in agent.run_streaming(context):
+                    yield StreamEvent(event_type="node_output", node_id=node.id, data=output)
+                node_result = context.get_result(node.id)  # Agent should set result
+            elif hasattr(agent, 'run'):
+                node_result = await agent.run(context)
+            elif hasattr(agent, 'step'):
+                node_result = await agent.step(context)
+            else:
+                raise AttributeError(f"Agent for node '{node.id}' has no run() or step() method")
+
+            # Store result
+            node.status = NodeStatus.COMPLETED
+            node.result = node_result
+            context.set_result(node.id, node_result)
+            result.completed_nodes.append(node.id)
+
+            yield StreamEvent(
+                event_type="node_completed",
+                node_id=node.id,
+                data={"result_preview": str(node_result)[:200] if node_result else None}
+            )
+
+        except Exception as e:
+            node.status = NodeStatus.FAILED
+            context.set_error(node.id, e)
+            result.failed_nodes.append(node.id)
+
+            yield StreamEvent(
+                event_type="node_failed",
+                node_id=node.id,
+                data={"error": str(e)}
+            )
+            logger.error(f"Node {node.id} failed: {e}")
 
     def _compute_execution_order(self) -> List[List[AgentNode]]:
         """
@@ -411,13 +656,16 @@ class GraphExecutor:
         Returns:
             True if execution should stop
         """
-        # For now, continue even if some nodes fail
-        # In future, could add policies like "stop_on_first_failure"
+        if self._cancelled:
+            return True
+        if self.stop_on_failure and result.failed_nodes:
+            return True
         return False
 
     def cancel(self) -> None:
         """Cancel execution (if running)."""
         if self.status == ExecutionStatus.RUNNING:
+            self._cancelled = True
             self.status = ExecutionStatus.CANCELLED
 
 

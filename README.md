@@ -1,332 +1,981 @@
-Below is a **fully revised `README.md` (v0.4)**, rewritten professionally and cleanly, integrating:
-
-✔ Updated installation
- ✔ Updated environment variables
- ✔ Updated MCP integration with Claude Desktop / Claude Code
- ✔ Updated tooling section (`ragix_tools.py`, `rt-*`)
- ✔ Correct naming (**RAGIX**, not RADIX)
- ✔ Your existing content reorganized for clarity, concision, and impact
- ✔ Preserves your style (ASCII mindmaps, diagrams, sovereignty focus)
-
-Everything is integrated into a single final file you can **copy/paste directly** into `README.md`.
-
-------
-
-# **📘 README.md — RAGIX v0.4**
+# **RAGIX v0.7**
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
-# 🧬 **RAGIX v0.4**
+**A Sovereign Multi-Agent Orchestration Platform**
+**Unix-Native · Fully Local · Production-Ready · Claude-Compatible**
 
-**A Sovereign Claude-Code–Style Local Development Environment**
- **Unix-Native · Fully Local · Auditable · Deterministic**
+---
 
-------
+## **Mission**
 
-# **0. Mission**
+**RAGIX** is a sovereign, fully-local, Claude-Code–style development assistant that has evolved into a complete multi-agent orchestration platform.
 
-**RAGIX** is a sovereign, fully-local, Claude-Code–style development assistant.
- It combines:
+It combines:
 
-- **Local LLM reasoning** (via Ollama: Mistral/Qwen/DeepSeek/Qwen2.5)
-- **Sandboxed shell execution with safety policies**
-- **JSON-based action protocol** (`bash`, `bash_and_respond`, `edit_file`, `respond`)
-- **Unix-RAG retrieval** (grep, find, awk, sed, wc, python one-liners)
-- **Structured, reproducible, logged command traces**
+- **Local LLM reasoning** (via Ollama: Mistral/Qwen/DeepSeek/Granite)
+- **Multi-agent workflow execution** with dependency graphs
+- **Hybrid retrieval** (BM25 + vector semantic search)
+- **Production-grade monitoring** and resilience
+- **Claude MCP integration** for seamless AI collaboration
+- **Sandboxed execution** with safety policies
 
-RAGIX’s primary objective:
+RAGIX's primary objective:
 
 > **Make local LLMs behave like disciplined software engineers.**
->  Without hallucinated facts, without remote calls, without blind trust.
+> Without hallucinated facts, without remote calls, without blind trust.
 
 All processing happens **100% on your machine**. Not a single token leaves it.
 
-------
+---
 
-# **1. Core Capabilities**
+## **What's New in v0.7**
 
-### 🔍 **Unix-RAG Retrieval**
+| Feature | Description |
+|---------|-------------|
+| **LLM Agent Integration** | Full execution loop with tool calling |
+| **Hybrid Retrieval** | BM25 + vector search with 5 fusion strategies |
+| **Workflow Templates** | 8 pre-built templates for common tasks |
+| **Streaming Execution** | Real-time events for UI integration |
+| **Caching** | LLM response and tool result caching |
+| **Monitoring** | Metrics, health checks, agent tracking |
+| **Resilience** | Retry, circuit breaker, rate limiting |
+| **Web UI** | D3.js workflow visualization, diff viewer |
 
-The assistant *must* inspect real files using:
+**Total implementation: ~9,200+ lines of new code**
 
-- `grep -R -n` · `find` · `wc -l` · `head` · `tail`
-- `awk`, `sed`, `cut`, `sort`, `uniq`
-- Python one-shot scripts
-- Structured output extraction (regex, context windows)
+---
 
-This prevents hallucinations and forces evidence-based reasoning.
+## **Core Capabilities**
 
-### 🐚 **Sandboxed Shell**
+### **Multi-Agent Workflows**
 
-All commands run inside a dedicated folder with:
+Define complex workflows with dependencies:
 
-- Command denylist
-- Configurable safe/destructive Git mode
-- Profiles:
-  - `safe-read-only`
-  - `dev`
-  - `unsafe`
+```python
+from ragix_core import get_template_manager, GraphExecutor
 
-Logs stored in:
+# Use a pre-built template
+manager = get_template_manager()
+graph = manager.instantiate("bug_fix", {
+    "bug_description": "TypeError in handler.py",
+    "affected_files": "src/handlers/",
+})
 
-```
-SANDBOX_ROOT/.agent_logs/commands.log
-```
-
-### 📝 **Structured Editing**
-
-RAGIX emits reproducible patches:
-
-```json
-{
-  "action": "edit_file",
-  "path": "src/config.py",
-  "old": "DEBUG = True",
-  "new": "DEBUG = False"
-}
+# Execute with streaming
+async for event in executor.execute_streaming(agent_factory):
+    print(f"[{event.event_type}] {event.node_id}")
 ```
 
-### 🧩 **MCP Tooling (v0.4)**
+**Built-in templates:**
+- `bug_fix` - Locate, diagnose, fix, test
+- `feature_addition` - Design, implement, test, document
+- `code_review` - Quality and security review
+- `refactoring` - Analyze, plan, refactor, verify
+- `documentation` - Code analysis and doc generation
+- `security_audit` - Static analysis and dependency checks
+- `test_coverage` - Coverage analysis and test generation
+- `exploration` - Codebase exploration and analysis
 
-RAGIX v0.4 is MCP-compatible (Claude Desktop / Claude Code / Codex).
+### **Hybrid Search (BM25 + Vector)**
 
-MCP Tools exposed:
+Combine keyword and semantic search:
 
-- `ragix_chat(prompt)`
-- `ragix_scan_repo(max_depth, include_hidden)`
-- `ragix_read_file(path, max_bytes)`
+```python
+from ragix_core import create_hybrid_engine, FusionStrategy
 
-Plus optional **Unix Toolbox**:
- `rt_find`, `rt_grep`, `rt_stats`, `rt_replace`, `rt_doc2md` via `ragix_tools.py`.
+engine = create_hybrid_engine(
+    index_path=Path(".ragix/index"),
+    embedding_model="all-MiniLM-L6-v2",
+)
 
-### 📦 **Observability & Compliance**
+results = engine.search(
+    "database connection error",
+    k=10,
+    strategy=FusionStrategy.RRF,
+)
 
-Every action is logged, reproducible and auditable.
+for r in results:
+    print(f"{r.file_path}:{r.name} (score: {r.combined_score:.3f})")
+    print(f"  Source: {r.source}")  # 'bm25', 'vector', or 'both'
+```
 
-------
+**Fusion strategies:**
+- **RRF** - Reciprocal Rank Fusion (default)
+- **Weighted** - Configurable BM25/vector balance
+- **Interleave** - Round-robin merging
+- **BM25 Rerank** - Vector search with BM25 reranking
+- **Vector Rerank** - BM25 search with vector reranking
 
-# **2. Architecture Overview**
+### **Production Monitoring**
+
+```python
+from ragix_core import get_health_checker, get_agent_monitor
+
+# Health checks
+checker = get_health_checker()
+report = checker.get_status_report()
+print(f"Status: {report['status']}")
+
+# Agent monitoring
+monitor = get_agent_monitor()
+monitor.start_execution("exec_001", "Fix bug", "code")
+monitor.record_tool_call("read_file", success=True, duration=0.1)
+monitor.end_execution("exec_001", success=True, agent_type="code")
+```
+
+### **Resilience Patterns**
+
+```python
+from ragix_core import retry_async, RetryConfig, CircuitBreaker
+
+# Retry with exponential backoff
+@retry_async(RetryConfig(max_attempts=5, base_delay=1.0))
+async def unreliable_call():
+    return await api.request()
+
+# Circuit breaker
+breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=30)
+if breaker.is_allowed():
+    try:
+        result = await api.call()
+        breaker.record_success()
+    except Exception:
+        breaker.record_failure()
+```
+
+---
+
+## **Architecture**
 
 ```mermaid
 flowchart TB
-    U["👤 User / Terminal / MCP Client"]
-    ORCH["🧠 RAGIX Orchestrator"]
-    ROUTE["🔀 Action Planner (JSON tools)"]
-    CTX["📦 Context Builder (Unix-RAG + history)"]
-    SAFETY["🛡️ Safety Profiles"]
-    LLM["🧩 Local LLM (Ollama: mistral / qwen / deepseek)"]
-    SHELL["🐚 Sandboxed Shell Executor"]
-    GIT["🌿 Git CLI Wrapper"]
-    TOOLS["🛠️ RAGIX Unix Toolbox"]
-    OBS["📝 Logs & Diffs"]
+    subgraph "User Interface"
+        CLI["🖥️ CLI"]
+        WEB["🌐 Web UI"]
+        MCP["🔌 MCP Client (Claude)"]
+    end
 
-    U --> ORCH
-    ORCH --> ROUTE
-    ORCH --> CTX
-    ORCH --> SAFETY
-    ROUTE --> SHELL
-    ROUTE --> GIT
-    ROUTE --> TOOLS
-    SHELL --> OBS
-    GIT --> OBS
+    subgraph "Orchestration Layer"
+        ORCH["🧠 Graph Executor"]
+        TEMPLATES["📋 Workflow Templates"]
+        STREAM["📡 Event Streaming"]
+    end
+
+    subgraph "Agent Layer"
+        CODE["💻 Code Agent"]
+        DOC["📝 Doc Agent"]
+        TEST["🧪 Test Agent"]
+        GIT["🌿 Git Agent"]
+    end
+
+    subgraph "Retrieval Layer"
+        HYBRID["🔍 Hybrid Search"]
+        BM25["📊 BM25 Index"]
+        VEC["🧮 Vector Index"]
+    end
+
+    subgraph "Execution Layer"
+        LLM["🤖 Local LLM (Ollama)"]
+        SHELL["🐚 Sandboxed Shell"]
+        TOOLS["🛠️ Tool Registry"]
+    end
+
+    subgraph "Infrastructure"
+        CACHE["💾 Caching"]
+        MONITOR["📈 Monitoring"]
+        RESIL["🛡️ Resilience"]
+    end
+
+    CLI --> ORCH
+    WEB --> ORCH
+    MCP --> ORCH
+
+    ORCH --> TEMPLATES
+    ORCH --> STREAM
+    ORCH --> CODE
+    ORCH --> DOC
+    ORCH --> TEST
+    ORCH --> GIT
+
+    CODE --> HYBRID
+    CODE --> LLM
+    CODE --> SHELL
+
+    HYBRID --> BM25
+    HYBRID --> VEC
+
+    LLM --> CACHE
+    SHELL --> TOOLS
+    TOOLS --> MONITOR
+    LLM --> RESIL
 ```
 
-------
+---
 
-# **3. Installation (v0.4)**
+## **Installation**
 
-### ✔ 1. Install Ollama
+### Option A: Using the Launcher (Recommended)
+
+The easiest way to get started is with the launcher script:
+
+```bash
+# 1. Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull mistral  # or granite3.1-moe:3b for speed
+
+# 2. Clone RAGIX
+git clone https://github.com/ovitrac/RAGIX.git
+cd RAGIX
+
+# 3. Run the launcher
+./launch_ragix.sh
+```
+
+The launcher will automatically:
+- Initialize Conda (searches common locations)
+- Create `ragix-env` environment if missing
+- Install all dependencies from `environment.yaml` and `requirements.txt`
+- Check Ollama status and available models
+- Present an interactive menu to launch components
+
+**Launcher options:**
+```bash
+./launch_ragix.sh           # Interactive menu
+./launch_ragix.sh gui       # Launch Web GUI directly
+./launch_ragix.sh demo      # Run Claude demo
+./launch_ragix.sh mcp       # Start MCP server
+./launch_ragix.sh test      # Test LLM backends
+```
+
+### Option B: Manual Installation
+
+#### 1. Install Ollama
 
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
-### ✔ 2. Pull a model
+#### 2. Pull a model
 
 ```bash
 ollama pull mistral
+# Or: ollama pull qwen2.5 | deepseek-coder | granite
 ```
 
-(You may also use `qwen2.5`, `deepseek-coder`, etc.)
-
-### ✔ 3. Clone the repo
+#### 3. Clone and install
 
 ```bash
 git clone https://github.com/ovitrac/RAGIX.git
 cd RAGIX
+pip install -e .
 ```
 
-### ✔ 4. Install dependencies
+#### 4. (Optional) Install with extras
 
 ```bash
-pip install -r requirements.txt
-# or:
-# uv sync
+# For semantic search
+pip install sentence-transformers faiss-cpu
+
+# For monitoring
+pip install psutil
+
+# For MCP
+pip install "mcp[cli]"
+
+# For Web UI
+pip install streamlit
 ```
 
-### ✔ 5. (Recommended) Add the RAGIX toolbox to PATH
+### Option C: Using Conda Environment
 
 ```bash
-chmod +x rt.sh rt-find.sh rt-grep.sh
-export PATH="$PWD:$PATH"
+# Clone and create environment
+git clone https://github.com/ovitrac/RAGIX.git
+cd RAGIX
+
+# Create conda environment
+conda env create -f environment.yaml
+conda activate ragix-env
+
+# Install RAGIX in development mode
+pip install -e .
 ```
 
-------
+---
 
-# **4. Environment Configuration**
+## **Quick Start**
 
-RAGIX reads configuration from environment variables:
-
-### **Required**
-
-```bash
-export UNIX_RAG_MODEL="mistral"
-export UNIX_RAG_SANDBOX="$HOME/projects"     # root of allowed operations
-export UNIX_RAG_PROFILE="dev"                # safe-read-only | dev | unsafe
-export UNIX_RAG_ALLOW_GIT_DESTRUCTIVE=0      # 1 = allow dangerous git operations
-```
-
-### Optional
-
-```bash
-export RAGIX_LOGGING=1                       # verbose trace logging
-export RAGIX_HISTORY_LIMIT=50                # history trimming
-```
-
-------
-
-# **5. Running RAGIX**
-
-### **Interactive mode**
+### Interactive CLI
 
 ```bash
 python3 unix-rag-agent.py
 ```
 
-Example commands:
+### Build Search Index
 
-```
-explore the repo
-show database init
-search for 'token' in config
-open src/server.py
-apply a patch to fix logging
+```bash
+ragix-index ./my-project --output .ragix/index
 ```
 
-------
+### Run Workflow Template
 
-# **6. MCP Integration (v0.4)**
-
-*(Claude Desktop · Claude Code · Codex · Any MCP client)*
-
-RAGIX now offers a **full MCP server** located in:
-
-```
-MCP/ragix_mcp_server.py
+```bash
+ragix-batch --template bug_fix --params "bug_description=TypeError in handler"
 ```
 
-### ✔ Install MCP dependencies
+### Start Web UI
+
+```bash
+# Via launcher (recommended)
+./launch_ragix.sh gui
+
+# Or directly
+streamlit run ragix_app.py
+```
+
+The web interface provides:
+- Dashboard with sovereignty status
+- Hybrid search (BM25 + Vector)
+- Chat with local LLMs
+- Workflow template browser
+- System health monitoring
+
+**URL:** http://localhost:8501
+
+---
+
+## **Using RAGIX with Claude (Beginner's Guide)**
+
+This section explains how to connect RAGIX with Claude Desktop or Claude Code, giving Claude powerful local coding capabilities.
+
+### What This Does
+
+When you connect RAGIX to Claude:
+- **Claude gains access to your local codebase** through safe, sandboxed tools
+- **Claude can search, read, and analyze your code** using hybrid search
+- **Claude can execute multi-step workflows** like bug fixing or code review
+- **Everything runs locally** — your code never leaves your machine
+
+Think of it as giving Claude a "local workspace" where it can help you with real coding tasks.
+
+### What You Need
+
+| Requirement | Purpose |
+|-------------|---------|
+| **Python 3.10+** | Run RAGIX |
+| **Ollama** | Local LLM for RAGIX's internal reasoning |
+| **Claude Desktop** or **Claude Code** | The Claude interface you'll interact with |
+| **MCP SDK** | Protocol for Claude to talk to RAGIX |
+
+### Step-by-Step Setup
+
+#### 1. Install Ollama and pull a model
+
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull a model (choose one)
+ollama pull mistral          # Recommended: good balance
+ollama pull qwen2.5          # Alternative: multilingual
+ollama pull deepseek-coder   # Alternative: code-focused
+```
+
+#### 2. Install RAGIX
+
+```bash
+git clone https://github.com/ovitrac/RAGIX.git
+cd RAGIX
+pip install -e .
+```
+
+#### 3. Install the MCP SDK
 
 ```bash
 pip install "mcp[cli]"
 ```
 
-### ✔ Install RAGIX as a Claude MCP Server
-
-From the repo root:
+#### 4. Configure your environment
 
 ```bash
+# Set the sandbox root to your project folder
+export UNIX_RAG_SANDBOX="$HOME/my-project"
+
+# Set the Ollama model
+export UNIX_RAG_MODEL="mistral"
+
+# Set safety profile (dev is recommended)
+export UNIX_RAG_PROFILE="dev"
+```
+
+#### 5. Install RAGIX as an MCP server
+
+```bash
+# Navigate to RAGIX directory
+cd /path/to/RAGIX
+
+# Install into Claude
 mcp install MCP/ragix_mcp_server.py --name "RAGIX"
 ```
 
-Claude will detect:
-
-### MCP Tools available
-
-| Tool                                         | Description                                 |
-| -------------------------------------------- | ------------------------------------------- |
-| `ragix_chat(prompt)`                         | Single reasoning step, with shell execution |
-| `ragix_scan_repo(max_depth, include_hidden)` | Quick repo overview                         |
-| `ragix_read_file(path, max_bytes)`           | Safe file read                              |
-
-### After installation:
+#### 6. Enable in Claude Desktop
 
 1. Open **Claude Desktop**
-2. `Settings → MCP Servers`
-3. Enable **RAGIX**
-4. Start talking to Claude → it gains full RAGIX capabilities.
+2. Go to **Settings** → **MCP Servers**
+3. Find **RAGIX** and toggle it **ON**
+4. Restart Claude Desktop
 
-------
+### How to Use It
 
-# **7. RAGIX Unix Toolbox (rt-\*, ragix_tools.py)**
+Once connected, you can ask Claude to help with your code. Claude will automatically use RAGIX tools when appropriate.
 
-Your sovereign alternative to “weak shell generation” from local models.
+#### Example Conversations
 
-Tools available:
+**Finding code:**
+```
+You: Where is the database connection configured in my project?
 
-| Command      | Description                              |
-| ------------ | ---------------------------------------- |
-| `rt-find`    | Recursive search with filters            |
-| `rt-grep`    | OR/AND search with regex support         |
-| `rt-stats`   | File stats by extension                  |
-| `rt-lines`   | Count lines per file                     |
-| `rt-top`     | Top-N files by size/mtime/lines          |
-| `rt-replace` | Safe replacement with backups            |
-| `rt-doc2md`  | Convert docx/odt/pdf → markdown (pandoc) |
+Claude: I'll search your codebase for database configuration.
+[Uses ragix_search to find relevant files]
+I found the database configuration in src/config/database.py...
+```
 
-### Example:
+**Understanding code:**
+```
+You: Explain what the UserAuthentication class does
+
+Claude: Let me read that file for you.
+[Uses ragix_read_file to examine the code]
+The UserAuthentication class handles login, logout, and session management...
+```
+
+**Fixing bugs:**
+```
+You: There's a TypeError in my handlers module, can you find and fix it?
+
+Claude: I'll use a bug-fixing workflow to locate and fix this.
+[Uses ragix_workflow with bug_fix template]
+I found the issue: on line 42 of handlers.py, you're calling .lower()
+on a None value. Here's the fix...
+```
+
+**Code review:**
+```
+You: Review the code in src/api/ for potential issues
+
+Claude: I'll perform an automated code review.
+[Uses ragix_workflow with code_review template]
+I found 3 issues: 1) Missing input validation in endpoint X...
+```
+
+### Available Tools
+
+When connected, Claude has access to these RAGIX tools:
+
+| Tool | What It Does | When Claude Uses It |
+|------|--------------|---------------------|
+| `ragix_chat` | Execute a reasoning step with shell commands | Complex analysis tasks |
+| `ragix_search` | Find code using keywords + semantic search | "Where is X?", "Find all Y" |
+| `ragix_read_file` | Read a specific file safely | "Show me file X", "What's in Y?" |
+| `ragix_scan_repo` | Get project structure overview | "What files are in this project?" |
+| `ragix_workflow` | Run multi-step automated workflows | Bug fixing, code review, refactoring |
+| `ragix_templates` | List available workflow templates | "What workflows can you run?" |
+| `ragix_health` | Check system status | Troubleshooting, status checks |
+
+### Workflow Templates
+
+Ask Claude to run these pre-built workflows:
+
+| Template | What It Does | Example Request |
+|----------|--------------|-----------------|
+| `bug_fix` | Locate, diagnose, fix, and test bugs | "Fix the null pointer error in auth.py" |
+| `feature_addition` | Design, implement, test new features | "Add a caching layer to the API" |
+| `code_review` | Automated quality & security review | "Review the payment module" |
+| `refactoring` | Identify and fix code smells | "Refactor the utils folder" |
+| `documentation` | Generate/update documentation | "Document the API endpoints" |
+| `security_audit` | Check for security vulnerabilities | "Audit the login system" |
+| `test_coverage` | Analyze and improve tests | "Improve tests for user module" |
+| `exploration` | Understand unfamiliar code | "Explain how the cache works" |
+
+### What to Expect
+
+**Response times:**
+- Simple searches: 1-3 seconds
+- File reading: < 1 second
+- Workflow execution: 5-30 seconds (depends on complexity)
+
+**Safety:**
+- RAGIX runs in a **sandboxed environment** — it can only access files in your configured sandbox
+- Destructive commands (like `rm -rf`) are **blocked by default**
+- Git operations are **protected** — no force pushes or hard resets
+
+**Limitations:**
+- RAGIX uses a local LLM (Ollama) for its reasoning, which may be slower than cloud models
+- Complex workflows may take longer on less powerful machines
+- The local LLM quality affects RAGIX's internal reasoning (Claude's quality is unchanged)
+
+### Troubleshooting
+
+**Claude says "RAGIX not available":**
+```bash
+# Check if Ollama is running
+ollama list
+
+# Check if MCP server is installed
+mcp list
+
+# Reinstall if needed
+mcp install MCP/ragix_mcp_server.py --name "RAGIX"
+```
+
+**Searches return no results:**
+```bash
+# Make sure sandbox is set to your project
+echo $UNIX_RAG_SANDBOX
+
+# Should point to your project folder
+export UNIX_RAG_SANDBOX="/path/to/your/project"
+```
+
+**"Permission denied" errors:**
+```bash
+# Check your safety profile
+echo $UNIX_RAG_PROFILE
+
+# Use 'dev' for normal development
+export UNIX_RAG_PROFILE="dev"
+```
+
+**Test the connection:**
+```bash
+# Run the demo to verify everything works
+python examples/claude_demo.py
+```
+
+### Quick Reference Card
 
 ```bash
-rt-grep --root . --ext py -e TODO -e FIXME
+# === SETUP ===
+ollama pull mistral
+pip install -e .
+pip install "mcp[cli]"
+mcp install MCP/ragix_mcp_server.py --name "RAGIX"
+
+# === ENVIRONMENT ===
+export UNIX_RAG_SANDBOX="$HOME/my-project"
+export UNIX_RAG_MODEL="mistral"
+export UNIX_RAG_PROFILE="dev"
+
+# === TEST ===
+python examples/claude_demo.py
+
+# === USE WITH CLAUDE ===
+# Just ask naturally:
+# "Search for authentication code"
+# "Fix the bug in handlers.py"
+# "Review the API module"
 ```
 
-AND logic:
+---
+
+## **Configuration**
+
+### Environment Variables
 
 ```bash
-rt-grep --root . -e password -l \
-  | rt-grep --from-stdin -e DEBUG -l
+# Required
+export UNIX_RAG_MODEL="mistral"
+export UNIX_RAG_SANDBOX="$HOME/projects"
+export UNIX_RAG_PROFILE="dev"  # safe-read-only | dev | unsafe
+
+# Optional
+export UNIX_RAG_ALLOW_GIT_DESTRUCTIVE=0
+export RAGIX_CACHE_TYPE="memory"  # memory | disk
+export RAGIX_CACHE_TTL=3600
+export RAGIX_LOG_LEVEL="INFO"
 ```
 
-------
+### Safety Profiles
 
-# **8. Demo**
+| Profile | Description |
+|---------|-------------|
+| `safe-read-only` | No writes, no destructive commands |
+| `dev` | Normal editing, git protected |
+| `unsafe` | Full access (use with caution) |
 
-See included:
+---
+
+## **LLM Backends**
+
+RAGIX supports multiple LLM backends. Choose based on your privacy requirements and desired quality.
+
+### Backend Comparison
+
+| Backend | Sovereignty | Quality | Speed | Cost | Privacy |
+|---------|-------------|---------|-------|------|---------|
+| 🟢 **Ollama** | SOVEREIGN | Good | Depends on HW | Free | 100% local |
+| 🔴 **Claude** | CLOUD | Excellent | Fast | API costs | Data sent to Anthropic |
+| 🔴 **OpenAI** | CLOUD | Excellent | Fast | API costs | Data sent to OpenAI |
+
+### 🟢 Ollama Backend (SOVEREIGN - Default)
+
+**100% local execution. No data leaves your machine.**
+
+This is the default and recommended backend for sensitive codebases.
+
+```bash
+# Configuration
+export RAGIX_LLM_BACKEND="ollama"
+export UNIX_RAG_MODEL="mistral"  # or: qwen2.5, deepseek-coder, granite
+
+# Install and run
+ollama pull mistral
+ollama serve
+```
+
+```python
+from ragix_core import OllamaLLM, create_llm_backend
+
+# Direct instantiation
+llm = OllamaLLM("mistral")
+
+# Or via factory
+llm = create_llm_backend("ollama", model="mistral")
+
+# Check sovereignty
+print(llm.sovereignty)  # "sovereign" - ✅ safe
+```
+
+**Supported models:**
+- `mistral` - Recommended, good balance of speed and quality
+- `qwen2.5` - Good multilingual support
+- `deepseek-coder` - Optimized for code
+- `granite` - IBM's code model
+- `llama3.2` - Meta's latest
+- `codellama` - Code-specialized Llama
+
+---
+
+### 🔴 Claude Backend (CLOUD)
+
+> ⚠️ **SOVEREIGNTY WARNING** ⚠️
+>
+> This backend sends your prompts and code to Anthropic's servers.
+> Your code leaves your machine. Use only if you accept this trade-off.
+
+**Best reasoning quality, especially for complex code tasks.**
+
+```bash
+# Configuration
+export RAGIX_LLM_BACKEND="claude"
+export RAGIX_CLAUDE_MODEL="claude-sonnet-4-20250514"
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# Install dependency
+pip install anthropic
+```
+
+```python
+from ragix_core import ClaudeLLM, create_llm_backend
+
+# Direct instantiation
+llm = ClaudeLLM("claude-sonnet-4-20250514")
+
+# Or via factory
+llm = create_llm_backend("claude", model="claude-sonnet-4-20250514")
+
+# Check sovereignty
+print(llm.sovereignty)  # "cloud" - ⚠️ data leaves your machine
+```
+
+**Supported models:**
+- `claude-sonnet-4-20250514` - Recommended, best balance
+- `claude-opus-4-20250514` - Most capable, higher cost
+- `claude-haiku-3-20240307` - Fastest, lowest cost
+
+**When to use Claude backend:**
+- You need the highest quality code reasoning
+- Your code is not sensitive/proprietary
+- You're working on open-source projects
+- Speed is more important than privacy
+
+---
+
+### 🔴 OpenAI Backend (CLOUD)
+
+> ⚠️ **SOVEREIGNTY WARNING** ⚠️
+>
+> This backend sends your prompts and code to OpenAI's servers.
+> Your code leaves your machine. Use only if you accept this trade-off.
+
+**ChatGPT models, widely used and well-documented.**
+
+```bash
+# Configuration
+export RAGIX_LLM_BACKEND="openai"
+export RAGIX_OPENAI_MODEL="gpt-4o"
+export OPENAI_API_KEY="sk-..."
+
+# Install dependency
+pip install openai
+```
+
+```python
+from ragix_core import OpenAILLM, create_llm_backend
+
+# Direct instantiation
+llm = OpenAILLM("gpt-4o")
+
+# Or via factory
+llm = create_llm_backend("openai", model="gpt-4o")
+
+# Check sovereignty
+print(llm.sovereignty)  # "cloud" - ⚠️ data leaves your machine
+```
+
+**Supported models:**
+- `gpt-4o` - Recommended, multimodal
+- `gpt-4o-mini` - Faster, cheaper
+- `gpt-4-turbo` - Previous generation
+- `gpt-3.5-turbo` - Fastest, cheapest
+
+---
+
+### Choosing a Backend
 
 ```
-demo.md
+┌─────────────────────────────────────────────────────────────────┐
+│                    BACKEND SELECTION GUIDE                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Is your code sensitive/proprietary?                            │
+│     │                                                            │
+│     ├── YES ──▶ 🟢 Use Ollama (SOVEREIGN)                       │
+│     │           Your code never leaves your machine              │
+│     │                                                            │
+│     └── NO ───▶ Do you need highest quality reasoning?          │
+│                    │                                             │
+│                    ├── YES ──▶ 🔴 Use Claude                    │
+│                    │           Best code understanding           │
+│                    │                                             │
+│                    └── NO ───▶ 🔴 Use OpenAI or Ollama          │
+│                                Both work well for most tasks     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-Which illustrates:
+### Environment Variable Summary
 
-- exploration
-- real-world grep
-- safe editing
-- multi-step reasoning
-- reproducible diffs
+```bash
+# === BACKEND SELECTION ===
+export RAGIX_LLM_BACKEND="ollama"  # ollama | claude | openai
 
-------
+# === 🟢 OLLAMA (SOVEREIGN) ===
+export UNIX_RAG_MODEL="mistral"
 
-# **9. Roadmap (v0.4 → v0.5)**
+# === 🔴 CLAUDE (CLOUD) ===
+export RAGIX_CLAUDE_MODEL="claude-sonnet-4-20250514"
+export ANTHROPIC_API_KEY="sk-ant-..."   # ⚠️ Required for Claude
 
--  RAGIX + RAGGAE shared orchestrator
--  Web UI (local, WASM shell, no cloud)
--  Multi-agent workflows
--  Embeddings & hybrid retrieval for codebases
--  Plug-and-play CI integration
--  Secrets vault + credential MCP adapter
+# === 🔴 OPENAI (CLOUD) ===
+export RAGIX_OPENAI_MODEL="gpt-4o"
+export OPENAI_API_KEY="sk-..."          # ⚠️ Required for OpenAI
+```
 
-------
+### Architecture: Where Your Data Goes
 
-# **10. License**
+```
+🟢 SOVEREIGN MODE (Ollama):
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  Your Code   │───▶│    RAGIX     │───▶│   Ollama     │
+│  (local)     │    │   (local)    │    │   (local)    │
+└──────────────┘    └──────────────┘    └──────────────┘
+                    Everything stays on your machine ✅
 
-**MIT License** — compatible with enterprise, research, compliance environments.
 
-------
+🔴 CLOUD MODE (Claude/OpenAI):
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  Your Code   │───▶│    RAGIX     │───▶│  Claude API  │
+│  (local)     │    │   (local)    │    │   (CLOUD)    │
+└──────────────┘    └──────────────┘    └──────────────┘
+                         │                     │
+                         │     ════════════════╧════════════════
+                         │     ⚠️  YOUR CODE IS SENT TO THE CLOUD
+                         │     ═════════════════════════════════
+                         │
+                    Retrieval stays local,
+                    but LLM calls go to cloud
+```
 
-# **11. Author**
+### Programmatic Backend Selection
+
+```python
+from ragix_core import create_llm_backend, get_backend_from_env
+
+# Option 1: Explicit selection
+llm_local = create_llm_backend("ollama", model="mistral")      # 🟢 Sovereign
+llm_claude = create_llm_backend("claude")                       # 🔴 Cloud
+llm_openai = create_llm_backend("openai", model="gpt-4o-mini")  # 🔴 Cloud
+
+# Option 2: From environment variables
+llm = get_backend_from_env()  # Uses RAGIX_LLM_BACKEND
+
+# Check what you're using
+print(f"Backend: {llm.__class__.__name__}")
+print(f"Model: {llm.model_name}")
+print(f"Sovereignty: {llm.sovereignty}")  # "sovereign" or "cloud"
+
+# All backends have the same interface
+response = llm.generate(
+    system_prompt="You are a helpful coding assistant.",
+    history=[{"role": "user", "content": "Explain this code..."}]
+)
+```
+
+---
+
+## **Examples**
+
+Run the included examples:
+
+```bash
+# Workflow execution with streaming
+python examples/workflow_example.py
+
+# Hybrid search demonstration
+python examples/hybrid_search_example.py
+
+# Resilience patterns
+python examples/resilience_example.py
+
+# Full Claude demonstration
+python examples/claude_demo.py
+```
+
+---
+
+## **Project Structure**
+
+```
+RAGIX/
+├── ragix_core/           # Core library
+│   ├── agents/           # Agent implementations
+│   ├── agent_graph.py    # Graph data structures
+│   ├── graph_executor.py # Workflow execution
+│   ├── bm25_index.py     # BM25 search
+│   ├── hybrid_search.py  # Hybrid retrieval
+│   ├── caching.py        # LLM/tool caching
+│   ├── monitoring.py     # Metrics & health
+│   ├── resilience.py     # Retry & circuit breaker
+│   └── workflow_templates.py
+├── ragix_unix/           # CLI tools
+├── ragix_web/            # Web interface
+├── MCP/                  # Claude MCP server
+├── tests/                # Test suite
+├── examples/             # Usage examples
+└── templates/            # Workflow templates
+```
+
+---
+
+## **API Reference**
+
+### Core Classes
+
+```python
+from ragix_core import (
+    # Workflow
+    GraphExecutor,
+    AgentGraph,
+    WorkflowTemplate,
+    get_template_manager,
+
+    # Search
+    HybridSearchEngine,
+    BM25Index,
+    FusionStrategy,
+
+    # Caching
+    LLMCache,
+    ToolResultCache,
+    create_llm_cache,
+
+    # Monitoring
+    MetricsCollector,
+    HealthChecker,
+    AgentMonitor,
+
+    # Resilience
+    CircuitBreaker,
+    RateLimiter,
+    retry_async,
+    with_timeout,
+)
+```
+
+---
+
+## **Testing**
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# With coverage
+pytest tests/ --cov=ragix_core --cov-report=html
+
+# Specific tests
+pytest tests/test_caching.py -v
+```
+
+---
+
+## **Roadmap**
+
+### v0.8 (Planned)
+- WASM-based browser execution
+- Enhanced security sandboxing
+- Plugin system
+- Advanced multi-model routing
+
+### Future
+- Distributed agent execution
+- Real-time collaboration
+- IDE integrations (VS Code, JetBrains)
+
+---
+
+## **License**
+
+**MIT License** — Compatible with enterprise, research, and compliance environments.
+
+---
+
+## **Author**
 
 **Dr. Olivier Vitrac, PhD, HDR**
- Adservio Innovation Lab
- *Creator of RAGIX, RAGGAE and the Generative Simulation Framework*
+Adservio Innovation Lab
+*Creator of RAGIX, RAGGAE, and the Generative Simulation Framework*
 
+Contact: olivier.vitrac@adservio.fr
+
+---
+
+## **Contributing**
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `pytest tests/`
+5. Submit a pull request
+
+---
+
+## **Acknowledgments**
+
+RAGIX builds on excellent open-source projects:
+- [Ollama](https://ollama.com) - Local LLM serving
+- [Sentence Transformers](https://www.sbert.net) - Embeddings
+- [FAISS](https://faiss.ai) - Vector search
+- [D3.js](https://d3js.org) - Visualization

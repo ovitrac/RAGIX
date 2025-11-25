@@ -3,7 +3,7 @@
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 **Date:** 2025-11-24
 **Session Duration:** Full v0.5 → v0.6 implementation
-**Status:** ✅ COMPLETE - All 8 tasks done, v0.7 planned
+**Status:** ✅ COMPLETE - All 8 tasks done, v0.7 + v0.8 planned
 
 ---
 
@@ -20,6 +20,16 @@
 - Start v0.7 implementation (see `V07_PLANNING.md`)
 - Priority: LLM Integration (Task 3.1)
 - Timeline: ~7 weeks for v0.7
+- v0.8 WASP/WASM integration planned (see `V08_WASP_PLANNING.md`)
+
+**Roadmap Overview:**
+```
+v0.6 ✅ Platform (COMPLETE)
+  ↓
+v0.7 ⏸️ Intelligence (LLM integration, enhanced retrieval, testing)
+  ↓
+v0.8 ⏸️ WASP (WebAssembly execution layer, browser-native RAGIX)
+```
 
 ---
 
@@ -482,6 +492,47 @@ Optional dependencies: web, retrieval, vault, ci
 - CI templates for GitHub Actions and GitLab
 - Complete implementation log
 - v0.7 planning document
+- v0.8 WASP planning document
+
+---
+
+## v0.8 WASP Preview (WebAssembly Integration)
+
+See `WASM.md` for full specifications and `V08_WASP_PLANNING.md` for implementation details.
+
+### Core Concept
+
+**WASP** = WebAssembly Agentic System Protocol
+
+RAGIX gains a **secure, portable execution layer** via WASM:
+- **WasmSandbox** alongside ShellSandbox
+- **Deterministic tools** (JSON/YAML validator, Markdown parser, ripgrep.wasm)
+- **Browser-native RAGIX** (no Python server needed for tools)
+- **Unified protocol** (same JSON actions work server + browser)
+
+### Architecture (v0.8)
+```
+LLM → RAGIX Orchestrator → ┬→ ShellSandbox (legacy bash/git)
+                           └→ WasmSandbox (new .wasm tools)
+                                  ↓
+                             Deterministic, auditable execution
+```
+
+### Priority WASM Tools
+1. JSON/YAML Validator (schema validation)
+2. Markdown Parser (doc structure)
+3. ripgrep.wasm (portable code search)
+
+### Implementation Strategy
+- **Server-side**: Python + wasmtime (parallel)
+- **Browser-side**: JS + WASI (parallel)
+- **Timeline**: After v0.7 completion (~8 weeks)
+
+### Why WASP?
+- Stronger sandboxing (WASI capabilities model)
+- Portability (Linux/macOS/Windows/browser)
+- Auditability (deterministic, logged)
+- Sovereignty (local-first, no cloud)
 
 ---
 

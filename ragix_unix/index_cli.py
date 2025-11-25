@@ -22,6 +22,8 @@ from ragix_core import (
     embed_code_chunks,
     save_embeddings,
     build_index_from_embeddings,
+    BM25Index,
+    build_bm25_index_from_chunks,
 )
 
 logging.basicConfig(
@@ -89,6 +91,7 @@ def index_project(
     include_patterns: Optional[List[str]] = None,
     exclude_patterns: Optional[List[str]] = None,
     batch_size: int = 32,
+    build_bm25: bool = True,
 ) -> int:
     """
     Index a project directory.
@@ -101,6 +104,7 @@ def index_project(
         include_patterns: File patterns to include
         exclude_patterns: Patterns to exclude
         batch_size: Embedding batch size
+        build_bm25: Whether to build BM25 index for hybrid search
 
     Returns:
         Number of chunks indexed
@@ -160,6 +164,16 @@ def index_project(
     logger.info(f"Saving index to {index_path}")
     index.save(index_path)
 
+    # Build BM25 index for hybrid search
+    bm25_index = None
+    if build_bm25:
+        logger.info("Building BM25 index for hybrid search...")
+        bm25_index = build_bm25_index_from_chunks(all_chunks)
+        bm25_path = output_dir / "bm25"
+        logger.info(f"Saving BM25 index to {bm25_path}")
+        bm25_index.save(bm25_path)
+        logger.info(f"BM25 index: {bm25_index.size} documents, {bm25_index.vocabulary_size} terms")
+
     # Save metadata
     metadata = {
         "project_path": str(project_path.absolute()),
@@ -168,6 +182,8 @@ def index_project(
         "model_name": model_name,
         "backend_type": backend_type,
         "dimension": embedding_backend.dimension,
+        "has_bm25": build_bm25,
+        "bm25_vocabulary_size": bm25_index.vocabulary_size if bm25_index else 0,
     }
 
     import json
@@ -178,7 +194,9 @@ def index_project(
     logger.info("✅ Indexing complete!")
     logger.info(f"   Files: {len(files)}")
     logger.info(f"   Chunks: {len(all_chunks)}")
-    logger.info(f"   Dimension: {embedding_backend.dimension}")
+    logger.info(f"   Vector dimension: {embedding_backend.dimension}")
+    if bm25_index:
+        logger.info(f"   BM25 vocabulary: {bm25_index.vocabulary_size} terms")
 
     return len(all_chunks)
 
@@ -251,6 +269,12 @@ Examples:
         "--verbose", "-v", action="store_true", help="Enable verbose output"
     )
 
+    parser.add_argument(
+        "--no-bm25",
+        action="store_true",
+        help="Skip BM25 index (only build vector index)",
+    )
+
     args = parser.parse_args()
 
     # Set logging level
@@ -279,6 +303,7 @@ Examples:
             include_patterns=args.include,
             exclude_patterns=args.exclude,
             batch_size=args.batch_size,
+            build_bm25=not args.no_bm25,
         )
 
         if num_chunks == 0:

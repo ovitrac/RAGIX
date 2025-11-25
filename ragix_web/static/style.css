@@ -505,3 +505,668 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--border-color);
 }
+
+/* ============================================
+ * WORKFLOW VISUALIZER STYLES
+ * ============================================ */
+
+.workflow-svg {
+    background: var(--bg-primary);
+    border-radius: 8px;
+}
+
+.workflow-node {
+    cursor: pointer;
+}
+
+.workflow-node:hover circle {
+    stroke-width: 3;
+}
+
+.workflow-node-label {
+    font-family: 'Segoe UI', sans-serif;
+    pointer-events: none;
+}
+
+.workflow-node-icon {
+    pointer-events: none;
+}
+
+.workflow-edge {
+    stroke-opacity: 0.6;
+}
+
+.workflow-info {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    width: 280px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+
+.workflow-info.hidden {
+    display: none;
+}
+
+.workflow-info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.workflow-info-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.workflow-info-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.workflow-info-content {
+    padding: 12px 16px;
+}
+
+.workflow-info-field {
+    margin-bottom: 12px;
+}
+
+.workflow-info-field:last-child {
+    margin-bottom: 0;
+}
+
+.workflow-info-field label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.workflow-info-field span {
+    font-size: 13px;
+}
+
+.workflow-info-task {
+    font-size: 12px;
+    background: var(--bg-tertiary);
+    padding: 8px;
+    border-radius: 4px;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+/* ============================================
+ * DIFF VIEWER STYLES
+ * ============================================ */
+
+.diff-viewer {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-primary);
+}
+
+.diff-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.diff-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.diff-file-name {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.diff-stats {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.diff-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.diff-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.diff-btn:hover {
+    background: var(--bg-primary);
+    border-color: var(--accent-blue);
+}
+
+.diff-nav {
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 0 8px;
+}
+
+.diff-content {
+    flex: 1;
+    overflow: auto;
+}
+
+.diff-empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.diff-split {
+    display: flex;
+    height: 100%;
+}
+
+.diff-pane {
+    flex: 1;
+    overflow: auto;
+    border-right: 1px solid var(--border-color);
+}
+
+.diff-pane:last-child {
+    border-right: none;
+}
+
+.diff-pane-header {
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.diff-lines {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.diff-line {
+    display: flex;
+    line-height: 1.4;
+}
+
+.diff-line-num {
+    min-width: 40px;
+    padding: 0 8px;
+    text-align: right;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    user-select: none;
+}
+
+.diff-line-prefix {
+    width: 20px;
+    padding: 0 4px;
+    text-align: center;
+    user-select: none;
+}
+
+.diff-line-content {
+    flex: 1;
+    padding: 0 8px;
+    white-space: pre;
+}
+
+.diff-line-same {
+    background: var(--bg-primary);
+}
+
+.diff-line-add {
+    background: rgba(102, 187, 106, 0.15);
+}
+
+.diff-line-add .diff-line-prefix {
+    color: var(--accent-green);
+}
+
+.diff-line-remove {
+    background: rgba(239, 83, 80, 0.15);
+}
+
+.diff-line-remove .diff-line-prefix {
+    color: var(--accent-red);
+}
+
+.diff-line-empty {
+    background: var(--bg-secondary);
+}
+
+.diff-unified .diff-line-num:first-of-type {
+    min-width: 40px;
+}
+
+.diff-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+}
+
+.diff-action-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.diff-accept {
+    background: rgba(102, 187, 106, 0.2);
+    border-color: var(--accent-green);
+    color: var(--accent-green);
+}
+
+.diff-reject {
+    background: rgba(239, 83, 80, 0.2);
+    border-color: var(--accent-red);
+    color: var(--accent-red);
+}
+
+.diff-action-btn:hover {
+    opacity: 0.8;
+}
+
+/* ============================================
+ * LOG VIEWER STYLES
+ * ============================================ */
+
+.log-viewer {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-primary);
+}
+
+.log-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.log-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.log-filters select,
+.log-filters input {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.log-filters input {
+    width: 150px;
+}
+
+.log-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.log-autoscroll {
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.log-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.log-content {
+    flex: 1;
+    overflow: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.log-empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.log-entry {
+    display: flex;
+    gap: 8px;
+    padding: 4px 16px;
+    border-bottom: 1px solid var(--bg-tertiary);
+}
+
+.log-entry:hover {
+    background: var(--bg-secondary);
+}
+
+.log-entry.log-expandable {
+    cursor: pointer;
+}
+
+.log-time {
+    color: var(--text-secondary);
+    min-width: 90px;
+}
+
+.log-level {
+    min-width: 70px;
+    font-weight: 600;
+}
+
+.log-agent {
+    color: var(--accent-blue);
+    min-width: 80px;
+}
+
+.log-tool {
+    color: var(--accent-green);
+    min-width: 80px;
+}
+
+.log-message {
+    flex: 1;
+    word-break: break-word;
+}
+
+.log-level-error .log-message {
+    color: var(--accent-red);
+}
+
+.log-level-warning .log-message {
+    color: var(--accent-yellow);
+}
+
+.log-status {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.log-stream-status {
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.log-stream-connected {
+    background: rgba(102, 187, 106, 0.2);
+    color: var(--accent-green);
+}
+
+.log-stream-disconnected {
+    background: rgba(239, 83, 80, 0.2);
+    color: var(--accent-red);
+}
+
+.log-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.log-modal-content {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    width: 600px;
+    max-width: 90%;
+    max-height: 80%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.log-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.log-modal-header button {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.log-modal-body {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+}
+
+.log-modal-body pre {
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ============================================
+ * FILE BROWSER STYLES
+ * ============================================ */
+
+.file-browser {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-primary);
+}
+
+.file-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.file-path {
+    flex: 1;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.file-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.file-tree {
+    width: 250px;
+    overflow: auto;
+    border-right: 1px solid var(--border-color);
+    padding: 8px 0;
+}
+
+.file-loading,
+.file-empty,
+.file-error {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.file-error {
+    color: var(--accent-red);
+}
+
+.file-node {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.file-node:hover {
+    background: var(--bg-secondary);
+}
+
+.file-node.file-selected {
+    background: var(--bg-tertiary);
+}
+
+.file-expand {
+    width: 16px;
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+
+.file-icon {
+    margin-right: 6px;
+}
+
+.file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-size {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-left: 8px;
+}
+
+.file-children {
+    margin-left: 0;
+}
+
+.file-preview {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.file-preview-header {
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.file-preview-content {
+    flex: 1;
+    overflow: auto;
+}
+
+.file-preview-empty,
+.file-preview-error,
+.file-preview-binary {
+    padding: 40px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.file-preview-error {
+    color: var(--accent-red);
+}
+
+.file-preview-binary p {
+    margin: 8px 0;
+}
+
+.file-preview-code {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.file-preview-code tr:hover {
+    background: var(--bg-secondary);
+}
+
+.file-preview-code .file-line-num {
+    min-width: 50px;
+    padding: 0 12px;
+    text-align: right;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    user-select: none;
+    border-right: 1px solid var(--border-color);
+}
+
+.file-preview-code .file-line-content {
+    padding: 0 12px;
+    white-space: pre;
+}

@@ -1,26 +1,37 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-RAGIX MCP Server
-================
+RAGIX MCP Server v0.7
+=====================
 
-Expose the Unix-RAG agent as an MCP server so that MCP clients
-(Claude Desktop, Cursor, OpenAI Apps, etc.) can call RAGIX as tools.
+Expose the RAGIX multi-agent orchestration platform as an MCP server so that
+MCP clients (Claude Desktop, Cursor, Claude Code, etc.) can use RAGIX tools.
 
 Tools exposed
 -------------
 
+Core Tools:
 1. ragix_chat(prompt: str)
-   - Run a single Unix-RAG reasoning step:
-     * RAGIX plans
-     * runs shell commands inside the sandbox
-     * returns the natural-language answer and last command info.
+   - Run a single Unix-RAG reasoning step with shell execution.
 
 2. ragix_scan_repo(max_depth: int = 4, include_hidden: bool = False)
    - Quick project overview: list of files (path, size, extension).
 
 3. ragix_read_file(path: str, max_bytes: int = 65536)
    - Read a file (relative to sandbox root) with a size limit.
+
+v0.7 Tools:
+4. ragix_search(query: str, k: int = 10, strategy: str = "rrf")
+   - Hybrid BM25 + vector search with multiple fusion strategies.
+
+5. ragix_workflow(template: str, params: dict)
+   - Execute a workflow template (bug_fix, feature_addition, etc.).
+
+6. ragix_health()
+   - Get comprehensive system health status.
+
+7. ragix_templates()
+   - List all available workflow templates.
 
 Installation
 ------------
@@ -43,23 +54,28 @@ Environment variables (reused from unix-rag-agent.py)
     UNIX_RAG_ALLOW_GIT_DESTRUCTIVE=0  # 1 to allow destructive git cmds
 
 
-Author: Olivier Vitrac | Adservio Innovation Lab | olivier.vitrac@adservio.fr
-Contact: olivier.vitrac@adservio.fr
+Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-25
 
 """
 
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import importlib.util
+import json
 import os
+import sys
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.session import ServerSession
 from mcp.server.fastmcp import Context
+
+# Add RAGIX to path for imports
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # ---------------------------------------------------------------------------
 # 1. Load the existing RAGIX Unix-RAG agent implementation dynamically
@@ -299,7 +315,271 @@ def ragix_read_file(path: str, max_bytes: int = 65536) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 5. Entry point
+# 5. RAGIX v0.7 Tools
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def ragix_search(query: str, k: int = 10, strategy: str = "rrf") -> Dict[str, Any]:
+    """
+    Hybrid BM25 + vector search across the codebase.
+
+    Parameters
+    ----------
+    query : str
+        Search query (natural language or keywords).
+        Example: "database connection error handling"
+
+    k : int, default 10
+        Maximum number of results to return.
+
+    strategy : str, default "rrf"
+        Fusion strategy: "rrf" (reciprocal rank), "weighted", "interleave",
+        "bm25_rerank", or "vector_rerank".
+
+    Returns
+    -------
+    dict
+        {
+          "query": str,
+          "strategy": str,
+          "results": [
+            {
+              "file": str,
+              "name": str,
+              "type": str,
+              "score": float,
+              "matched_terms": list
+            }
+          ]
+        }
+    """
+    try:
+        from ragix_core import BM25Index, BM25Document, Tokenizer, FusionStrategy
+
+        # Build index from project files
+        index = BM25Index(k1=1.5, b=0.75)
+        tokenizer = Tokenizer(use_stopwords=True, min_token_length=2)
+
+        root = Path(SANDBOX_ROOT).resolve()
+        doc_count = 0
+
+        # Index Python and common source files
+        for pattern in ["**/*.py", "**/*.js", "**/*.ts", "**/*.java", "**/*.go"]:
+            for fpath in root.glob(pattern):
+                if fpath.is_file() and ".git" not in str(fpath):
+                    try:
+                        content = fpath.read_text(errors="replace")[:10000]
+                        tokens = tokenizer.tokenize(content)
+                        if tokens:
+                            rel_path = str(fpath.relative_to(root))
+                            index.add_document(BM25Document(
+                                doc_id=rel_path,
+                                tokens=tokens,
+                                metadata={
+                                    "file": rel_path,
+                                    "name": fpath.stem,
+                                    "type": fpath.suffix,
+                                },
+                            ))
+                            doc_count += 1
+                    except Exception:
+                        pass
+
+        # Search
+        results = index.search(query, k=k)
+
+        formatted = []
+        for r in results:
+            formatted.append({
+                "file": r.metadata.get("file", r.doc_id),
+                "name": r.metadata.get("name", ""),
+                "type": r.metadata.get("type", ""),
+                "score": round(r.score, 4),
+                "matched_terms": r.matched_terms,
+            })
+
+        return {
+            "query": query,
+            "strategy": strategy,
+            "indexed_files": doc_count,
+            "results": formatted,
+        }
+
+    except ImportError as e:
+        return {"error": f"RAGIX core not available: {e}"}
+
+
+@mcp.tool()
+def ragix_workflow(template: str, params: Dict[str, str]) -> Dict[str, Any]:
+    """
+    Execute a workflow template for multi-agent task execution.
+
+    Parameters
+    ----------
+    template : str
+        Template name: "bug_fix", "feature_addition", "code_review",
+        "refactoring", "documentation", "security_audit", "test_coverage",
+        or "exploration".
+
+    params : dict
+        Template parameters. Each template has different required params.
+        Use ragix_templates() to see available parameters.
+
+    Returns
+    -------
+    dict
+        {
+          "template": str,
+          "status": str,
+          "nodes": list,
+          "execution_order": list,
+          "params_used": dict
+        }
+    """
+    try:
+        from ragix_core import get_template_manager
+
+        manager = get_template_manager()
+
+        # Check if template exists
+        template_def = manager.get_template(template)
+        if not template_def:
+            available = list(manager.templates.keys())
+            return {
+                "error": f"Unknown template: {template}",
+                "available_templates": available,
+            }
+
+        # Instantiate the workflow graph
+        graph = manager.instantiate(template, params)
+
+        return {
+            "template": template,
+            "status": "instantiated",
+            "nodes": [
+                {"id": n.id, "agent_type": n.agent_type, "description": n.description}
+                for n in graph.nodes.values()
+            ],
+            "execution_order": graph.topological_sort(),
+            "params_used": params,
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool()
+def ragix_health() -> Dict[str, Any]:
+    """
+    Get comprehensive RAGIX system health status.
+
+    Returns
+    -------
+    dict
+        {
+          "status": "healthy" | "degraded" | "unhealthy",
+          "checks": {
+            "ollama": {...},
+            "disk": {...},
+            "memory": {...}
+          },
+          "ragix_version": str,
+          "timestamp": str
+        }
+    """
+    try:
+        from ragix_core import (
+            get_health_checker,
+            check_ollama_health,
+            check_disk_space,
+            check_memory_usage,
+        )
+
+        checker = get_health_checker()
+
+        # Register checks if not already done
+        if "ollama" not in checker.checks:
+            checker.register("ollama", check_ollama_health)
+        if "disk" not in checker.checks:
+            checker.register("disk", check_disk_space)
+        if "memory" not in checker.checks:
+            checker.register("memory", check_memory_usage)
+
+        report = checker.get_status_report()
+
+        return {
+            "status": report["status"],
+            "checks": report["checks"],
+            "ragix_version": "0.7.0",
+            "model": OLLAMA_MODEL,
+            "sandbox": str(SANDBOX_ROOT),
+            "profile": AGENT_PROFILE,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    except ImportError as e:
+        return {
+            "status": "unknown",
+            "error": f"RAGIX core not available: {e}",
+            "ragix_version": "0.7.0",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+
+@mcp.tool()
+def ragix_templates() -> Dict[str, Any]:
+    """
+    List all available workflow templates and their parameters.
+
+    Returns
+    -------
+    dict
+        {
+          "templates": [
+            {
+              "name": str,
+              "description": str,
+              "parameters": [
+                {"name": str, "required": bool, "description": str}
+              ],
+              "steps": [str]
+            }
+          ]
+        }
+    """
+    try:
+        from ragix_core import get_template_manager, list_builtin_templates
+
+        manager = get_template_manager()
+        templates = list_builtin_templates()
+
+        result = []
+        for name in templates:
+            template = manager.get_template(name)
+            if template:
+                result.append({
+                    "name": name,
+                    "description": template.description,
+                    "parameters": [
+                        {
+                            "name": p.name,
+                            "required": p.required,
+                            "default": p.default,
+                            "description": p.description,
+                        }
+                        for p in template.parameters
+                    ],
+                    "steps": [s.name for s in template.steps],
+                })
+
+        return {"templates": result, "count": len(result)}
+
+    except ImportError as e:
+        return {"error": f"RAGIX core not available: {e}"}
+
+
+# ---------------------------------------------------------------------------
+# 6. Entry point
 # ---------------------------------------------------------------------------
 
 def main() -> None:

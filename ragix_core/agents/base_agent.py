@@ -15,6 +15,7 @@ from ..graph_executor import ExecutionContext
 
 class AgentCapability(str, Enum):
     """Capabilities that agents can have."""
+    # Core capabilities
     CODE_ANALYSIS = "code_analysis"
     CODE_EDITING = "code_editing"
     DOCUMENTATION = "documentation"
@@ -22,6 +23,12 @@ class AgentCapability(str, Enum):
     TEST_EXECUTION = "test_execution"
     SEARCH = "search"
     FILE_OPERATIONS = "file_operations"
+    # Workflow template capabilities
+    CODE_READ = "code_read"
+    CODE_WRITE = "code_write"
+    CODE_SEARCH = "code_search"
+    TEST_RUN = "test_run"
+    DOC_WRITE = "doc_write"
 
 
 @dataclass

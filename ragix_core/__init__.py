@@ -4,9 +4,17 @@ RAGIX Core - Shared orchestrator and tooling for RAGIX agents
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-24
 """
 
-__version__ = "0.5.0-dev"
+__version__ = "0.7.0-dev"
 
-from .llm_backends import OllamaLLM
+from .llm_backends import (
+    SovereigntyStatus,
+    BaseLLM,
+    OllamaLLM,
+    ClaudeLLM,
+    OpenAILLM,
+    create_llm_backend,
+    get_backend_from_env,
+)
 from .tools_shell import ShellSandbox, CommandResult
 from .logging_utils import AgentLogger, LogLevel, mask_secrets
 from .profiles import (
@@ -91,9 +99,107 @@ from .secrets_vault import (
     VaultManager,
     create_vault,
 )
+from .tool_registry import (
+    ToolCategory,
+    ToolPermission,
+    ToolParameter,
+    ToolDefinition,
+    ToolRegistry,
+    get_tool_registry,
+)
+from .agent_llm_bridge import (
+    ExecutionState,
+    ToolCall,
+    ToolResult,
+    ExecutionStep,
+    AgentExecutionResult,
+    ToolExecutor,
+    LLMAgentExecutor,
+    create_agent_executor,
+)
+from .prompt_templates import (
+    TaskType,
+    FewShotExample,
+    PromptTemplate,
+    get_template,
+    detect_task_type,
+    build_prompt,
+)
+from .bm25_index import (
+    BM25Document,
+    BM25SearchResult,
+    Tokenizer,
+    BM25Index,
+    build_bm25_index_from_chunks,
+)
+from .hybrid_search import (
+    FusionStrategy,
+    HybridSearchResult,
+    HybridSearchEngine,
+    create_hybrid_search_engine,
+)
+# Alias for backwards compatibility
+create_hybrid_engine = create_hybrid_search_engine
+from .workflow_templates import (
+    WorkflowParameter,
+    WorkflowStep,
+    WorkflowTemplate,
+    TemplateManager,
+    get_template_manager,
+    list_builtin_templates,
+    BUILTIN_TEMPLATES,
+)
+from .caching import (
+    CacheEntry,
+    CacheBackend,
+    InMemoryCache,
+    DiskCache,
+    LLMCache,
+    ToolResultCache,
+    create_llm_cache,
+)
+from .graph_executor import StreamEvent
+from .monitoring import (
+    MetricType,
+    HealthStatus,
+    Metric,
+    HealthCheck,
+    MetricsCollector,
+    HealthChecker,
+    AgentMonitor,
+    RateLimiter,
+    CircuitBreaker,
+    get_metrics,
+    get_health_checker,
+    get_agent_monitor,
+    check_ollama_health,
+    check_disk_space,
+    check_memory_usage,
+)
+from .resilience import (
+    BackoffStrategy,
+    RetryConfig,
+    retry,
+    retry_async,
+    RetryContext,
+    FallbackChain,
+    Timeout,
+    Bulkhead,
+    GracefulDegradation,
+    with_timeout,
+    with_retry,
+    with_fallback,
+)
 
 __all__ = [
+    # LLM Backends
+    "SovereigntyStatus",
+    "BaseLLM",
     "OllamaLLM",
+    "ClaudeLLM",
+    "OpenAILLM",
+    "create_llm_backend",
+    "get_backend_from_env",
     "ShellSandbox",
     "CommandResult",
     "AgentLogger",
@@ -162,6 +268,85 @@ __all__ = [
     "AccessPolicy",
     "VaultManager",
     "create_vault",
+    "ToolCategory",
+    "ToolPermission",
+    "ToolParameter",
+    "ToolDefinition",
+    "ToolRegistry",
+    "get_tool_registry",
+    "ExecutionState",
+    "ToolCall",
+    "ToolResult",
+    "ExecutionStep",
+    "AgentExecutionResult",
+    "ToolExecutor",
+    "LLMAgentExecutor",
+    "create_agent_executor",
+    "TaskType",
+    "FewShotExample",
+    "PromptTemplate",
+    "get_template",
+    "detect_task_type",
+    "build_prompt",
     "DANGEROUS_PATTERNS",
     "GIT_DESTRUCTIVE_PATTERNS",
+    # BM25 Index
+    "BM25Document",
+    "BM25SearchResult",
+    "Tokenizer",
+    "BM25Index",
+    "build_bm25_index_from_chunks",
+    # Hybrid Search
+    "FusionStrategy",
+    "HybridSearchResult",
+    "HybridSearchEngine",
+    "create_hybrid_search_engine",
+    "create_hybrid_engine",  # alias
+    # Workflow Templates
+    "WorkflowParameter",
+    "WorkflowStep",
+    "WorkflowTemplate",
+    "TemplateManager",
+    "get_template_manager",
+    "list_builtin_templates",
+    "BUILTIN_TEMPLATES",
+    # Caching
+    "CacheEntry",
+    "CacheBackend",
+    "InMemoryCache",
+    "DiskCache",
+    "LLMCache",
+    "ToolResultCache",
+    "create_llm_cache",
+    # Streaming
+    "StreamEvent",
+    # Monitoring
+    "MetricType",
+    "HealthStatus",
+    "Metric",
+    "HealthCheck",
+    "MetricsCollector",
+    "HealthChecker",
+    "AgentMonitor",
+    "RateLimiter",
+    "CircuitBreaker",
+    "get_metrics",
+    "get_health_checker",
+    "get_agent_monitor",
+    "check_ollama_health",
+    "check_disk_space",
+    "check_memory_usage",
+    # Resilience
+    "BackoffStrategy",
+    "RetryConfig",
+    "retry",
+    "retry_async",
+    "RetryContext",
+    "FallbackChain",
+    "Timeout",
+    "Bulkhead",
+    "GracefulDegradation",
+    "with_timeout",
+    "with_retry",
+    "with_fallback",
 ]

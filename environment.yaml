@@ -1,0 +1,35 @@
+# =============================================================================
+# RAGIX Conda Environment
+# =============================================================================
+#
+# Retrieval-Augmented Generative Interactive eXecution Agent
+# A sovereign, local-first development assistant using Unix-RAG patterns.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-25
+#
+# Usage:
+#   conda env create -f environment.yaml
+#   conda activate ragix-env
+#
+# Or use the launcher:
+#   ./launch_ragix.sh
+#
+# =============================================================================
+
+name: ragix-env
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  # Python version
+  - python>=3.10,<3.13
+
+  # Core system packages (conda)
+  - pip
+  - numpy>=1.24.0
+  - scipy>=1.10.0
+
+  # Install remaining packages via pip
+  - pip:
+    - -r requirements.txt

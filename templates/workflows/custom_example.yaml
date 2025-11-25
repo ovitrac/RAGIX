@@ -1,0 +1,118 @@
+# Example Custom Workflow Template
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-25
+#
+# This file demonstrates how to create custom workflow templates.
+# Templates can be loaded from any directory with TemplateManager.add_template_dir()
+
+name: "Custom API Integration"
+description: "Integrate with external API: ${api_name}"
+version: "1.0"
+
+metadata:
+  author: "Olivier Vitrac"
+  category: "integration"
+  tags:
+    - api
+    - integration
+    - networking
+
+parameters:
+  - name: api_name
+    description: "Name of the API to integrate"
+    type: string
+    required: true
+
+  - name: base_url
+    description: "Base URL of the API"
+    type: string
+    required: true
+
+  - name: auth_type
+    description: "Authentication type"
+    type: string
+    required: false
+    default: "bearer"
+    enum:
+      - bearer
+      - api_key
+      - basic
+      - oauth2
+
+  - name: target_module
+    description: "Module to add the integration"
+    type: string
+    required: false
+    default: "src/integrations"
+
+steps:
+  - name: analyze_api
+    agent: code
+    task: |
+      Analyze the existing codebase to understand:
+      1. How other integrations are structured in ${target_module}
+      2. What HTTP client library is used
+      3. What patterns are followed for external API calls
+
+      API to integrate: ${api_name} at ${base_url}
+    capabilities:
+      - code_read
+      - code_search
+    tools:
+      - grep_search
+      - read_file
+      - find_files
+      - list_directory
+    max_iterations: 5
+
+  - name: create_client
+    agent: code
+    task: |
+      Create an API client for ${api_name}.
+      - Base URL: ${base_url}
+      - Auth type: ${auth_type}
+      - Follow existing patterns from ${target_module}
+      - Include proper error handling
+      - Add timeout and retry logic
+    capabilities:
+      - code_read
+      - code_write
+    tools:
+      - read_file
+      - write_file
+    depends_on:
+      - analyze_api
+    max_iterations: 10
+
+  - name: add_tests
+    agent: test
+    task: |
+      Create tests for the ${api_name} client.
+      - Unit tests with mocked responses
+      - Integration test structure (can be skipped in CI)
+      - Cover error scenarios
+    capabilities:
+      - code_write
+      - test_run
+    tools:
+      - read_file
+      - write_file
+      - bash
+    depends_on:
+      - create_client
+    max_iterations: 8
+
+  - name: document
+    agent: doc
+    task: |
+      Document the ${api_name} integration.
+      - Add docstrings to the client
+      - Create usage example
+      - Document configuration requirements
+    capabilities:
+      - doc_write
+    tools:
+      - read_file
+      - edit_file
+    depends_on:
+      - create_client
+    max_iterations: 5

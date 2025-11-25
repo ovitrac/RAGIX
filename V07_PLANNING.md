@@ -424,7 +424,51 @@ observability = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20"]  # Option
 
 ---
 
-## Post-v0.7 (v0.8 and beyond)
+## Post-v0.7: v0.8 WASP Integration (Preview)
+
+### Theme: **"WebAssembly-Powered Agentic Pipelines"**
+
+v0.8 introduces **WASP** (WebAssembly Agentic System Protocol) as a secure, portable execution layer for RAGIX agents. See `V08_WASP_PLANNING.md` and `WASM.md` for full specifications.
+
+### Core v0.8 Features
+
+1. **WasmSandbox** - WASM-based tool execution alongside ShellSandbox
+2. **WASP Tool Registry** - `.wasm` modules for deterministic operations
+3. **JSON Action: `wasp_task`** - New protocol action for WASM execution
+4. **Browser-Native RAGIX** - Web UI with client-side WASM tools
+
+### Priority WASM Tools (in order)
+
+1. **JSON/YAML Validator** - Deterministic schema validation
+2. **Markdown Parser** - Structural parsing for documentation tasks
+3. **ripgrep.wasm** - Portable search for agents (server + browser)
+
+### Architecture
+
+```
+LLM → RAGIX Orchestrator → ┬→ Unix-RAG (ShellSandbox)
+                           └→ WASP (WasmSandbox)
+                                 ↓
+                           .wasm modules
+                           (deterministic, auditable)
+```
+
+### Implementation Strategy
+
+- **Server-side**: Python + wasmtime bindings (parallel)
+- **Browser-side**: JS + WASI (parallel)
+- **Unified protocol**: Same JSON actions work in both environments
+
+### Why WASP?
+
+- **Stronger sandboxing**: WASI capabilities model
+- **Portability**: Same tools run on Linux/macOS/Windows/browser
+- **Auditability**: Deterministic execution, full logging
+- **Sovereignty**: No cloud dependencies, local-first
+
+---
+
+## Beyond v0.8 (v0.9+)
 
 ### Potential Features
 - **Multi-repo support** - Work across multiple repositories
@@ -434,6 +478,7 @@ observability = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20"]  # Option
 - **Cloud integrations** - Optional AWS/GCP/Azure tool providers
 - **Custom LLMs** - Support for OpenAI, Anthropic, etc. (in addition to Ollama)
 - **Collaboration** - Multi-user sessions (optional)
+- **WASP scientific kernels** - SFPPy-lite, signal processing in WASM
 
 ---
 
