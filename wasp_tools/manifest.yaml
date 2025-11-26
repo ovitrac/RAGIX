@@ -1,0 +1,364 @@
+# WASP Tools Manifest
+# Defines all available WASP tools with their parameters and capabilities
+
+name: wasp-tools
+version: 0.9.0
+description: Built-in WASP tools for RAGIX agents
+author: Olivier Vitrac
+license: MIT
+
+# Tool categories
+categories:
+  validation:
+    description: JSON/YAML validation and formatting
+    icon: "✓"
+  markdown:
+    description: Markdown parsing and manipulation
+    icon: "📝"
+  search:
+    description: Text search and pattern matching
+    icon: "🔍"
+
+# Tool definitions
+tools:
+  # === Validation Tools ===
+  - name: validate_json
+    entry: validate:validate_json
+    category: validation
+    description: Validate JSON content and optionally check against schema
+    capabilities: []
+    parameters:
+      - name: content
+        type: string
+        required: true
+        description: JSON string to validate
+      - name: schema
+        type: string
+        required: false
+        description: Optional JSON Schema to validate against
+      - name: strict
+        type: boolean
+        required: false
+        default: false
+        description: If true, fail on trailing commas and comments
+
+  - name: validate_yaml
+    entry: validate:validate_yaml
+    category: validation
+    description: Validate YAML content and optionally check against schema
+    capabilities: []
+    parameters:
+      - name: content
+        type: string
+        required: true
+        description: YAML string to validate
+      - name: schema
+        type: string
+        required: false
+        description: Optional JSON Schema to validate against
+
+  - name: format_json
+    entry: validate:format_json
+    category: validation
+    description: Format/prettify JSON content
+    capabilities: []
+    parameters:
+      - name: content
+        type: string
+        required: true
+        description: JSON string to format
+      - name: indent
+        type: integer
+        required: false
+        default: 2
+        description: Indentation level
+      - name: sort_keys
+        type: boolean
+        required: false
+        default: false
+        description: Sort object keys alphabetically
+      - name: compact
+        type: boolean
+        required: false
+        default: false
+        description: Output compact single-line JSON
+
+  - name: format_yaml
+    entry: validate:format_yaml
+    category: validation
+    description: Format/prettify YAML content
+    capabilities: []
+    parameters:
+      - name: content
+        type: string
+        required: true
+        description: YAML string to format
+      - name: indent
+        type: integer
+        required: false
+        default: 2
+        description: Indentation level
+
+  - name: json_to_yaml
+    entry: validate:json_to_yaml
+    category: validation
+    description: Convert JSON to YAML
+    capabilities: []
+    parameters:
+      - name: content
+        type: string
+        required: true
+        description: JSON string to convert
+      - name: indent
+        type: integer
+        required: false
+        default: 2
+        description: YAML indentation level
+
+  - name: yaml_to_json
+    entry: validate:yaml_to_json
+    category: validation
+    description: Convert YAML to JSON
+    capabilities: []
+    parameters:
+      - name: content
+        type: string
+        required: true
+        description: YAML string to convert
+      - name: indent
+        type: integer
+        required: false
+        default: 2
+        description: JSON indentation level
+      - name: compact
+        type: boolean
+        required: false
+        default: false
+        description: Output compact JSON
+
+  # === Markdown Tools ===
+  - name: parse_markdown
+    entry: mdparse:parse_markdown
+    category: markdown
+    description: Parse Markdown to structured AST
+    capabilities: []
+    parameters:
+      - name: content
+        type: string
+        required: true
+        description: Markdown string to parse
+
+  - name: extract_headers
+    entry: mdparse:extract_headers
+    category: markdown
+    description: Extract headers from Markdown content
+    capabilities: []
+    parameters:
+      - name: content
+        type: string
+        required: true
+        description: Markdown string
+
+  - name: extract_code_blocks
+    entry: mdparse:extract_code_blocks
+    category: markdown
+    description: Extract code blocks from Markdown content
+    capabilities: []
+    parameters:
+      - name: content
+        type: string
+        required: true
+        description: Markdown string
+
+  - name: extract_links
+    entry: mdparse:extract_links
+    category: markdown
+    description: Extract links from Markdown content
+    capabilities: []
+    parameters:
+      - name: content
+        type: string
+        required: true
+        description: Markdown string
+
+  - name: extract_frontmatter
+    entry: mdparse:extract_frontmatter
+    category: markdown
+    description: Extract YAML frontmatter from Markdown
+    capabilities: []
+    parameters:
+      - name: content
+        type: string
+        required: true
+        description: Markdown string
+
+  - name: renumber_sections
+    entry: mdparse:renumber_sections
+    category: markdown
+    description: Renumber Markdown section headers
+    capabilities: []
+    parameters:
+      - name: content
+        type: string
+        required: true
+        description: Markdown string
+      - name: start_level
+        type: integer
+        required: false
+        default: 1
+        description: Minimum header level to number
+      - name: number_format
+        type: string
+        required: false
+        default: "{num}. "
+        description: Format string for numbers
+
+  - name: generate_toc
+    entry: mdparse:generate_toc
+    category: markdown
+    description: Generate table of contents from Markdown
+    capabilities: []
+    parameters:
+      - name: content
+        type: string
+        required: true
+        description: Markdown string
+      - name: max_level
+        type: integer
+        required: false
+        default: 3
+        description: Maximum header level to include
+      - name: bullet
+        type: string
+        required: false
+        default: "-"
+        description: Bullet character for list items
+
+  # === Search Tools ===
+  - name: search_pattern
+    entry: search:search_pattern
+    category: search
+    description: Search for regex pattern in content
+    capabilities: []
+    parameters:
+      - name: pattern
+        type: string
+        required: true
+        description: Regular expression pattern
+      - name: content
+        type: string
+        required: true
+        description: Text content to search
+      - name: flags
+        type: string
+        required: false
+        description: "Regex flags: i=ignorecase, m=multiline, s=dotall"
+      - name: max_matches
+        type: integer
+        required: false
+        default: 100
+        description: Maximum matches to return
+
+  - name: search_lines
+    entry: search:search_lines
+    category: search
+    description: Search for pattern and return matching lines
+    capabilities: []
+    parameters:
+      - name: pattern
+        type: string
+        required: true
+        description: Regular expression pattern
+      - name: content
+        type: string
+        required: true
+        description: Text content to search
+      - name: flags
+        type: string
+        required: false
+        description: Regex flags
+      - name: context_before
+        type: integer
+        required: false
+        default: 0
+        description: Lines of context before match
+      - name: context_after
+        type: integer
+        required: false
+        default: 0
+        description: Lines of context after match
+
+  - name: count_matches
+    entry: search:count_matches
+    category: search
+    description: Count pattern matches in content
+    capabilities: []
+    parameters:
+      - name: pattern
+        type: string
+        required: true
+        description: Regular expression pattern
+      - name: content
+        type: string
+        required: true
+        description: Text content to search
+      - name: flags
+        type: string
+        required: false
+        description: Regex flags
+
+  - name: extract_matches
+    entry: search:extract_matches
+    category: search
+    description: Extract all pattern matches with groups
+    capabilities: []
+    parameters:
+      - name: pattern
+        type: string
+        required: true
+        description: Regular expression pattern
+      - name: content
+        type: string
+        required: true
+        description: Text content to search
+      - name: flags
+        type: string
+        required: false
+        description: Regex flags
+      - name: group
+        type: integer
+        required: false
+        description: Specific group to extract
+      - name: unique
+        type: boolean
+        required: false
+        default: false
+        description: Return only unique matches
+
+  - name: replace_pattern
+    entry: search:replace_pattern
+    category: search
+    description: Replace pattern matches in content
+    capabilities: []
+    parameters:
+      - name: pattern
+        type: string
+        required: true
+        description: Regular expression pattern
+      - name: replacement
+        type: string
+        required: true
+        description: Replacement string (supports backreferences)
+      - name: content
+        type: string
+        required: true
+        description: Text content to modify
+      - name: flags
+        type: string
+        required: false
+        description: Regex flags
+      - name: count
+        type: integer
+        required: false
+        default: 0
+        description: Maximum replacements (0 = unlimited)

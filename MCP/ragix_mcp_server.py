@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-RAGIX MCP Server v0.7
-=====================
+RAGIX MCP Server v0.7.1
+=======================
 
 Expose the RAGIX multi-agent orchestration platform as an MCP server so that
 MCP clients (Claude Desktop, Cursor, Claude Code, etc.) can use RAGIX tools.
@@ -33,6 +33,16 @@ v0.7 Tools:
 7. ragix_templates()
    - List all available workflow templates.
 
+v0.7.1 Tools:
+8. ragix_config()
+   - Get current RAGIX configuration.
+
+9. ragix_verify_logs()
+   - Verify log integrity (SHA256 chain).
+
+10. ragix_logs(n: int = 50)
+    - Get recent log entries.
+
 Installation
 ------------
 
@@ -45,16 +55,25 @@ Installation
     # or install into Claude Desktop
     uv run mcp install ragix_mcp_server.py --name "RAGIX"
 
-Environment variables (reused from unix-rag-agent.py)
------------------------------------------------------
+Configuration
+-------------
 
-    UNIX_RAG_MODEL=mistral            # Ollama model name
-    UNIX_RAG_SANDBOX=/path/to/sandbox # root folder for all operations
-    UNIX_RAG_PROFILE=dev              # safe-read-only | dev | unsafe
-    UNIX_RAG_ALLOW_GIT_DESTRUCTIVE=0  # 1 to allow destructive git cmds
+RAGIX v0.7.1 uses ragix.yaml for unified configuration.
+Environment variables override config values:
+
+    RAGIX_LLM_MODEL=mistral
+    RAGIX_SANDBOX_ROOT=/path/to/sandbox
+    RAGIX_PROFILE=dev
+    RAGIX_AIR_GAPPED=false
+
+Legacy environment variables (backward compatibility):
+    UNIX_RAG_MODEL=mistral
+    UNIX_RAG_SANDBOX=/path/to/sandbox
+    UNIX_RAG_PROFILE=dev
+    UNIX_RAG_ALLOW_GIT_DESTRUCTIVE=0
 
 
-Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-25
+Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-26
 
 """
 
@@ -510,7 +529,7 @@ def ragix_health() -> Dict[str, Any]:
         return {
             "status": report["status"],
             "checks": report["checks"],
-            "ragix_version": "0.7.0",
+            "ragix_version": "0.7.1",
             "model": OLLAMA_MODEL,
             "sandbox": str(SANDBOX_ROOT),
             "profile": AGENT_PROFILE,
@@ -521,7 +540,7 @@ def ragix_health() -> Dict[str, Any]:
         return {
             "status": "unknown",
             "error": f"RAGIX core not available: {e}",
-            "ragix_version": "0.7.0",
+            "ragix_version": "0.7.1",
             "timestamp": datetime.now().isoformat(),
         }
 
@@ -579,7 +598,217 @@ def ragix_templates() -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# 6. Entry point
+# 6. RAGIX v0.7.1 Tools
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def ragix_config() -> Dict[str, Any]:
+    """
+    Get current RAGIX configuration.
+
+    Returns
+    -------
+    dict
+        {
+          "version": str,
+          "llm": {"backend": str, "model": str, ...},
+          "safety": {"profile": str, "air_gapped": bool, ...},
+          "mcp": {"enabled": bool, "port": int, ...},
+          "search": {"enabled": bool, "fusion_strategy": str, ...}
+        }
+    """
+    try:
+        from ragix_core import get_config, find_config_file
+
+        config_path = find_config_file()
+        config = get_config()
+
+        return {
+            "config_file": str(config_path) if config_path else None,
+            "version": config.version,
+            "sandbox_root": config.sandbox_root,
+            "llm": {
+                "backend": config.llm.backend,
+                "model": config.llm.model,
+                "base_url": config.llm.base_url,
+                "sovereignty": "sovereign" if config.llm.backend == "ollama" else "cloud",
+            },
+            "safety": {
+                "profile": config.safety.profile,
+                "air_gapped": config.safety.air_gapped,
+                "log_hashing": config.safety.log_hashing,
+                "allow_git_destructive": config.safety.allow_git_destructive,
+            },
+            "mcp": {
+                "enabled": config.mcp.enabled,
+                "port": config.mcp.port,
+            },
+            "search": {
+                "enabled": config.search.enabled,
+                "fusion_strategy": config.search.fusion_strategy,
+                "embedding_model": config.search.embedding_model,
+            },
+        }
+
+    except ImportError as e:
+        return {"error": f"RAGIX config not available: {e}"}
+
+
+@mcp.tool()
+def ragix_verify_logs() -> Dict[str, Any]:
+    """
+    Verify log integrity using SHA256 chain hashing.
+
+    Returns
+    -------
+    dict
+        {
+          "valid": bool,
+          "total_entries": int,
+          "verified_entries": int,
+          "first_invalid_entry": int | null,
+          "errors": list[str],
+          "verification_time": str
+        }
+    """
+    try:
+        from ragix_core import ChainedLogHasher, LogIntegrityReport
+        from pathlib import Path
+
+        log_dir = Path(".agent_logs")
+        hasher = ChainedLogHasher(log_dir=log_dir)
+        report = hasher.verify_chain()
+
+        return {
+            "valid": report.valid,
+            "total_entries": report.total_entries,
+            "verified_entries": report.verified_entries,
+            "first_invalid_entry": report.first_invalid_entry,
+            "errors": report.errors[:10],  # Limit errors
+            "log_file": report.log_file,
+            "verification_time": report.verification_time,
+        }
+
+    except ImportError as e:
+        return {"error": f"RAGIX log_integrity not available: {e}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool()
+def ragix_logs(n: int = 50) -> Dict[str, Any]:
+    """
+    Get recent log entries.
+
+    Parameters
+    ----------
+    n : int, default 50
+        Number of recent entries to return.
+
+    Returns
+    -------
+    dict
+        {
+          "entries": list[str],
+          "total": int,
+          "log_file": str
+        }
+    """
+    from pathlib import Path
+
+    log_file = Path(".agent_logs/commands.log")
+
+    if not log_file.exists():
+        return {
+            "entries": [],
+            "total": 0,
+            "log_file": str(log_file),
+            "error": "Log file not found",
+        }
+
+    try:
+        with open(log_file, 'r') as f:
+            lines = f.readlines()
+
+        total = len(lines)
+        recent = [line.strip() for line in lines[-n:]]
+
+        return {
+            "entries": recent,
+            "total": total,
+            "returned": len(recent),
+            "log_file": str(log_file),
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool()
+def ragix_agent_step(prompt: str, persist_history: bool = False) -> Dict[str, Any]:
+    """
+    Execute a full agent step with config-based instantiation.
+
+    This is an enhanced version of ragix_chat that uses ragix.yaml configuration
+    and supports optional history persistence.
+
+    Parameters
+    ----------
+    prompt : str
+        Natural-language instruction for the agent.
+
+    persist_history : bool, default False
+        If True, maintain conversation history across calls (experimental).
+
+    Returns
+    -------
+    dict
+        {
+          "response": str,
+          "last_command": {...},
+          "config": {"model": str, "profile": str},
+          "sovereignty": str
+        }
+    """
+    try:
+        from ragix_core import get_config
+
+        config = get_config()
+
+        # Use config for agent creation
+        agent = create_agent()
+        cmd_result, reply = agent.step(prompt)
+
+        return {
+            "response": reply,
+            "last_command": _command_result_to_dict(cmd_result),
+            "config": {
+                "model": config.llm.model,
+                "profile": config.safety.profile,
+                "backend": config.llm.backend,
+            },
+            "sovereignty": "sovereign" if config.llm.backend == "ollama" else "cloud",
+        }
+
+    except ImportError:
+        # Fall back to legacy behavior
+        agent = create_agent()
+        cmd_result, reply = agent.step(prompt)
+
+        return {
+            "response": reply,
+            "last_command": _command_result_to_dict(cmd_result),
+            "config": {
+                "model": OLLAMA_MODEL,
+                "profile": AGENT_PROFILE,
+                "backend": "ollama",
+            },
+            "sovereignty": "sovereign",
+        }
+
+
+# ---------------------------------------------------------------------------
+# 7. Entry point
 # ---------------------------------------------------------------------------
 
 def main() -> None:

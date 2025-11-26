@@ -1,0 +1,55 @@
+name: json-validator
+version: 1.0.0
+description: JSON/YAML validation and formatting tools
+type: tool
+trust: builtin
+author: Olivier Vitrac
+homepage: https://github.com/ovitrac/RAGIX
+license: MIT
+
+capabilities:
+  - file:read
+
+tools:
+  - name: validate_json
+    description: Validate JSON content and optionally format it
+    entry: json_tools:validate_json
+    parameters:
+      - name: content
+        type: string
+        description: JSON content to validate
+        required: true
+      - name: format
+        type: boolean
+        description: Return formatted JSON
+        required: false
+    examples:
+      - content: '{"name": "test", "value": 123}'
+        format: true
+
+  - name: validate_yaml
+    description: Validate YAML content and convert to JSON
+    entry: json_tools:validate_yaml
+    parameters:
+      - name: content
+        type: string
+        description: YAML content to validate
+        required: true
+    examples:
+      - content: "name: test\nvalue: 123"
+
+  - name: json_diff
+    description: Compare two JSON objects and show differences
+    entry: json_tools:json_diff
+    parameters:
+      - name: json1
+        type: string
+        description: First JSON content
+        required: true
+      - name: json2
+        type: string
+        description: Second JSON content
+        required: true
+    examples:
+      - json1: '{"a": 1, "b": 2}'
+        json2: '{"a": 1, "b": 3}'

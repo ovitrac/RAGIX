@@ -2,10 +2,10 @@
 RAGIX Web Interface - Streamlit Application
 ============================================
 
-A sovereign, local-first web interface for RAGIX v0.7.
+A sovereign, local-first web interface for RAGIX v0.7.1.
 All processing happens locally - no data leaves your machine.
 
-Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-25
+Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-26
 
 Usage:
     streamlit run ragix_app.py
@@ -187,7 +187,7 @@ with st.sidebar:
     # Navigation
     page = st.radio(
         "Navigate",
-        ["🏠 Dashboard", "🔎 Search", "🤖 Chat", "⚙️ Workflows", "📊 Monitor", "ℹ️ About"],
+        ["🏠 Dashboard", "🔎 Search", "🤖 Chat", "⚙️ Workflows", "📋 Logs", "📊 Monitor", "ℹ️ About"],
         label_visibility="collapsed",
     )
 
@@ -503,6 +503,228 @@ elif page == "⚙️ Workflows":
                     st.info(f"Workflow '{key}' would be executed here via ragix_core")
 
                 st.markdown("---")
+
+
+# =============================================================================
+# Logs Page
+# =============================================================================
+
+elif page == "📋 Logs":
+    st.title("📋 Audit Logs")
+    st.markdown("*Command history and integrity verification*")
+
+    st.markdown("---")
+
+    # Log configuration
+    log_dir = Path(".agent_logs")
+    log_file = log_dir / "commands.log"
+    hash_file = log_dir / "commands.log.sha256"
+
+    # Log stats
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        if log_file.exists():
+            size_kb = log_file.stat().st_size / 1024
+            st.metric("Log Size", f"{size_kb:.1f} KB")
+        else:
+            st.metric("Log Size", "No logs")
+
+    with col2:
+        if log_file.exists():
+            with open(log_file, 'r') as f:
+                entry_count = sum(1 for _ in f)
+            st.metric("Entries", entry_count)
+        else:
+            st.metric("Entries", 0)
+
+    with col3:
+        if hash_file.exists():
+            st.metric("Integrity", "🔒 Hashed", delta="SHA256")
+        else:
+            st.metric("Integrity", "⚠️ No hash")
+
+    with col4:
+        if log_file.exists():
+            mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
+            st.metric("Last Update", mtime.strftime("%H:%M:%S"))
+        else:
+            st.metric("Last Update", "N/A")
+
+    st.markdown("---")
+
+    # Tabs for different views
+    tab1, tab2, tab3 = st.tabs(["📜 Recent Entries", "🔍 Search Logs", "✅ Verify Integrity"])
+
+    with tab1:
+        st.subheader("Recent Log Entries")
+
+        num_entries = st.slider("Number of entries to show", 10, 200, 50)
+
+        if log_file.exists():
+            try:
+                with open(log_file, 'r') as f:
+                    lines = f.readlines()
+
+                recent = lines[-num_entries:] if len(lines) > num_entries else lines
+
+                # Display in reverse order (most recent first)
+                for i, line in enumerate(reversed(recent)):
+                    line = line.strip()
+                    if not line:
+                        continue
+
+                    # Color code by type
+                    if "CMD:" in line:
+                        icon = "⚡"
+                        color = "#00b894"
+                    elif "EDIT:" in line:
+                        icon = "✏️"
+                        color = "#0984e3"
+                    elif "EVENT:" in line:
+                        icon = "📢"
+                        color = "#fdcb6e"
+                    elif "ERROR" in line or "RC: 1" in line:
+                        icon = "❌"
+                        color = "#e74c3c"
+                    else:
+                        icon = "📝"
+                        color = "#636e72"
+
+                    st.markdown(
+                        f"<div style='padding:8px; margin:4px 0; background:#1e2530; "
+                        f"border-left:3px solid {color}; border-radius:4px; font-family:monospace; font-size:12px;'>"
+                        f"{icon} {line}</div>",
+                        unsafe_allow_html=True
+                    )
+
+            except Exception as e:
+                st.error(f"Failed to read logs: {e}")
+        else:
+            st.info("No log file found. Logs will appear here after running commands.")
+
+    with tab2:
+        st.subheader("Search Logs")
+
+        search_query = st.text_input("Search pattern", placeholder="Enter search term...")
+        search_type = st.radio("Filter by", ["All", "Commands", "Edits", "Events", "Errors"], horizontal=True)
+
+        if st.button("🔍 Search") and search_query and log_file.exists():
+            with open(log_file, 'r') as f:
+                lines = f.readlines()
+
+            results = []
+            for line in lines:
+                # Apply type filter
+                if search_type == "Commands" and "CMD:" not in line:
+                    continue
+                if search_type == "Edits" and "EDIT:" not in line:
+                    continue
+                if search_type == "Events" and "EVENT:" not in line:
+                    continue
+                if search_type == "Errors" and "ERROR" not in line and "RC: 1" not in line:
+                    continue
+
+                # Apply search query
+                if search_query.lower() in line.lower():
+                    results.append(line.strip())
+
+            st.markdown(f"**Found {len(results)} matches:**")
+
+            for line in results[-100:]:  # Show max 100 results
+                st.code(line, language=None)
+
+    with tab3:
+        st.subheader("Integrity Verification")
+
+        st.markdown("""
+        Log integrity verification uses SHA256 chained hashing to detect tampering.
+        Each log entry's hash includes the previous entry's hash, creating a tamper-evident chain.
+        """)
+
+        if st.button("🔒 Verify Log Integrity", type="primary"):
+            if hash_file.exists():
+                try:
+                    # Simple verification
+                    with open(hash_file, 'r') as f:
+                        entries = [json.loads(line) for line in f if line.strip()]
+
+                    if entries:
+                        st.success(f"✅ Hash chain contains {len(entries)} entries")
+
+                        # Show chain info
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown("**First Entry:**")
+                            st.json({
+                                "sequence": entries[0].get("sequence"),
+                                "timestamp": entries[0].get("timestamp"),
+                                "hash": entries[0].get("hash", "")[:32] + "...",
+                            })
+                        with col2:
+                            st.markdown("**Latest Entry:**")
+                            st.json({
+                                "sequence": entries[-1].get("sequence"),
+                                "timestamp": entries[-1].get("timestamp"),
+                                "hash": entries[-1].get("hash", "")[:32] + "...",
+                            })
+
+                        # Verify chain
+                        genesis = "0" * 64
+                        prev_hash = genesis
+                        valid = True
+                        invalid_entry = None
+
+                        for i, entry in enumerate(entries):
+                            if entry.get("prev_hash") != prev_hash:
+                                valid = False
+                                invalid_entry = i + 1
+                                break
+                            prev_hash = entry.get("hash", "")
+
+                        if valid:
+                            st.success("✅ Chain integrity verified - no tampering detected")
+                        else:
+                            st.error(f"❌ Chain broken at entry {invalid_entry}")
+
+                    else:
+                        st.warning("Hash file is empty")
+
+                except json.JSONDecodeError as e:
+                    st.error(f"Invalid hash file format: {e}")
+                except Exception as e:
+                    st.error(f"Verification failed: {e}")
+            else:
+                st.warning("No hash file found. Enable log hashing in ragix.yaml")
+
+        st.markdown("---")
+
+        # Export options
+        st.subheader("Export Logs")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("📥 Download Log File") and log_file.exists():
+                with open(log_file, 'r') as f:
+                    log_content = f.read()
+                st.download_button(
+                    "Download commands.log",
+                    log_content,
+                    file_name="commands.log",
+                    mime="text/plain"
+                )
+
+        with col2:
+            if st.button("📥 Download Hash File") and hash_file.exists():
+                with open(hash_file, 'r') as f:
+                    hash_content = f.read()
+                st.download_button(
+                    "Download commands.log.sha256",
+                    hash_content,
+                    file_name="commands.log.sha256",
+                    mime="application/json"
+                )
 
 
 # =============================================================================

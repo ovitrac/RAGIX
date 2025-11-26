@@ -2,8 +2,9 @@
 Tool Registry - Centralized tool definitions and management for RAGIX agents
 
 Provides type-safe tool definitions, permission checking, and dynamic tool loading.
+Unified registry for CLI, Web UI, MCP server, and agent tool access.
 
-Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-25
+Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-26
 """
 
 import json
@@ -14,6 +15,15 @@ from typing import Any, Callable, Dict, List, Optional, Set, Union
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+class ToolProvider(str, Enum):
+    """Source/provider of a tool."""
+    BUILTIN = "builtin"       # Core RAGIX tools
+    PLUGIN = "plugin"         # Plugin-provided tools
+    MCP = "mcp"               # MCP server tools
+    CUSTOM = "custom"         # User-defined tools
+    WASM = "wasm"             # WASM module tools
 
 
 class ToolCategory(str, Enum):
@@ -63,6 +73,17 @@ class ToolDefinition:
     required_permissions: Set[ToolPermission] = field(default_factory=set)
     examples: List[Dict[str, Any]] = field(default_factory=list)
     handler: Optional[Callable] = None  # Actual execution function
+
+    # Provider tracking
+    provider: ToolProvider = ToolProvider.BUILTIN
+    provider_name: str = ""  # e.g., plugin name, MCP server name
+    version: str = "1.0.0"
+    enabled: bool = True
+
+    # Metadata
+    tags: List[str] = field(default_factory=list)
+    deprecated: bool = False
+    deprecation_message: str = ""
 
     def to_json_schema(self) -> Dict[str, Any]:
         """Convert to JSON Schema for LLM tool calling."""
@@ -631,6 +652,207 @@ class ToolRegistry:
         return True, None
 
 
+    def register_from_plugin(
+        self,
+        plugin_name: str,
+        tool: ToolDefinition,
+    ):
+        """
+        Register a tool from a plugin.
+
+        Args:
+            plugin_name: Name of the source plugin
+            tool: Tool definition
+        """
+        tool.provider = ToolProvider.PLUGIN
+        tool.provider_name = plugin_name
+        self.register(tool)
+
+    def register_from_mcp(
+        self,
+        server_name: str,
+        tool: ToolDefinition,
+    ):
+        """
+        Register a tool from an MCP server.
+
+        Args:
+            server_name: Name of the MCP server
+            tool: Tool definition
+        """
+        tool.provider = ToolProvider.MCP
+        tool.provider_name = server_name
+        self.register(tool)
+
+    def register_from_wasm(
+        self,
+        module_name: str,
+        tool: ToolDefinition,
+    ):
+        """
+        Register a tool from a WASM module.
+
+        Args:
+            module_name: Name of the WASM module
+            tool: Tool definition
+        """
+        tool.provider = ToolProvider.WASM
+        tool.provider_name = module_name
+        self.register(tool)
+
+    def list_tools_by_provider(
+        self,
+        provider: Optional[ToolProvider] = None
+    ) -> Dict[str, List[str]]:
+        """
+        List tools grouped by provider.
+
+        Args:
+            provider: Filter to specific provider (None = all)
+
+        Returns:
+            Dictionary of provider -> list of tool names
+        """
+        result: Dict[str, List[str]] = {}
+
+        for name, tool in self.tools.items():
+            if provider and tool.provider != provider:
+                continue
+
+            key = tool.provider.value
+            if key not in result:
+                result[key] = []
+            result[key].append(name)
+
+        return result
+
+    def get_tool_info(self, name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get detailed information about a tool.
+
+        Args:
+            name: Tool name
+
+        Returns:
+            Tool information dictionary
+        """
+        tool = self.get(name)
+        if not tool:
+            return None
+
+        return {
+            "name": tool.name,
+            "description": tool.description,
+            "category": tool.category.value,
+            "provider": tool.provider.value,
+            "provider_name": tool.provider_name,
+            "version": tool.version,
+            "enabled": tool.enabled,
+            "deprecated": tool.deprecated,
+            "deprecation_message": tool.deprecation_message,
+            "parameters": [
+                {
+                    "name": p.name,
+                    "type": p.type,
+                    "description": p.description,
+                    "required": p.required,
+                    "default": p.default,
+                    "enum": p.enum,
+                }
+                for p in tool.parameters
+            ],
+            "permissions": [p.value for p in tool.required_permissions],
+            "tags": tool.tags,
+            "examples": tool.examples[:2],  # Limit examples
+            "has_handler": tool.handler is not None,
+        }
+
+    def enable_tool(self, name: str) -> bool:
+        """Enable a tool."""
+        tool = self.get(name)
+        if tool:
+            tool.enabled = True
+            return True
+        return False
+
+    def disable_tool(self, name: str) -> bool:
+        """Disable a tool."""
+        tool = self.get(name)
+        if tool:
+            tool.enabled = False
+            return True
+        return False
+
+    def unregister(self, name: str) -> bool:
+        """
+        Remove a tool from the registry.
+
+        Args:
+            name: Tool name
+
+        Returns:
+            True if removed
+        """
+        if name in self.tools:
+            del self.tools[name]
+            logger.info(f"Unregistered tool: {name}")
+            return True
+        return False
+
+    def unregister_by_provider(self, provider_name: str) -> int:
+        """
+        Remove all tools from a specific provider.
+
+        Args:
+            provider_name: Provider name (plugin/MCP server name)
+
+        Returns:
+            Number of tools removed
+        """
+        to_remove = [
+            name for name, tool in self.tools.items()
+            if tool.provider_name == provider_name
+        ]
+
+        for name in to_remove:
+            del self.tools[name]
+
+        logger.info(f"Unregistered {len(to_remove)} tools from provider: {provider_name}")
+        return len(to_remove)
+
+    def export_for_cli(self) -> List[Dict[str, Any]]:
+        """
+        Export tools for CLI display.
+
+        Returns:
+            List of tool summaries
+        """
+        return [
+            {
+                "name": t.name,
+                "description": t.description[:60] + "..." if len(t.description) > 60 else t.description,
+                "category": t.category.value,
+                "provider": t.provider.value,
+                "enabled": t.enabled,
+            }
+            for t in self.tools.values()
+            if t.enabled
+        ]
+
+    def export_for_mcp(self) -> List[Dict[str, Any]]:
+        """
+        Export tools for MCP server.
+
+        Returns:
+            List of MCP-compatible tool definitions
+        """
+        return [
+            tool.to_json_schema()
+            for tool in self.tools.values()
+            if tool.enabled and not tool.deprecated
+        ]
+
+
 # Global registry instance
 _registry: Optional[ToolRegistry] = None
 
@@ -641,3 +863,54 @@ def get_tool_registry() -> ToolRegistry:
     if _registry is None:
         _registry = ToolRegistry()
     return _registry
+
+
+def sync_plugins_to_registry():
+    """
+    Sync plugin tools to the global registry.
+
+    Called after plugins are loaded to make their tools available.
+    """
+    try:
+        from .plugin_system import get_plugin_manager
+
+        pm = get_plugin_manager()
+        registry = get_tool_registry()
+
+        for plugin_name, plugin in pm.plugins.items():
+            if not plugin.enabled:
+                continue
+
+            for tool in plugin.manifest.tools:
+                if tool.name in registry.tools:
+                    continue
+
+                # Create ToolDefinition from plugin tool
+                tool_def = ToolDefinition(
+                    name=tool.name,
+                    description=tool.description,
+                    category=ToolCategory.SYSTEM,  # Default category
+                    parameters=[
+                        ToolParameter(
+                            name=p.get("name", ""),
+                            type=p.get("type", "string"),
+                            description=p.get("description", ""),
+                            required=p.get("required", False),
+                            default=p.get("default"),
+                        )
+                        for p in tool.parameters
+                    ],
+                    handler=tool.handler,
+                    provider=ToolProvider.PLUGIN,
+                    provider_name=plugin_name,
+                    version=plugin.manifest.version,
+                )
+
+                registry.register(tool_def)
+
+        logger.info(f"Synced plugins to registry")
+
+    except ImportError:
+        logger.debug("Plugin system not available")
+    except Exception as e:
+        logger.error(f"Failed to sync plugins: {e}")

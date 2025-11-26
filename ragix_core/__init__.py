@@ -1,10 +1,10 @@
 """
 RAGIX Core - Shared orchestrator and tooling for RAGIX agents
 
-Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-24
+Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-26
 """
 
-__version__ = "0.7.0-dev"
+__version__ = "0.9.0"
 
 from .llm_backends import (
     SovereigntyStatus,
@@ -190,6 +190,78 @@ from .resilience import (
     with_retry,
     with_fallback,
 )
+from .config import (
+    RAGIXConfig,
+    LLMConfig,
+    MCPConfig,
+    SafetyConfig,
+    SearchConfig,
+    LoggingConfig,
+    WebUIConfig,
+    load_config,
+    save_config,
+    get_config,
+    reload_config,
+    find_config_file,
+)
+from .log_integrity import (
+    LogEntry,
+    LogIntegrityReport,
+    compute_hash,
+    compute_file_hash,
+    ChainedLogHasher,
+    SimpleFileHasher,
+    AuditLogManager,
+)
+from .plugin_system import (
+    PluginType,
+    TrustLevel,
+    PluginCapability,
+    PluginTool,
+    PluginWorkflow,
+    PluginManifest,
+    LoadedPlugin,
+    PluginManager,
+    get_plugin_manager,
+    compute_plugin_checksum,
+)
+from .swe_workflows import (
+    WorkflowState,
+    ChunkState,
+    ChunkResult,
+    WorkflowCheckpoint,
+    ChunkConfig,
+    ChunkedWorkflow,
+    FileProcessingWorkflow,
+    CodeReviewWorkflow,
+    MigrationWorkflow,
+    list_checkpoints,
+    resume_workflow,
+)
+from .sandbox_base import (
+    SandboxType,
+    SandboxCapability,
+    SandboxConfig,
+    ExecutionResult,
+    BaseSandbox,
+    SandboxRegistry,
+    HybridSandbox,
+    ShellSandboxAdapter,
+    create_sandbox,
+    get_sandbox_registry,
+)
+# Import tool registry additions
+from .tool_registry import (
+    ToolProvider,
+    sync_plugins_to_registry,
+)
+# WASP executor
+from .wasp_executor import (
+    WaspExecutionResult,
+    WaspExecutor,
+    get_wasp_executor,
+    execute_wasp_action,
+)
 
 __all__ = [
     # LLM Backends
@@ -349,4 +421,67 @@ __all__ = [
     "with_timeout",
     "with_retry",
     "with_fallback",
+    # Configuration
+    "RAGIXConfig",
+    "LLMConfig",
+    "MCPConfig",
+    "SafetyConfig",
+    "SearchConfig",
+    "LoggingConfig",
+    "WebUIConfig",
+    "load_config",
+    "save_config",
+    "get_config",
+    "reload_config",
+    "find_config_file",
+    # Log Integrity
+    "LogEntry",
+    "LogIntegrityReport",
+    "compute_hash",
+    "compute_file_hash",
+    "ChainedLogHasher",
+    "SimpleFileHasher",
+    "AuditLogManager",
+    # Plugin System
+    "PluginType",
+    "TrustLevel",
+    "PluginCapability",
+    "PluginTool",
+    "PluginWorkflow",
+    "PluginManifest",
+    "LoadedPlugin",
+    "PluginManager",
+    "get_plugin_manager",
+    "compute_plugin_checksum",
+    # SWE Workflows
+    "WorkflowState",
+    "ChunkState",
+    "ChunkResult",
+    "WorkflowCheckpoint",
+    "ChunkConfig",
+    "ChunkedWorkflow",
+    "FileProcessingWorkflow",
+    "CodeReviewWorkflow",
+    "MigrationWorkflow",
+    "list_checkpoints",
+    "resume_workflow",
+    # Sandbox Abstraction
+    "SandboxType",
+    "SandboxCapability",
+    "SandboxConfig",
+    "ExecutionResult",
+    "BaseSandbox",
+    "SandboxRegistry",
+    "HybridSandbox",
+    "ShellSandboxAdapter",
+    "create_sandbox",
+    "get_sandbox_registry",
+    # Tool Registry Additions
+    "ToolProvider",
+    "sync_plugins_to_registry",
+    # WASP Executor
+    "WaspExecutionResult",
+    "WaspExecutor",
+    "get_wasp_executor",
+    "execute_wasp_action",
 ]

@@ -136,6 +136,17 @@ def validate_action_schema(action: Dict[str, Any]) -> Tuple[bool, Optional[str]]
                 return False, f"Field '{field}' must be string"
         return True, None
 
+    elif action_type == "wasp_task":
+        # WASP tool execution
+        if "tool" not in action:
+            return False, "Action 'wasp_task' requires 'tool' field"
+        if not isinstance(action["tool"], str):
+            return False, "Field 'tool' must be string"
+        # Optional inputs dict
+        if "inputs" in action and not isinstance(action["inputs"], dict):
+            return False, "Field 'inputs' must be a dict"
+        return True, None
+
     else:
         return False, f"Unknown action type: '{action_type}'"
 
@@ -162,6 +173,7 @@ Valid actions:
 2. {{"action": "respond", "message": "..."}}
 3. {{"action": "bash_and_respond", "command": "...", "message": "..."}}
 4. {{"action": "edit_file", "path": "...", "old": "...", "new": "..."}}
+5. {{"action": "wasp_task", "tool": "...", "inputs": {{}}}}
 
 Requirements:
 - Respond with ONLY the JSON object, no markdown fences, no extra text

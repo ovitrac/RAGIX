@@ -1,0 +1,159 @@
+# =============================================================================
+# RAGIX Configuration File
+# =============================================================================
+#
+# This file configures all RAGIX components in a unified format.
+# Environment variables override these settings (see documentation).
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-26
+#
+# =============================================================================
+
+version: "0.7.1"
+
+# Root directory for sandboxed operations (default: current directory)
+sandbox_root: "."
+
+# -----------------------------------------------------------------------------
+# LLM Backend Configuration
+# -----------------------------------------------------------------------------
+llm:
+  # Backend: "ollama" (sovereign), "claude" (cloud), "openai" (cloud)
+  backend: ollama
+
+  # Model name (depends on backend)
+  # Ollama: mistral, granite3.1-moe:3b, qwen2.5, deepseek-coder
+  # Claude: claude-sonnet-4-20250514, claude-opus-4-20250514
+  # OpenAI: gpt-4, gpt-4-turbo, gpt-3.5-turbo
+  model: mistral
+
+  # Ollama server URL
+  base_url: "http://localhost:11434"
+
+  # API key for cloud backends (prefer environment variable)
+  # Set ANTHROPIC_API_KEY or OPENAI_API_KEY instead
+  # api_key: null
+
+  # Generation parameters
+  temperature: 0.1
+  max_tokens: 4096
+  timeout: 120
+
+# -----------------------------------------------------------------------------
+# MCP Server Configuration
+# -----------------------------------------------------------------------------
+mcp:
+  enabled: true
+  host: localhost
+  port: 5173
+
+  # Available MCP tools
+  tools:
+    - ragix_chat
+    - ragix_scan_repo
+    - ragix_read_file
+    - ragix_search
+    - ragix_workflow
+    - ragix_health
+    - ragix_templates
+
+# -----------------------------------------------------------------------------
+# Safety & Security Configuration
+# -----------------------------------------------------------------------------
+safety:
+  # Profile: "strict" (read-only), "dev" (default), "unsafe" (expert)
+  profile: dev
+
+  # Allow destructive git commands (reset --hard, clean -fd, push --force)
+  allow_git_destructive: false
+
+  # Additional command patterns to block (regex)
+  additional_denylist: []
+  # Example:
+  # additional_denylist:
+  #   - "curl.*-X DELETE"
+  #   - "wget.*--delete"
+
+  # Air-gapped mode: force local-only LLM (blocks Claude/OpenAI)
+  air_gapped: false
+
+  # Enable SHA256 hashing of log files for integrity verification
+  log_hashing: true
+  hash_algorithm: sha256
+
+# -----------------------------------------------------------------------------
+# Search & Retrieval Configuration
+# -----------------------------------------------------------------------------
+search:
+  enabled: true
+
+  # Embedding model for vector search
+  embedding_model: all-MiniLM-L6-v2
+
+  # Fusion strategy: rrf, weighted, interleave, bm25_only, vector_only
+  fusion_strategy: rrf
+
+  # Weights for hybrid search (when using "weighted" strategy)
+  bm25_weight: 0.5
+  vector_weight: 0.5
+
+  # Default number of results
+  top_k: 10
+
+  # Index storage path
+  index_path: ".ragix/index"
+
+# -----------------------------------------------------------------------------
+# Logging Configuration
+# -----------------------------------------------------------------------------
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: INFO
+
+  # Log directory
+  log_dir: ".agent_logs"
+
+  # Command log file
+  commands_log: commands.log
+
+  # Hash signature file
+  hash_log: commands.log.sha256
+
+  # Log rotation
+  max_log_size_mb: 100
+  backup_count: 5
+
+# -----------------------------------------------------------------------------
+# Web UI Configuration
+# -----------------------------------------------------------------------------
+webui:
+  enabled: true
+  host: localhost
+  port: 8501
+  theme: dark
+
+# =============================================================================
+# Environment Variable Overrides
+# =============================================================================
+#
+# The following environment variables override config file values:
+#
+# RAGIX_LLM_BACKEND      -> llm.backend
+# RAGIX_LLM_MODEL        -> llm.model
+# RAGIX_PROFILE          -> safety.profile
+# RAGIX_AIR_GAPPED       -> safety.air_gapped
+# RAGIX_MCP_ENABLED      -> mcp.enabled
+# RAGIX_MCP_PORT         -> mcp.port
+# RAGIX_LOG_HASHING      -> safety.log_hashing
+# RAGIX_SANDBOX_ROOT     -> sandbox_root
+#
+# Legacy variables (backward compatibility):
+# UNIX_RAG_MODEL         -> llm.model
+# UNIX_RAG_SANDBOX       -> sandbox_root
+# UNIX_RAG_PROFILE       -> safety.profile
+#
+# API keys (never stored in config file):
+# ANTHROPIC_API_KEY      -> Claude API key
+# OPENAI_API_KEY         -> OpenAI API key
+#
+# =============================================================================

@@ -1,7 +1,7 @@
-# RAGIX v0.8 Planning: WASP Integration
+# RAGIX v0.8/v0.9 Planning: WASP Integration
 
-**Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-24
-**Status:** PLANNING - Scheduled after v0.7 completion
+**Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-26
+**Status:** v0.8 RELEASED - v0.9 PLANNING
 **Reference:** `WASM.md` for full specifications and rationale
 
 ---
@@ -10,25 +10,120 @@
 
 **WASP** = WebAssembly Agentic System Protocol / Pipelines
 
-v0.8 introduces WASM as a **secure, portable execution layer** for RAGIX:
-- Deterministic tool execution (no shell unpredictability)
-- Stronger sandboxing (WASI capabilities model)
-- Cross-platform portability (Linux/macOS/Windows/browser)
-- Full auditability (reproducible, logged execution)
+### v0.8.0 (RELEASED 2025-11-26)
 
-**Development Strategy:** Server-side and browser-side in parallel.
+v0.8 delivers the **foundation** for WASP:
+
+| Feature | Status |
+|---------|--------|
+| Sandbox Abstraction (`BaseSandbox`) | ✅ Implemented |
+| WASM Sandbox (`WasmSandbox`) | ✅ Implemented |
+| Hybrid Sandbox routing | ✅ Implemented |
+| Plugin System | ✅ Implemented (bonus) |
+| SWE Chunked Workflows | ✅ Implemented (bonus) |
+| Unified Tool Registry | ✅ Enhanced |
+
+### v0.9 (PLANNED)
+
+v0.9 will deliver the **WASM tools and browser runtime**:
+
+- Priority WASM tools (validate.wasm, mdparse.wasm, rg.wasm)
+- Browser WASM runtime (client-side execution)
+- Virtual filesystem for browser
+- Offline-capable RAGIX
 
 ---
 
-## Context: v0.7 → v0.8
+## What Was Implemented in v0.8.0
 
-### v0.7 Delivers (prerequisite for v0.8)
+### Sandbox Foundation (Tasks 4.1-4.2)
+
+```
+✅ ragix_core/sandbox_base.py     (~400 lines)
+   - BaseSandbox protocol
+   - SandboxConfig with capabilities
+   - ExecutionResult unified format
+   - HybridSandbox for WASM/shell routing
+   - ShellSandboxAdapter
+   - create_sandbox() factory
+
+✅ ragix_core/wasm_sandbox.py     (~450 lines)
+   - WasmRuntime wrapper for wasmtime
+   - WasmToolManifest dataclass
+   - WasmToolRegistry scanner
+   - WasmSandbox implementation
+```
+
+### Bonus: Plugin System (not originally planned)
+
+```
+✅ ragix_core/plugin_system.py    (~600 lines)
+   - PluginManager with trust levels
+   - PluginManifest YAML format
+   - Tool and workflow plugins
+   - Capability-based permissions
+   - CLI commands (ragix plugin list/load/...)
+
+✅ plugins/json-validator/        (example plugin)
+✅ plugins/file-stats/            (example plugin)
+```
+
+### Bonus: SWE Workflows (not originally planned)
+
+```
+✅ ragix_core/swe_workflows.py    (~650 lines)
+   - ChunkedWorkflow base class
+   - WorkflowCheckpoint resumption
+   - Circuit breaker integration
+   - FileProcessingWorkflow
+   - CodeReviewWorkflow
+   - MigrationWorkflow
+```
+
+### Tool Registry Enhancement
+
+```
+✅ ragix_core/tool_registry.py    (~200 lines added)
+   - ToolProvider enum (builtin/plugin/mcp/wasm)
+   - Provider tracking
+   - Unified API (CLI/Web/MCP)
+   - Plugin sync
+```
+
+---
+
+## What's Deferred to v0.9
+
+### v0.8 → v0.9 Migration
+
+| Original v0.8 Task | Status | v0.9 Task |
+|--------------------|--------|-----------|
+| 4.1 Sandbox Abstraction | ✅ Done | - |
+| 4.2 WasmSandbox | ✅ Done | - |
+| 4.3 WASP Registry | ⏸️ Partial | Complete registry |
+| 4.4 JSON Protocol | ⏸️ Deferred | `wasp_task` action |
+| 4.5 WASM Tools | ⏸️ Deferred | Priority tools |
+| 4.6 Browser Runtime | ⏸️ Deferred | Full browser RAGIX |
+| 4.7 Testing | ⏸️ Partial | Complete test suite |
+| 4.8 Documentation | ⏸️ Partial | Full WASP docs |
+
+---
+
+## Context: v0.7 → v0.8 → v0.9
+
+### v0.7 Delivered
 - LLM integration with tool execution loop
 - Tool registry system
 - Enhanced retrieval (BM25 + vector)
 - Production-ready testing and monitoring
 
-### v0.8 Adds
+### v0.8 Delivers (RELEASED)
+- Sandbox abstraction layer (foundation for WASM)
+- Plugin system with trust levels
+- SWE chunked workflows with resumption
+- Unified tool registry across CLI/Web/MCP
+
+### v0.9 Will Deliver
 - WASM-based tool execution alongside shell
 - Browser-native RAGIX (full WASM stack)
 - Deterministic micro-tools library
@@ -79,7 +174,7 @@ Browser
 
 ## Task Breakdown
 
-### Task 4.1: Sandbox Abstraction Layer ⏸️
+### Task 4.1: Sandbox Abstraction Layer ✅ DONE
 
 **Goal:** Refactor sandbox into pluggable interface for WASM integration.
 
@@ -113,7 +208,7 @@ Browser
 
 ---
 
-### Task 4.2: WasmSandbox Implementation ⏸️
+### Task 4.2: WasmSandbox Implementation ✅ DONE
 
 **Goal:** Create WASM-based sandbox using wasmtime Python bindings.
 
@@ -162,9 +257,11 @@ wasm = ["wasmtime>=14.0.0"]
 
 ---
 
-### Task 4.3: WASP Tool Registry ⏸️
+### Task 4.3: WASP Tool Registry → v0.9
 
 **Goal:** Registry for .wasm modules with metadata and capabilities.
+
+**Status:** Partially done in v0.8 (`WasmToolRegistry` in `wasm_sandbox.py`). Full implementation deferred to v0.9.
 
 **Components:**
 
@@ -211,7 +308,7 @@ wasm = ["wasmtime>=14.0.0"]
 
 ---
 
-### Task 4.4: JSON Protocol Extension ⏸️
+### Task 4.4: JSON Protocol Extension → v0.9
 
 **Goal:** Add `wasp_task` action to JSON protocol.
 
@@ -245,7 +342,7 @@ wasm = ["wasmtime>=14.0.0"]
 
 ---
 
-### Task 4.5: Priority WASM Tools ⏸️
+### Task 4.5: Priority WASM Tools → v0.9
 
 **Goal:** Implement first three WASM tools for RAGIX.
 
@@ -303,7 +400,7 @@ pulldown-cmark = "0.9"  # Markdown parsing
 
 ---
 
-### Task 4.6: Browser WASM Runtime ⏸️
+### Task 4.6: Browser WASM Runtime → v0.9
 
 **Goal:** Run RAGIX tools client-side in browser.
 
@@ -379,7 +476,7 @@ pulldown-cmark = "0.9"  # Markdown parsing
 
 ---
 
-### Task 4.7: Testing and Validation ⏸️
+### Task 4.7: Testing and Validation → v0.9
 
 **Goal:** Comprehensive tests for WASM integration.
 
@@ -410,7 +507,7 @@ pulldown-cmark = "0.9"  # Markdown parsing
 
 ---
 
-### Task 4.8: Documentation ⏸️
+### Task 4.8: Documentation → v0.9
 
 **Goal:** Complete WASP documentation.
 
@@ -616,6 +713,27 @@ This planning document implements the vision outlined in `WASM.md`:
 
 ---
 
-**v0.8 Status:** PLANNED - Ready after v0.7 completion
+## v0.8 Status: ✅ RELEASED (2025-11-26)
 
-**Next Action:** Complete v0.7, then start Task 4.1 (Sandbox Abstraction)
+**Completed:**
+- ✅ Task 4.1: Sandbox Abstraction Layer (`sandbox_base.py`)
+- ✅ Task 4.2: WasmSandbox Implementation (`wasm_sandbox.py`)
+- ✅ **Bonus:** Plugin System (`plugin_system.py`)
+- ✅ **Bonus:** SWE Chunked Workflows (`swe_workflows.py`)
+- ✅ **Bonus:** Unified Tool Registry enhancement
+
+**Deferred to v0.9:**
+- Task 4.3: WASP Registry (partial done)
+- Task 4.4: JSON Protocol Extension
+- Task 4.5: Priority WASM Tools
+- Task 4.6: Browser WASM Runtime
+- Task 4.7: Testing Suite
+- Task 4.8: Documentation
+
+---
+
+## v0.9 Planning
+
+**Next Action:** Implement priority WASM tools (validate.wasm, mdparse.wasm, rg.wasm)
+
+**Reference:** See `CHANGELOG.md` for v0.8.0 release notes

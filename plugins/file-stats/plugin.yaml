@@ -1,0 +1,56 @@
+name: file-stats
+version: 1.0.0
+description: File and codebase statistics tools
+type: tool
+trust: builtin
+author: Olivier Vitrac
+homepage: https://github.com/ovitrac/RAGIX
+license: MIT
+
+capabilities:
+  - file:read
+  - shell:read
+
+tools:
+  - name: file_stats
+    description: Get statistics for a file (size, lines, encoding)
+    entry: stats_tools:file_stats
+    parameters:
+      - name: path
+        type: string
+        description: Path to file
+        required: true
+    examples:
+      - path: "src/main.py"
+
+  - name: directory_stats
+    description: Get statistics for a directory (file counts, sizes, types)
+    entry: stats_tools:directory_stats
+    parameters:
+      - name: path
+        type: string
+        description: Path to directory
+        required: true
+      - name: recursive
+        type: boolean
+        description: Include subdirectories
+        required: false
+    examples:
+      - path: "src/"
+        recursive: true
+
+  - name: code_stats
+    description: Get code statistics (lines of code, comments, blanks)
+    entry: stats_tools:code_stats
+    parameters:
+      - name: path
+        type: string
+        description: Path to file or directory
+        required: true
+      - name: extensions
+        type: array
+        description: File extensions to include
+        required: false
+    examples:
+      - path: "src/"
+        extensions: [".py", ".js"]
