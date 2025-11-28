@@ -73,6 +73,38 @@ from ragix_core.code_metrics import (
     ProjectMetrics,
 )
 
+# Advanced visualizations
+try:
+    from ragix_core.ast_viz_advanced import (
+        TreemapConfig,
+        TreemapMetric,
+        TreemapRenderer,
+        SunburstConfig,
+        SunburstRenderer,
+        ChordConfig,
+        ChordRenderer,
+    )
+    ADVANCED_VIZ_AVAILABLE = True
+except ImportError:
+    ADVANCED_VIZ_AVAILABLE = False
+
+# Report generation
+try:
+    from ragix_core.report_engine import (
+        ReportEngine,
+        ReportConfig,
+        ReportData,
+        ReportFormat,
+        ReportType,
+        ComplianceStandard,
+        generate_executive_summary,
+        generate_technical_audit,
+        generate_compliance_report,
+    )
+    REPORTS_AVAILABLE = True
+except ImportError:
+    REPORTS_AVAILABLE = False
+
 
 def cmd_parse(args: argparse.Namespace) -> int:
     """Parse a file and show the AST."""
@@ -871,6 +903,224 @@ def cmd_sonar(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_treemap(args: argparse.Namespace) -> int:
+    """Generate treemap visualization."""
+    if not ADVANCED_VIZ_AVAILABLE:
+        print("Error: Advanced visualizations require 'jinja2'", file=sys.stderr)
+        print("Install with: pip install jinja2", file=sys.stderr)
+        return 1
+
+    path = Path(args.path)
+    if not path.exists():
+        print(f"Error: Path not found: {path}", file=sys.stderr)
+        return 1
+
+    print(f"Analyzing {path}...")
+    graph = build_dependency_graph([path])
+
+    # Configure treemap
+    metric_map = {
+        "loc": TreemapMetric.LOC,
+        "complexity": TreemapMetric.COMPLEXITY,
+        "count": TreemapMetric.COUNT,
+        "debt": TreemapMetric.DEBT,
+    }
+    config = TreemapConfig(
+        metric=metric_map.get(args.metric, TreemapMetric.LOC),
+        title=args.title or f"Treemap - {path.name}",
+        max_depth=args.depth,
+    )
+
+    renderer = TreemapRenderer(config)
+    html_content = renderer.render(graph)
+
+    output_path = Path(args.output) if args.output else None
+    if output_path:
+        output_path.write_text(html_content)
+        print(f"Treemap saved to: {output_path}")
+        print(f"Open in browser: xdg-open {output_path}")
+    else:
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
+            f.write(html_content)
+            print(f"Treemap saved to: {f.name}")
+            print(f"Open in browser: xdg-open {f.name}")
+
+    return 0
+
+
+def cmd_sunburst(args: argparse.Namespace) -> int:
+    """Generate sunburst visualization."""
+    if not ADVANCED_VIZ_AVAILABLE:
+        print("Error: Advanced visualizations require 'jinja2'", file=sys.stderr)
+        print("Install with: pip install jinja2", file=sys.stderr)
+        return 1
+
+    path = Path(args.path)
+    if not path.exists():
+        print(f"Error: Path not found: {path}", file=sys.stderr)
+        return 1
+
+    print(f"Analyzing {path}...")
+    graph = build_dependency_graph([path])
+
+    config = SunburstConfig(
+        title=args.title or f"Sunburst - {path.name}",
+        max_depth=args.depth,
+    )
+
+    renderer = SunburstRenderer(config)
+    html_content = renderer.render(graph)
+
+    output_path = Path(args.output) if args.output else None
+    if output_path:
+        output_path.write_text(html_content)
+        print(f"Sunburst saved to: {output_path}")
+        print(f"Open in browser: xdg-open {output_path}")
+    else:
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
+            f.write(html_content)
+            print(f"Sunburst saved to: {f.name}")
+            print(f"Open in browser: xdg-open {f.name}")
+
+    return 0
+
+
+def cmd_chord(args: argparse.Namespace) -> int:
+    """Generate chord diagram visualization."""
+    if not ADVANCED_VIZ_AVAILABLE:
+        print("Error: Advanced visualizations require 'jinja2'", file=sys.stderr)
+        print("Install with: pip install jinja2", file=sys.stderr)
+        return 1
+
+    path = Path(args.path)
+    if not path.exists():
+        print(f"Error: Path not found: {path}", file=sys.stderr)
+        return 1
+
+    print(f"Analyzing {path}...")
+    graph = build_dependency_graph([path])
+
+    config = ChordConfig(
+        title=args.title or f"Dependencies - {path.name}",
+        group_by=args.group_by,
+        min_connections=args.min_connections,
+    )
+
+    renderer = ChordRenderer(config)
+    html_content = renderer.render(graph)
+
+    output_path = Path(args.output) if args.output else None
+    if output_path:
+        output_path.write_text(html_content)
+        print(f"Chord diagram saved to: {output_path}")
+        print(f"Open in browser: xdg-open {output_path}")
+    else:
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
+            f.write(html_content)
+            print(f"Chord diagram saved to: {f.name}")
+            print(f"Open in browser: xdg-open {f.name}")
+
+    return 0
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    """Generate analysis reports."""
+    if not REPORTS_AVAILABLE:
+        print("Error: Report generation requires 'jinja2'", file=sys.stderr)
+        print("Install with: pip install jinja2", file=sys.stderr)
+        return 1
+
+    path = Path(args.path)
+    if not path.exists():
+        print(f"Error: Path not found: {path}", file=sys.stderr)
+        return 1
+
+    print(f"Analyzing {path}...")
+    graph = build_dependency_graph([path])
+    code_metrics = calculate_metrics_from_graph(graph)
+
+    # Determine output format
+    fmt = ReportFormat.PDF if args.pdf else ReportFormat.HTML
+
+    # Check PDF availability
+    if fmt == ReportFormat.PDF:
+        try:
+            from weasyprint import HTML
+        except ImportError:
+            print("Warning: weasyprint not available, falling back to HTML", file=sys.stderr)
+            fmt = ReportFormat.HTML
+
+    # Determine output path
+    output_path = Path(args.output) if args.output else None
+
+    # Generate appropriate report
+    report_type = args.type.lower()
+    project_name = args.project or path.name
+
+    if report_type == "executive":
+        print("Generating Executive Summary...")
+        html_content = generate_executive_summary(
+            metrics=code_metrics,
+            graph=graph,
+            project_name=project_name,
+            output_path=output_path,
+            format=fmt
+        )
+    elif report_type == "technical":
+        print("Generating Technical Audit Report...")
+        html_content = generate_technical_audit(
+            metrics=code_metrics,
+            graph=graph,
+            project_name=project_name,
+            output_path=output_path,
+            format=fmt
+        )
+    elif report_type == "compliance":
+        print("Generating Compliance Report...")
+        standard_map = {
+            "sonarqube": ComplianceStandard.SONARQUBE,
+            "owasp": ComplianceStandard.OWASP,
+            "iso25010": ComplianceStandard.ISO_25010,
+        }
+        standard = standard_map.get(args.standard, ComplianceStandard.SONARQUBE)
+        html_content = generate_compliance_report(
+            metrics=code_metrics,
+            graph=graph,
+            project_name=project_name,
+            standard=standard,
+            output_path=output_path,
+            format=fmt
+        )
+    else:
+        print(f"Error: Unknown report type: {report_type}", file=sys.stderr)
+        print("Available types: executive, technical, compliance", file=sys.stderr)
+        return 1
+
+    # Handle output
+    if output_path:
+        if fmt == ReportFormat.HTML and not output_path.suffix:
+            output_path = output_path.with_suffix('.html')
+        if not output_path.exists() or fmt == ReportFormat.HTML:
+            # HTML not yet written (PDF was written by generator)
+            if fmt == ReportFormat.HTML:
+                output_path.write_text(html_content)
+        print(f"Report saved to: {output_path}")
+        if fmt == ReportFormat.HTML:
+            print(f"Open in browser: xdg-open {output_path}")
+    else:
+        import tempfile
+        suffix = '.html'
+        with tempfile.NamedTemporaryFile(mode='w', suffix=suffix, delete=False) as f:
+            f.write(html_content)
+            print(f"Report saved to: {f.name}")
+            print(f"Open in browser: xdg-open {f.name}")
+
+    return 0
+
+
 def main() -> int:
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -881,7 +1131,7 @@ def main() -> int:
     parser.add_argument(
         "--version",
         action="version",
-        version="%(prog)s 0.10.1",
+        version="%(prog)s 0.11.1",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
@@ -991,6 +1241,50 @@ def main() -> int:
     sonar_parser.add_argument("--json", action="store_true",
                               help="Output as JSON")
     sonar_parser.set_defaults(func=cmd_sonar)
+
+    # treemap command (advanced visualization)
+    treemap_parser = subparsers.add_parser("treemap", help="Generate treemap visualization")
+    treemap_parser.add_argument("path", help="File or directory")
+    treemap_parser.add_argument("--output", "-o", help="Output file")
+    treemap_parser.add_argument("--metric", "-m", default="loc",
+                                help="Size metric (loc, complexity, count, debt)")
+    treemap_parser.add_argument("--depth", "-d", type=int, default=4,
+                                help="Maximum depth (default: 4)")
+    treemap_parser.add_argument("--title", "-t", help="Custom title")
+    treemap_parser.set_defaults(func=cmd_treemap)
+
+    # sunburst command (advanced visualization)
+    sunburst_parser = subparsers.add_parser("sunburst", help="Generate sunburst diagram")
+    sunburst_parser.add_argument("path", help="File or directory")
+    sunburst_parser.add_argument("--output", "-o", help="Output file")
+    sunburst_parser.add_argument("--depth", "-d", type=int, default=5,
+                                 help="Maximum depth (default: 5)")
+    sunburst_parser.add_argument("--title", "-t", help="Custom title")
+    sunburst_parser.set_defaults(func=cmd_sunburst)
+
+    # chord command (advanced visualization)
+    chord_parser = subparsers.add_parser("chord", help="Generate chord diagram")
+    chord_parser.add_argument("path", help="File or directory")
+    chord_parser.add_argument("--output", "-o", help="Output file")
+    chord_parser.add_argument("--group-by", "-g", default="package",
+                              help="Grouping (package, file)")
+    chord_parser.add_argument("--min-connections", "-m", type=int, default=1,
+                              help="Minimum connections to show")
+    chord_parser.add_argument("--title", "-t", help="Custom title")
+    chord_parser.set_defaults(func=cmd_chord)
+
+    # report command (professional reports)
+    report_parser = subparsers.add_parser("report", help="Generate analysis reports")
+    report_parser.add_argument("path", help="File or directory")
+    report_parser.add_argument("--type", "-t", default="executive",
+                               help="Report type (executive, technical, compliance)")
+    report_parser.add_argument("--output", "-o", help="Output file")
+    report_parser.add_argument("--project", "-p", help="Project name for report")
+    report_parser.add_argument("--pdf", action="store_true",
+                               help="Generate PDF (requires weasyprint)")
+    report_parser.add_argument("--standard", "-s", default="sonarqube",
+                               help="Compliance standard (sonarqube, owasp, iso25010)")
+    report_parser.set_defaults(func=cmd_report)
 
     args = parser.parse_args()
 

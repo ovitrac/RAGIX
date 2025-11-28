@@ -45,6 +45,7 @@ class MethodMetrics:
     parameter_count: int = 0
     return_statements: int = 0
     nested_depth: int = 0
+    has_docstring: bool = False  # True if method has Javadoc/docstring
 
     @property
     def complexity_level(self) -> ComplexityLevel:
@@ -95,6 +96,7 @@ class ClassMetrics:
     public_methods: int = 0
     private_methods: int = 0
     inheritance_depth: int = 0
+    has_docstring: bool = False  # True if class has Javadoc/docstring
     method_metrics: List[MethodMetrics] = field(default_factory=list)
 
     @property
@@ -132,6 +134,23 @@ class ClassMetrics:
         if self.method_count > 20:
             debt += (self.method_count - 20) * 5
         return debt
+
+    @property
+    def documented_methods(self) -> int:
+        """Count of methods with documentation."""
+        return sum(1 for m in self.method_metrics if m.has_docstring)
+
+    @property
+    def doc_coverage(self) -> float:
+        """Documentation coverage percentage for this class."""
+        # Count: class itself + public methods
+        total = 1 + self.public_methods  # Class + public methods
+        documented = (1 if self.has_docstring else 0)
+        documented += sum(1 for m in self.method_metrics
+                        if m.has_docstring and not m.name.startswith("_"))
+        if total == 0:
+            return 100.0
+        return (documented / total) * 100
 
 
 @dataclass
@@ -200,7 +219,72 @@ class ProjectMetrics:
 
     @property
     def total_functions(self) -> int:
+        """Count standalone functions (not class methods)."""
         return sum(f.function_count for f in self.file_metrics)
+
+    @property
+    def total_methods(self) -> int:
+        """Count all methods/functions including class methods."""
+        total = self.total_functions
+        for fm in self.file_metrics:
+            for cm in fm.class_metrics:
+                total += cm.method_count
+        return total
+
+    @property
+    def documented_classes(self) -> int:
+        """Count classes with documentation."""
+        count = 0
+        for fm in self.file_metrics:
+            for cm in fm.class_metrics:
+                if cm.has_docstring:
+                    count += 1
+        return count
+
+    @property
+    def documented_methods(self) -> int:
+        """Count methods with documentation (public methods only)."""
+        count = 0
+        for fm in self.file_metrics:
+            for cm in fm.class_metrics:
+                count += cm.documented_methods
+            # Also count documented standalone functions
+            count += sum(1 for f in fm.function_metrics if f.has_docstring)
+        return count
+
+    @property
+    def class_doc_coverage(self) -> float:
+        """Documentation coverage for classes only."""
+        if self.total_classes == 0:
+            return 100.0
+        return (self.documented_classes / self.total_classes) * 100
+
+    @property
+    def method_doc_coverage(self) -> float:
+        """Documentation coverage for public methods only."""
+        total_public = sum(
+            cm.public_methods
+            for fm in self.file_metrics
+            for cm in fm.class_metrics
+        )
+        if total_public == 0:
+            return 100.0
+        return (self.documented_methods / total_public) * 100
+
+    @property
+    def doc_coverage(self) -> float:
+        """
+        Calculate balanced documentation coverage percentage.
+
+        Uses weighted average:
+        - 50% class documentation (most important for understanding architecture)
+        - 50% method documentation (important for API usage)
+        """
+        class_cov = self.class_doc_coverage
+        method_cov = self.method_doc_coverage
+
+        # Weighted 50/50 to give class docs proper importance
+        return (class_cov * 0.5 + method_cov * 0.5)
 
     @property
     def total_complexity(self) -> int:
@@ -512,6 +596,7 @@ class JavaMetricsCalculator:
             qualified_name=node.get_qualified_name(),
             file=str(node.location.file) if node.location.file else "unknown",
             line=node.location.line,
+            has_docstring=bool(node.docstring),  # Track Javadoc presence
         )
 
         # Calculate lines
@@ -542,6 +627,7 @@ class JavaMetricsCalculator:
             file=str(node.location.file) if node.location.file else "unknown",
             line=node.location.line,
             parameter_count=len(node.parameters),
+            has_docstring=bool(node.docstring),  # Track Javadoc presence
         )
 
         # Calculate lines

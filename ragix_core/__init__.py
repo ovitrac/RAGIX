@@ -357,6 +357,41 @@ from .ast_viz import (
     graph_to_mermaid,
     graph_to_html,
 )
+# Advanced Visualizations
+from .ast_viz_advanced import (
+    TreemapMetric,
+    TreemapConfig,
+    TreemapRenderer,
+    SunburstConfig,
+    SunburstRenderer,
+    ChordConfig,
+    ChordRenderer,
+)
+# Report Generation
+try:
+    from .report_engine import (
+        ReportFormat,
+        ReportType,
+        ComplianceStandard,
+        Finding,
+        ReportSection,
+        ReportConfig,
+        ReportData,
+        MavenData,
+        SonarData,
+        BaseReportGenerator,
+        ExecutiveSummaryGenerator,
+        TechnicalAuditGenerator,
+        ComplianceReportGenerator,
+        ReportEngine,
+        get_report_engine,
+        generate_executive_summary,
+        generate_technical_audit,
+        generate_compliance_report,
+    )
+    REPORTS_AVAILABLE = True
+except ImportError:
+    REPORTS_AVAILABLE = False
 
 __all__ = [
     # LLM Backends
@@ -655,4 +690,32 @@ __all__ = [
     "graph_to_dot",
     "graph_to_mermaid",
     "graph_to_html",
+    # Advanced Visualizations
+    "TreemapMetric",
+    "TreemapConfig",
+    "TreemapRenderer",
+    "SunburstConfig",
+    "SunburstRenderer",
+    "ChordConfig",
+    "ChordRenderer",
+    # Report Generation
+    "ReportFormat",
+    "ReportType",
+    "ComplianceStandard",
+    "Finding",
+    "ReportSection",
+    "ReportConfig",
+    "ReportData",
+    "MavenData",
+    "SonarData",
+    "BaseReportGenerator",
+    "ExecutiveSummaryGenerator",
+    "TechnicalAuditGenerator",
+    "ComplianceReportGenerator",
+    "ReportEngine",
+    "get_report_engine",
+    "generate_executive_summary",
+    "generate_technical_audit",
+    "generate_compliance_report",
+    "REPORTS_AVAILABLE",
 ]

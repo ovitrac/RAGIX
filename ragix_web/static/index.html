@@ -831,6 +831,50 @@
                             <h3><span class="viz-icon">&#128202;</span> Code Metrics</h3>
                             <p>Cyclomatic complexity, technical debt, maintainability index, and hotspots.</p>
                         </div>
+                        <div class="viz-card" onclick="astApp.openTreemap()">
+                            <h3><span class="viz-icon">&#9618;</span> Treemap</h3>
+                            <p>Hierarchical package view with size by LOC, complexity, or technical debt.</p>
+                        </div>
+                        <div class="viz-card" onclick="astApp.openSunburst()">
+                            <h3><span class="viz-icon">&#9788;</span> Sunburst</h3>
+                            <p>Radial hierarchical diagram for module structure drill-down exploration.</p>
+                        </div>
+                        <div class="viz-card" onclick="astApp.openChord()">
+                            <h3><span class="viz-icon">&#10226;</span> Chord Diagram</h3>
+                            <p>Inter-module dependencies as circular chord connections.</p>
+                        </div>
+                        <div class="viz-card" onclick="astApp.openCycles()">
+                            <h3><span class="viz-icon">&#128260;</span> Cycles Detection</h3>
+                            <p>Detect and display circular dependencies in the codebase.</p>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 24px;">Build & Quality Tools</h3>
+                    <div class="viz-cards">
+                        <div class="viz-card" onclick="astApp.openMaven()">
+                            <h3><span class="viz-icon">&#128230;</span> Maven Analysis</h3>
+                            <p>Parse pom.xml files, show dependencies, detect version conflicts.</p>
+                        </div>
+                        <div class="viz-card" onclick="astApp.openSonar()">
+                            <h3><span class="viz-icon">&#128269;</span> SonarQube</h3>
+                            <p>Quality gate, bugs, vulnerabilities, code smells, coverage metrics.</p>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 24px;">Reports</h3>
+                    <div class="viz-cards">
+                        <div class="viz-card" onclick="astApp.openReport('executive')">
+                            <h3><span class="viz-icon">&#128196;</span> Executive Summary</h3>
+                            <p>High-level overview with health score, key metrics, and critical findings.</p>
+                        </div>
+                        <div class="viz-card" onclick="astApp.openReport('technical')">
+                            <h3><span class="viz-icon">&#128209;</span> Technical Audit</h3>
+                            <p>Detailed analysis with complexity hotspots, coupling metrics, and findings.</p>
+                        </div>
+                        <div class="viz-card" onclick="astApp.openReport('compliance')">
+                            <h3><span class="viz-icon">&#9989;</span> Compliance Report</h3>
+                            <p>Standards-based assessment (SonarQube, OWASP, ISO 25010) with remediation plan.</p>
+                        </div>
                     </div>
 
                     <div id="astResults" style="margin-top: 20px;"></div>
@@ -1181,16 +1225,17 @@
                 try {
                     const resp = await fetch(`/api/browse?path=${encodeURIComponent(path)}`);
                     const data = await resp.json();
+                    const entries = data.entries || [];
 
-                    this.currentPath = data.current;
-                    document.getElementById('folderPath').value = data.current;
+                    this.currentPath = data.current || path;
+                    document.getElementById('folderPath').value = data.current || path;
 
-                    if (data.entries.length === 0) {
+                    if (entries.length === 0) {
                         container.innerHTML = '<p style="color: var(--text-secondary);">No subfolders found</p>';
                         return;
                     }
 
-                    container.innerHTML = data.entries.map(entry => `
+                    container.innerHTML = entries.map(entry => `
                         <div class="folder-item ${entry.is_project ? 'is-project' : ''}" onclick="folderBrowser.${entry.is_dir ? 'navigate' : 'selectFile'}('${entry.path.replace(/'/g, "\\'")}')">
                             <span class="folder-icon">${entry.is_dir ? (entry.is_project ? '&#128193;' : '&#128194;') : '&#128196;'}</span>
                             <span class="folder-name">${entry.name}</span>
@@ -1382,6 +1427,56 @@
                 this.showMetrics(path);
             },
 
+            openTreemap() {
+                const path = this.getPath();
+                if (!path) { alert('Please enter a project path first'); return; }
+                this.showViz(`/api/ast/treemap?path=${encodeURIComponent(path)}&metric=loc&depth=4`, 'Treemap');
+            },
+
+            openSunburst() {
+                const path = this.getPath();
+                if (!path) { alert('Please enter a project path first'); return; }
+                this.showViz(`/api/ast/sunburst?path=${encodeURIComponent(path)}&depth=5`, 'Sunburst');
+            },
+
+            openChord() {
+                const path = this.getPath();
+                if (!path) { alert('Please enter a project path first'); return; }
+                this.showViz(`/api/ast/chord?path=${encodeURIComponent(path)}&group_by=package`, 'Chord Diagram');
+            },
+
+            openReport(type) {
+                const path = this.getPath();
+                if (!path) { alert('Please enter a project path first'); return; }
+                const titles = {
+                    'executive': 'Executive Summary',
+                    'technical': 'Technical Audit Report',
+                    'compliance': 'Compliance Report'
+                };
+                this.showViz(`/api/reports/generate?path=${encodeURIComponent(path)}&report_type=${type}`, titles[type] || 'Report');
+            },
+
+            openCycles() {
+                const path = this.getPath();
+                if (!path) { alert('Please enter a project path first'); return; }
+                this.showViz(`/api/ast/cycles/page?path=${encodeURIComponent(path)}`, 'Cycles Detection');
+            },
+
+            openMaven() {
+                const path = this.getPath();
+                if (!path) { alert('Please enter a project path first'); return; }
+                this.showViz(`/api/ast/maven/page?path=${encodeURIComponent(path)}`, 'Maven Analysis');
+            },
+
+            openSonar() {
+                const path = this.getPath();
+                if (!path) { alert('Please enter a project path first'); return; }
+                // Prompt for project key since it's required
+                const projectKey = prompt('Enter SonarQube project key:', '');
+                if (!projectKey) { return; }
+                this.showViz(`/api/ast/sonar/page?project=${encodeURIComponent(projectKey)}`, 'SonarQube Analysis');
+            },
+
             showViz(url, title) {
                 const container = document.getElementById('vizContainer');
                 const titleEl = document.getElementById('vizTitle');
@@ -1438,28 +1533,31 @@
                 try {
                     const resp = await fetch('/api/logs/server?limit=100');
                     const data = await resp.json();
+                    const logs = data.logs || [];
 
-                    if (data.logs.length === 0) {
+                    if (logs.length === 0) {
                         const sessResp = await fetch('/api/sessions');
                         const sessData = await sessResp.json();
+                        const sessions = sessData.sessions || [];
 
-                        if (sessData.sessions.length === 0) {
+                        if (sessions.length === 0) {
                             content.innerHTML = '<p style="color: var(--text-secondary);">No logs yet. Start using RAGIX to generate logs.</p>';
                             return;
                         }
 
-                        const session = sessData.sessions[0];
+                        const session = sessions[0];
                         const logsResp = await fetch(`/api/sessions/${session.id}/logs?limit=100`);
                         const logsData = await logsResp.json();
+                        const sessionLogs = logsData.logs || [];
 
-                        if (logsData.logs.length === 0) {
+                        if (sessionLogs.length === 0) {
                             content.innerHTML = '<p style="color: var(--text-secondary);">No logs yet.</p>';
                             return;
                         }
 
-                        content.innerHTML = logsData.logs.map(line => this.formatLogLine(line)).join('');
+                        content.innerHTML = sessionLogs.map(line => this.formatLogLine(line)).join('');
                     } else {
-                        content.innerHTML = data.logs.map(entry => this.formatLogLine(entry.line, entry.session)).join('');
+                        content.innerHTML = logs.map(entry => this.formatLogLine(entry.line || entry, entry.session)).join('');
                     }
                 } catch (e) {
                     content.innerHTML = `<p style="color: #f85149;">Error loading logs: ${e.message}</p>`;
@@ -1473,13 +1571,14 @@
                 try {
                     const resp = await fetch('/api/logs/chain?limit=100');
                     const data = await resp.json();
+                    const entries = data.entries || [];
 
-                    if (!data.has_integrity || data.entries.length === 0) {
+                    if (!data.has_integrity || entries.length === 0) {
                         content.innerHTML = '<p style="color: var(--text-secondary);">No hash chain entries yet. Commands will be logged with SHA256 hashes.</p>';
                         return;
                     }
 
-                    content.innerHTML = data.entries.map(entry => `
+                    content.innerHTML = entries.map(entry => `
                         <div class="chain-entry">
                             <div class="chain-header">
                                 <span class="chain-seq">#${entry.sequence}</span>
@@ -1506,13 +1605,14 @@
                 try {
                     const resp = await fetch('/api/traces?limit=50');
                     const data = await resp.json();
+                    const traces = data.traces || [];
 
-                    if (data.traces.length === 0) {
+                    if (traces.length === 0) {
                         content.innerHTML = '<p style="color: var(--text-secondary);">No tool traces yet.</p>';
                         return;
                     }
 
-                    content.innerHTML = data.traces.map(trace => `
+                    content.innerHTML = traces.map(trace => `
                         <div class="trace-item">
                             <div class="trace-header">
                                 <span class="trace-type">${trace.event || trace.action || 'event'}</span>
@@ -1530,10 +1630,11 @@
                 try {
                     const resp = await fetch('/api/logs/stats');
                     const data = await resp.json();
+                    const sessions = data.sessions || [];
 
                     const statsEl = document.getElementById('logStats');
-                    if (data.sessions.length > 0) {
-                        const session = data.sessions[0];
+                    if (sessions.length > 0) {
+                        const session = sessions[0];
                         document.getElementById('statEntries').textContent = session.log_file?.entries || 0;
                         document.getElementById('statChain').textContent = session.hash_chain?.entries || 0;
                         document.getElementById('statSize').textContent = (session.log_file?.size_kb || 0) + ' KB';
@@ -1559,18 +1660,19 @@
                 try {
                     const resp = await fetch('/api/logs/integrity');
                     const data = await resp.json();
+                    const results = data.results || [];
 
                     if (data.overall_valid) {
                         statusEl.className = 'integrity-status valid';
                         iconEl.innerHTML = '&#10003;';
                         msgEl.textContent = 'Integrity Verified';
-                        const total = data.results.reduce((sum, r) => sum + (r.verified_entries || 0), 0);
+                        const total = results.reduce((sum, r) => sum + (r.verified_entries || 0), 0);
                         detailsEl.textContent = `${total} entries verified with SHA256 hash chain`;
                     } else {
                         statusEl.className = 'integrity-status invalid';
                         iconEl.innerHTML = '&#10007;';
                         msgEl.textContent = 'Integrity Check Failed';
-                        const errors = data.results.flatMap(r => r.errors || []);
+                        const errors = results.flatMap(r => r.errors || []);
                         detailsEl.textContent = errors.slice(0, 3).join('; ');
                     }
                 } catch (e) {
@@ -1586,13 +1688,15 @@
             },
 
             formatLogLine(line, session = null) {
+                // Defensive: ensure line is a string
+                const lineStr = (typeof line === 'string') ? line : String(line || '');
                 let cls = 'log-entry';
-                if (line.includes('CMD:')) cls += ' log-cmd';
-                else if (line.includes('EDIT:')) cls += ' log-edit';
-                else if (line.includes('ERROR')) cls += ' log-error';
-                else if (line.includes('EVENT:')) cls += ' log-event';
+                if (lineStr.includes('CMD:')) cls += ' log-cmd';
+                else if (lineStr.includes('EDIT:')) cls += ' log-edit';
+                else if (lineStr.includes('ERROR')) cls += ' log-error';
+                else if (lineStr.includes('EVENT:')) cls += ' log-event';
                 const sessionTag = session ? `<span style="color: #8b949e;">[${session}]</span> ` : '';
-                return `<div class="${cls}">${sessionTag}${escapeHtml(line)}</div>`;
+                return `<div class="${cls}">${sessionTag}${escapeHtml(lineStr)}</div>`;
             }
         };
 
@@ -1605,13 +1709,14 @@
                 try {
                     const resp = await fetch('/api/agents');
                     const data = await resp.json();
+                    const agents = data.agents || [];
 
-                    if (!data.available || data.agents.length === 0) {
+                    if (!data.available || agents.length === 0) {
                         container.innerHTML = '<p style="color: var(--text-secondary); font-size: 11px;">No agents available</p>';
                         return;
                     }
 
-                    container.innerHTML = data.agents.map(agent => `
+                    container.innerHTML = agents.map(agent => `
                         <div class="agent-item" data-agent="${agent.id}" onclick="agentsApp.select('${agent.id}')">
                             <span class="agent-icon">${agent.icon}</span>
                             <span class="agent-name">${agent.name}</span>
@@ -1644,20 +1749,21 @@
                 try {
                     const resp = await fetch('/api/workflows');
                     const data = await resp.json();
+                    const workflows = data.workflows || [];
 
-                    if (!data.available || data.workflows.length === 0) {
+                    if (!data.available || workflows.length === 0) {
                         container.innerHTML = '<p style="color: var(--text-secondary); font-size: 11px;">No workflows available</p>';
                         return;
                     }
 
-                    this.workflows = data.workflows;
+                    this.workflows = workflows;
 
-                    container.innerHTML = data.workflows.slice(0, 5).map(wf => `
+                    container.innerHTML = workflows.slice(0, 5).map(wf => `
                         <div class="workflow-item" data-workflow="${wf.id}" onclick="workflowsApp.select('${wf.id}')" title="${wf.description}">
                             <span class="workflow-name">${wf.name.replace(' Workflow', '')}</span>
-                            <div class="workflow-desc">${wf.steps.length} steps</div>
+                            <div class="workflow-desc">${(wf.steps || []).length} steps</div>
                         </div>
-                    `).join('') + (data.workflows.length > 5 ? `<p style="color: var(--text-secondary); font-size: 11px;">+${data.workflows.length - 5} more...</p>` : '');
+                    `).join('') + (workflows.length > 5 ? `<p style="color: var(--text-secondary); font-size: 11px;">+${workflows.length - 5} more...</p>` : '');
                 } catch (e) {
                     container.innerHTML = '<p style="color: #f85149; font-size: 11px;">Error loading workflows</p>';
                 }
@@ -1672,7 +1778,8 @@
                 if (wf) {
                     // Show workflow info in chat
                     const input = document.getElementById('chatInput');
-                    input.placeholder = `Configure ${wf.name}... (parameters: ${wf.parameters.map(p => p.name).join(', ')})`;
+                    const params = (wf.parameters || []).map(p => p.name).join(', ') || 'none';
+                    input.placeholder = `Configure ${wf.name}... (parameters: ${params})`;
                 }
             }
         };
@@ -1684,13 +1791,14 @@
                 try {
                     const resp = await fetch('/api/traces?limit=50');
                     const data = await resp.json();
+                    const traces = data.traces || [];
 
-                    if (data.traces.length === 0) {
+                    if (traces.length === 0) {
                         container.innerHTML = '<p class="trace-empty">No traces yet. Start chatting to see tool calls here.</p>';
                         return;
                     }
 
-                    container.innerHTML = data.traces.map(trace => `
+                    container.innerHTML = traces.map(trace => `
                         <div class="trace-item">
                             <div class="trace-header">
                                 <span class="trace-type">${trace.event || trace.action || 'event'}</span>

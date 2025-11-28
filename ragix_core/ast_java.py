@@ -463,10 +463,66 @@ class JavaASTBackend(ASTBackend):
         return [a.name for a in annotations]
 
     def _get_javadoc(self, node) -> Optional[str]:
-        """Extract Javadoc comment if available."""
-        if hasattr(node, "documentation") and node.documentation:
-            return node.documentation
-        return None
+        """
+        Extract Javadoc comment if available and substantive.
+
+        Filters out auto-generated placeholder Javadocs like:
+        - "The Class Foo."
+        - "The Interface Bar."
+        - Empty @author tags
+        """
+        if not hasattr(node, "documentation") or not node.documentation:
+            return None
+
+        doc = node.documentation
+
+        # Strip comment markers and get content
+        content = doc.replace('/**', '').replace('*/', '').strip()
+        lines = [l.strip().lstrip('*').strip() for l in content.split('\n')]
+        lines = [l for l in lines if l]  # Remove empty lines
+
+        if not lines:
+            return None
+
+        # Check for substantive content
+        import re
+
+        # Placeholder patterns (auto-generated, not real docs)
+        placeholder_patterns = [
+            r"^The (Class|Interface|Enum|Type)\s+\w+\.?$",  # "The Class Foo."
+            r"^@author\s*$",  # Empty @author
+            r"^TODO\b",  # TODO placeholders
+            r"^Auto-generated",  # Auto-generated
+            r"^\w+\.java$",  # Just filename
+        ]
+
+        has_real_content = False
+
+        for line in lines:
+            # Skip lines that are just @author with a name (common but not documentation)
+            if re.match(r'^@author\s+\S', line):
+                continue
+
+            # Check for @param, @return, @throws, @see with content = real doc
+            if re.match(r'@(param|return|throws|exception|see|since|version)\s+\S', line):
+                has_real_content = True
+                break
+
+            # Check for substantive description (>40 chars and not a placeholder pattern)
+            if len(line) > 40:
+                is_placeholder = any(re.match(p, line, re.IGNORECASE) for p in placeholder_patterns)
+                if not is_placeholder:
+                    has_real_content = True
+                    break
+
+            # Short but not matching placeholder patterns might be real
+            if len(line) > 15 and not any(re.match(p, line, re.IGNORECASE) for p in placeholder_patterns):
+                # Check it's not just "The Class X" variants
+                if not re.match(r'^(The\s+)?\w+\s+(class|interface|enum|implementation|test)\.?$', line, re.IGNORECASE):
+                    has_real_content = True
+                    break
+
+        return doc if has_real_content else None
 
     def _extract_calls(self, node: MethodDeclaration) -> List[str]:
         """Extract method calls from a method body."""

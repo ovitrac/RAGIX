@@ -55,6 +55,29 @@ try:
 except ImportError:
     AST_AVAILABLE = False
 
+# Maven imports (optional)
+try:
+    from ragix_core.maven import (
+        MavenParser,
+        parse_pom,
+        scan_maven_projects,
+        find_dependency_conflicts,
+    )
+    MAVEN_AVAILABLE = True
+except ImportError:
+    MAVEN_AVAILABLE = False
+
+# SonarQube imports (optional)
+try:
+    from ragix_core.sonar import (
+        SonarClient,
+        SonarSeverity,
+        get_project_report,
+    )
+    SONAR_AVAILABLE = True
+except ImportError:
+    SONAR_AVAILABLE = False
+
 from ragix_unix import UnixRAGAgent
 
 # Import workflow templates
@@ -192,9 +215,12 @@ async def health_check():
     """Health check endpoint."""
     return {
         "status": "ok",
-        "version": "0.10.1",
+        "version": RAGIX_VERSION,
         "sessions": len(active_sessions),
-        "ast_available": AST_AVAILABLE
+        "ast_available": AST_AVAILABLE,
+        "maven_available": MAVEN_AVAILABLE,
+        "sonar_available": SONAR_AVAILABLE,
+        "reports_available": REPORTS_AVAILABLE if 'REPORTS_AVAILABLE' in globals() else False
     }
 
 
@@ -1561,6 +1587,761 @@ async def radial_explorer_page(
 </body>
 </html>'''
     return HTMLResponse(content=html)
+
+
+# =============================================================================
+# Maven Analysis API
+# =============================================================================
+
+@app.get("/api/ast/maven")
+async def maven_analysis(path: str):
+    """
+    Analyze Maven projects in a directory.
+
+    Args:
+        path: Directory containing pom.xml files
+    """
+    if not MAVEN_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Maven analysis not available")
+
+    target_path = Path(path).expanduser()
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+
+    try:
+        # Check for pom.xml
+        pom_path = target_path / "pom.xml" if target_path.is_dir() else target_path
+        if target_path.is_dir() and not pom_path.exists():
+            # Scan for Maven projects
+            projects = scan_maven_projects(target_path)
+        elif pom_path.exists() and pom_path.name == "pom.xml":
+            projects = [parse_pom(pom_path)]
+        else:
+            return {"found": False, "message": "No pom.xml found", "projects": []}
+
+        # Convert to JSON-serializable format
+        result = {
+            "found": True,
+            "count": len(projects),
+            "projects": []
+        }
+
+        for project in projects:
+            proj_data = {
+                "gav": project.coordinate.gav,
+                "group_id": project.coordinate.group_id,
+                "artifact_id": project.coordinate.artifact_id,
+                "version": project.coordinate.version,
+                "name": project.name,
+                "packaging": project.packaging,
+                "parent": project.parent.gav if project.parent else None,
+                "modules": project.modules,
+                "dependencies": [
+                    {
+                        "gav": d.coordinate.gav,
+                        "scope": d.scope.value,
+                        "optional": d.optional,
+                    }
+                    for d in project.dependencies
+                ],
+                "compile_deps": len(project.get_compile_dependencies()),
+                "test_deps": len(project.get_test_dependencies()),
+            }
+            result["projects"].append(proj_data)
+
+        # Check for conflicts if multiple projects
+        if len(projects) > 1:
+            conflicts = find_dependency_conflicts(projects)
+            result["conflicts"] = [
+                {
+                    "artifact": c["artifact"],
+                    "versions": {v: len(users) for v, users in c["versions"].items()}
+                }
+                for c in conflicts[:10]
+            ]
+            result["conflict_count"] = len(conflicts)
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ast/maven/page", response_class=HTMLResponse)
+async def maven_page(path: str):
+    """Generate Maven analysis HTML page."""
+    if not MAVEN_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Maven analysis not available")
+
+    target_path = Path(path).expanduser()
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+
+    try:
+        # Get Maven data
+        pom_path = target_path / "pom.xml" if target_path.is_dir() else target_path
+        if target_path.is_dir() and not pom_path.exists():
+            projects = scan_maven_projects(target_path)
+        elif pom_path.exists():
+            projects = [parse_pom(pom_path)]
+        else:
+            projects = []
+
+        # Generate HTML
+        html = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Maven Analysis - {target_path.name}</title>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }}
+        h1 {{ color: #e94560; margin-bottom: 20px; }}
+        h2 {{ color: #4fc3f7; margin: 20px 0 10px; font-size: 18px; }}
+        .project {{ background: #16213e; border-radius: 8px; padding: 20px; margin-bottom: 20px; }}
+        .gav {{ font-family: monospace; background: #0f3460; padding: 8px 12px; border-radius: 4px; display: inline-block; margin-bottom: 10px; }}
+        .meta {{ display: flex; gap: 20px; margin: 10px 0; font-size: 14px; color: #888; }}
+        .deps-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+        .deps-table th {{ background: #0f3460; padding: 10px; text-align: left; }}
+        .deps-table td {{ padding: 8px 10px; border-bottom: 1px solid #30363d; }}
+        .scope {{ padding: 2px 8px; border-radius: 3px; font-size: 11px; }}
+        .scope-compile {{ background: #238636; }}
+        .scope-test {{ background: #6e40c9; }}
+        .scope-provided {{ background: #1f6feb; }}
+        .scope-runtime {{ background: #f85149; }}
+        .conflict {{ background: #5c2d2d; border: 1px solid #f85149; border-radius: 4px; padding: 10px; margin: 5px 0; }}
+        .footer {{ margin-top: 30px; text-align: center; color: #666; font-size: 12px; }}
+        .footer a {{ color: #4fc3f7; }}
+    </style>
+</head>
+<body>
+    <h1>Maven Analysis</h1>
+    <p style="color:#888;margin-bottom:20px;">Path: {path}</p>
+'''
+
+        if not projects:
+            html += '<p style="color:#f85149;">No Maven projects found (no pom.xml)</p>'
+        else:
+            # Check conflicts
+            conflicts = find_dependency_conflicts(projects) if len(projects) > 1 else []
+
+            if conflicts:
+                html += f'<div class="conflict"><strong>⚠ {len(conflicts)} Dependency Conflict(s) Detected</strong></div>'
+
+            for proj in projects:
+                compile_deps = proj.get_compile_dependencies()
+                test_deps = proj.get_test_dependencies()
+
+                html += f'''
+    <div class="project">
+        <div class="gav">{proj.coordinate.gav}</div>
+        {f'<p><strong>{proj.name}</strong></p>' if proj.name else ''}
+        <div class="meta">
+            <span>Packaging: {proj.packaging}</span>
+            <span>Dependencies: {len(proj.dependencies)}</span>
+            <span>Compile: {len(compile_deps)}</span>
+            <span>Test: {len(test_deps)}</span>
+        </div>
+        {f'<p style="color:#888;font-size:13px;">Parent: {proj.parent.gav}</p>' if proj.parent else ''}
+        {f'<p style="color:#888;font-size:13px;">Modules: {", ".join(proj.modules[:5])}{"..." if len(proj.modules) > 5 else ""}</p>' if proj.modules else ''}
+
+        <h2>Dependencies ({len(proj.dependencies)})</h2>
+        <table class="deps-table">
+            <tr><th>Artifact</th><th>Version</th><th>Scope</th></tr>
+'''
+                for dep in proj.dependencies[:30]:
+                    scope_class = f"scope-{dep.scope.value}"
+                    html += f'''
+            <tr>
+                <td>{dep.coordinate.group_id}:{dep.coordinate.artifact_id}</td>
+                <td>{dep.coordinate.version or 'inherited'}</td>
+                <td><span class="scope {scope_class}">{dep.scope.value}</span></td>
+            </tr>'''
+
+                if len(proj.dependencies) > 30:
+                    html += f'<tr><td colspan="3" style="text-align:center;color:#888;">... and {len(proj.dependencies) - 30} more</td></tr>'
+
+                html += '</table></div>'
+
+        html += '''
+    <div class="footer">
+        <p>Generated by RAGIX | Olivier Vitrac, PhD, HDR | <a href="mailto:olivier.vitrac@adservio.fr">olivier.vitrac@adservio.fr</a> | Adservio</p>
+    </div>
+</body>
+</html>'''
+
+        return HTMLResponse(content=html)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# SonarQube API
+# =============================================================================
+
+@app.get("/api/ast/sonar")
+async def sonar_analysis(
+    project: str,
+    url: Optional[str] = None,
+    token: Optional[str] = None,
+    organization: Optional[str] = None
+):
+    """
+    Query SonarQube/SonarCloud for project metrics.
+
+    Args:
+        project: Sonar project key
+        url: Sonar server URL (defaults to SONAR_URL env or sonarcloud.io)
+        token: API token (defaults to SONAR_TOKEN env)
+        organization: Organization key for SonarCloud
+    """
+    if not SONAR_AVAILABLE:
+        raise HTTPException(status_code=503, detail="SonarQube integration not available")
+
+    import os
+    base_url = url or os.environ.get("SONAR_URL", "https://sonarcloud.io")
+    api_token = token or os.environ.get("SONAR_TOKEN")
+    org = organization or os.environ.get("SONAR_ORGANIZATION")
+
+    try:
+        client = SonarClient(base_url=base_url, token=api_token, organization=org)
+        report = get_project_report(client, project)
+
+        proj = report.project
+
+        result = {
+            "project_key": project,
+            "server": base_url,
+            "quality_gate": proj.quality_gate.value,
+            "metrics": {
+                "bugs": proj.bugs,
+                "vulnerabilities": proj.vulnerabilities,
+                "code_smells": proj.code_smells,
+                "coverage": proj.coverage,
+                "duplicated_lines_density": proj.duplicated_lines_density,
+            },
+            "issues": {
+                "total": len(report.issues),
+                "by_severity": {}
+            },
+            "hotspots": len(report.hotspots),
+        }
+
+        # Count by severity
+        for issue in report.issues:
+            sev = issue.severity.value
+            result["issues"]["by_severity"][sev] = result["issues"]["by_severity"].get(sev, 0) + 1
+
+        # Top issues
+        result["top_issues"] = [
+            {
+                "rule": i.rule,
+                "message": i.message[:100],
+                "severity": i.severity.value,
+                "file": i.file_path,
+                "line": i.line,
+            }
+            for i in report.issues[:10]
+        ]
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ast/sonar/page", response_class=HTMLResponse)
+async def sonar_page(
+    project: str,
+    url: Optional[str] = None,
+    token: Optional[str] = None,
+    organization: Optional[str] = None
+):
+    """Generate SonarQube analysis HTML page."""
+    if not SONAR_AVAILABLE:
+        raise HTTPException(status_code=503, detail="SonarQube integration not available")
+
+    import os
+    base_url = url or os.environ.get("SONAR_URL", "https://sonarcloud.io")
+    api_token = token or os.environ.get("SONAR_TOKEN")
+    org = organization or os.environ.get("SONAR_ORGANIZATION")
+
+    try:
+        client = SonarClient(base_url=base_url, token=api_token, organization=org)
+        report = get_project_report(client, project)
+        proj = report.project
+
+        # Quality gate styling
+        gate_colors = {"OK": "#238636", "WARN": "#d29922", "ERROR": "#f85149", "NONE": "#6e7681"}
+        gate_color = gate_colors.get(proj.quality_gate.value, "#6e7681")
+
+        html = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SonarQube - {project}</title>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }}
+        h1 {{ color: #e94560; margin-bottom: 10px; }}
+        h2 {{ color: #4fc3f7; margin: 20px 0 10px; font-size: 18px; }}
+        .subtitle {{ color: #888; margin-bottom: 20px; }}
+        .quality-gate {{ display: inline-block; padding: 10px 20px; border-radius: 6px; font-size: 18px; font-weight: bold; background: {gate_color}; margin-bottom: 20px; }}
+        .metrics {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin: 20px 0; }}
+        .metric {{ background: #16213e; border-radius: 8px; padding: 20px; text-align: center; }}
+        .metric-value {{ font-size: 32px; font-weight: bold; color: #4fc3f7; }}
+        .metric-label {{ font-size: 12px; color: #888; margin-top: 5px; }}
+        .issues-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+        .issues-table th {{ background: #0f3460; padding: 10px; text-align: left; }}
+        .issues-table td {{ padding: 8px 10px; border-bottom: 1px solid #30363d; font-size: 13px; }}
+        .severity {{ padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; }}
+        .sev-BLOCKER {{ background: #7d1a1a; color: #fff; }}
+        .sev-CRITICAL {{ background: #f85149; }}
+        .sev-MAJOR {{ background: #d29922; }}
+        .sev-MINOR {{ background: #1f6feb; }}
+        .sev-INFO {{ background: #6e7681; }}
+        .footer {{ margin-top: 30px; text-align: center; color: #666; font-size: 12px; }}
+        .footer a {{ color: #4fc3f7; }}
+    </style>
+</head>
+<body>
+    <h1>SonarQube Analysis</h1>
+    <p class="subtitle">Project: {project} | Server: {base_url}</p>
+
+    <div class="quality-gate">Quality Gate: {proj.quality_gate.value}</div>
+
+    <h2>Metrics</h2>
+    <div class="metrics">
+        <div class="metric">
+            <div class="metric-value">{proj.bugs}</div>
+            <div class="metric-label">Bugs</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">{proj.vulnerabilities}</div>
+            <div class="metric-label">Vulnerabilities</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">{proj.code_smells}</div>
+            <div class="metric-label">Code Smells</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">{proj.coverage or 'N/A'}{'%' if proj.coverage else ''}</div>
+            <div class="metric-label">Coverage</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">{proj.duplicated_lines_density or 'N/A'}{'%' if proj.duplicated_lines_density else ''}</div>
+            <div class="metric-label">Duplication</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">{len(report.hotspots)}</div>
+            <div class="metric-label">Security Hotspots</div>
+        </div>
+    </div>
+
+    <h2>Issues ({len(report.issues)})</h2>
+    <table class="issues-table">
+        <tr><th>Severity</th><th>Rule</th><th>Message</th><th>Location</th></tr>
+'''
+        for issue in report.issues[:30]:
+            html += f'''
+        <tr>
+            <td><span class="severity sev-{issue.severity.value}">{issue.severity.value}</span></td>
+            <td>{issue.rule}</td>
+            <td>{issue.message[:80]}{'...' if len(issue.message) > 80 else ''}</td>
+            <td>{issue.file_path}:{issue.line or ''}</td>
+        </tr>'''
+
+        if len(report.issues) > 30:
+            html += f'<tr><td colspan="4" style="text-align:center;color:#888;">... and {len(report.issues) - 30} more issues</td></tr>'
+
+        html += '''
+    </table>
+
+    <div class="footer">
+        <p>Generated by RAGIX | Olivier Vitrac, PhD, HDR | <a href="mailto:olivier.vitrac@adservio.fr">olivier.vitrac@adservio.fr</a> | Adservio</p>
+    </div>
+</body>
+</html>'''
+
+        return HTMLResponse(content=html)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Cycles Detection API
+# =============================================================================
+
+@app.get("/api/ast/cycles")
+async def detect_cycles(path: str):
+    """
+    Detect circular dependencies in the codebase.
+
+    Args:
+        path: Directory to analyze
+    """
+    if not AST_AVAILABLE:
+        raise HTTPException(status_code=503, detail="AST analysis not available")
+
+    target_path = Path(path).expanduser()
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+
+    try:
+        graph = build_dependency_graph([target_path])
+        cycles = graph.detect_cycles()
+
+        return {
+            "path": str(target_path),
+            "has_cycles": len(cycles) > 0,
+            "count": len(cycles),
+            "cycles": [
+                {
+                    "length": len(cycle) - 1,
+                    "nodes": cycle
+                }
+                for cycle in cycles[:20]
+            ]
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ast/cycles/page", response_class=HTMLResponse)
+async def cycles_page(path: str):
+    """Generate cycles detection HTML page."""
+    if not AST_AVAILABLE:
+        raise HTTPException(status_code=503, detail="AST analysis not available")
+
+    target_path = Path(path).expanduser()
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+
+    try:
+        graph = build_dependency_graph([target_path])
+        cycles = graph.detect_cycles()
+
+        status_color = "#f85149" if cycles else "#238636"
+        status_text = f"{len(cycles)} Circular Dependencies Found" if cycles else "No Circular Dependencies"
+
+        html = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cycles Detection - {target_path.name}</title>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }}
+        h1 {{ color: #e94560; margin-bottom: 10px; }}
+        .subtitle {{ color: #888; margin-bottom: 20px; }}
+        .status {{ display: inline-block; padding: 10px 20px; border-radius: 6px; font-size: 18px; font-weight: bold; background: {status_color}; margin-bottom: 20px; }}
+        .cycle {{ background: #16213e; border-radius: 8px; padding: 15px; margin-bottom: 15px; border-left: 4px solid #f85149; }}
+        .cycle-header {{ font-weight: bold; margin-bottom: 10px; }}
+        .cycle-nodes {{ font-family: monospace; font-size: 13px; line-height: 1.8; }}
+        .arrow {{ color: #f85149; margin: 0 8px; }}
+        .footer {{ margin-top: 30px; text-align: center; color: #666; font-size: 12px; }}
+        .footer a {{ color: #4fc3f7; }}
+        .success {{ text-align: center; padding: 40px; }}
+        .success-icon {{ font-size: 64px; margin-bottom: 20px; }}
+    </style>
+</head>
+<body>
+    <h1>Circular Dependencies Detection</h1>
+    <p class="subtitle">Path: {path}</p>
+
+    <div class="status">{status_text}</div>
+'''
+
+        if not cycles:
+            html += '''
+    <div class="success">
+        <div class="success-icon">✓</div>
+        <p style="font-size: 18px; color: #238636;">No circular dependencies detected!</p>
+        <p style="color: #888; margin-top: 10px;">Your codebase has a clean dependency structure.</p>
+    </div>'''
+        else:
+            for i, cycle in enumerate(cycles[:20], 1):
+                nodes_html = f'<span class="arrow">→</span>'.join(f'<span>{n}</span>' for n in cycle)
+                html += f'''
+    <div class="cycle">
+        <div class="cycle-header">Cycle #{i} ({len(cycle) - 1} dependencies)</div>
+        <div class="cycle-nodes">{nodes_html}</div>
+    </div>'''
+
+            if len(cycles) > 20:
+                html += f'<p style="color:#888;text-align:center;">... and {len(cycles) - 20} more cycles</p>'
+
+        html += '''
+    <div class="footer">
+        <p>Generated by RAGIX | Olivier Vitrac, PhD, HDR | <a href="mailto:olivier.vitrac@adservio.fr">olivier.vitrac@adservio.fr</a> | Adservio</p>
+    </div>
+</body>
+</html>'''
+
+        return HTMLResponse(content=html)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Reports API
+# =============================================================================
+
+# Import report generation (optional)
+try:
+    from ragix_core.report_engine import (
+        ReportEngine,
+        ReportConfig,
+        ReportFormat,
+        ReportType,
+        ComplianceStandard,
+        generate_executive_summary,
+        generate_technical_audit,
+        generate_compliance_report,
+    )
+    REPORTS_AVAILABLE = True
+except ImportError:
+    REPORTS_AVAILABLE = False
+
+
+@app.get("/api/reports/status")
+async def reports_status():
+    """Check if report generation is available."""
+    return {
+        "available": REPORTS_AVAILABLE,
+        "types": ["executive", "technical", "compliance"] if REPORTS_AVAILABLE else [],
+        "formats": ["html", "pdf"] if REPORTS_AVAILABLE else [],
+        "standards": ["sonarqube", "owasp", "iso25010"] if REPORTS_AVAILABLE else []
+    }
+
+
+@app.get("/api/reports/generate", response_class=HTMLResponse)
+async def generate_report(
+    path: str,
+    report_type: str = "executive",
+    project_name: Optional[str] = None,
+    standard: str = "sonarqube"
+):
+    """
+    Generate analysis report.
+
+    Args:
+        path: Directory to analyze
+        report_type: executive, technical, or compliance
+        project_name: Name for the report
+        standard: Compliance standard (for compliance reports)
+    """
+    if not REPORTS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Report generation not available")
+
+    if not AST_AVAILABLE:
+        raise HTTPException(status_code=503, detail="AST analysis not available")
+
+    target_path = Path(path).expanduser()
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+
+    try:
+        # Build dependency graph and metrics
+        graph = build_dependency_graph([target_path])
+        code_metrics = calculate_metrics_from_graph(graph)
+
+        project = project_name or target_path.name
+
+        # Generate appropriate report
+        if report_type == "executive":
+            html_content = generate_executive_summary(
+                metrics=code_metrics,
+                graph=graph,
+                project_name=project,
+                format=ReportFormat.HTML
+            )
+        elif report_type == "technical":
+            html_content = generate_technical_audit(
+                metrics=code_metrics,
+                graph=graph,
+                project_name=project,
+                format=ReportFormat.HTML
+            )
+        elif report_type == "compliance":
+            standard_map = {
+                "sonarqube": ComplianceStandard.SONARQUBE,
+                "owasp": ComplianceStandard.OWASP,
+                "iso25010": ComplianceStandard.ISO_25010,
+            }
+            std = standard_map.get(standard.lower(), ComplianceStandard.SONARQUBE)
+            html_content = generate_compliance_report(
+                metrics=code_metrics,
+                graph=graph,
+                project_name=project,
+                standard=std,
+                format=ReportFormat.HTML
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown report type: {report_type}. Use executive, technical, or compliance"
+            )
+
+        return HTMLResponse(content=html_content)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ast/treemap", response_class=HTMLResponse)
+async def treemap_visualization(
+    path: str,
+    metric: str = "loc",
+    depth: int = 4,
+    title: Optional[str] = None
+):
+    """
+    Generate treemap visualization.
+
+    Args:
+        path: Directory to analyze
+        metric: Size metric (loc, complexity, count, debt)
+        depth: Maximum depth
+        title: Custom title
+    """
+    if not AST_AVAILABLE:
+        raise HTTPException(status_code=503, detail="AST analysis not available")
+
+    try:
+        from ragix_core.ast_viz_advanced import (
+            TreemapConfig, TreemapMetric, TreemapRenderer
+        )
+    except ImportError:
+        raise HTTPException(status_code=503, detail="Advanced visualizations not available")
+
+    target_path = Path(path).expanduser()
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+
+    try:
+        graph = build_dependency_graph([target_path])
+
+        metric_map = {
+            "loc": TreemapMetric.LOC,
+            "complexity": TreemapMetric.COMPLEXITY,
+            "count": TreemapMetric.COUNT,
+            "debt": TreemapMetric.DEBT,
+        }
+        config = TreemapConfig(
+            metric=metric_map.get(metric.lower(), TreemapMetric.LOC),
+            title=title or f"Treemap - {target_path.name}",
+            max_depth=depth,
+        )
+
+        renderer = TreemapRenderer(config)
+        html_content = renderer.render(graph)
+
+        return HTMLResponse(content=html_content)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ast/sunburst", response_class=HTMLResponse)
+async def sunburst_visualization(
+    path: str,
+    depth: int = 5,
+    title: Optional[str] = None
+):
+    """
+    Generate sunburst visualization.
+
+    Args:
+        path: Directory to analyze
+        depth: Maximum depth
+        title: Custom title
+    """
+    if not AST_AVAILABLE:
+        raise HTTPException(status_code=503, detail="AST analysis not available")
+
+    try:
+        from ragix_core.ast_viz_advanced import SunburstConfig, SunburstRenderer
+    except ImportError:
+        raise HTTPException(status_code=503, detail="Advanced visualizations not available")
+
+    target_path = Path(path).expanduser()
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+
+    try:
+        graph = build_dependency_graph([target_path])
+
+        config = SunburstConfig(
+            title=title or f"Sunburst - {target_path.name}",
+            max_depth=depth,
+        )
+
+        renderer = SunburstRenderer(config)
+        html_content = renderer.render(graph)
+
+        return HTMLResponse(content=html_content)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ast/chord", response_class=HTMLResponse)
+async def chord_visualization(
+    path: str,
+    group_by: str = "package",
+    min_connections: int = 1,
+    title: Optional[str] = None
+):
+    """
+    Generate chord diagram visualization.
+
+    Args:
+        path: Directory to analyze
+        group_by: Grouping method (package, file)
+        min_connections: Minimum connections to show
+        title: Custom title
+    """
+    if not AST_AVAILABLE:
+        raise HTTPException(status_code=503, detail="AST analysis not available")
+
+    try:
+        from ragix_core.ast_viz_advanced import ChordConfig, ChordRenderer
+    except ImportError:
+        raise HTTPException(status_code=503, detail="Advanced visualizations not available")
+
+    target_path = Path(path).expanduser()
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+
+    try:
+        graph = build_dependency_graph([target_path])
+
+        config = ChordConfig(
+            title=title or f"Dependencies - {target_path.name}",
+            group_by=group_by,
+            min_connections=min_connections,
+        )
+
+        renderer = ChordRenderer(config)
+        html_content = renderer.render(graph)
+
+        return HTMLResponse(content=html_content)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # =============================================================================

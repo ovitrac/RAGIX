@@ -1,8 +1,8 @@
 # =============================================================================
-# RAGIX v0.7 Requirements
+# RAGIX v0.20.0 Requirements
 # =============================================================================
 #
-# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-25
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-28
 #
 # Install:
 #   pip install -r requirements.txt
@@ -22,6 +22,9 @@ requests>=2.31.0
 
 # Model Context Protocol (MCP) server + CLI
 mcp[cli]>=0.1.0
+
+# YAML configuration
+pyyaml>=6.0
 
 # -----------------------------------------------------------------------------
 # Semantic Search (Recommended)
@@ -74,3 +77,13 @@ mypy>=1.0.0
 # Code formatting
 black>=23.0.0
 isort>=5.12.0
+
+# -----------------------------------------------------------------------------
+# Report Generation (Optional - for PDF reports)
+# -----------------------------------------------------------------------------
+
+# Template engine for reports
+jinja2>=3.1.0
+
+# PDF generation (weasyprint is more reliable than pdfkit)
+weasyprint>=60.0

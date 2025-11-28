@@ -46,6 +46,10 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 
 | Feature | Description |
 |---------|-------------|
+| **Report Generation** | Executive Summary, Technical Audit, Compliance reports (PDF/HTML) |
+| **Advanced Visualizations** | Treemap, Sunburst, Chord diagram for package dependencies |
+| **Documentation Coverage** | Real Javadoc analysis (filters placeholders like "The Class X") |
+| **Maven & SonarQube** | Build tool and quality gate integration in reports |
 | **AST Analysis** | Multi-language parsing (Python + Java) with symbol extraction |
 | **Dependency Graph** | Full tracking with cycle detection and coupling metrics |
 | **Code Metrics** | Cyclomatic complexity, technical debt, maintainability |
@@ -53,18 +57,20 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 | **Plugin System** | Extensible tools and workflows with trust levels |
 | **WASP Tools** | 18 deterministic tools for validation, markdown, search |
 | **Live Radial Server** | FastAPI server for real-time dependency exploration |
-| **ragix-ast CLI** | 12 commands for code analysis |
+| **ragix-ast CLI** | 15 commands for code analysis and reporting |
 | **Web UI** | Comprehensive web interface with AST dashboards |
 | **Knowledge Base** | Pattern storage for improved 7B model reasoning |
 | **Session Memory** | View, delete, and clear conversation history |
 | **User Context** | Custom instructions like Claude/ChatGPT |
-| **Full Documentation** | New guides for CLI, AST, API, and Architecture |
 
 ### v0.20.0 Highlights (Latest)
 
-- **Centralized Version Management** — Single source of truth for version tracking
-- **Comprehensive Documentation** — CLI Guide, AST Guide, API Reference, Architecture docs
-- **Enhanced Web UI** — Modular routers, AST dashboards, session management
+- **Report Generation** — Executive Summary, Technical Audit, Compliance reports (PDF/HTML)
+- **Advanced Visualizations** — Treemap, Sunburst, Chord diagram for dependency analysis
+- **Accurate Documentation Coverage** — Filters placeholder Javadocs, shows real coverage
+- **Maven & SonarQube in Reports** — Build tool and quality gate integration
+- **Separate Doc Metrics** — Class vs Method documentation coverage (balanced 50/50)
+- **Robust Web UI** — Defensive JavaScript, fixed logs page, improved error handling
 - **Knowledge Base** — Solution patterns and project-specific conventions
 - **Session Memory** — Full conversation history management
 
@@ -1065,19 +1071,18 @@ pytest tests/test_caching.py -v
 ## **Roadmap**
 
 ### v0.21 (Next)
-- **Remaining visualizations** — Treemap, Sunburst, Chord diagram
-- **Report generation** — PDF/HTML executive summaries
+- **Git integration** — Complexity evolution over commits, hotspot tracking
+- **Trend analysis** — Technical debt timeline, churn analysis
 - **Enhanced search** — More fusion strategies, better ranking
 
 ### v0.22
-- **Git integration** — Complexity evolution, hotspot tracking
-- **Trend analysis** — Technical debt over time
+- **Distributed execution** — Multi-node agent coordination
+- **Real-time collaboration** — Shared analysis sessions
 
 ### Future (v1.0+)
-- Distributed agent execution
-- Real-time collaboration
 - IDE integrations (VS Code, JetBrains)
 - WASM-compiled tools for browser execution
+- Jupyter notebook integration
 
 See `ACTION_PLAN.md` and `TODO.md` for detailed roadmap.
 

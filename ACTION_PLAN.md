@@ -1,8 +1,48 @@
-# RAGIX v0.11 Action Plan
+# RAGIX v0.20.0 Action Plan
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Date:** 2025-11-28 (Updated Session 4)
-**Status:** In Progress
+**Date:** 2025-11-28 (v0.20.0 Release)
+**Status:** Phase 2 & 3 Complete
+
+---
+
+## Recent Progress (2025-11-28 - v0.20.0 Release)
+
+### Report Generation & Visualization ✅ COMPLETE
+
+**Phase 2 - Advanced Visualizations:**
+| Component | Status | Location |
+|-----------|--------|----------|
+| TreemapRenderer | ✅ Done | `ragix_core/ast_viz_advanced.py` |
+| SunburstRenderer | ✅ Done | `ragix_core/ast_viz_advanced.py` |
+| ChordRenderer | ✅ Done | `ragix_core/ast_viz_advanced.py` |
+| Web UI Cards | ✅ Done | `ragix_web/static/index.html` |
+| API Endpoints | ✅ Done | `ragix_web/server.py` |
+
+**Phase 3 - Report Generation:**
+| Component | Status | Location |
+|-----------|--------|----------|
+| ReportEngine | ✅ Done | `ragix_core/report_engine.py` |
+| ExecutiveSummaryGenerator | ✅ Done | `ragix_core/report_engine.py` |
+| TechnicalAuditGenerator | ✅ Done | `ragix_core/report_engine.py` |
+| ComplianceReportGenerator | ✅ Done | `ragix_core/report_engine.py` |
+| Maven Integration | ✅ Done | Reports include Maven data |
+| SonarQube Integration | ✅ Done | Reports include SonarQube data |
+
+**Documentation Coverage Fix:**
+| Issue | Solution | Status |
+|-------|----------|--------|
+| Methods count = 0 | Added `total_methods` property (includes class methods) | ✅ Done |
+| Doc coverage = 100% | Filter placeholder Javadocs ("The Class X") | ✅ Done |
+| Misleading scores | Separate class/method doc coverage (50/50 weighted) | ✅ Done |
+
+**Web UI Stability:**
+| Fix | Status |
+|-----|--------|
+| Defensive JS for undefined responses | ✅ Done |
+| Logs page flatMap error | ✅ Done |
+| formatLogLine includes error | ✅ Done |
+| All data arrays with fallbacks | ✅ Done |
 
 ---
 
@@ -520,6 +560,73 @@ ragix_core/
 16. Test "list files with > N lines" queries
 17. Test conversational queries (hello, who are you, help)
 18. Validate JSON copy button functionality
+
+---
+
+## Future Improvements (from Review)
+
+Based on Gemini 2.5 Pro review (`FORREVIEW_IMPROVEMENT_SUGGESTIONS.md`):
+
+### Agent Reasoning Improvements
+
+| Feature | Priority | Effort | Description |
+|---------|----------|--------|-------------|
+| **Automated Self-Correction Loop** | High | 16h | Verifier failure → Planner re-plan → Re-execute automatically |
+| **Dynamic Tool Selection** | High | 12h | Agent decides which ragix-* tool to use for the task |
+| **Structured Episodic Memory** | Medium | 16h | Store successful workflows for future reference |
+| **Confidence Scoring** | Medium | 8h | Agent outputs confidence (1-10), pauses on low confidence |
+
+### Tool Usability Improvements
+
+| Feature | Priority | Effort | Description |
+|---------|----------|--------|-------------|
+| **Unified CLI Entry Point** | High | 8h | `ragix ast search` instead of `ragix-ast search` |
+| **Interactive ragix-ast Mode** | Medium | 12h | `--interactive` REPL to avoid re-parsing |
+| **Cross-Panel Context** | Medium | 12h | Click node in graph → show file in code panel |
+| **Visual Workflow Builder** | Low | 24h | Drag-and-drop workflow creation in Web UI |
+| **`ragix config view`** | High | 4h | Show resolved config with sources |
+
+### Implementation Notes
+
+**Self-Correction Loop:**
+```python
+# In graph_executor.py
+async def execute_with_retry(self, max_retries: int = 3):
+    for attempt in range(max_retries):
+        result = await self.execute()
+        if result.success:
+            return result
+        # Feed failure to planner
+        self.graph = self.planner.replan(
+            original_goal=self.goal,
+            failure_report=result.error,
+            attempt=attempt + 1
+        )
+    raise MaxRetriesExceeded()
+```
+
+**Confidence Scoring:**
+```yaml
+# Agent response format
+response:
+  plan: "..."
+  confidence: 7  # 1-10 scale
+  reasoning: "Medium confidence due to ambiguous requirements"
+```
+
+**Unified CLI:**
+```bash
+# Current:
+ragix-ast scan ./project
+ragix-web --port 8080
+ragix-batch --template bug_fix
+
+# Proposed:
+ragix ast scan ./project
+ragix web --port 8080
+ragix batch --template bug_fix
+ragix config view
+```
 
 ---
 

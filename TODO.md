@@ -1,7 +1,49 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-11-28 (Session 5)
+**Updated:** 2025-11-28 (v0.20.0 Release)
 **Reference:** See `ACTION_PLAN.md` for detailed implementation plan
+
+---
+
+## Session Completed (2025-11-28 - v0.20.0)
+
+### Report Generation & Documentation Coverage
+
+| Task | Status |
+|------|--------|
+| **Report Engine** - Jinja2 templates for PDF/HTML reports | ✅ Done |
+| **Executive Summary** - High-level metrics, risks, recommendations | ✅ Done |
+| **Technical Audit** - Detailed code metrics and hotspots | ✅ Done |
+| **Compliance Report** - Security findings and coverage | ✅ Done |
+| **Treemap Visualization** - Package hierarchy by LOC/complexity | ✅ Done |
+| **Sunburst Visualization** - Module structure drill-down | ✅ Done |
+| **Chord Diagram** - Inter-module dependency visualization | ✅ Done |
+| **Maven Integration** - POM parsing in reports | ✅ Done |
+| **SonarQube Integration** - Quality gate data in reports | ✅ Done |
+| **Documentation Coverage Fix** - Filter placeholder Javadocs | ✅ Done |
+| **Separate Doc Metrics** - Class vs Method coverage (50/50 weighted) | ✅ Done |
+| **Methods Count Fix** - Include class methods in total | ✅ Done |
+| **Web UI Defensive JS** - Handle undefined API responses | ✅ Done |
+
+**Implemented in:**
+- `ragix_core/report_engine.py` - ReportEngine, generators, templates
+- `ragix_core/ast_viz_advanced.py` - TreemapRenderer, SunburstRenderer, ChordRenderer
+- `ragix_core/code_metrics.py` - total_methods, doc_coverage, class_doc_coverage
+- `ragix_core/ast_java.py` - _get_javadoc() filters placeholders
+- `ragix_unix/ast_cli.py` - New CLI commands (treemap, sunburst, chord, report)
+- `ragix_web/server.py` - New API endpoints
+- `ragix_web/static/index.html` - New cards for visualizations and reports
+
+**New API Endpoints:**
+```
+GET /api/ast/treemap?path=...      # Treemap visualization
+GET /api/ast/sunburst?path=...     # Sunburst visualization
+GET /api/ast/chord?path=...        # Chord diagram
+GET /api/ast/maven?path=...        # Maven analysis
+GET /api/ast/sonar?url=...         # SonarQube integration
+GET /api/ast/cycles?path=...       # Cycle detection
+GET /api/reports/generate          # Generate reports
+```
 
 ---
 
@@ -143,35 +185,41 @@ find . -name "*.md" -type f -exec wc -l {} + | grep -v " total$" | sort -n | tai
 
 ---
 
-## Phase 2 (v0.11.1) — Visualization Completion
+## Phase 2 (v0.20.0) — Visualization Completion ✅ COMPLETE
 
 ### New Visualization Types
 
 | Visualization | Purpose | Effort | Status |
 |---------------|---------|--------|--------|
-| **Treemap** | Package hierarchy by LOC/complexity | 8h | Pending |
-| **Sunburst** | Module structure drill-down | 8h | Pending |
-| **Chord Diagram** | Inter-module dependencies | 8h | Pending |
+| **Treemap** | Package hierarchy by LOC/complexity | 8h | ✅ Done |
+| **Sunburst** | Module structure drill-down | 8h | ✅ Done |
+| **Chord Diagram** | Inter-module dependencies | 8h | ✅ Done |
 
-### Existing Visualizations (Complete)
+### All Visualizations (Complete)
 
 - [x] Force-directed graph with package clustering
 - [x] Dependency Structure Matrix (DSM)
 - [x] Radial ego-centric explorer
+- [x] Treemap (package hierarchy)
+- [x] Sunburst (module drill-down)
+- [x] Chord diagram (inter-module deps)
 - [x] D3.js interactive HTML
 
 ---
 
-## Phase 3 (v0.11.2) — Report Generation
+## Phase 3 (v0.20.0) — Report Generation ✅ COMPLETE
 
 | Report Type | Format | Effort | Status |
 |-------------|--------|--------|--------|
-| Executive Summary | PDF/HTML | 8h | Pending |
-| Technical Audit | PDF/HTML | 8h | Pending |
-| Compliance Report | PDF | 6h | Pending |
-| Report Engine + Templates | — | 10h | Pending |
+| Executive Summary | PDF/HTML | 8h | ✅ Done |
+| Technical Audit | PDF/HTML | 8h | ✅ Done |
+| Compliance Report | PDF | 6h | ✅ Done |
+| Report Engine + Templates | — | 10h | ✅ Done |
+| Maven Integration | — | 4h | ✅ Done |
+| SonarQube Integration | — | 4h | ✅ Done |
+| Documentation Coverage Fix | — | 4h | ✅ Done |
 
-**Dependencies:** `weasyprint` or `pdfkit`, `jinja2`
+**Dependencies:** `weasyprint`, `jinja2` (added to pyproject.toml)
 
 ---
 
@@ -188,11 +236,22 @@ find . -name "*.md" -type f -exec wc -l {} + | grep -v " total$" | sort -n | tai
 
 ## Future (v1.0+)
 
-### Agent Improvements
+### Agent Reasoning Improvements (from Gemini 2.5 Review)
+- [ ] **Automated Self-Correction Loop** — Verifier failure → Planner re-plan → Re-execute (High priority)
+- [ ] **Dynamic Tool Selection** — Agent decides which ragix-* tool to use (High priority)
+- [ ] **Structured Episodic Memory** — Store successful workflows for reference (Medium priority)
+- [ ] **Confidence Scoring** — Agent outputs confidence (1-10), pauses on low (Medium priority)
 - [x] Autonomous multi-step reasoning with self-correction (Planner/Worker/Verifier loop)
 - [x] Memory and context persistence across sessions (EpisodicMemory in reasoning.py)
 - [ ] Agent specialization profiles (security, performance, refactoring)
 - [ ] Inter-agent communication protocol
+
+### Tool Usability Improvements (from Gemini 2.5 Review)
+- [ ] **Unified CLI Entry Point** — `ragix ast search` instead of `ragix-ast search` (High priority)
+- [ ] **Interactive ragix-ast Mode** — `--interactive` REPL to avoid re-parsing (Medium priority)
+- [ ] **Cross-Panel Context** — Click node in graph → show file in code panel (Medium priority)
+- [ ] **`ragix config view`** — Show resolved config with sources (High priority)
+- [ ] **Visual Workflow Builder** — Drag-and-drop workflow creation (Low priority)
 
 ### Tool Enhancements
 - [ ] WASM-compiled tools for browser execution
@@ -219,9 +278,20 @@ find . -name "*.md" -type f -exec wc -l {} + | grep -v " total$" | sort -n | tai
 
 ---
 
-## Completed (v0.10.1 → v0.11.0)
+## Completed (v0.10.1 → v0.20.0)
 
-### v0.11.0 (In Progress)
+### v0.20.0 (Current Release)
+- [x] Report Generation (Executive Summary, Technical Audit, Compliance)
+- [x] Advanced Visualizations (Treemap, Sunburst, Chord Diagram)
+- [x] Maven integration in reports
+- [x] SonarQube integration in reports
+- [x] Documentation coverage fix (filters placeholder Javadocs)
+- [x] Separate class/method doc coverage metrics
+- [x] Methods count fix (includes class methods)
+- [x] Web UI defensive JavaScript (handles undefined responses)
+- [x] New API endpoints (treemap, sunburst, chord, maven, sonar, cycles, reports)
+
+### v0.11.0
 - [x] AgentConfig class with mode/model per agent
 - [x] Auto-detect installed Ollama models
 - [x] Model size validation against requirements

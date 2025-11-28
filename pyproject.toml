@@ -35,7 +35,8 @@ vault = ["cryptography>=41.0.0"]
 ci = ["pyyaml>=6.0"]
 wasm = ["wasmtime>=14.0.0"]
 ast = ["javalang>=0.13.0", "jsonschema>=4.17.0"]
-all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast]"]
+reports = ["jinja2>=3.1.0", "weasyprint>=60.0"]
+all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports]"]
 
 [project.scripts]
 ragix = "ragix_core.cli:main"
