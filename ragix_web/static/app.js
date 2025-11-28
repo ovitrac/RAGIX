@@ -97,7 +97,12 @@ class RAGIXApp {
                 this.addUserMessage(message, timestamp);
                 break;
 
+            case 'thinking':
+                this.showThinking(message);
+                break;
+
             case 'agent_message':
+                this.hideThinking();
                 this.addAgentMessage(message, timestamp);
                 break;
 
@@ -105,7 +110,15 @@ class RAGIXApp {
                 this.addToolTrace(data);
                 break;
 
+            case 'reasoning_traces':
+                // Handle reasoning traces from Planner/Worker/Verifier loop
+                if (data.traces && Array.isArray(data.traces)) {
+                    this.addReasoningTraces(data.traces);
+                }
+                break;
+
             case 'error':
+                this.hideThinking();
                 this.addSystemMessage(message, 'error');
                 break;
 
@@ -115,6 +128,30 @@ class RAGIXApp {
 
             default:
                 console.warn('Unknown message type:', type);
+        }
+    }
+
+    showThinking(message = 'Agent is processing...') {
+        // Remove any existing thinking indicator
+        this.hideThinking();
+
+        const thinkingEl = document.createElement('div');
+        thinkingEl.id = 'thinking-indicator';
+        thinkingEl.className = 'message message-system message-thinking';
+        thinkingEl.innerHTML = `
+            <div class="message-content">
+                <span class="thinking-dots">${this.escapeHtml(message)}</span>
+                <span class="thinking-spinner"></span>
+            </div>
+        `;
+        this.chatMessages.appendChild(thinkingEl);
+        this.scrollToBottom();
+    }
+
+    hideThinking() {
+        const thinkingEl = document.getElementById('thinking-indicator');
+        if (thinkingEl) {
+            thinkingEl.remove();
         }
     }
 
@@ -204,6 +241,67 @@ class RAGIXApp {
         traceContent.appendChild(traceEl);
     }
 
+    addReasoningTraces(traces) {
+        // Add reasoning traces to the Reasoning tab panel
+        const traceContent = document.getElementById('traceContent');
+        if (!traceContent) return;
+
+        // Remove empty message if present
+        const emptyMsg = traceContent.querySelector('.trace-empty');
+        if (emptyMsg) emptyMsg.remove();
+
+        // Agent icons for different types
+        const agentIcons = {
+            'planner': '&#x1F4CB;',      // clipboard
+            'planning': '&#x1F4CB;',
+            'worker': '&#x1F6E0;',       // wrench
+            'execution': '&#x1F6E0;',
+            'step_completed': '&#x2705;', // check mark
+            'step_failed': '&#x274C;',    // cross mark
+            'verifier': '&#x2714;',      // check
+            'verification': '&#x2714;',
+            'verify_complete': '&#x2714;',
+            'classification': '&#x1F50D;', // magnifying glass
+            'plan_generated': '&#x1F4DD;', // memo
+            'direct_execution': '&#x26A1;', // lightning
+            'execution_halted': '&#x26D4;', // stop
+        };
+
+        traces.forEach(trace => {
+            const traceEl = document.createElement('div');
+            traceEl.className = 'trace-item reasoning-trace';
+
+            // Determine agent type from trace
+            const traceType = trace.type || trace.agent || 'unknown';
+            const icon = agentIcons[traceType] || '&#x1F916;'; // robot default
+            const timestamp = trace.timestamp ? this.formatTime(trace.timestamp) : '';
+
+            // Format content - handle both trace structures
+            let content = trace.content || trace.message || JSON.stringify(trace);
+
+            // Truncate very long content
+            const maxLength = 500;
+            if (content.length > maxLength) {
+                content = content.substring(0, maxLength) + '...';
+            }
+
+            traceEl.innerHTML = `
+                <div class="trace-header">
+                    <span class="trace-agent">${icon} ${this.escapeHtml(traceType)}</span>
+                    <span class="trace-time">${timestamp}</span>
+                </div>
+                <div class="trace-body">
+                    <pre>${this.escapeHtml(content)}</pre>
+                </div>
+            `;
+
+            traceContent.appendChild(traceEl);
+        });
+
+        // Scroll to bottom of trace panel
+        traceContent.scrollTop = traceContent.scrollHeight;
+    }
+
     updateStatus(status) {
         this.statusEl.className = `status status-${status}`;
         const statusText = {
@@ -233,10 +331,52 @@ class RAGIXApp {
 
     openSettings() {
         this.settingsModal.classList.remove('hidden');
+        this.loadOllamaModels();
     }
 
     closeSettings() {
         this.settingsModal.classList.add('hidden');
+    }
+
+    async loadOllamaModels() {
+        const select = document.getElementById('modelInput');
+        const statusEl = document.getElementById('modelStatus');
+
+        try {
+            select.innerHTML = '<option value="">Loading models...</option>';
+            statusEl.textContent = 'Fetching available models from Ollama...';
+
+            const response = await fetch('/api/ollama/models');
+            const data = await response.json();
+
+            if (!data.available) {
+                select.innerHTML = '<option value="mistral">mistral (default)</option>';
+                statusEl.textContent = `Ollama not available: ${data.error}`;
+                statusEl.style.color = 'var(--error)';
+                return;
+            }
+
+            if (data.models.length === 0) {
+                select.innerHTML = '<option value="">No models installed</option>';
+                statusEl.textContent = 'No models found. Run: ollama pull mistral';
+                statusEl.style.color = 'var(--warning)';
+                return;
+            }
+
+            // Build options from available models
+            select.innerHTML = data.models.map((m, idx) =>
+                `<option value="${m.name}" ${idx === 0 ? 'selected' : ''}>${m.name} (${m.size})</option>`
+            ).join('');
+
+            statusEl.textContent = `${data.count} sovereign AI model(s) available locally`;
+            statusEl.style.color = 'var(--success)';
+
+        } catch (error) {
+            console.error('Failed to load Ollama models:', error);
+            select.innerHTML = '<option value="mistral">mistral (fallback)</option>';
+            statusEl.textContent = 'Failed to fetch models. Using default.';
+            statusEl.style.color = 'var(--error)';
+        }
     }
 
     async saveSettings() {
@@ -305,17 +445,80 @@ class RAGIXApp {
         // Simple markdown-like formatting
         text = this.escapeHtml(text);
 
-        // Code blocks
-        text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+        // Extract JSON section first (before other processing)
+        let jsonContent = null;
+        const jsonMatch = text.match(/&lt;!-- JSON_START --&gt;([\s\S]*?)&lt;!-- JSON_END --&gt;/);
+        if (jsonMatch) {
+            jsonContent = jsonMatch[1].trim();
+            // Remove JSON section from visible text
+            text = text.replace(/&lt;!-- JSON_START --&gt;[\s\S]*?&lt;!-- JSON_END --&gt;/, '');
+        }
+
+        // Handle collapsible details section with copy buttons
+        const detailsMatch = text.match(/&lt;!-- DETAILS_START --&gt;([\s\S]*?)&lt;!-- DETAILS_END --&gt;/);
+        if (detailsMatch) {
+            const detailsContent = detailsMatch[1].trim();
+            const detailsId = 'details-' + Date.now();
+
+            // Build action buttons (always Copy, optionally Copy JSON)
+            let actionButtons = `<button onclick="copyToClipboard('${detailsId}-text')" class="copy-btn" title="Copy output">&#128203; Copy</button>`;
+            if (jsonContent) {
+                actionButtons += `<button onclick="copyToClipboard('${detailsId}-json')" class="copy-btn copy-json-btn" title="Copy as JSON">&#123;&#125; JSON</button>`;
+            }
+
+            // Hidden JSON element for copy
+            const jsonElement = jsonContent ? `<pre id="${detailsId}-json" style="display:none;">${jsonContent}</pre>` : '';
+
+            const detailsHtml = `
+                <div class="details-section">
+                    <div class="details-toggle" onclick="toggleDetails('${detailsId}')">
+                        <span class="toggle-icon">&#9654;</span> Show details
+                    </div>
+                    <div id="${detailsId}" class="details-content" style="display:none;">
+                        <div class="details-actions">
+                            ${actionButtons}
+                        </div>
+                        <pre id="${detailsId}-text">${detailsContent}</pre>
+                        ${jsonElement}
+                    </div>
+                </div>`;
+            text = text.replace(/&lt;!-- DETAILS_START --&gt;[\s\S]*?&lt;!-- DETAILS_END --&gt;/, detailsHtml);
+        } else if (jsonContent) {
+            // JSON without details section - add standalone JSON copy button
+            const jsonId = 'json-' + Date.now();
+            const jsonHtml = `
+                <div class="json-copy-section">
+                    <button onclick="copyToClipboard('${jsonId}')" class="copy-btn copy-json-btn" title="Copy as JSON">&#123;&#125; Copy JSON</button>
+                    <pre id="${jsonId}" style="display:none;">${jsonContent}</pre>
+                </div>`;
+            text += jsonHtml;
+        }
+
+        // Code blocks with language hint
+        text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+            return `<div class="code-block"><div class="code-header">${lang || 'output'}</div><pre><code>${code}</code></pre></div>`;
+        });
 
         // Inline code
-        text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+        text = text.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
 
         // Bold
         text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
         // Italic
         text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+        // Command output section detection (for agent responses)
+        text = text.replace(/\$ ([^\n]+)\n/g, '<div class="cmd-line">$ $1</div>');
+
+        // Output sections
+        text = text.replace(/Output:\n/g, '<div class="output-header">Output:</div>');
+
+        // Return code
+        text = text.replace(/Return code: (\d+)/g, (match, code) => {
+            const statusClass = code === '0' ? 'success' : 'error';
+            return `<div class="return-code ${statusClass}">Return code: ${code}</div>`;
+        });
 
         // Line breaks
         text = text.replace(/\n/g, '<br>');
@@ -343,3 +546,46 @@ setInterval(() => {
         app.ws.send(JSON.stringify({ type: 'ping' }));
     }
 }, 30000);
+
+// Global helper functions for collapsible details
+function toggleDetails(id) {
+    const content = document.getElementById(id);
+    const toggle = content.previousElementSibling;
+    const icon = toggle.querySelector('.toggle-icon');
+
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.innerHTML = '&#9660;'; // down arrow
+        toggle.innerHTML = toggle.innerHTML.replace('Show details', 'Hide details');
+    } else {
+        content.style.display = 'none';
+        icon.innerHTML = '&#9654;'; // right arrow
+        toggle.innerHTML = toggle.innerHTML.replace('Hide details', 'Show details');
+    }
+}
+
+function copyToClipboard(id) {
+    const element = document.getElementById(id);
+    const text = element.textContent || element.innerText;
+
+    navigator.clipboard.writeText(text).then(() => {
+        // Show feedback
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '&#10003; Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.remove('copied');
+        }, 2000);
+    }).catch(err => {
+        console.error('Copy failed:', err);
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+    });
+}

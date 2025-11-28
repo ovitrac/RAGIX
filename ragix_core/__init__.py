@@ -1,10 +1,11 @@
 """
 RAGIX Core - Shared orchestrator and tooling for RAGIX agents
 
-Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-26
+Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-28
 """
 
-__version__ = "0.9.0"
+# Import version from centralized source
+from .version import __version__, get_version, get_version_info, get_banner
 
 from .llm_backends import (
     SovereigntyStatus,
@@ -198,11 +199,37 @@ from .config import (
     SearchConfig,
     LoggingConfig,
     WebUIConfig,
+    HardwareConfig,
     load_config,
     save_config,
     get_config,
     reload_config,
     find_config_file,
+)
+from .agent_config import (
+    AgentMode,
+    AgentRole,
+    AgentConfig,
+    OllamaModel,
+    detect_ollama_models,
+    get_agent_persona,
+    AGENT_PERSONAS,
+    MODEL_REGISTRY,
+)
+from .reasoning import (
+    TaskComplexity,
+    EpisodeEntry,
+    EpisodicMemory,
+    PlanStep,
+    Plan,
+    ReasoningLoop,
+)
+from .knowledge_base import (
+    CommandPattern,
+    ReasoningRule,
+    KnowledgeBase,
+    get_knowledge_base,
+    reset_knowledge_base,
 )
 from .log_integrity import (
     LogEntry,
@@ -261,6 +288,74 @@ from .wasp_executor import (
     WaspExecutor,
     get_wasp_executor,
     execute_wasp_action,
+)
+# AST Analysis
+from .ast_base import (
+    Language,
+    NodeType,
+    Visibility,
+    SourceLocation,
+    TypeInfo,
+    Symbol,
+    ASTNode,
+    ASTBackend,
+    get_ast_registry,
+    format_ast_tree,
+)
+from .ast_python import PythonASTBackend, get_python_backend
+# Import Java backend to auto-register it (requires javalang)
+try:
+    from .ast_java import JavaASTBackend, get_java_backend, is_java_available
+except ImportError:
+    JavaASTBackend = None
+    get_java_backend = lambda: None
+    is_java_available = lambda: False
+from .ast_query import (
+    QueryType,
+    QueryPredicate,
+    ASTQuery,
+    QueryMatch,
+    parse_query,
+    execute_query,
+    execute_query_on_ast,
+)
+from .dependencies import (
+    DependencyType,
+    Dependency,
+    DependencyGraph,
+    DependencyStats,
+    build_dependency_graph,
+)
+from .maven import (
+    MavenCoordinate,
+    MavenDependency,
+    MavenProject,
+    MavenParser,
+    parse_pom,
+    scan_maven_projects,
+)
+from .code_metrics import (
+    ComplexityLevel,
+    MethodMetrics,
+    ClassMetrics,
+    FileMetrics,
+    ProjectMetrics,
+    calculate_project_metrics,
+    calculate_metrics_from_graph,
+)
+from .ast_viz import (
+    VizConfig,
+    LayoutDirection,
+    ColorScheme,
+    DotRenderer,
+    MermaidRenderer,
+    D3Renderer,
+    HTMLRenderer,
+    DSMRenderer,
+    RadialExplorer,
+    graph_to_dot,
+    graph_to_mermaid,
+    graph_to_html,
 )
 
 __all__ = [
@@ -429,11 +524,34 @@ __all__ = [
     "SearchConfig",
     "LoggingConfig",
     "WebUIConfig",
+    "HardwareConfig",
     "load_config",
     "save_config",
     "get_config",
     "reload_config",
     "find_config_file",
+    # Agent Configuration (Planner-Worker-Verifier)
+    "AgentMode",
+    "AgentRole",
+    "AgentConfig",
+    "OllamaModel",
+    "detect_ollama_models",
+    "get_agent_persona",
+    "AGENT_PERSONAS",
+    "MODEL_REGISTRY",
+    # Reasoning Loop (Planner-Worker-Verifier)
+    "TaskComplexity",
+    "EpisodeEntry",
+    "EpisodicMemory",
+    "PlanStep",
+    "Plan",
+    "ReasoningLoop",
+    # Knowledge Base
+    "CommandPattern",
+    "ReasoningRule",
+    "KnowledgeBase",
+    "get_knowledge_base",
+    "reset_knowledge_base",
     # Log Integrity
     "LogEntry",
     "LogIntegrityReport",
@@ -484,4 +602,57 @@ __all__ = [
     "WaspExecutor",
     "get_wasp_executor",
     "execute_wasp_action",
+    # AST Analysis
+    "Language",
+    "NodeType",
+    "Visibility",
+    "SourceLocation",
+    "TypeInfo",
+    "Symbol",
+    "ASTNode",
+    "ASTBackend",
+    "get_ast_registry",
+    "format_ast_tree",
+    "PythonASTBackend",
+    "get_python_backend",
+    "QueryType",
+    "QueryPredicate",
+    "ASTQuery",
+    "QueryMatch",
+    "parse_query",
+    "execute_query",
+    "execute_query_on_ast",
+    "DependencyType",
+    "Dependency",
+    "DependencyGraph",
+    "DependencyStats",
+    "build_dependency_graph",
+    # Maven
+    "MavenCoordinate",
+    "MavenDependency",
+    "MavenProject",
+    "MavenParser",
+    "parse_pom",
+    "scan_maven_projects",
+    # Code Metrics
+    "ComplexityLevel",
+    "MethodMetrics",
+    "ClassMetrics",
+    "FileMetrics",
+    "ProjectMetrics",
+    "calculate_project_metrics",
+    "calculate_metrics_from_graph",
+    # AST Visualization
+    "VizConfig",
+    "LayoutDirection",
+    "ColorScheme",
+    "DotRenderer",
+    "MermaidRenderer",
+    "D3Renderer",
+    "HTMLRenderer",
+    "DSMRenderer",
+    "RadialExplorer",
+    "graph_to_dot",
+    "graph_to_mermaid",
+    "graph_to_html",
 ]

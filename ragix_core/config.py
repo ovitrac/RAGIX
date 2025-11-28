@@ -14,6 +14,8 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List
 
+from ragix_core.agent_config import AgentConfig, AgentMode
+
 logger = logging.getLogger(__name__)
 
 
@@ -89,6 +91,14 @@ class WebUIConfig:
 
 
 @dataclass
+class HardwareConfig:
+    """Hardware profile configuration."""
+    vram_gb: float = 8.0
+    prefer_cpu: bool = False
+    max_concurrent_models: int = 1
+
+
+@dataclass
 class RAGIXConfig:
     """Root configuration container."""
     llm: LLMConfig = field(default_factory=LLMConfig)
@@ -97,6 +107,8 @@ class RAGIXConfig:
     search: SearchConfig = field(default_factory=SearchConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     webui: WebUIConfig = field(default_factory=WebUIConfig)
+    agents: AgentConfig = field(default_factory=AgentConfig)
+    hardware: HardwareConfig = field(default_factory=HardwareConfig)
     sandbox_root: str = "."
     version: str = "0.7.1"
 
@@ -278,6 +290,19 @@ def _parse_config_dict(data: Dict[str, Any]) -> RAGIXConfig:
             theme=webui.get("theme", config.webui.theme),
         )
 
+    # Agents config (Planner-Worker-Verifier)
+    if "agents" in data:
+        config.agents = AgentConfig.from_dict(data["agents"])
+
+    # Hardware config
+    if "hardware" in data:
+        hw = data["hardware"]
+        config.hardware = HardwareConfig(
+            vram_gb=hw.get("vram_gb", config.hardware.vram_gb),
+            prefer_cpu=hw.get("prefer_cpu", config.hardware.prefer_cpu),
+            max_concurrent_models=hw.get("max_concurrent_models", config.hardware.max_concurrent_models),
+        )
+
     # Root level
     config.sandbox_root = data.get("sandbox_root", config.sandbox_root)
     config.version = data.get("version", config.version)
@@ -325,6 +350,23 @@ def _apply_env_overrides(config: RAGIXConfig) -> RAGIXConfig:
 
     if os.environ.get("UNIX_RAG_ALLOW_GIT_DESTRUCTIVE"):
         config.safety.allow_git_destructive = os.environ["UNIX_RAG_ALLOW_GIT_DESTRUCTIVE"].lower() in ("true", "1", "yes")
+
+    # Agent configuration overrides
+    if os.environ.get("RAGIX_AGENT_MODE"):
+        mode_str = os.environ["RAGIX_AGENT_MODE"].lower()
+        try:
+            config.agents.mode = AgentMode(mode_str)
+        except ValueError:
+            logger.warning(f"Unknown agent mode '{mode_str}', keeping {config.agents.mode.value}")
+
+    if os.environ.get("RAGIX_PLANNER_MODEL"):
+        config.agents.planner_model = os.environ["RAGIX_PLANNER_MODEL"]
+
+    if os.environ.get("RAGIX_WORKER_MODEL"):
+        config.agents.worker_model = os.environ["RAGIX_WORKER_MODEL"]
+
+    if os.environ.get("RAGIX_VERIFIER_MODEL"):
+        config.agents.verifier_model = os.environ["RAGIX_VERIFIER_MODEL"]
 
     return config
 
@@ -408,6 +450,12 @@ def save_config(config: RAGIXConfig, path: Path) -> None:
             "host": config.webui.host,
             "port": config.webui.port,
             "theme": config.webui.theme,
+        },
+        "agents": config.agents.to_dict(),
+        "hardware": {
+            "vram_gb": config.hardware.vram_gb,
+            "prefer_cpu": config.hardware.prefer_cpu,
+            "max_concurrent_models": config.hardware.max_concurrent_models,
         },
     }
 

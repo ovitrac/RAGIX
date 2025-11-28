@@ -1,7 +1,11 @@
 """
 RAGIX Web UI - Local-first web interface
 
-Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-24
+Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-28
 """
 
-__version__ = "0.6.0-dev"
+# Import version from centralized source
+try:
+    from ragix_core.version import __version__
+except ImportError:
+    __version__ = "0.20.0"

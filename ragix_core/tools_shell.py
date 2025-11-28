@@ -31,9 +31,12 @@ class CommandResult:
         Format the command result as a text block for feeding back into the LLM.
         """
         lines = [f"$ {self.command}", f"(cwd: {self.cwd})", ""]
-        if self.stdout:
-            lines.append("STDOUT:")
+        # Always show output section
+        lines.append("Output:")
+        if self.stdout.strip():
             lines.append(self.stdout.strip())
+        else:
+            lines.append("(no output)")
         if self.stderr:
             lines.append("")
             lines.append("STDERR:")

@@ -7,15 +7,25 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-
 import os
 import textwrap
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
+from pathlib import Path
+from typing import List, Dict, Optional, Tuple, Any
 
 from ragix_core import OllamaLLM, ShellSandbox, CommandResult, extract_json_object
+from ragix_core.agent_config import AgentConfig, AgentMode, AgentRole
+from ragix_core.reasoning import ReasoningLoop, EpisodicMemory, TaskComplexity
 
 
 # System prompt for Unix-RAG agent
 AGENT_SYSTEM_PROMPT = textwrap.dedent("""
-You are a local Unix-RAG development assistant working inside a sandboxed
+You are RAGIX, a local Unix-RAG development assistant working inside a sandboxed
 project directory.
+
+IDENTITY & CONVERSATIONAL QUERIES:
+When users ask "who are you", "hello", "help", or similar:
+- Respond as RAGIX: "I am RAGIX, a Unix-RAG development assistant. I can explore
+  your codebase, run bash commands, and edit files. How can I help you today?"
+- Do NOT analyze the project files for identity questions.
+- Just respond conversationally with a brief introduction.
 
 You can:
 - Run bash commands: ls, find, tree, grep -R -n, head, tail, wc -l,
@@ -137,22 +147,50 @@ class UnixRAGAgent:
     - the sandboxed shell (ShellSandbox),
     - the chat history,
     - the JSON action protocol.
+    - the reasoning loop (Planner/Worker/Verifier)
+    - episodic memory for session context
 
     Additional behavior:
     - On initialization, it generates an automatic project overview using
       `find` (limited depth and file types) and feeds this as context to
       the conversation.
+    - For complex tasks, uses a [PLAN] template and executes step-by-step
+    - Maintains episodic memory across turns for continuity
     """
     llm: OllamaLLM
     shell: ShellSandbox
     system_prompt: str = AGENT_SYSTEM_PROMPT
     history: List[Dict[str, str]] = field(default_factory=list)
+    agent_config: Optional[AgentConfig] = None
+    use_reasoning_loop: bool = True  # Enable Planner/Worker/Verifier
+
+    # Internal: initialized in __post_init__
+    _episodic_memory: Optional[EpisodicMemory] = field(default=None, init=False)
+    _reasoning_loop: Optional[ReasoningLoop] = field(default=None, init=False)
 
     def __post_init__(self):
         """
         After initialization, run a project overview command and store its
-        result as part of the initial context.
+        result as part of the initial context. Also initialize episodic memory
+        and reasoning loop.
         """
+        # Initialize agent config if not provided
+        if self.agent_config is None:
+            self.agent_config = AgentConfig()
+
+        # Initialize episodic memory
+        ragix_dir = Path(self.shell.root) / ".ragix"
+        self._episodic_memory = EpisodicMemory(storage_path=ragix_dir)
+
+        # Initialize reasoning loop
+        if self.use_reasoning_loop:
+            self._reasoning_loop = ReasoningLoop(
+                llm_generate=self._llm_generate_for_reasoning,
+                agent_config=self.agent_config,
+                episodic_memory=self._episodic_memory,
+            )
+
+        # Run project overview
         overview_cmd = (
             "find . -maxdepth 4 -type f "
             "\\( -name '*.py' -o -name '*.ipynb' -o -name 'Makefile' "
@@ -169,6 +207,10 @@ class UnixRAGAgent:
                     overview_text
                 )
             })
+
+    def _llm_generate_for_reasoning(self, system_prompt: str, messages: List[Dict]) -> str:
+        """Wrapper for LLM generation used by reasoning loop."""
+        return self.llm.generate(system_prompt, messages)
 
     # -------------------------- Core methods --------------------------
 
@@ -283,9 +325,111 @@ class UnixRAGAgent:
             # We return a "response" to the human as well.
             return None, summary
 
-        # -------- unknown action fallback --------
+        # -------- fallback: treat common shell commands as bash action --------
+        # Some LLMs return {"action": "ls"} or {"action": "pwd"} instead of bash
+        common_shell_cmds = {"ls", "pwd", "cat", "head", "tail", "find", "grep", "wc", "tree", "echo", "cd", "mkdir", "touch", "rm", "cp", "mv", "which", "env", "date", "whoami", "file", "stat", "du", "df"}
+
+        # Command aliases for LLMs that use descriptive action names
+        cmd_aliases = {
+            "current_path": "pwd",
+            "current_directory": "pwd",
+            "list_files": "ls",
+            "list_directory": "ls -la",
+            "show_files": "ls",
+            "read_file": "cat",
+            "view_file": "cat",
+            "search": "grep -r",
+            "find_files": "find . -name",
+            "directory_contents": "ls -la",
+            "working_directory": "pwd",
+            "get_path": "pwd",
+            "show_path": "pwd",
+        }
+
+        # Check for aliases first
+        if kind in cmd_aliases:
+            base_cmd = cmd_aliases[kind]
+            cmd_args = action.get("args", action.get("arguments", action.get("path", action.get("query", ""))))
+            if cmd_args:
+                cmd = f"{base_cmd} {cmd_args}"
+            else:
+                cmd = base_cmd
+            result = self.shell.run(cmd)
+            self._add_message("user", "Command result:\n" + result.as_text_block())
+            return result, None
+
+        if kind in common_shell_cmds:
+            # The action type itself is the command, maybe with args
+            cmd_args = action.get("args", action.get("arguments", action.get("path", "")))
+            if cmd_args:
+                cmd = f"{kind} {cmd_args}"
+            else:
+                cmd = kind
+            result = self.shell.run(cmd)
+            self._add_message("user", "Command result:\n" + result.as_text_block())
+            return result, None
+
+        # -------- truly unknown action fallback --------
         else:
-            return None, f"Unknown action kind: {kind!r}"
+            return None, f"Unknown action kind: {kind!r}. Use action='bash' with command='...'"
+
+    def step_with_reasoning(self, user_text: str) -> Tuple[Optional[CommandResult], Optional[str], List[Dict]]:
+        """
+        Perform a reasoning step using the Planner/Worker/Verifier loop.
+
+        For complex tasks, this will:
+        1. Generate a [PLAN] using the Planner agent
+        2. Execute each step using the Worker agent
+        3. Verify results using the Verifier agent
+        4. Maintain episodic memory for context
+
+        Returns:
+        - CommandResult or None (if no bash command executed)
+        - Natural-language response or None
+        - List of reasoning traces for visualization
+        """
+        if not self._reasoning_loop:
+            # Fallback to regular step if reasoning loop not initialized
+            result, msg = self.step(user_text)
+            return result, msg, []
+
+        # Record the goal in episodic memory
+        self._episodic_memory.record_goal(user_text)
+
+        # Classify task complexity
+        complexity = self._reasoning_loop.classify_task(user_text)
+
+        if complexity == TaskComplexity.SIMPLE:
+            # For simple tasks, use direct step but still record in memory
+            result, msg = self.step(user_text)
+
+            # Record in episodic memory
+            if result and hasattr(result, 'command'):
+                self._episodic_memory.record_command(result.command)
+
+            traces = [{
+                "type": "direct_execution",
+                "timestamp": "",
+                "content": f"Simple task executed: {user_text[:100]}",
+            }]
+            return result, msg, traces
+
+        # For moderate/complex tasks, use the full reasoning loop
+        response, traces = self._reasoning_loop.run(user_text, self.step)
+
+        return None, response, traces
+
+    def get_reasoning_traces(self) -> List[Dict]:
+        """Get reasoning traces from the current session."""
+        if self._reasoning_loop:
+            return self._reasoning_loop.get_traces()
+        return []
+
+    def get_session_context(self) -> str:
+        """Get the current session context from episodic memory."""
+        if self._episodic_memory:
+            return self._episodic_memory.get_current_session_context()
+        return ""
 
     def interactive_loop(self):
         """

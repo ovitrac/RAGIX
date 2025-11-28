@@ -5,6 +5,504 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RAGIX Web UI</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Navigation Tabs */
+        .nav-tabs {
+            display: flex;
+            gap: 4px;
+            padding: 0 20px;
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .nav-tab {
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .nav-tab:hover {
+            color: var(--text-primary);
+            background: rgba(255,255,255,0.05);
+        }
+        .nav-tab.active {
+            color: var(--accent-color);
+            border-bottom-color: var(--accent-color);
+        }
+        .tab-content {
+            display: none;
+            height: 100%;
+        }
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+        /* AST Panel */
+        .ast-panel {
+            padding: 20px;
+            height: 100%;
+            overflow-y: auto;
+        }
+        .ast-header {
+            margin-bottom: 20px;
+        }
+        .ast-header h2 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+        .project-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .project-input-group input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+        .viz-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        .viz-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .viz-card:hover {
+            border-color: var(--accent-color);
+            transform: translateY(-2px);
+        }
+        .viz-card h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .viz-card p {
+            margin: 0;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .viz-icon {
+            font-size: 24px;
+        }
+        .ast-status {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+        .ast-status.available {
+            background: rgba(35, 134, 54, 0.2);
+            border: 1px solid #238636;
+            color: #3fb950;
+        }
+        .ast-status.unavailable {
+            background: rgba(218, 54, 51, 0.2);
+            border: 1px solid #da3633;
+            color: #f85149;
+        }
+        /* Logs Panel */
+        .logs-panel {
+            padding: 20px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .logs-content {
+            flex: 1;
+            background: var(--code-bg);
+            border-radius: 6px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .log-entry {
+            margin-bottom: 4px;
+            padding: 2px 0;
+        }
+        .log-cmd { color: #79c0ff; }
+        .log-edit { color: #ffa657; }
+        .log-error { color: #f85149; }
+        .log-event { color: #a5d6ff; }
+        /* Agent and Workflow Lists */
+        .agent-list, .workflow-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .agent-item, .workflow-item {
+            padding: 8px 10px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 12px;
+        }
+        .agent-item:hover, .workflow-item:hover {
+            border-color: var(--accent-color);
+            background: rgba(88, 166, 255, 0.1);
+        }
+        .agent-item.selected, .workflow-item.selected {
+            border-color: var(--accent-color);
+            background: rgba(88, 166, 255, 0.2);
+        }
+        .agent-icon {
+            font-size: 16px;
+            margin-right: 6px;
+        }
+        .agent-name, .workflow-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .agent-desc, .workflow-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+        /* Trace Items */
+        .trace-item {
+            padding: 10px;
+            background: var(--code-bg);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        .trace-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .trace-type {
+            font-weight: 500;
+            color: var(--accent-color);
+        }
+        .trace-time {
+            color: var(--text-secondary);
+            font-size: 11px;
+        }
+        .trace-detail {
+            color: var(--text-secondary);
+            word-break: break-all;
+        }
+        /* Logs Toolbar */
+        .logs-toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        .logs-toolbar select {
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+        /* Settings Tabs */
+        .settings-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        .settings-tab {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .settings-tab:hover {
+            background: rgba(255,255,255,0.05);
+            color: var(--text-primary);
+        }
+        .settings-tab.active {
+            background: var(--accent-color);
+            color: #fff;
+        }
+        .settings-content {
+            display: none;
+        }
+        .settings-content.active {
+            display: block;
+        }
+        /* Agent Settings */
+        .agent-settings-header h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+        .settings-desc {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+        .agent-mode-toggle {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 15px;
+        }
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .toggle-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent-color);
+        }
+        .toggle-text {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .mode-hint {
+            display: block;
+            margin-top: 8px;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+        .per-agent-models {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .per-agent-models .form-group {
+            margin-bottom: 15px;
+        }
+        .per-agent-models .form-group:last-child {
+            margin-bottom: 0;
+        }
+        .vram-warning {
+            background: rgba(218, 54, 51, 0.15);
+            border: 1px solid #da3633;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .vram-warning .warning-icon {
+            font-size: 20px;
+            color: #f85149;
+        }
+        .vram-warning .warning-text {
+            color: #f85149;
+            font-size: 13px;
+        }
+        .config-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+        .session-note {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+        /* Reasoning Panel */
+        .reasoning-panel {
+            padding: 20px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .reasoning-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .reasoning-header h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .reasoning-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .reasoning-controls select {
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+        .agent-config-summary {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .agent-config-summary h3 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .config-cards {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .config-card {
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 150px;
+        }
+        .config-card.config-mode {
+            background: rgba(88, 166, 255, 0.1);
+            border-color: var(--accent-color);
+        }
+        .config-icon {
+            font-size: 24px;
+        }
+        .config-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .config-role {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        .config-model {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .config-note {
+            margin-top: 12px;
+            padding: 10px;
+            background: rgba(255, 166, 87, 0.1);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #ffa657;
+        }
+        .note-icon {
+            font-size: 16px;
+        }
+        /* Reasoning Timeline */
+        .reasoning-timeline {
+            flex: 1;
+            overflow-y: auto;
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .reasoning-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+        .reasoning-empty .empty-icon {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        .reasoning-empty p {
+            margin: 0 0 8px 0;
+        }
+        .reasoning-empty .empty-hint {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        .reasoning-trace {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-color);
+        }
+        .reasoning-trace.type-planning {
+            border-left-color: #b392f0;
+        }
+        .reasoning-trace.type-execution {
+            border-left-color: #56d364;
+        }
+        .reasoning-trace.type-verification {
+            border-left-color: #ffa657;
+        }
+        .trace-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .trace-type-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: var(--accent-color);
+            color: #fff;
+            text-transform: uppercase;
+        }
+        .trace-type-badge.planning { background: #b392f0; }
+        .trace-type-badge.execution { background: #56d364; }
+        .trace-type-badge.verification { background: #ffa657; }
+        .trace-timestamp {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        .trace-content {
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .trace-thinking {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -12,101 +510,614 @@
         <header class="header">
             <div class="header-left">
                 <h1>RAGIX</h1>
-                <span class="version">v0.6-dev</span>
+                <span class="version">v0.10.1</span>
             </div>
             <div class="header-right">
                 <span id="status" class="status status-disconnected">Disconnected</span>
-                <button id="settingsBtn" class="btn btn-icon" title="Settings">⚙️</button>
+                <button id="settingsBtn" class="btn btn-icon" title="Settings">&#9881;</button>
             </div>
         </header>
 
-        <!-- Main Layout -->
-        <div class="main-layout">
-            <!-- Sidebar -->
-            <aside class="sidebar">
-                <div class="sidebar-section">
-                    <h3>Session</h3>
-                    <div id="sessionInfo" class="session-info">
-                        <div class="info-row">
-                            <span class="label">Sandbox:</span>
-                            <span id="sandboxPath" class="value">-</span>
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
+            <button class="nav-tab" data-tab="chat">Chat</button>
+            <button class="nav-tab" data-tab="reasoning">Reasoning</button>
+            <button class="nav-tab" data-tab="ast">AST Analysis</button>
+            <button class="nav-tab" data-tab="logs">Logs</button>
+        </nav>
+
+        <!-- Tab Contents -->
+        <div class="main-content">
+            <!-- Dashboard Tab -->
+            <div id="dashboardTab" class="tab-content active">
+                <div class="dashboard-panel">
+                    <div class="dashboard-header">
+                        <h2>RAGIX Dashboard</h2>
+                        <p class="dashboard-subtitle">Local-first development assistant with AST analysis</p>
+                    </div>
+
+                    <!-- Project Selector -->
+                    <div class="dashboard-section">
+                        <h3>Project Selection</h3>
+                        <div class="project-selector">
+                            <div class="project-input-row">
+                                <input type="text" id="dashboardProjectPath" placeholder="Enter project path or select from recent..." />
+                                <button class="btn btn-icon" onclick="folderBrowser.open('dashboardProjectPath')" title="Browse folders">&#128193;</button>
+                                <button class="btn btn-primary" onclick="dashboardApp.loadProject()">Load Project</button>
+                            </div>
+                            <div id="recentProjects" class="recent-projects">
+                                <p class="recent-empty">No recent projects. Enter a path above to get started.</p>
+                            </div>
                         </div>
-                        <div class="info-row">
-                            <span class="label">Model:</span>
-                            <span id="modelName" class="value">-</span>
+                    </div>
+
+                    <!-- Quick Stats -->
+                    <div class="dashboard-section">
+                        <h3>Quick Stats</h3>
+                        <div id="dashboardStats" class="dashboard-stats">
+                            <div class="dash-stat-card">
+                                <span class="dash-stat-icon">&#128187;</span>
+                                <div class="dash-stat-info">
+                                    <span class="dash-stat-value" id="dashStatFiles">-</span>
+                                    <span class="dash-stat-label">Source Files</span>
+                                </div>
+                            </div>
+                            <div class="dash-stat-card">
+                                <span class="dash-stat-icon">&#128200;</span>
+                                <div class="dash-stat-info">
+                                    <span class="dash-stat-value" id="dashStatSymbols">-</span>
+                                    <span class="dash-stat-label">Symbols</span>
+                                </div>
+                            </div>
+                            <div class="dash-stat-card">
+                                <span class="dash-stat-icon">&#128279;</span>
+                                <div class="dash-stat-info">
+                                    <span class="dash-stat-value" id="dashStatDeps">-</span>
+                                    <span class="dash-stat-label">Dependencies</span>
+                                </div>
+                            </div>
+                            <div class="dash-stat-card">
+                                <span class="dash-stat-icon">&#9888;</span>
+                                <div class="dash-stat-info">
+                                    <span class="dash-stat-value" id="dashStatDebt">-</span>
+                                    <span class="dash-stat-label">Tech Debt (hours)</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="info-row">
-                            <span class="label">Profile:</span>
-                            <span id="profileName" class="value">-</span>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="dashboard-section">
+                        <h3>Quick Actions</h3>
+                        <div class="quick-actions">
+                            <button class="action-btn" onclick="dashboardApp.goToChat()">
+                                <span class="action-icon">&#128172;</span>
+                                <span class="action-label">Start Chat</span>
+                                <span class="action-desc">Talk to the AI assistant</span>
+                            </button>
+                            <button class="action-btn" onclick="dashboardApp.goToAST()">
+                                <span class="action-icon">&#128202;</span>
+                                <span class="action-label">Analyze Code</span>
+                                <span class="action-desc">Run AST analysis</span>
+                            </button>
+                            <button class="action-btn" onclick="dashboardApp.goToLogs()">
+                                <span class="action-icon">&#128196;</span>
+                                <span class="action-label">View Logs</span>
+                                <span class="action-desc">Check command history</span>
+                            </button>
+                            <button class="action-btn" onclick="dashboardApp.goToSettings()">
+                                <span class="action-icon">&#9881;</span>
+                                <span class="action-label">Settings</span>
+                                <span class="action-desc">Configure AI model</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- System Status -->
+                    <div class="dashboard-section">
+                        <h3>System Status</h3>
+                        <div id="systemStatus" class="system-status">
+                            <div class="status-item">
+                                <span class="status-dot" id="ollamaStatusDot"></span>
+                                <span class="status-text" id="ollamaStatusText">Checking Ollama...</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-dot" id="astStatusDot"></span>
+                                <span class="status-text" id="astStatusText">Checking AST...</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-dot" id="sandboxStatusDot"></span>
+                                <span class="status-text" id="sandboxStatusText">Sandbox: Loading...</span>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="sidebar-section">
-                    <h3>Tools</h3>
-                    <div class="tool-list">
-                        <button class="tool-btn" onclick="app.showLogs()">📋 View Logs</button>
-                        <button class="tool-btn" onclick="app.showTraces()">🔍 View Traces</button>
-                        <button class="tool-btn" onclick="app.clearChat()">🗑️ Clear Chat</button>
+            <!-- Chat Tab -->
+            <div id="chatTab" class="tab-content">
+                <div class="main-layout">
+                    <!-- Sidebar -->
+                    <aside class="sidebar" id="chatSidebar">
+                        <div class="sidebar-inner">
+                            <div class="sidebar-section">
+                                <h3 onclick="toggleSidebarSection(this)">
+                                    Session
+                                    <span class="collapse-icon">&#9660;</span>
+                                </h3>
+                                <div class="sidebar-section-content">
+                                    <div id="sessionInfo" class="session-info">
+                                        <div class="info-row">
+                                            <span class="label">Sandbox</span>
+                                            <span id="sandboxPath" class="value" title="Scroll to see full path">-</span>
+                                        </div>
+                                        <div class="info-row">
+                                            <span class="label">Model</span>
+                                            <span id="modelName" class="value short">-</span>
+                                        </div>
+                                        <div class="info-row">
+                                            <span class="label">Profile</span>
+                                            <span id="profileName" class="value short">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="sidebar-section">
+                                <h3 onclick="toggleSidebarSection(this)">
+                                    Agents
+                                    <span class="collapse-icon">&#9660;</span>
+                                </h3>
+                                <div class="sidebar-section-content">
+                                    <div id="agentList" class="agent-list">
+                                        <p style="color: var(--text-secondary); font-size: 12px;">Loading agents...</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="sidebar-section">
+                                <h3 onclick="toggleSidebarSection(this)">
+                                    Workflows
+                                    <span class="collapse-icon">&#9660;</span>
+                                </h3>
+                                <div class="sidebar-section-content">
+                                    <div id="workflowList" class="workflow-list">
+                                        <p style="color: var(--text-secondary); font-size: 12px;">Loading workflows...</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="sidebar-section">
+                                <h3 onclick="toggleSidebarSection(this)">
+                                    Tools
+                                    <span class="collapse-icon">&#9660;</span>
+                                </h3>
+                                <div class="sidebar-section-content">
+                                    <div class="tool-list">
+                                        <button class="tool-btn" onclick="app.showTraces()">View Traces</button>
+                                        <button class="tool-btn" onclick="app.clearChat()">Clear Chat</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+                    <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Toggle sidebar">&#9664;</button>
+
+                    <!-- Chat Area -->
+                    <main class="chat-area">
+                        <div id="chatMessages" class="chat-messages"></div>
+
+                        <div class="chat-input-container">
+                            <textarea
+                                id="chatInput"
+                                class="chat-input"
+                                placeholder="Type your message... (Shift+Enter for new line, Enter to send)"
+                                rows="3"
+                            ></textarea>
+                            <button id="sendBtn" class="btn btn-primary">Send</button>
+                        </div>
+                    </main>
+
+                    <!-- Trace Panel (collapsible) -->
+                    <aside id="tracePanel" class="trace-panel hidden">
+                        <div class="trace-header">
+                            <h3>Tool Traces</h3>
+                            <button onclick="app.closeTraces()" class="btn btn-icon">&#10005;</button>
+                        </div>
+                        <div id="traceContent" class="trace-content">
+                            <p class="trace-empty">No traces yet. Start chatting to see tool calls here.</p>
+                        </div>
+                    </aside>
+                </div>
+            </div>
+
+            <!-- Reasoning Tab (Chain of Thought Viewer) -->
+            <div id="reasoningTab" class="tab-content">
+                <div class="reasoning-panel">
+                    <div class="reasoning-header">
+                        <h2>Agent Reasoning & Chain of Thought</h2>
+                        <div class="reasoning-controls">
+                            <button class="btn" onclick="reasoningApp.refresh()">Refresh</button>
+                            <button class="btn" onclick="reasoningApp.clear()">Clear</button>
+                            <select id="reasoningFilter" onchange="reasoningApp.filter()">
+                                <option value="all">All Traces</option>
+                                <option value="planning">Planning</option>
+                                <option value="execution">Execution</option>
+                                <option value="verification">Verification</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Agent Config Summary -->
+                    <div id="agentConfigSummary" class="agent-config-summary">
+                        <h3>Current Agent Configuration</h3>
+                        <div class="config-cards">
+                            <div class="config-card">
+                                <span class="config-icon">&#129302;</span>
+                                <div class="config-info">
+                                    <span class="config-role">Planner</span>
+                                    <span class="config-model" id="plannerModelDisplay">-</span>
+                                </div>
+                            </div>
+                            <div class="config-card">
+                                <span class="config-icon">&#128736;</span>
+                                <div class="config-info">
+                                    <span class="config-role">Worker</span>
+                                    <span class="config-model" id="workerModelDisplay">-</span>
+                                </div>
+                            </div>
+                            <div class="config-card">
+                                <span class="config-icon">&#9989;</span>
+                                <div class="config-info">
+                                    <span class="config-role">Verifier</span>
+                                    <span class="config-model" id="verifierModelDisplay">-</span>
+                                </div>
+                            </div>
+                            <div class="config-card config-mode">
+                                <span class="config-icon">&#9881;</span>
+                                <div class="config-info">
+                                    <span class="config-role">Mode</span>
+                                    <span class="config-model" id="agentModeDisplay">minimal</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="config-note" id="configNote">
+                            <span class="note-icon">&#128161;</span>
+                            <span id="configNoteText">Single-model mode recommended for ≤8GB VRAM to avoid load/unload overhead.</span>
+                        </div>
+                    </div>
+
+                    <!-- Reasoning Timeline -->
+                    <div class="reasoning-timeline" id="reasoningTimeline">
+                        <div class="reasoning-empty">
+                            <span class="empty-icon">&#129504;</span>
+                            <p>No reasoning traces yet. Start a chat to see the agent's thinking process.</p>
+                            <p class="empty-hint">The agent will show its planning, execution, and verification steps here.</p>
+                        </div>
                     </div>
                 </div>
-            </aside>
+            </div>
 
-            <!-- Chat Area -->
-            <main class="chat-area">
-                <div id="chatMessages" class="chat-messages"></div>
+            <!-- AST Analysis Tab -->
+            <div id="astTab" class="tab-content">
+                <div class="ast-panel">
+                    <div class="ast-header">
+                        <h2>AST Analysis & Visualization</h2>
+                        <div id="astStatus" class="ast-status available">Checking AST availability...</div>
+                    </div>
 
-                <div class="chat-input-container">
-                    <textarea
-                        id="chatInput"
-                        class="chat-input"
-                        placeholder="Type your message... (Shift+Enter for new line, Enter to send)"
-                        rows="3"
-                    ></textarea>
-                    <button id="sendBtn" class="btn btn-primary">Send</button>
-                </div>
-            </main>
+                    <div class="project-input-group">
+                        <input type="text" id="projectPath" placeholder="Enter project path (e.g., /path/to/java/project)" />
+                        <button class="btn btn-icon" onclick="folderBrowser.open('projectPath')" title="Browse folders">&#128193;</button>
+                        <button class="btn btn-primary" onclick="astApp.analyze()">Analyze</button>
+                    </div>
 
-            <!-- Trace Panel (collapsible) -->
-            <aside id="tracePanel" class="trace-panel hidden">
-                <div class="trace-header">
-                    <h3>Tool Traces</h3>
-                    <button onclick="app.closeTraces()" class="btn btn-icon">✕</button>
+                    <h3>Visualizations</h3>
+                    <div class="viz-cards">
+                        <div class="viz-card" onclick="astApp.openGraph()">
+                            <h3><span class="viz-icon">&#128200;</span> Dependency Graph</h3>
+                            <p>Force-directed graph with package clustering, edge bundling, and interactive exploration.</p>
+                        </div>
+                        <div class="viz-card" onclick="astApp.openMatrix()">
+                            <h3><span class="viz-icon">&#9638;</span> DSM Matrix</h3>
+                            <p>Dependency Structure Matrix with heatmap coloring and cycle detection.</p>
+                        </div>
+                        <div class="viz-card" onclick="astApp.openRadial()">
+                            <h3><span class="viz-icon">&#9673;</span> Radial Explorer</h3>
+                            <p>Ego-centric visualization with focal node at center and dependencies radiating outward.</p>
+                        </div>
+                        <div class="viz-card" onclick="astApp.openMetrics()">
+                            <h3><span class="viz-icon">&#128202;</span> Code Metrics</h3>
+                            <p>Cyclomatic complexity, technical debt, maintainability index, and hotspots.</p>
+                        </div>
+                    </div>
+
+                    <div id="astResults" style="margin-top: 20px;"></div>
+
+                    <!-- Embedded Visualization Area -->
+                    <div id="vizContainer" class="viz-container" style="display: none;">
+                        <div class="viz-header">
+                            <h3 id="vizTitle">Visualization</h3>
+                            <button class="btn btn-icon" onclick="astApp.closeViz()">&#10005;</button>
+                        </div>
+                        <div class="viz-frame-container">
+                            <iframe id="vizFrame" class="viz-frame" src="about:blank"></iframe>
+                        </div>
+                    </div>
                 </div>
-                <div id="traceContent" class="trace-content">
-                    <p class="trace-empty">No traces yet. Start chatting to see tool calls here.</p>
+            </div>
+
+            <!-- Logs Tab -->
+            <div id="logsTab" class="tab-content">
+                <div class="logs-panel">
+                    <div class="ast-header">
+                        <h2>Command Logs & Integrity</h2>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn" onclick="logsApp.refresh()">Refresh</button>
+                            <button class="btn btn-primary" onclick="logsApp.verifyIntegrity()">Verify Integrity</button>
+                        </div>
+                    </div>
+
+                    <!-- Integrity Status Banner -->
+                    <div id="integrityStatus" class="integrity-status" style="display: none;">
+                        <div class="integrity-icon"></div>
+                        <div class="integrity-message"></div>
+                        <div class="integrity-details"></div>
+                    </div>
+
+                    <!-- Log Statistics -->
+                    <div id="logStats" class="log-stats" style="display: none;">
+                        <div class="stat-card">
+                            <span class="stat-value" id="statEntries">0</span>
+                            <span class="stat-label">Log Entries</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-value" id="statChain">0</span>
+                            <span class="stat-label">Hash Chain</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-value" id="statSize">0 KB</span>
+                            <span class="stat-label">Log Size</span>
+                        </div>
+                    </div>
+
+                    <!-- View Toggle -->
+                    <div class="logs-toolbar">
+                        <select id="logViewMode" onchange="logsApp.changeView()">
+                            <option value="logs">Command Logs</option>
+                            <option value="chain">Hash Chain</option>
+                            <option value="traces">Tool Traces</option>
+                        </select>
+                    </div>
+
+                    <div id="logsContent" class="logs-content">
+                        <p style="color: var(--text-secondary);">Select a session to view logs...</p>
+                    </div>
                 </div>
-            </aside>
+            </div>
         </div>
     </div>
 
     <!-- Settings Modal -->
     <div id="settingsModal" class="modal hidden">
-        <div class="modal-content">
+        <div class="modal-content modal-lg">
             <div class="modal-header">
                 <h2>Settings</h2>
-                <button onclick="app.closeSettings()" class="btn btn-icon">✕</button>
+                <button onclick="app.closeSettings()" class="btn btn-icon">&#10005;</button>
             </div>
             <div class="modal-body">
-                <div class="form-group">
-                    <label>Session ID:</label>
-                    <input type="text" id="sessionIdInput" value="default" />
+                <!-- Settings Tabs -->
+                <div class="settings-tabs">
+                    <button class="settings-tab active" data-settings-tab="session">Session</button>
+                    <button class="settings-tab" data-settings-tab="agents">Agent Config</button>
+                    <button class="settings-tab" data-settings-tab="memory">Memory</button>
+                    <button class="settings-tab" data-settings-tab="context">User Context</button>
                 </div>
-                <div class="form-group">
-                    <label>Sandbox Root:</label>
-                    <input type="text" id="sandboxInput" value="~/ragix-workspace" />
+
+                <!-- Session Settings -->
+                <div id="sessionSettings" class="settings-content active">
+                    <div class="form-group">
+                        <label>Session ID:</label>
+                        <input type="text" id="sessionIdInput" value="default" />
+                    </div>
+                    <div class="form-group">
+                        <label>Sandbox Root:</label>
+                        <input type="text" id="sandboxInput" value="" placeholder="Leave empty for current directory (secure)" />
+                        <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
+                            Security: Like Claude Code, sandbox is restricted to the server's launch directory
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label>Sovereign AI Model (from Ollama):</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <select id="modelInput" style="flex: 1;">
+                                <option value="">Loading models...</option>
+                            </select>
+                            <button type="button" class="btn btn-icon" onclick="app.loadOllamaModels()" title="Refresh models">&#8635;</button>
+                        </div>
+                        <small id="modelStatus" style="color: var(--text-secondary); display: block; margin-top: 5px;">
+                            All models run locally via Ollama - no data leaves your machine
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label>Profile:</label>
+                        <select id="profileInput">
+                            <option value="strict">Strict (Read-only)</option>
+                            <option value="dev" selected>Dev (Default)</option>
+                            <option value="unsafe">Unsafe (Expert)</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Model:</label>
-                    <input type="text" id="modelInput" value="mistral" />
+
+                <!-- Agent Configuration Settings -->
+                <div id="agentsSettings" class="settings-content">
+                    <div class="agent-settings-header">
+                        <h3>Multi-Agent LLM Configuration</h3>
+                        <p class="settings-desc">Configure which models are used for each agent role. Use single-model mode on low VRAM systems (≤8GB) to avoid model load/unload overhead.</p>
+                    </div>
+
+                    <!-- Single Model Mode Toggle -->
+                    <div class="form-group agent-mode-toggle">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="singleModelMode" onchange="agentSettingsApp.toggleSingleMode()">
+                            <span class="toggle-text">Single Model Mode (Low VRAM)</span>
+                        </label>
+                        <small class="mode-hint">Recommended for GPUs with ≤8GB VRAM. Uses the same model for all agents to avoid loading/unloading.</small>
+                    </div>
+
+                    <!-- Agent Mode Selection -->
+                    <div class="form-group" id="agentModeGroup">
+                        <label>Agent Mode:</label>
+                        <select id="agentModeInput" onchange="agentSettingsApp.changeMode()">
+                            <option value="minimal">Minimal (All 3B - Best for low VRAM)</option>
+                            <option value="strict">Strict (7B Planner, 3B Workers)</option>
+                            <option value="custom">Custom (Choose per agent) ⬅ Select for per-agent models</option>
+                        </select>
+                        <small class="mode-hint">💡 Select "Custom" above to configure different models for Planner, Worker, and Verifier.</small>
+                    </div>
+
+                    <!-- Single Model Selection (shown when single mode enabled) -->
+                    <div id="singleModelGroup" class="form-group" style="display: none;">
+                        <label>Model for All Agents:</label>
+                        <select id="singleModelInput">
+                            <option value="">Loading models...</option>
+                        </select>
+                        <small>This model will be used for Planner, Worker, and Verifier roles.</small>
+                    </div>
+
+                    <!-- Per-Agent Model Selection (shown when custom mode) -->
+                    <div id="perAgentModels" class="per-agent-models">
+                        <div class="form-group">
+                            <label>&#129302; Planner Model:</label>
+                            <select id="plannerModelInput">
+                                <option value="">Loading models...</option>
+                            </select>
+                            <small>Handles task decomposition and planning. Larger models (7B+) recommended.</small>
+                        </div>
+                        <div class="form-group">
+                            <label>&#128736; Worker Model:</label>
+                            <select id="workerModelInput">
+                                <option value="">Loading models...</option>
+                            </select>
+                            <small>Executes planned tasks. 3B models are efficient for execution.</small>
+                        </div>
+                        <div class="form-group">
+                            <label>&#9989; Verifier Model:</label>
+                            <select id="verifierModelInput">
+                                <option value="">Loading models...</option>
+                            </select>
+                            <small>Verifies outputs and results. 3B models are sufficient.</small>
+                        </div>
+                    </div>
+
+                    <!-- VRAM Warning -->
+                    <div id="vramWarning" class="vram-warning" style="display: none;">
+                        <span class="warning-icon">&#9888;</span>
+                        <span class="warning-text">Warning: Selected configuration may exceed available VRAM. Consider using single-model mode or smaller models.</span>
+                    </div>
+
+                    <!-- Config Actions -->
+                    <div class="config-actions">
+                        <button onclick="agentSettingsApp.reset()" class="btn">Reset to Defaults</button>
+                        <span id="configSessionNote" class="session-note">Changes are session-specific and don't affect default configuration.</span>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Profile:</label>
-                    <select id="profileInput">
-                        <option value="strict">Strict (Read-only)</option>
-                        <option value="dev" selected>Dev (Default)</option>
-                        <option value="unsafe">Unsafe (Expert)</option>
-                    </select>
+
+                <!-- Memory Management Settings -->
+                <div id="memorySettings" class="settings-content">
+                    <div class="memory-header">
+                        <h3>Session Memory</h3>
+                        <p class="settings-desc">View and manage conversation history for this session. Delete specific messages or clear all history.</p>
+                    </div>
+
+                    <!-- Memory Stats -->
+                    <div class="memory-stats">
+                        <div class="stat-card">
+                            <span class="stat-value" id="memoryTotalMessages">0</span>
+                            <span class="stat-label">Total Messages</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-value" id="memoryUserMessages">0</span>
+                            <span class="stat-label">User Messages</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-value" id="memoryAssistantMessages">0</span>
+                            <span class="stat-label">Assistant Messages</span>
+                        </div>
+                    </div>
+
+                    <!-- Memory Actions -->
+                    <div class="memory-actions">
+                        <button onclick="memoryApp.refresh()" class="btn">Refresh</button>
+                        <button onclick="memoryApp.clearAll()" class="btn btn-danger">Clear All Memory</button>
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <span>Keep last:</span>
+                            <input type="number" id="keepLastInput" value="0" min="0" max="100" style="width: 60px;">
+                            <span>messages</span>
+                        </label>
+                    </div>
+
+                    <!-- Memory List -->
+                    <div class="memory-list-container">
+                        <div id="memoryList" class="memory-list">
+                            <p style="color: var(--text-secondary);">Click "Refresh" to load memory...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Context Settings -->
+                <div id="contextSettings" class="settings-content">
+                    <div class="context-header">
+                        <h3>User Context</h3>
+                        <p class="settings-desc">Set custom instructions that persist across all conversations in this session. Similar to Claude's system prompts or ChatGPT's custom instructions.</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>System Instructions:</label>
+                        <textarea id="systemInstructionsInput" rows="4" placeholder="e.g., 'Always explain your reasoning step by step', 'Focus on Python best practices', 'Be concise'"></textarea>
+                        <small>These instructions are prepended to every message you send.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Custom Prompt Context:</label>
+                        <textarea id="customPromptInput" rows="4" placeholder="e.g., 'I am working on a FastAPI project with PostgreSQL backend', 'The codebase follows clean architecture patterns'"></textarea>
+                        <small>Additional context about your project or preferences.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Preferences:</label>
+                        <div class="preferences-grid">
+                            <label class="preference-item">
+                                <input type="checkbox" id="prefVerbose">
+                                <span>Verbose explanations</span>
+                            </label>
+                            <label class="preference-item">
+                                <input type="checkbox" id="prefCodeComments">
+                                <span>Add code comments</span>
+                            </label>
+                            <label class="preference-item">
+                                <input type="checkbox" id="prefStepByStep">
+                                <span>Step-by-step output</span>
+                            </label>
+                            <label class="preference-item">
+                                <input type="checkbox" id="prefSafetyFirst">
+                                <span>Safety-first approach</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Context Actions -->
+                    <div class="context-actions">
+                        <button onclick="contextApp.load()" class="btn">Load Current</button>
+                        <button onclick="contextApp.save()" class="btn btn-primary">Save Context</button>
+                        <button onclick="contextApp.clear()" class="btn btn-danger">Clear Context</button>
+                    </div>
+
+                    <div id="contextStatus" class="context-status" style="display: none;">
+                        <span class="status-icon"></span>
+                        <span class="status-text"></span>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -116,6 +1127,1379 @@
         </div>
     </div>
 
+    <!-- Folder Browser Modal -->
+    <div id="folderBrowserModal" class="modal hidden">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>Select Project Folder</h2>
+                <button onclick="folderBrowser.close()" class="btn btn-icon">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <div class="folder-nav">
+                    <button class="btn btn-icon" onclick="folderBrowser.goUp()" title="Go to parent">&#8593;</button>
+                    <button class="btn btn-icon" onclick="folderBrowser.goHome()" title="Go to home">&#127968;</button>
+                    <input type="text" id="folderPath" class="folder-path-input" placeholder="Enter path..." onkeydown="if(event.key==='Enter')folderBrowser.navigate(this.value)">
+                    <button class="btn" onclick="folderBrowser.navigate(document.getElementById('folderPath').value)">Go</button>
+                </div>
+                <div id="folderContents" class="folder-contents">
+                    <p style="color: var(--text-secondary);">Loading...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="folderBrowser.close()" class="btn">Cancel</button>
+                <button onclick="folderBrowser.selectCurrent()" class="btn btn-primary">Select This Folder</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/app.js"></script>
+    <script>
+        // Folder Browser
+        const folderBrowser = {
+            currentPath: '',
+            targetInput: null,
+            callback: null,
+
+            open(targetInputId, callback = null) {
+                this.targetInput = document.getElementById(targetInputId);
+                this.callback = callback;
+                document.getElementById('folderBrowserModal').classList.remove('hidden');
+
+                // Start at current value or launch directory
+                const startPath = this.targetInput?.value || '';
+                this.navigate(startPath);
+            },
+
+            close() {
+                document.getElementById('folderBrowserModal').classList.add('hidden');
+            },
+
+            async navigate(path) {
+                const container = document.getElementById('folderContents');
+                container.innerHTML = '<p style="color: var(--text-secondary);">Loading...</p>';
+
+                try {
+                    const resp = await fetch(`/api/browse?path=${encodeURIComponent(path)}`);
+                    const data = await resp.json();
+
+                    this.currentPath = data.current;
+                    document.getElementById('folderPath').value = data.current;
+
+                    if (data.entries.length === 0) {
+                        container.innerHTML = '<p style="color: var(--text-secondary);">No subfolders found</p>';
+                        return;
+                    }
+
+                    container.innerHTML = data.entries.map(entry => `
+                        <div class="folder-item ${entry.is_project ? 'is-project' : ''}" onclick="folderBrowser.${entry.is_dir ? 'navigate' : 'selectFile'}('${entry.path.replace(/'/g, "\\'")}')">
+                            <span class="folder-icon">${entry.is_dir ? (entry.is_project ? '&#128193;' : '&#128194;') : '&#128196;'}</span>
+                            <span class="folder-name">${entry.name}</span>
+                            ${entry.is_project ? '<span class="project-badge">Project</span>' : ''}
+                        </div>
+                    `).join('');
+
+                } catch (e) {
+                    container.innerHTML = `<p style="color: #f85149;">Error: ${e.message}</p>`;
+                }
+            },
+
+            goUp() {
+                const path = document.getElementById('folderPath').value;
+                const parent = path.split('/').slice(0, -1).join('/') || '/';
+                this.navigate(parent);
+            },
+
+            goHome() {
+                this.navigate('~');
+            },
+
+            selectFile(path) {
+                // For files, just update the path display
+                document.getElementById('folderPath').value = path;
+            },
+
+            selectCurrent() {
+                if (this.targetInput) {
+                    this.targetInput.value = this.currentPath;
+                }
+                if (this.callback) {
+                    this.callback(this.currentPath);
+                }
+                this.close();
+            },
+
+            selectPath(path) {
+                if (this.targetInput) {
+                    this.targetInput.value = path;
+                }
+                if (this.callback) {
+                    this.callback(path);
+                }
+                this.close();
+            }
+        };
+
+        // Tab Navigation
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Update active tab
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                // Update active content
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(tab.dataset.tab + 'Tab').classList.add('active');
+            });
+        });
+
+        // AST Application
+        const astApp = {
+            projectPath: '',
+
+            async init() {
+                // Check AST availability
+                try {
+                    const resp = await fetch('/api/ast/status');
+                    const data = await resp.json();
+                    const statusEl = document.getElementById('astStatus');
+                    if (data.available) {
+                        statusEl.className = 'ast-status available';
+                        statusEl.textContent = 'AST analysis available';
+                    } else {
+                        statusEl.className = 'ast-status unavailable';
+                        statusEl.textContent = data.message;
+                    }
+                } catch (e) {
+                    console.error('AST status check failed:', e);
+                }
+            },
+
+            getPath() {
+                return document.getElementById('projectPath').value.trim();
+            },
+
+            analyze() {
+                const path = this.getPath();
+                if (!path) {
+                    alert('Please enter a project path');
+                    return;
+                }
+                this.projectPath = path;
+                this.showMetrics(path);
+            },
+
+            async showMetrics(path) {
+                const results = document.getElementById('astResults');
+                results.innerHTML = '<p>Loading metrics...</p>';
+
+                try {
+                    // Fetch both metrics and graph data for complete stats
+                    const [metricsResp, graphResp] = await Promise.all([
+                        fetch(`/api/ast/metrics?path=${encodeURIComponent(path)}`),
+                        fetch(`/api/ast/graph?path=${encodeURIComponent(path)}&max_nodes=1`)
+                    ]);
+
+                    if (!metricsResp.ok) throw new Error(await metricsResp.text());
+                    const metrics = await metricsResp.json();
+
+                    // Graph response for dependency count (even if error, show partial data)
+                    let depCount = '-';
+                    if (graphResp.ok) {
+                        const graphData = await graphResp.json();
+                        depCount = graphData.total_edges || graphData.links?.length || '-';
+                    }
+
+                    // Extract nested values from API response
+                    const totalFiles = metrics.summary?.total_files || 0;
+                    const totalSymbols = (metrics.summary?.total_classes || 0) + (metrics.summary?.total_functions || 0);
+                    const debtHours = metrics.debt?.estimated_hours?.toFixed(1) || 0;
+
+                    results.innerHTML = `
+                        <h3>Analysis Results</h3>
+                        <div class="viz-cards">
+                            <div class="viz-card">
+                                <h3>Files: ${totalFiles}</h3>
+                                <p>Total source files analyzed</p>
+                            </div>
+                            <div class="viz-card">
+                                <h3>Symbols: ${totalSymbols}</h3>
+                                <p>Classes, interfaces, methods extracted</p>
+                            </div>
+                            <div class="viz-card">
+                                <h3>Dependencies: ${depCount}</h3>
+                                <p>Dependency relationships mapped</p>
+                            </div>
+                            <div class="viz-card">
+                                <h3>Debt: ${debtHours}h</h3>
+                                <p>Estimated technical debt</p>
+                            </div>
+                        </div>
+                        <div class="viz-cards" style="margin-top: 16px;">
+                            <div class="viz-card">
+                                <h3>Complexity: ${metrics.complexity?.average_cyclomatic?.toFixed(2) || '-'}</h3>
+                                <p>Average cyclomatic complexity</p>
+                            </div>
+                            <div class="viz-card">
+                                <h3>Lines: ${metrics.summary?.total_lines?.toLocaleString() || 0}</h3>
+                                <p>Total lines of code</p>
+                            </div>
+                            <div class="viz-card">
+                                <h3>Code: ${metrics.summary?.code_lines?.toLocaleString() || 0}</h3>
+                                <p>Actual code lines</p>
+                            </div>
+                            <div class="viz-card">
+                                <h3>Comments: ${metrics.summary?.comment_lines?.toLocaleString() || 0}</h3>
+                                <p>Comment and doc lines</p>
+                            </div>
+                        </div>
+                    `;
+                } catch (e) {
+                    results.innerHTML = `<p style="color: #f85149;">Error: ${e.message}</p>`;
+                }
+            },
+
+            openGraph() {
+                const path = this.getPath();
+                if (!path) { alert('Please enter a project path first'); return; }
+                this.showViz(`/api/ast/visualize?path=${encodeURIComponent(path)}&title=Dependency Graph`, 'Dependency Graph');
+            },
+
+            openMatrix() {
+                const path = this.getPath();
+                if (!path) { alert('Please enter a project path first'); return; }
+                this.showViz(`/api/ast/matrix?path=${encodeURIComponent(path)}&title=DSM Matrix&level=package`, 'DSM Matrix');
+            },
+
+            openRadial() {
+                const path = this.getPath();
+                if (!path) { alert('Please enter a project path first'); return; }
+                this.showViz(`/api/ast/radial/page?path=${encodeURIComponent(path)}`, 'Radial Explorer');
+            },
+
+            openMetrics() {
+                const path = this.getPath();
+                if (!path) { alert('Please enter a project path first'); return; }
+                this.showMetrics(path);
+            },
+
+            showViz(url, title) {
+                const container = document.getElementById('vizContainer');
+                const titleEl = document.getElementById('vizTitle');
+                const frame = document.getElementById('vizFrame');
+
+                titleEl.textContent = title;
+                frame.src = url;
+                container.style.display = 'block';
+
+                // Scroll to visualization
+                container.scrollIntoView({ behavior: 'smooth' });
+            },
+
+            closeViz() {
+                const container = document.getElementById('vizContainer');
+                const frame = document.getElementById('vizFrame');
+
+                container.style.display = 'none';
+                frame.src = 'about:blank';
+            },
+
+            openInNewTab() {
+                const frame = document.getElementById('vizFrame');
+                if (frame.src && frame.src !== 'about:blank') {
+                    window.open(frame.src, '_blank');
+                }
+            }
+        };
+
+        // Logs Application
+        const logsApp = {
+            currentView: 'logs',
+
+            async refresh() {
+                const mode = document.getElementById('logViewMode')?.value || 'logs';
+                this.currentView = mode;
+
+                if (mode === 'chain') {
+                    await this.loadChain();
+                } else if (mode === 'traces') {
+                    await this.loadTraces();
+                } else {
+                    await this.loadLogs();
+                }
+
+                // Also load stats
+                await this.loadStats();
+            },
+
+            async loadLogs() {
+                const content = document.getElementById('logsContent');
+                content.innerHTML = '<p>Loading logs...</p>';
+
+                try {
+                    const resp = await fetch('/api/logs/server?limit=100');
+                    const data = await resp.json();
+
+                    if (data.logs.length === 0) {
+                        const sessResp = await fetch('/api/sessions');
+                        const sessData = await sessResp.json();
+
+                        if (sessData.sessions.length === 0) {
+                            content.innerHTML = '<p style="color: var(--text-secondary);">No logs yet. Start using RAGIX to generate logs.</p>';
+                            return;
+                        }
+
+                        const session = sessData.sessions[0];
+                        const logsResp = await fetch(`/api/sessions/${session.id}/logs?limit=100`);
+                        const logsData = await logsResp.json();
+
+                        if (logsData.logs.length === 0) {
+                            content.innerHTML = '<p style="color: var(--text-secondary);">No logs yet.</p>';
+                            return;
+                        }
+
+                        content.innerHTML = logsData.logs.map(line => this.formatLogLine(line)).join('');
+                    } else {
+                        content.innerHTML = data.logs.map(entry => this.formatLogLine(entry.line, entry.session)).join('');
+                    }
+                } catch (e) {
+                    content.innerHTML = `<p style="color: #f85149;">Error loading logs: ${e.message}</p>`;
+                }
+            },
+
+            async loadChain() {
+                const content = document.getElementById('logsContent');
+                content.innerHTML = '<p>Loading hash chain...</p>';
+
+                try {
+                    const resp = await fetch('/api/logs/chain?limit=100');
+                    const data = await resp.json();
+
+                    if (!data.has_integrity || data.entries.length === 0) {
+                        content.innerHTML = '<p style="color: var(--text-secondary);">No hash chain entries yet. Commands will be logged with SHA256 hashes.</p>';
+                        return;
+                    }
+
+                    content.innerHTML = data.entries.map(entry => `
+                        <div class="chain-entry">
+                            <div class="chain-header">
+                                <span class="chain-seq">#${entry.sequence}</span>
+                                <span class="chain-time">${entry.timestamp}</span>
+                            </div>
+                            <div class="chain-content">${escapeHtml(entry.content)}</div>
+                            <div class="chain-hashes">
+                                <span class="hash-label">Hash:</span>
+                                <span class="hash-value">${entry.hash.substring(0, 16)}...</span>
+                                <span class="hash-label">Prev:</span>
+                                <span class="hash-value">${entry.prev_hash.substring(0, 16)}...</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } catch (e) {
+                    content.innerHTML = `<p style="color: #f85149;">Error loading chain: ${e.message}</p>`;
+                }
+            },
+
+            async loadTraces() {
+                const content = document.getElementById('logsContent');
+                content.innerHTML = '<p>Loading traces...</p>';
+
+                try {
+                    const resp = await fetch('/api/traces?limit=50');
+                    const data = await resp.json();
+
+                    if (data.traces.length === 0) {
+                        content.innerHTML = '<p style="color: var(--text-secondary);">No tool traces yet.</p>';
+                        return;
+                    }
+
+                    content.innerHTML = data.traces.map(trace => `
+                        <div class="trace-item">
+                            <div class="trace-header">
+                                <span class="trace-type">${trace.event || trace.action || 'event'}</span>
+                                <span class="trace-time">${trace.timestamp || ''}</span>
+                            </div>
+                            <div class="trace-detail">${escapeHtml(JSON.stringify(trace.data || trace, null, 2).substring(0, 300))}</div>
+                        </div>
+                    `).join('');
+                } catch (e) {
+                    content.innerHTML = `<p style="color: #f85149;">Error loading traces: ${e.message}</p>`;
+                }
+            },
+
+            async loadStats() {
+                try {
+                    const resp = await fetch('/api/logs/stats');
+                    const data = await resp.json();
+
+                    const statsEl = document.getElementById('logStats');
+                    if (data.sessions.length > 0) {
+                        const session = data.sessions[0];
+                        document.getElementById('statEntries').textContent = session.log_file?.entries || 0;
+                        document.getElementById('statChain').textContent = session.hash_chain?.entries || 0;
+                        document.getElementById('statSize').textContent = (session.log_file?.size_kb || 0) + ' KB';
+                        statsEl.style.display = 'flex';
+                    }
+                } catch (e) {
+                    console.error('Failed to load stats:', e);
+                }
+            },
+
+            async verifyIntegrity() {
+                const statusEl = document.getElementById('integrityStatus');
+                const iconEl = statusEl.querySelector('.integrity-icon');
+                const msgEl = statusEl.querySelector('.integrity-message');
+                const detailsEl = statusEl.querySelector('.integrity-details');
+
+                statusEl.style.display = 'flex';
+                statusEl.className = 'integrity-status checking';
+                iconEl.innerHTML = '&#8987;';
+                msgEl.textContent = 'Verifying hash chain integrity...';
+                detailsEl.textContent = '';
+
+                try {
+                    const resp = await fetch('/api/logs/integrity');
+                    const data = await resp.json();
+
+                    if (data.overall_valid) {
+                        statusEl.className = 'integrity-status valid';
+                        iconEl.innerHTML = '&#10003;';
+                        msgEl.textContent = 'Integrity Verified';
+                        const total = data.results.reduce((sum, r) => sum + (r.verified_entries || 0), 0);
+                        detailsEl.textContent = `${total} entries verified with SHA256 hash chain`;
+                    } else {
+                        statusEl.className = 'integrity-status invalid';
+                        iconEl.innerHTML = '&#10007;';
+                        msgEl.textContent = 'Integrity Check Failed';
+                        const errors = data.results.flatMap(r => r.errors || []);
+                        detailsEl.textContent = errors.slice(0, 3).join('; ');
+                    }
+                } catch (e) {
+                    statusEl.className = 'integrity-status error';
+                    iconEl.innerHTML = '&#9888;';
+                    msgEl.textContent = 'Verification Error';
+                    detailsEl.textContent = e.message;
+                }
+            },
+
+            changeView() {
+                this.refresh();
+            },
+
+            formatLogLine(line, session = null) {
+                let cls = 'log-entry';
+                if (line.includes('CMD:')) cls += ' log-cmd';
+                else if (line.includes('EDIT:')) cls += ' log-edit';
+                else if (line.includes('ERROR')) cls += ' log-error';
+                else if (line.includes('EVENT:')) cls += ' log-event';
+                const sessionTag = session ? `<span style="color: #8b949e;">[${session}]</span> ` : '';
+                return `<div class="${cls}">${sessionTag}${escapeHtml(line)}</div>`;
+            }
+        };
+
+        // Agents Application
+        const agentsApp = {
+            selectedAgent: null,
+
+            async load() {
+                const container = document.getElementById('agentList');
+                try {
+                    const resp = await fetch('/api/agents');
+                    const data = await resp.json();
+
+                    if (!data.available || data.agents.length === 0) {
+                        container.innerHTML = '<p style="color: var(--text-secondary); font-size: 11px;">No agents available</p>';
+                        return;
+                    }
+
+                    container.innerHTML = data.agents.map(agent => `
+                        <div class="agent-item" data-agent="${agent.id}" onclick="agentsApp.select('${agent.id}')">
+                            <span class="agent-icon">${agent.icon}</span>
+                            <span class="agent-name">${agent.name}</span>
+                            <div class="agent-desc">${agent.description}</div>
+                        </div>
+                    `).join('');
+                } catch (e) {
+                    container.innerHTML = '<p style="color: #f85149; font-size: 11px;">Error loading agents</p>';
+                }
+            },
+
+            select(agentId) {
+                this.selectedAgent = agentId;
+                document.querySelectorAll('.agent-item').forEach(el => {
+                    el.classList.toggle('selected', el.dataset.agent === agentId);
+                });
+                // Update chat placeholder to indicate selected agent
+                const input = document.getElementById('chatInput');
+                input.placeholder = `Ask ${agentId} agent... (Shift+Enter for new line, Enter to send)`;
+            }
+        };
+
+        // Workflows Application
+        const workflowsApp = {
+            workflows: [],
+            selectedWorkflow: null,
+
+            async load() {
+                const container = document.getElementById('workflowList');
+                try {
+                    const resp = await fetch('/api/workflows');
+                    const data = await resp.json();
+
+                    if (!data.available || data.workflows.length === 0) {
+                        container.innerHTML = '<p style="color: var(--text-secondary); font-size: 11px;">No workflows available</p>';
+                        return;
+                    }
+
+                    this.workflows = data.workflows;
+
+                    container.innerHTML = data.workflows.slice(0, 5).map(wf => `
+                        <div class="workflow-item" data-workflow="${wf.id}" onclick="workflowsApp.select('${wf.id}')" title="${wf.description}">
+                            <span class="workflow-name">${wf.name.replace(' Workflow', '')}</span>
+                            <div class="workflow-desc">${wf.steps.length} steps</div>
+                        </div>
+                    `).join('') + (data.workflows.length > 5 ? `<p style="color: var(--text-secondary); font-size: 11px;">+${data.workflows.length - 5} more...</p>` : '');
+                } catch (e) {
+                    container.innerHTML = '<p style="color: #f85149; font-size: 11px;">Error loading workflows</p>';
+                }
+            },
+
+            select(workflowId) {
+                this.selectedWorkflow = workflowId;
+                document.querySelectorAll('.workflow-item').forEach(el => {
+                    el.classList.toggle('selected', el.dataset.workflow === workflowId);
+                });
+                const wf = this.workflows.find(w => w.id === workflowId);
+                if (wf) {
+                    // Show workflow info in chat
+                    const input = document.getElementById('chatInput');
+                    input.placeholder = `Configure ${wf.name}... (parameters: ${wf.parameters.map(p => p.name).join(', ')})`;
+                }
+            }
+        };
+
+        // Traces Application
+        const tracesApp = {
+            async load() {
+                const container = document.getElementById('traceContent');
+                try {
+                    const resp = await fetch('/api/traces?limit=50');
+                    const data = await resp.json();
+
+                    if (data.traces.length === 0) {
+                        container.innerHTML = '<p class="trace-empty">No traces yet. Start chatting to see tool calls here.</p>';
+                        return;
+                    }
+
+                    container.innerHTML = data.traces.map(trace => `
+                        <div class="trace-item">
+                            <div class="trace-header">
+                                <span class="trace-type">${trace.event || trace.action || 'event'}</span>
+                                <span class="trace-time">${trace.timestamp || ''}</span>
+                            </div>
+                            <div class="trace-detail">${escapeHtml(JSON.stringify(trace.data || trace, null, 2).substring(0, 200))}</div>
+                        </div>
+                    `).join('');
+                } catch (e) {
+                    container.innerHTML = `<p style="color: #f85149;">Error loading traces: ${e.message}</p>`;
+                }
+            }
+        };
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Agent Settings Application
+        const agentSettingsApp = {
+            config: null,
+            availableModels: [],
+
+            async init() {
+                await this.loadConfig();
+                await this.populateModelSelects();
+                this.setupSettingsTabs();
+            },
+
+            setupSettingsTabs() {
+                document.querySelectorAll('.settings-tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+                        document.querySelectorAll('.settings-content').forEach(c => c.classList.remove('active'));
+                        tab.classList.add('active');
+                        const targetId = tab.dataset.settingsTab + 'Settings';
+                        document.getElementById(targetId)?.classList.add('active');
+
+                        // Load agent config when switching to agents tab
+                        if (tab.dataset.settingsTab === 'agents') {
+                            this.loadConfig();
+                        }
+                    });
+                });
+            },
+
+            async loadConfig() {
+                try {
+                    const sessionId = document.getElementById('sessionIdInput')?.value || 'default';
+                    const resp = await fetch(`/api/agents/config?session_id=${sessionId}`);
+                    this.config = await resp.json();
+                    this.availableModels = this.config.available_models || [];
+                    this.updateUI();
+                    this.updateReasoningDisplay();
+                } catch (e) {
+                    console.error('Failed to load agent config:', e);
+                }
+            },
+
+            async populateModelSelects() {
+                const selects = ['singleModelInput', 'plannerModelInput', 'workerModelInput', 'verifierModelInput'];
+                const models = this.availableModels;
+
+                selects.forEach(selectId => {
+                    const select = document.getElementById(selectId);
+                    if (!select) return;
+
+                    select.innerHTML = models.length > 0
+                        ? models.map(m => `<option value="${m.name}">${m.name} (${m.size_gb?.toFixed(1) || '?'}GB)</option>`).join('')
+                        : '<option value="granite3.1-moe:3b">granite3.1-moe:3b (default)</option>';
+                });
+
+                // Set current values
+                if (this.config) {
+                    document.getElementById('agentModeInput').value = this.config.mode;
+                    document.getElementById('plannerModelInput').value = this.config.planner_model;
+                    document.getElementById('workerModelInput').value = this.config.worker_model;
+                    document.getElementById('verifierModelInput').value = this.config.verifier_model;
+                }
+            },
+
+            updateUI() {
+                if (!this.config) return;
+
+                const mode = this.config.mode;
+                const singleMode = document.getElementById('singleModelMode');
+                const agentModeInput = document.getElementById('agentModeInput');
+
+                // Update mode display
+                agentModeInput.value = mode;
+
+                // Show/hide per-agent models based on mode
+                const perAgentModels = document.getElementById('perAgentModels');
+                if (mode === 'custom') {
+                    perAgentModels.style.display = 'block';
+                } else {
+                    perAgentModels.style.display = 'none';
+                }
+
+                // Update VRAM warning visibility
+                this.checkVRAMWarning();
+            },
+
+            updateReasoningDisplay() {
+                if (!this.config) return;
+
+                document.getElementById('plannerModelDisplay').textContent = this.config.planner_model || '-';
+                document.getElementById('workerModelDisplay').textContent = this.config.worker_model || '-';
+                document.getElementById('verifierModelDisplay').textContent = this.config.verifier_model || '-';
+                document.getElementById('agentModeDisplay').textContent = this.config.mode || 'minimal';
+
+                // Update config note
+                const noteText = document.getElementById('configNoteText');
+                if (this.config.mode === 'minimal') {
+                    noteText.textContent = 'Single-model mode recommended for ≤8GB VRAM to avoid load/unload overhead.';
+                } else if (this.config.mode === 'strict') {
+                    noteText.textContent = 'Using 7B model for planning, 3B for execution. May require model switching.';
+                } else {
+                    noteText.textContent = 'Custom configuration. Ensure your system has sufficient VRAM for all models.';
+                }
+            },
+
+            toggleSingleMode() {
+                const singleMode = document.getElementById('singleModelMode').checked;
+                const singleModelGroup = document.getElementById('singleModelGroup');
+                const agentModeGroup = document.getElementById('agentModeGroup');
+                const perAgentModels = document.getElementById('perAgentModels');
+
+                if (singleMode) {
+                    singleModelGroup.style.display = 'block';
+                    agentModeGroup.style.display = 'none';
+                    perAgentModels.style.display = 'none';
+                } else {
+                    singleModelGroup.style.display = 'none';
+                    agentModeGroup.style.display = 'block';
+                    this.changeMode();
+                }
+            },
+
+            changeMode() {
+                const mode = document.getElementById('agentModeInput').value;
+                const perAgentModels = document.getElementById('perAgentModels');
+
+                if (mode === 'custom') {
+                    perAgentModels.style.display = 'block';
+                } else {
+                    perAgentModels.style.display = 'none';
+                }
+
+                this.checkVRAMWarning();
+            },
+
+            checkVRAMWarning() {
+                const warning = document.getElementById('vramWarning');
+                const mode = document.getElementById('agentModeInput').value;
+
+                // Show warning for strict mode or custom with multiple large models
+                if (mode === 'strict') {
+                    warning.style.display = 'flex';
+                } else {
+                    warning.style.display = 'none';
+                }
+            },
+
+            async save() {
+                const sessionId = document.getElementById('sessionIdInput')?.value || 'default';
+                const singleMode = document.getElementById('singleModelMode').checked;
+                const mode = singleMode ? 'minimal' : document.getElementById('agentModeInput').value;
+
+                const payload = {
+                    mode: mode,
+                    single_model_mode: singleMode,
+                    single_model: singleMode ? document.getElementById('singleModelInput').value : null,
+                    planner_model: document.getElementById('plannerModelInput').value,
+                    worker_model: document.getElementById('workerModelInput').value,
+                    verifier_model: document.getElementById('verifierModelInput').value,
+                };
+
+                try {
+                    const resp = await fetch(`/api/agents/config?session_id=${sessionId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+
+                    if (resp.ok) {
+                        await this.loadConfig();
+                        console.log('Agent config saved');
+                    } else {
+                        const err = await resp.json();
+                        alert('Failed to save agent config: ' + (err.detail || 'Unknown error'));
+                    }
+                } catch (e) {
+                    alert('Error saving agent config: ' + e.message);
+                }
+            },
+
+            async reset() {
+                const sessionId = document.getElementById('sessionIdInput')?.value || 'default';
+
+                try {
+                    const resp = await fetch(`/api/agents/config?session_id=${sessionId}`, {
+                        method: 'DELETE',
+                    });
+
+                    if (resp.ok) {
+                        await this.loadConfig();
+                        alert('Agent config reset to defaults');
+                    }
+                } catch (e) {
+                    alert('Error resetting config: ' + e.message);
+                }
+            }
+        };
+
+        // Reasoning Application
+        const reasoningApp = {
+            traces: [],
+            filterType: 'all',
+
+            async init() {
+                await this.refresh();
+            },
+
+            async refresh() {
+                const sessionId = document.getElementById('sessionIdInput')?.value || 'default';
+
+                try {
+                    const resp = await fetch(`/api/agents/reasoning?session_id=${sessionId}&limit=50`);
+                    const data = await resp.json();
+                    this.traces = data.traces || [];
+                    this.render();
+                } catch (e) {
+                    console.error('Failed to load reasoning traces:', e);
+                }
+
+                // Also refresh config display
+                agentSettingsApp.loadConfig();
+            },
+
+            filter() {
+                this.filterType = document.getElementById('reasoningFilter').value;
+                this.render();
+            },
+
+            render() {
+                const container = document.getElementById('reasoningTimeline');
+
+                let filtered = this.traces;
+                if (this.filterType !== 'all') {
+                    filtered = this.traces.filter(t => {
+                        const type = (t.type || t.event || '').toLowerCase();
+                        return type.includes(this.filterType);
+                    });
+                }
+
+                if (filtered.length === 0) {
+                    container.innerHTML = `
+                        <div class="reasoning-empty">
+                            <span class="empty-icon">&#129504;</span>
+                            <p>No reasoning traces yet. Start a chat to see the agent's thinking process.</p>
+                            <p class="empty-hint">The agent will show its planning, execution, and verification steps here.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = filtered.map(trace => {
+                    const type = this.getTraceType(trace);
+                    const content = trace.content || trace.data || JSON.stringify(trace, null, 2);
+                    const timestamp = trace.timestamp ? new Date(trace.timestamp).toLocaleTimeString() : '';
+
+                    // Extract thinking content if present
+                    let thinking = '';
+                    if (typeof content === 'string' && content.includes('<thinking>')) {
+                        const match = content.match(/<thinking>([\s\S]*?)<\/thinking>/);
+                        if (match) thinking = match[1].trim();
+                    }
+
+                    return `
+                        <div class="reasoning-trace type-${type}">
+                            <div class="trace-meta">
+                                <span class="trace-type-badge ${type}">${type}</span>
+                                <span class="trace-timestamp">${timestamp}</span>
+                            </div>
+                            <div class="trace-content">${escapeHtml(typeof content === 'string' ? content.substring(0, 500) : JSON.stringify(content).substring(0, 500))}</div>
+                            ${thinking ? `<div class="trace-thinking">${escapeHtml(thinking.substring(0, 300))}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            getTraceType(trace) {
+                const type = (trace.type || trace.event || '').toLowerCase();
+                if (type.includes('plan')) return 'planning';
+                if (type.includes('exec') || type.includes('work')) return 'execution';
+                if (type.includes('verif') || type.includes('check')) return 'verification';
+                return 'reasoning';
+            },
+
+            async clear() {
+                if (!confirm('Clear all reasoning traces for this session?')) return;
+
+                this.traces = [];
+                this.render();
+            }
+        };
+
+        // Memory Management Application
+        const memoryApp = {
+            messages: [],
+
+            async refresh() {
+                const sessionId = document.getElementById('sessionIdInput')?.value || 'default';
+
+                try {
+                    const resp = await fetch(`/api/sessions/${sessionId}/memory?limit=100`);
+                    if (!resp.ok) {
+                        throw new Error('Session not found');
+                    }
+                    const data = await resp.json();
+                    this.messages = data.messages || [];
+                    this.updateStats(data);
+                    this.render();
+                } catch (e) {
+                    document.getElementById('memoryList').innerHTML = `
+                        <p style="color: var(--text-secondary);">
+                            Connect to a session first to view memory.
+                            <br><small>${e.message}</small>
+                        </p>
+                    `;
+                }
+            },
+
+            updateStats(data) {
+                const total = data.total_messages || 0;
+                const messages = data.messages || [];
+                const userCount = messages.filter(m => m.role === 'user').length;
+                const assistantCount = messages.filter(m => m.role === 'assistant').length;
+
+                document.getElementById('memoryTotalMessages').textContent = total;
+                document.getElementById('memoryUserMessages').textContent = userCount;
+                document.getElementById('memoryAssistantMessages').textContent = assistantCount;
+            },
+
+            render() {
+                const container = document.getElementById('memoryList');
+
+                if (this.messages.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-secondary);">No messages in memory.</p>';
+                    return;
+                }
+
+                container.innerHTML = this.messages.map(msg => `
+                    <div class="memory-item memory-${msg.role}">
+                        <div class="memory-item-header">
+                            <span class="memory-role ${msg.role}">${msg.role === 'user' ? 'You' : 'Assistant'}</span>
+                            <span class="memory-timestamp">${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : ''}</span>
+                            <button class="btn btn-icon btn-sm btn-danger" onclick="memoryApp.deleteMessage(${msg.index})" title="Delete this message">&#128465;</button>
+                        </div>
+                        <div class="memory-content">${escapeHtml(msg.content)}</div>
+                        ${msg.full_content_length > 500 ? `<small class="memory-truncated">Truncated (${msg.full_content_length} chars total)</small>` : ''}
+                    </div>
+                `).join('');
+            },
+
+            async deleteMessage(index) {
+                if (!confirm(`Delete message #${index}?`)) return;
+
+                const sessionId = document.getElementById('sessionIdInput')?.value || 'default';
+
+                try {
+                    const resp = await fetch(`/api/sessions/${sessionId}/memory/${index}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (resp.ok) {
+                        await this.refresh();
+                    } else {
+                        alert('Failed to delete message');
+                    }
+                } catch (e) {
+                    alert('Error: ' + e.message);
+                }
+            },
+
+            async clearAll() {
+                const keepLast = parseInt(document.getElementById('keepLastInput')?.value || '0');
+                const msg = keepLast > 0
+                    ? `Clear memory and keep only the last ${keepLast} messages?`
+                    : 'Clear ALL session memory? This cannot be undone.';
+
+                if (!confirm(msg)) return;
+
+                const sessionId = document.getElementById('sessionIdInput')?.value || 'default';
+
+                try {
+                    const resp = await fetch(`/api/sessions/${sessionId}/memory?keep_last=${keepLast}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        alert(`Cleared ${data.previous_count - data.current_count} messages. ${data.current_count} remaining.`);
+                        await this.refresh();
+                    } else {
+                        alert('Failed to clear memory');
+                    }
+                } catch (e) {
+                    alert('Error: ' + e.message);
+                }
+            }
+        };
+
+        // User Context Application
+        const contextApp = {
+            context: null,
+
+            async load() {
+                const sessionId = document.getElementById('sessionIdInput')?.value || 'default';
+
+                try {
+                    const resp = await fetch(`/api/sessions/${sessionId}/context`);
+                    if (!resp.ok) {
+                        this.showStatus('error', 'Session not found. Connect first.');
+                        return;
+                    }
+                    this.context = await resp.json();
+                    this.updateUI();
+                    this.showStatus('success', 'Context loaded');
+                } catch (e) {
+                    this.showStatus('error', 'Error: ' + e.message);
+                }
+            },
+
+            updateUI() {
+                if (!this.context) return;
+
+                document.getElementById('systemInstructionsInput').value = this.context.system_instructions || '';
+                document.getElementById('customPromptInput').value = this.context.custom_prompt || '';
+
+                // Update preferences checkboxes
+                const prefs = this.context.preferences || {};
+                document.getElementById('prefVerbose').checked = prefs.verbose || false;
+                document.getElementById('prefCodeComments').checked = prefs.code_comments || false;
+                document.getElementById('prefStepByStep').checked = prefs.step_by_step || false;
+                document.getElementById('prefSafetyFirst').checked = prefs.safety_first || false;
+            },
+
+            async save() {
+                const sessionId = document.getElementById('sessionIdInput')?.value || 'default';
+
+                const payload = {
+                    system_instructions: document.getElementById('systemInstructionsInput').value,
+                    custom_prompt: document.getElementById('customPromptInput').value,
+                    preferences: {
+                        verbose: document.getElementById('prefVerbose').checked,
+                        code_comments: document.getElementById('prefCodeComments').checked,
+                        step_by_step: document.getElementById('prefStepByStep').checked,
+                        safety_first: document.getElementById('prefSafetyFirst').checked,
+                    }
+                };
+
+                try {
+                    const resp = await fetch(`/api/sessions/${sessionId}/context`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        this.showStatus('success', `Context saved! (${data.system_instructions_length} chars instructions)`);
+                    } else {
+                        this.showStatus('error', 'Failed to save context');
+                    }
+                } catch (e) {
+                    this.showStatus('error', 'Error: ' + e.message);
+                }
+            },
+
+            async clear() {
+                if (!confirm('Clear all user context for this session?')) return;
+
+                const sessionId = document.getElementById('sessionIdInput')?.value || 'default';
+
+                try {
+                    const resp = await fetch(`/api/sessions/${sessionId}/context`, {
+                        method: 'DELETE',
+                    });
+
+                    if (resp.ok) {
+                        document.getElementById('systemInstructionsInput').value = '';
+                        document.getElementById('customPromptInput').value = '';
+                        document.getElementById('prefVerbose').checked = false;
+                        document.getElementById('prefCodeComments').checked = false;
+                        document.getElementById('prefStepByStep').checked = false;
+                        document.getElementById('prefSafetyFirst').checked = false;
+                        this.showStatus('success', 'Context cleared');
+                    } else {
+                        this.showStatus('error', 'Failed to clear context');
+                    }
+                } catch (e) {
+                    this.showStatus('error', 'Error: ' + e.message);
+                }
+            },
+
+            showStatus(type, message) {
+                const status = document.getElementById('contextStatus');
+                status.style.display = 'flex';
+                status.className = `context-status ${type}`;
+                status.querySelector('.status-text').textContent = message;
+
+                // Auto-hide after 3 seconds
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 3000);
+            }
+        };
+
+        // Initialize all apps
+        astApp.init();
+        agentsApp.load();
+        workflowsApp.load();
+        agentSettingsApp.init();
+        reasoningApp.init();
+
+        // Update app.showTraces to use tracesApp
+        if (typeof app !== 'undefined') {
+            const originalShowTraces = app.showTraces;
+            app.showTraces = function() {
+                if (originalShowTraces) originalShowTraces.call(app);
+                tracesApp.load();
+            };
+        }
+
+        // Dashboard Application
+        const dashboardApp = {
+            currentProject: null,
+            recentProjects: [],
+
+            async init() {
+                // Load recent projects from localStorage
+                this.loadRecentProjects();
+                this.renderRecentProjects();
+
+                // Check system status
+                await this.checkSystemStatus();
+            },
+
+            loadRecentProjects() {
+                try {
+                    const stored = localStorage.getItem('ragix_recent_projects');
+                    const parsed = stored ? JSON.parse(stored) : [];
+                    // Deduplicate by path (keep first occurrence)
+                    const seen = new Set();
+                    this.recentProjects = parsed.filter(p => {
+                        if (seen.has(p.path)) return false;
+                        seen.add(p.path);
+                        return true;
+                    });
+                    // Save cleaned data back if there were duplicates
+                    if (this.recentProjects.length !== parsed.length) {
+                        this.saveRecentProjects();
+                    }
+                } catch (e) {
+                    this.recentProjects = [];
+                }
+            },
+
+            saveRecentProjects() {
+                try {
+                    localStorage.setItem('ragix_recent_projects', JSON.stringify(this.recentProjects.slice(0, 10)));
+                } catch (e) {
+                    console.error('Failed to save recent projects:', e);
+                }
+            },
+
+            renderRecentProjects() {
+                const container = document.getElementById('recentProjects');
+                if (this.recentProjects.length === 0) {
+                    container.innerHTML = '<p class="recent-empty">No recent projects. Enter a path above to get started.</p>';
+                    return;
+                }
+
+                container.innerHTML = this.recentProjects.map((p, idx) => `
+                    <div class="recent-project-item" onclick="dashboardApp.selectProject(${idx})">
+                        <span class="recent-project-path">${p.path}</span>
+                        <span class="recent-project-stats">${p.files || '?'} files</span>
+                        <button class="btn btn-icon btn-sm" onclick="event.stopPropagation(); dashboardApp.removeProject(${idx})">&#10005;</button>
+                    </div>
+                `).join('');
+            },
+
+            async loadProject() {
+                const input = document.getElementById('dashboardProjectPath');
+                const path = input.value.trim();
+
+                if (!path) {
+                    alert('Please enter a project path');
+                    return;
+                }
+
+                this.currentProject = path;
+
+                // Add to recent projects
+                const existing = this.recentProjects.findIndex(p => p.path === path);
+                if (existing >= 0) {
+                    this.recentProjects.splice(existing, 1);
+                }
+
+                // Fetch quick metrics
+                try {
+                    const resp = await fetch(`/api/ast/metrics?path=${encodeURIComponent(path)}`);
+                    if (resp.ok) {
+                        const data = await resp.json();
+
+                        // Update stats display
+                        document.getElementById('dashStatFiles').textContent = data.summary?.total_files || '-';
+                        document.getElementById('dashStatSymbols').textContent =
+                            (data.summary?.total_classes || 0) + (data.summary?.total_methods || 0);
+                        document.getElementById('dashStatDeps').textContent = '-';
+                        document.getElementById('dashStatDebt').textContent =
+                            data.debt?.estimated_hours?.toFixed(1) || '-';
+
+                        // Add to recent with stats
+                        this.recentProjects.unshift({
+                            path: path,
+                            files: data.summary?.total_files || 0,
+                            lastAccess: new Date().toISOString()
+                        });
+                    } else {
+                        // Add without stats
+                        this.recentProjects.unshift({
+                            path: path,
+                            files: 0,
+                            lastAccess: new Date().toISOString()
+                        });
+                    }
+                } catch (e) {
+                    console.error('Failed to load metrics:', e);
+                    this.recentProjects.unshift({
+                        path: path,
+                        files: 0,
+                        lastAccess: new Date().toISOString()
+                    });
+                }
+
+                this.saveRecentProjects();
+                this.renderRecentProjects();
+
+                // Also update AST tab
+                document.getElementById('projectPath').value = path;
+            },
+
+            selectProject(idx) {
+                const project = this.recentProjects[idx];
+                if (project) {
+                    document.getElementById('dashboardProjectPath').value = project.path;
+                    this.loadProject();
+                }
+            },
+
+            removeProject(idx) {
+                this.recentProjects.splice(idx, 1);
+                this.saveRecentProjects();
+                this.renderRecentProjects();
+            },
+
+            async checkSystemStatus() {
+                // Check Ollama
+                try {
+                    const resp = await fetch('/api/ollama/models');
+                    const data = await resp.json();
+                    const dot = document.getElementById('ollamaStatusDot');
+                    const text = document.getElementById('ollamaStatusText');
+                    if (data.available) {
+                        dot.className = 'status-dot status-ok';
+                        text.textContent = `Ollama: ${data.count} model(s) available`;
+                    } else {
+                        dot.className = 'status-dot status-error';
+                        text.textContent = `Ollama: ${data.error || 'Not available'}`;
+                    }
+                } catch (e) {
+                    document.getElementById('ollamaStatusDot').className = 'status-dot status-error';
+                    document.getElementById('ollamaStatusText').textContent = 'Ollama: Connection error';
+                }
+
+                // Check AST
+                try {
+                    const resp = await fetch('/api/ast/status');
+                    const data = await resp.json();
+                    const dot = document.getElementById('astStatusDot');
+                    const text = document.getElementById('astStatusText');
+                    if (data.available) {
+                        dot.className = 'status-dot status-ok';
+                        text.textContent = 'AST: Ready';
+                    } else {
+                        dot.className = 'status-dot status-warn';
+                        text.textContent = 'AST: Not installed';
+                    }
+                } catch (e) {
+                    document.getElementById('astStatusDot').className = 'status-dot status-error';
+                    document.getElementById('astStatusText').textContent = 'AST: Error';
+                }
+
+                // Check sandbox
+                try {
+                    const resp = await fetch('/api/health');
+                    const data = await resp.json();
+                    const dot = document.getElementById('sandboxStatusDot');
+                    const text = document.getElementById('sandboxStatusText');
+                    dot.className = 'status-dot status-ok';
+                    text.textContent = `Server: v${data.version} | ${data.sessions} session(s)`;
+                } catch (e) {
+                    document.getElementById('sandboxStatusDot').className = 'status-dot status-error';
+                    document.getElementById('sandboxStatusText').textContent = 'Server: Error';
+                }
+            },
+
+            goToChat() {
+                document.querySelector('.nav-tab[data-tab="chat"]').click();
+            },
+
+            goToAST() {
+                if (this.currentProject) {
+                    document.getElementById('projectPath').value = this.currentProject;
+                }
+                document.querySelector('.nav-tab[data-tab="ast"]').click();
+            },
+
+            goToLogs() {
+                document.querySelector('.nav-tab[data-tab="logs"]').click();
+            },
+
+            goToSettings() {
+                app.openSettings();
+            }
+        };
+
+        // Initialize dashboard
+        dashboardApp.init();
+
+        // Auto-refresh logs when switching to logs tab
+        document.querySelector('.nav-tab[data-tab="logs"]').addEventListener('click', () => {
+            logsApp.refresh();
+        });
+
+        // Auto-refresh reasoning when switching to reasoning tab
+        document.querySelector('.nav-tab[data-tab="reasoning"]').addEventListener('click', () => {
+            reasoningApp.refresh();
+        });
+
+        // Override app.saveSettings to include agent config
+        if (typeof app !== 'undefined') {
+            const originalSaveSettings = app.saveSettings;
+            app.saveSettings = async function() {
+                // Save agent settings first
+                await agentSettingsApp.save();
+                // Then call original saveSettings
+                if (originalSaveSettings) {
+                    originalSaveSettings.call(app);
+                }
+            };
+
+            // Also override openSettings to load agent config
+            const originalOpenSettings = app.openSettings;
+            app.openSettings = function() {
+                if (originalOpenSettings) {
+                    originalOpenSettings.call(app);
+                }
+                agentSettingsApp.loadConfig();
+            };
+        }
+
+        // Sidebar toggle functions
+        function toggleSidebar() {
+            const sidebar = document.getElementById('chatSidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            const isCollapsed = sidebar.classList.toggle('collapsed');
+            toggle.innerHTML = isCollapsed ? '&#9654;' : '&#9664;';
+            toggle.style.left = isCollapsed ? '0px' : '280px';
+        }
+
+        function toggleSidebarSection(headerEl) {
+            const section = headerEl.closest('.sidebar-section');
+            if (section) {
+                section.classList.toggle('collapsed');
+            }
+        }
+
+        // Initialize sidebar toggle position
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggle = document.getElementById('sidebarToggle');
+            if (toggle) {
+                toggle.style.left = '280px';
+            }
+        });
+    </script>
+
+    <!-- Author Footer -->
+    <footer class="author-footer">
+        <span>Olivier Vitrac, PhD, HDR</span>
+        <span class="separator">|</span>
+        <span>Adservio</span>
+        <span class="separator">|</span>
+        <a href="mailto:olivier.vitrac@adservio.fr" title="Contact">olivier.vitrac@adservio.fr</a>
+    </footer>
 </body>
 </html>

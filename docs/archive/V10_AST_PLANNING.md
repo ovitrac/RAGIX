@@ -38,7 +38,7 @@ v0.10 focuses on **AST-level code intelligence** with multi-language support:
        line: int
        children: List[ASTNode]
        metadata: Dict[str, Any]
-
+   
    class ASTBackend(Protocol):
        def parse_file(self, path: Path) -> ASTNode: ...
        def parse_string(self, content: str, lang: str) -> ASTNode: ...
@@ -83,7 +83,7 @@ ast = ["javalang>=0.13.0", "esprima>=4.0.0"]
        COMPOSITION = "composition" # Field types
        CALL = "call"               # Method/function calls
        ANNOTATION = "annotation"   # Decorators/annotations
-
+   
    class Dependency:
        source: Symbol
        target: Symbol
@@ -128,7 +128,7 @@ ast = ["javalang>=0.13.0", "esprima>=4.0.0"]
        dependencies: List[MavenDependency]
        modules: List[str]  # Multi-module
        parent: Optional[MavenProject]
-
+   
    def parse_pom(path: Path) -> MavenProject: ...
    def resolve_dependencies(project: MavenProject) -> DependencyTree: ...
    def find_effective_pom(path: Path) -> MavenProject: ...
@@ -215,7 +215,7 @@ ast = ["javalang>=0.13.0", "esprima>=4.0.0"]
    # "import:java.util.*"          - All java.util imports
    # "calls:database.query"        - All calls to database.query
    # "extends:BaseService"         - All classes extending BaseService
-
+   
    def parse_query(query: str) -> ASTQuery: ...
    def execute_query(query: ASTQuery, graph: DependencyGraph) -> List[Match]: ...
    ```
@@ -331,7 +331,7 @@ viz = [
 - `import`, `package`
 - `annotation`
 
-### JavaScript
+### ragix-envJavaScript
 - `module`, `class`, `function`, `arrow_function`
 - `import`, `export`
 - `method`, `property`

@@ -132,6 +132,32 @@ webui:
   port: 8501
   theme: dark
 
+# -----------------------------------------------------------------------------
+# Multi-Agent LLM Configuration
+# -----------------------------------------------------------------------------
+# Planner-Worker-Verifier architecture with configurable models per agent
+agents:
+  # Mode: "minimal" (all 3B), "strict" (7B+ Planner), "custom" (user-defined)
+  mode: minimal
+
+  # Strict mode enforces: planner ≥7B, worker/verifier ≥3B
+  strict_enforcement: false
+
+  # Per-agent model assignment (used in strict/custom modes)
+  models:
+    planner: granite3.1-moe:3b    # Creates [PLAN] for complex tasks
+    worker: granite3.1-moe:3b     # Executes atomic steps with tools
+    verifier: granite3.1-moe:3b   # Validates results against rules
+
+  # Fallback if assigned model unavailable
+  fallback_model: granite3.1-moe:3b
+
+# Hardware profile (used for auto-configuration)
+hardware:
+  vram_gb: 8           # Available VRAM in GB (auto-detected if 0)
+  prefer_cpu: false    # Force CPU inference
+  max_concurrent_models: 1  # Number of models loaded simultaneously
+
 # =============================================================================
 # Environment Variable Overrides
 # =============================================================================

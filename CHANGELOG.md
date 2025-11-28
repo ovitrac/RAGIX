@@ -6,6 +6,358 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.10.1 — Advanced Visualization & Live Explorer (2025-11-27)
+
+### Highlights
+
+**Interactive visualization suite for dependency analysis with live exploration capabilities.**
+
+| Feature | Status |
+|---------|--------|
+| Enhanced HTML Renderer | ✅ Package clustering |
+| DSM (Dependency Structure Matrix) | ✅ Heatmap + cycle detection |
+| Radial Explorer | ✅ Ego-centric visualization |
+| Standalone Radial Server | ✅ FastAPI live app |
+| AST API Endpoints | ✅ 8 new REST endpoints |
+
+### Tested on Production Codebase (GRDF)
+
+- **1,315 Java files** analyzed
+- **18,210 symbols** extracted
+- **45,113 dependencies** mapped
+- **Technical debt:** 362.2 hours
+- **Visualization outputs:**
+  - Force-directed graph (827KB HTML)
+  - Package-level DSM (254KB HTML)
+  - Class-level DSM (84KB HTML)
+  - Radial explorer (123KB HTML)
+
+### New Features
+
+#### Enhanced HTML Renderer (`ragix_core/ast_viz.py`)
+
+Interactive D3.js force-directed graph with:
+- **Package clustering** — Nodes grouped by Java package with convex hulls
+- **Edge bundling** — Curved edges between clusters for clarity
+- **Node coloring** — By type (class=blue, interface=green, method=orange)
+- **Interactive controls** — Click to select, search, filter by type
+- **Minimap** — Overview navigation for large graphs
+- **SVG export** — Download current view
+
+```bash
+ragix-ast graph /path/to/project --format html --output deps.html
+```
+
+#### Dependency Structure Matrix (DSM)
+
+Heatmap visualization for dependency analysis:
+- **Cell color** — Indicates dependency strength
+- **Cycle detection** — Red cells for bidirectional dependencies
+- **Aggregation levels** — Package-level or class-level views
+- **Export formats** — HTML, CSV, JSON
+
+```bash
+ragix-ast matrix /path/to/project --level package --output matrix.html
+ragix-ast matrix /path/to/project --level class --csv  # Export as CSV
+```
+
+#### Radial Explorer (Ego-Centric Visualization)
+
+Focus on a single class with dependencies radiating outward:
+- **Ego-centric layout** — Selected class at center
+- **Multi-level rings** — Concentric circles for Level 1, 2, 3 dependencies
+- **Arc connections** — Colored by dependency type
+- **Auto-selection** — Picks highest-connectivity class automatically
+- **Interactive** — Click to select, double-click to refocus
+
+```bash
+ragix-ast radial /path/to/project --output radial.html  # Auto-select focal
+ragix-ast radial /path/to/project --focal ClassName --levels 3 --output radial.html
+```
+
+#### Standalone Radial Server (`ragix_unix/radial_server.py`)
+
+Lightweight FastAPI server for live exploration:
+
+```bash
+# Start the server
+python -m ragix_unix.radial_server --path /path/to/project --port 8090
+
+# Open in browser
+xdg-open "http://localhost:8090/radial"
+```
+
+**Features:**
+- Graph caching (builds once, serves many requests)
+- Auto-selects highest-connectivity class as initial focal
+- Real-time search with autocomplete
+- Breadcrumb navigation for exploration history
+- Adjustable depth levels (1-5)
+- SVG export
+
+**Endpoints:**
+- `GET /` — Redirects to `/radial`
+- `GET /api/info` — Project info (symbols, dependencies count)
+- `GET /api/radial?focal=ClassName&levels=3` — Get radial graph data
+- `GET /api/search?q=query` — Search for classes
+- `GET /radial` — Interactive radial explorer page
+
+#### AST API Endpoints (`ragix_web/server.py`)
+
+8 new REST endpoints for programmatic access:
+
+```
+GET  /api/ast/status              # Check if AST analysis is available
+GET  /api/ast/graph?path=...      # Get dependency graph as D3.js JSON
+GET  /api/ast/metrics?path=...    # Get code metrics
+GET  /api/ast/search?path=...&q=  # Search for symbols
+GET  /api/ast/hotspots?path=...   # Get complexity hotspots
+GET  /api/ast/visualize?path=...  # Generate HTML visualization
+GET  /api/ast/radial?path=...     # Get ego-centric radial graph data
+GET  /api/ast/radial/page?path=.. # Live interactive radial explorer page
+```
+
+### CLI Commands
+
+New and updated `ragix-ast` commands (now 12 total):
+
+```bash
+ragix-ast parse file.py --symbols      # Parse and show symbols
+ragix-ast scan ./src --lang java       # Scan directory
+ragix-ast deps ./src "ClassName"       # Show dependencies
+ragix-ast search ./src "query"         # Pattern search
+ragix-ast graph ./src --format html    # Force-directed graph
+ragix-ast cycles ./src                 # Detect circular deps
+ragix-ast metrics ./src                # Professional metrics
+ragix-ast maven ./project              # Maven analysis
+ragix-ast sonar project-key            # Sonar metrics
+ragix-ast info                         # Show supported languages
+ragix-ast matrix ./src --level package # DSM visualization (NEW)
+ragix-ast radial ./src --focal Class   # Radial explorer (NEW)
+```
+
+### Files Added/Modified
+
+| File | Description |
+|------|-------------|
+| `ragix_core/ast_viz.py` | HTMLRenderer + DSMRenderer + RadialExplorer (2700+ lines) |
+| `ragix_core/dependencies.py` | Fixed import dependency source extraction |
+| `ragix_core/__init__.py` | Added DSMRenderer, RadialExplorer exports |
+| `ragix_unix/ast_cli.py` | Added matrix, radial commands (1000+ lines, 12 commands) |
+| `ragix_unix/radial_server.py` | Standalone radial explorer server (800+ lines) |
+| `ragix_web/server.py` | Added 8 AST API endpoints |
+| `ragix_web/static/js/dependency_explorer.js` | D3.js component (600+ lines) |
+
+### Bug Fixes
+
+- **Import dependency source extraction** — Fixed incorrect source names in dependency graph
+- **Name resolution in BFS** — Fixed short names vs qualified names mismatch
+- **Structural type filtering** — Radial explorer now shows only classes, interfaces, enums
+
+---
+
+## v0.10.0 — AST Analysis, Code Metrics & Multi-Language Dependencies (2025-11-27)
+
+### Highlights
+
+**RAGIX gains professional-grade AST analysis for Python and Java, with dependency tracking, coupling metrics, and technical debt estimation.**
+
+| Feature | Status |
+|---------|--------|
+| Multi-Language AST | ✅ Python + Java |
+| Dependency Graph | ✅ Full tracking |
+| AST Query Language | ✅ Pattern-based search |
+| Code Metrics | ✅ Cyclomatic + Technical Debt |
+| Maven Integration | ✅ POM parsing |
+| Sonar Integration | ✅ API client |
+| Interactive Visualization | ✅ HTML/D3.js |
+
+### Tested on Production Codebase
+
+Successfully analyzed **1,315 Java files** from a real enterprise project:
+- **18,210 symbols** extracted
+- **45,113 dependencies** mapped
+- **362 hours** of technical debt estimated
+- Analysis completed in **~10 seconds**
+
+### New Features
+
+#### AST Base & Multi-Language Support (`ragix_core/ast_base.py`)
+
+Unified AST representation supporting Python, Java, and extensible to other languages:
+
+```python
+from ragix_core import ASTNode, NodeType, Language, get_ast_registry
+
+registry = get_ast_registry()
+backend = registry.get_backend(Language.PYTHON)
+ast = backend.parse_file(Path("mycode.py"))
+symbols = backend.get_symbols(ast)
+```
+
+- **Language enum** — Python, Java, JavaScript, TypeScript, Go, Rust, C, C++
+- **NodeType enum** — MODULE, CLASS, INTERFACE, METHOD, FIELD, etc. (20+ types)
+- **Visibility tracking** — PUBLIC, PRIVATE, PROTECTED, PACKAGE
+- **Type information** — generics, arrays, optionals
+- **Symbol extraction** — qualified names, locations, metadata
+
+#### Python AST Backend (`ragix_core/ast_python.py`)
+
+Uses Python's stdlib `ast` module:
+- Classes with inheritance
+- Functions and methods with parameters
+- Import tracking (import and from...import)
+- Decorators and type annotations
+- Docstrings and visibility by naming convention
+
+#### Java AST Backend (`ragix_core/ast_java.py`)
+
+Uses `javalang` library for comprehensive Java parsing:
+- Classes, interfaces, enums, annotations
+- Methods, constructors, fields
+- Generics and type parameters
+- Annotations/decorators
+- Modifiers (static, final, abstract)
+- Method call extraction
+
+#### Dependency Graph (`ragix_core/dependencies.py`)
+
+Full dependency tracking across symbols:
+
+```python
+from ragix_core import DependencyGraph, build_dependency_graph
+
+graph = build_dependency_graph([Path("./src")])
+deps = graph.get_dependencies("MyClass.method")
+dependents = graph.get_dependents("MyInterface")
+cycles = graph.detect_cycles()
+```
+
+- **Dependency types** — import, inheritance, implementation, call, composition, annotation
+- **Cycle detection** — find circular dependencies
+- **Coupling metrics** — afferent/efferent coupling, instability index
+- **Export formats** — DOT, Mermaid, JSON
+
+#### AST Query Language (`ragix_core/ast_query.py`)
+
+Pattern-based search for code symbols:
+
+```bash
+ragix-ast search ./src "type:class name:*Service"
+ragix-ast search ./src "@Transactional"
+ragix-ast search ./src "extends:Base*"
+ragix-ast search ./src "!visibility:private"
+```
+
+Query predicates:
+- `type:pattern` — Match node type (class, method, function)
+- `name:pattern` — Match by name (wildcards supported)
+- `extends:pattern` — Match classes extending
+- `implements:pattern` — Match classes implementing
+- `@annotation` — Match by decorator/annotation
+- `visibility:public` — Match by visibility
+- `!predicate` — Negate any predicate
+
+#### Professional Code Metrics (`ragix_core/code_metrics.py`)
+
+Industry-standard metrics for code quality assessment:
+
+```bash
+ragix-ast metrics ./project
+```
+
+Metrics calculated:
+- **Cyclomatic complexity** — decision point counting
+- **Cognitive complexity** — readability impact
+- **Lines of code** — total, code, comments, blank
+- **Technical debt** — estimated remediation effort in hours
+- **Maintainability index** — 0-100 scale
+- **Complexity hotspots** — top complex methods
+
+#### Maven Integration (`ragix_core/maven.py`)
+
+Parse Maven POM files for Java projects:
+
+```bash
+ragix-ast maven ./java-project --conflicts
+```
+
+- Project coordinates (groupId, artifactId, version)
+- Dependency extraction with scopes
+- Property resolution (${version} placeholders)
+- Multi-module project support
+- Dependency conflict detection
+
+#### Sonar Integration (`ragix_core/sonar.py`)
+
+Query SonarQube/SonarCloud for quality metrics:
+
+```bash
+ragix-ast sonar my-project --verbose
+```
+
+- Quality gate status
+- Bugs, vulnerabilities, code smells
+- Test coverage and duplication
+- Security hotspots
+- Issue filtering by severity
+
+#### Interactive Visualization (`ragix_core/ast_viz.py`)
+
+Generate visual dependency graphs:
+
+```bash
+ragix-ast graph ./src --format html --output deps.html
+ragix-ast graph ./src --format dot --colors pastel
+ragix-ast graph ./src --format mermaid
+```
+
+- **DOT format** — for Graphviz
+- **Mermaid format** — for Markdown embedding
+- **D3.js JSON** — for custom visualization
+- **Interactive HTML** — zoomable, searchable, draggable nodes
+- **Color schemes** — default, pastel, dark, monochrome
+
+### CLI Commands
+
+New `ragix-ast` command with subcommands:
+
+```bash
+ragix-ast parse file.py --symbols      # Parse and show symbols
+ragix-ast scan ./src --lang java       # Scan directory
+ragix-ast deps ./src "ClassName"       # Show dependencies
+ragix-ast search ./src "query"         # Pattern search
+ragix-ast graph ./src --format html    # Generate visualization
+ragix-ast cycles ./src                 # Detect circular deps
+ragix-ast metrics ./src                # Professional metrics
+ragix-ast maven ./project              # Maven analysis
+ragix-ast sonar project-key            # Sonar metrics
+ragix-ast info                         # Show supported languages
+```
+
+### Dependencies
+
+New optional dependencies:
+```bash
+pip install ragix[ast]  # javalang, jsonschema
+```
+
+### Files Added
+
+- `ragix_core/ast_base.py` — Base AST types and registry
+- `ragix_core/ast_python.py` — Python AST backend
+- `ragix_core/ast_java.py` — Java AST backend
+- `ragix_core/ast_query.py` — Query language
+- `ragix_core/ast_viz.py` — Visualization renderers
+- `ragix_core/dependencies.py` — Dependency graph
+- `ragix_core/code_metrics.py` — Professional metrics
+- `ragix_core/maven.py` — Maven POM parsing
+- `ragix_core/sonar.py` — SonarQube client
+- `ragix_unix/ast_cli.py` — AST CLI
+- `tests/test_ast.py` — Comprehensive tests
+
+---
+
 ## v0.8.0 — Plugin System, SWE Workflows & WASP Foundation (2025-11-26)
 
 ### Highlights

@@ -1,0 +1,141 @@
+# RAGIX Knowledge Base - Custom Rules and Patterns
+#
+# This file extends the built-in knowledge base with additional patterns.
+# Edit this file to add domain-specific knowledge for your 7B model.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-28
+
+patterns:
+  # Python-specific patterns
+  find_python_classes:
+    description: "Find Python class definitions"
+    pattern: 'grep -rn "^class " --include="*.py" .'
+    examples:
+      - 'grep -rn "^class " --include="*.py" .'
+      - 'grep -rn "class.*:" --include="*.py" . | head -20'
+    triggers:
+      - "python class"
+      - "class definition"
+      - "classes"
+    notes: "Use ^ anchor for class at start of line"
+
+  find_python_functions:
+    description: "Find Python function definitions"
+    pattern: 'grep -rn "^def " --include="*.py" .'
+    examples:
+      - 'grep -rn "^def " --include="*.py" .'
+      - 'grep -rn "def .*:" --include="*.py" . | wc -l'
+    triggers:
+      - "python function"
+      - "function definition"
+      - "def"
+      - "functions"
+    notes: "Use ^ anchor for def at start of line (or indented)"
+
+  find_imports:
+    description: "Find import statements"
+    pattern: 'grep -rn "^import\|^from.*import" --include="*.py" .'
+    examples:
+      - 'grep -rn "^import" --include="*.py" .'
+      - 'grep -rn "from.*import" --include="*.py" .'
+    triggers:
+      - "import"
+      - "imports"
+      - "dependencies"
+    notes: "Use | for OR in grep regex"
+
+  # Documentation patterns
+  find_todos:
+    description: "Find TODO comments"
+    pattern: 'grep -rn "TODO\|FIXME\|XXX" --include="*.py" --include="*.md" .'
+    examples:
+      - 'grep -rn "TODO" --include="*.py" .'
+      - 'grep -rn "FIXME" --include="*.java" .'
+    triggers:
+      - "todo"
+      - "fixme"
+      - "pending"
+    notes: "Common markers: TODO, FIXME, XXX, HACK"
+
+  # Git patterns
+  recent_changes:
+    description: "Show recent file changes"
+    pattern: 'find . -name "*.{EXT}" -type f -mtime -{DAYS}'
+    examples:
+      - 'find . -name "*.py" -type f -mtime -7'
+      - 'find . -name "*.md" -type f -mtime -1'
+    triggers:
+      - "recent"
+      - "modified"
+      - "changed recently"
+      - "last week"
+      - "today"
+    notes: "Use -mtime -N for files modified in last N days"
+
+  # Count patterns
+  count_files:
+    description: "Count files of a type"
+    pattern: 'find . -name "*.{EXT}" -type f | wc -l'
+    examples:
+      - 'find . -name "*.py" -type f | wc -l'
+      - 'find . -name "*.md" -type f | wc -l'
+    triggers:
+      - "count files"
+      - "how many files"
+      - "number of files"
+    notes: "Pipe to wc -l for count"
+
+  # Empty file detection
+  empty_files:
+    description: "Find empty files"
+    pattern: 'find . -name "*.{EXT}" -type f -empty'
+    examples:
+      - 'find . -name "*.py" -type f -empty'
+      - 'find . -type f -empty'
+    triggers:
+      - "empty files"
+      - "zero size"
+      - "blank files"
+    notes: "Use -empty flag for zero-byte files"
+
+rules:
+  # Additional rules for 7B models
+  - name: "quote_patterns"
+    condition: "Using find -name with patterns"
+    action: 'ALWAYS quote the pattern: -name "*.ext" not -name *.ext'
+    priority: 95
+    examples:
+      - 'CORRECT: find . -name "*.py"'
+      - 'WRONG: find . -name *.py'
+
+  - name: "pipe_order"
+    condition: "Piping multiple commands"
+    action: "Maintain logical order: find -> filter -> transform -> sort -> select"
+    priority: 80
+    examples:
+      - 'find | grep -v | sort | tail'
+      - 'find | wc | awk | sort | head'
+
+  - name: "avoid_cat_pipe"
+    condition: "Reading and filtering files"
+    action: "Use grep directly instead of cat | grep"
+    priority: 60
+    examples:
+      - 'GOOD: grep "pattern" file.txt'
+      - 'AVOID: cat file.txt | grep "pattern"'
+
+  - name: "use_exec_plus"
+    condition: "Running command on find results"
+    action: 'Use -exec cmd {} + for efficiency (batches files)'
+    priority: 70
+    examples:
+      - 'find . -name "*.md" -exec wc -l {} +'
+      - 'find . -name "*.py" -exec head -1 {} +'
+
+common_mistakes:
+  unquoted_pattern: 'Not quoting glob patterns in find -name (shell expands them)'
+  wrong_grep_flag: 'Using grep -R instead of grep -r (may follow symlinks)'
+  missing_dot: 'Forgetting the search path (.) at the end of find command'
+  wc_spaces: 'wc -l output has leading spaces - use awk to clean: awk "{print $1}"'
+  sort_numeric: 'Forgetting -n flag in sort for numeric data'
+  head_vs_tail: 'Confusing head (first/smallest) with tail (last/largest) after sort -n'

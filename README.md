@@ -1,9 +1,22 @@
-# **RAGIX v0.7**
+<p align="center">
+  <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
+</p>
+
+# RAGIX v0.20.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
-**A Sovereign Multi-Agent Orchestration Platform**
+**A Sovereign Multi-Agent Orchestration Platform with AST Analysis**
 **Unix-Native · Fully Local · Production-Ready · Claude-Compatible**
+
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
+
+---
+
+**Version:** 0.20.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Updated:** 2025-11-28
 
 ---
 
@@ -29,20 +42,39 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 
 ---
 
-## **What's New in v0.7**
+## **What's New in v0.20.0**
 
 | Feature | Description |
 |---------|-------------|
-| **LLM Agent Integration** | Full execution loop with tool calling |
-| **Hybrid Retrieval** | BM25 + vector search with 5 fusion strategies |
-| **Workflow Templates** | 8 pre-built templates for common tasks |
-| **Streaming Execution** | Real-time events for UI integration |
-| **Caching** | LLM response and tool result caching |
-| **Monitoring** | Metrics, health checks, agent tracking |
-| **Resilience** | Retry, circuit breaker, rate limiting |
-| **Web UI** | D3.js workflow visualization, diff viewer |
+| **AST Analysis** | Multi-language parsing (Python + Java) with symbol extraction |
+| **Dependency Graph** | Full tracking with cycle detection and coupling metrics |
+| **Code Metrics** | Cyclomatic complexity, technical debt, maintainability |
+| **Interactive Visualizations** | Force-directed graph, DSM heatmap, radial explorer |
+| **Plugin System** | Extensible tools and workflows with trust levels |
+| **WASP Tools** | 18 deterministic tools for validation, markdown, search |
+| **Live Radial Server** | FastAPI server for real-time dependency exploration |
+| **ragix-ast CLI** | 12 commands for code analysis |
+| **Web UI** | Comprehensive web interface with AST dashboards |
+| **Knowledge Base** | Pattern storage for improved 7B model reasoning |
+| **Session Memory** | View, delete, and clear conversation history |
+| **User Context** | Custom instructions like Claude/ChatGPT |
+| **Full Documentation** | New guides for CLI, AST, API, and Architecture |
 
-**Total implementation: ~9,200+ lines of new code**
+### v0.20.0 Highlights (Latest)
+
+- **Centralized Version Management** — Single source of truth for version tracking
+- **Comprehensive Documentation** — CLI Guide, AST Guide, API Reference, Architecture docs
+- **Enhanced Web UI** — Modular routers, AST dashboards, session management
+- **Knowledge Base** — Solution patterns and project-specific conventions
+- **Session Memory** — Full conversation history management
+
+### Tested on Production Codebase
+
+Successfully analyzed **1,315 Java files** from enterprise project:
+- **18,210 symbols** extracted
+- **45,113 dependencies** mapped
+- **362 hours** of technical debt estimated
+- Analysis completed in **~10 seconds**
 
 ---
 
@@ -144,6 +176,64 @@ if breaker.is_allowed():
         breaker.record_failure()
 ```
 
+### **AST Analysis & Code Metrics**
+
+Professional-grade static analysis for Python and Java:
+
+```bash
+# Scan project and extract symbols
+ragix-ast scan ./src --lang java
+
+# Get code metrics (complexity, debt, maintainability)
+ragix-ast metrics ./src
+
+# Find complexity hotspots
+ragix-ast hotspots ./src --top 20
+
+# Search with AST query language
+ragix-ast search ./src "type:class @Transactional"
+ragix-ast search ./src "extends:BaseService"
+```
+
+```python
+from ragix_core import build_dependency_graph, calculate_metrics
+
+# Build dependency graph
+graph = build_dependency_graph([Path("./src")])
+cycles = graph.detect_cycles()
+coupling = graph.get_coupling_metrics()
+
+# Calculate code metrics
+metrics = calculate_metrics(Path("./src"))
+print(f"Technical debt: {metrics.total_debt_hours:.1f} hours")
+print(f"Avg complexity: {metrics.avg_cyclomatic:.2f}")
+```
+
+### **Interactive Visualizations**
+
+Three visualization types for dependency analysis:
+
+```bash
+# Force-directed dependency graph with package clustering
+ragix-ast graph ./src --format html --output deps.html
+
+# Dependency Structure Matrix (heatmap with cycles)
+ragix-ast matrix ./src --level package --output matrix.html
+
+# Radial ego-centric explorer
+ragix-ast radial ./src --focal ClassName --levels 3 --output radial.html
+
+# Live radial server (real-time exploration)
+python -m ragix_unix.radial_server --path ./src --port 8090
+```
+
+**Features:**
+- Package clustering with convex hulls
+- Edge bundling for clarity
+- Cycle detection (red cells in DSM)
+- Auto-selection of highest-connectivity focal node
+- Breadcrumb navigation for exploration history
+
 ---
 
 ## **Architecture**
@@ -167,6 +257,13 @@ flowchart TB
         DOC["📝 Doc Agent"]
         TEST["🧪 Test Agent"]
         GIT["🌿 Git Agent"]
+    end
+
+    subgraph "AST Layer"
+        AST["🌳 AST Analysis"]
+        DEPS["📊 Dependencies"]
+        METRICS["📈 Code Metrics"]
+        VIZ["🎨 Visualization"]
     end
 
     subgraph "Retrieval Layer"
@@ -859,22 +956,42 @@ python examples/claude_demo.py
 
 ```
 RAGIX/
-├── ragix_core/           # Core library
-│   ├── agents/           # Agent implementations
-│   ├── agent_graph.py    # Graph data structures
-│   ├── graph_executor.py # Workflow execution
-│   ├── bm25_index.py     # BM25 search
-│   ├── hybrid_search.py  # Hybrid retrieval
-│   ├── caching.py        # LLM/tool caching
-│   ├── monitoring.py     # Metrics & health
-│   ├── resilience.py     # Retry & circuit breaker
+├── ragix_core/              # Core library
+│   ├── agents/              # Agent implementations
+│   ├── ast_base.py          # AST types & registry
+│   ├── ast_python.py        # Python AST backend
+│   ├── ast_java.py          # Java AST backend
+│   ├── ast_query.py         # AST query language
+│   ├── ast_viz.py           # Visualizations (HTML, DSM, Radial)
+│   ├── dependencies.py      # Dependency graph
+│   ├── code_metrics.py      # Professional metrics
+│   ├── maven.py             # Maven POM parsing
+│   ├── sonar.py             # SonarQube client
+│   ├── plugin_system.py     # Plugin system
+│   ├── swe_workflows.py     # Chunked workflows
+│   ├── agent_graph.py       # Graph data structures
+│   ├── graph_executor.py    # Workflow execution
+│   ├── bm25_index.py        # BM25 search
+│   ├── hybrid_search.py     # Hybrid retrieval
+│   ├── caching.py           # LLM/tool caching
+│   ├── monitoring.py        # Metrics & health
+│   ├── resilience.py        # Retry & circuit breaker
 │   └── workflow_templates.py
-├── ragix_unix/           # CLI tools
-├── ragix_web/            # Web interface
-├── MCP/                  # Claude MCP server
-├── tests/                # Test suite
-├── examples/             # Usage examples
-└── templates/            # Workflow templates
+├── ragix_unix/              # CLI tools
+│   ├── ast_cli.py           # ragix-ast (12 commands)
+│   ├── wasp_cli.py          # ragix-wasp
+│   └── radial_server.py     # Standalone radial server
+├── ragix_web/               # Web interface
+│   ├── server.py            # FastAPI server
+│   └── static/js/           # D3.js components
+├── wasp_tools/              # WASP deterministic tools
+│   ├── validate.py          # JSON/YAML validation
+│   ├── mdparse.py           # Markdown tools
+│   └── search.py            # Pattern search
+├── plugins/                 # Example plugins
+├── MCP/                     # Claude MCP server
+├── tests/                   # Test suite
+└── examples/                # Usage examples
 ```
 
 ---
@@ -885,6 +1002,20 @@ RAGIX/
 
 ```python
 from ragix_core import (
+    # AST Analysis
+    build_dependency_graph,
+    DependencyGraph,
+    calculate_metrics,
+    ASTNode,
+    NodeType,
+    Language,
+
+    # Visualization
+    HTMLRenderer,
+    DSMRenderer,
+    RadialExplorer,
+    VizConfig,
+
     # Workflow
     GraphExecutor,
     AgentGraph,
@@ -933,16 +1064,35 @@ pytest tests/test_caching.py -v
 
 ## **Roadmap**
 
-### v0.8 (Planned)
-- WASM-based browser execution
-- Enhanced security sandboxing
-- Plugin system
-- Advanced multi-model routing
+### v0.21 (Next)
+- **Remaining visualizations** — Treemap, Sunburst, Chord diagram
+- **Report generation** — PDF/HTML executive summaries
+- **Enhanced search** — More fusion strategies, better ranking
 
-### Future
+### v0.22
+- **Git integration** — Complexity evolution, hotspot tracking
+- **Trend analysis** — Technical debt over time
+
+### Future (v1.0+)
 - Distributed agent execution
 - Real-time collaboration
 - IDE integrations (VS Code, JetBrains)
+- WASM-compiled tools for browser execution
+
+See `ACTION_PLAN.md` and `TODO.md` for detailed roadmap.
+
+---
+
+## **Documentation**
+
+| Document | Description |
+|----------|-------------|
+| [CLI Guide](docs/CLI_GUIDE.md) | Complete reference for all `ragix-*` commands |
+| [AST Guide](docs/AST_GUIDE.md) | Deep dive into code analysis with `ragix-ast` |
+| [API Reference](docs/API_REFERENCE.md) | REST API documentation for `ragix-web` |
+| [Architecture](docs/ARCHITECTURE.md) | System architecture and component overview |
+| [Playbook Guide](docs/PLAYBOOK_GUIDE.md) | How to write automation playbooks |
+| [MCP Guide](MCP/README_MCP.md) | Using RAGIX with Claude via MCP |
 
 ---
 

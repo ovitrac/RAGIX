@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ragix"
-version = "0.9.0"
+version = "0.20.0"
 description = "RAGIX - Retrieval-Augmented Generative Interactive eXecution Agent"
 authors = [
     {name = "Olivier Vitrac", email = "olivier.vitrac@adservio.fr"}
@@ -34,7 +34,8 @@ retrieval = ["sentence-transformers>=2.2.0", "numpy>=1.24.0"]
 vault = ["cryptography>=41.0.0"]
 ci = ["pyyaml>=6.0"]
 wasm = ["wasmtime>=14.0.0"]
-all = ["ragix[mcp,web,retrieval,vault,ci,wasm]"]
+ast = ["javalang>=0.13.0", "jsonschema>=4.17.0"]
+all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast]"]
 
 [project.scripts]
 ragix = "ragix_core.cli:main"
@@ -44,6 +45,7 @@ ragix-index = "ragix_unix.index_cli:main"
 ragix-batch = "ragix_unix.batch_cli:main"
 ragix-vault = "ragix_unix.vault_cli:main"
 ragix-wasp = "ragix_unix.wasp_cli:main"
+ragix-ast = "ragix_unix.ast_cli:main"
 
 [project.urls]
 Homepage = "https://github.com/ovitrac/RAGIX"

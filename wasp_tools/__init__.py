@@ -4,10 +4,14 @@ WASP Tools - WebAssembly-ready Agentic System Protocol Tools
 Deterministic, sandboxed tools for RAGIX agents.
 These Python implementations can be compiled to WASM for browser execution.
 
-Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-26
+Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-28
 """
 
-__version__ = "0.9.0"
+# Import version from centralized source
+try:
+    from ragix_core.version import __version__
+except ImportError:
+    __version__ = "0.20.0"
 
 from .validate import (
     validate_json,
