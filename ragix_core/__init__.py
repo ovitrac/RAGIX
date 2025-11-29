@@ -351,6 +351,9 @@ from .ast_viz import (
     MermaidRenderer,
     D3Renderer,
     HTMLRenderer,
+    VisHTMLRenderer,
+    VIS_RENDERER_THRESHOLD,
+    get_optimal_renderer,
     DSMRenderer,
     RadialExplorer,
     graph_to_dot,
@@ -392,6 +395,32 @@ try:
     REPORTS_AVAILABLE = True
 except ImportError:
     REPORTS_AVAILABLE = False
+
+# Analysis Cache
+from .analysis_cache import (
+    CacheMetadata,
+    CachedAnalysis,
+    AnalysisCache,
+    get_cache,
+    get_or_analyze,
+    TRACKED_EXTENSIONS,
+    EXCLUDED_DIRS,
+)
+
+from .maven_cache import (
+    MavenCacheMetadata,
+    CachedMavenAnalysis,
+    MavenCache,
+    get_maven_cache,
+)
+
+from .sonar_cache import (
+    SonarCacheMetadata,
+    CachedSonarAnalysis,
+    SonarCache,
+    get_sonar_cache,
+    DEFAULT_TTL_SECONDS,
+)
 
 __all__ = [
     # LLM Backends
@@ -685,6 +714,9 @@ __all__ = [
     "MermaidRenderer",
     "D3Renderer",
     "HTMLRenderer",
+    "VisHTMLRenderer",
+    "VIS_RENDERER_THRESHOLD",
+    "get_optimal_renderer",
     "DSMRenderer",
     "RadialExplorer",
     "graph_to_dot",
@@ -718,4 +750,23 @@ __all__ = [
     "generate_technical_audit",
     "generate_compliance_report",
     "REPORTS_AVAILABLE",
+    # Analysis Cache
+    "CacheMetadata",
+    "CachedAnalysis",
+    "AnalysisCache",
+    "get_cache",
+    "get_or_analyze",
+    "TRACKED_EXTENSIONS",
+    "EXCLUDED_DIRS",
+    # Maven Cache
+    "MavenCacheMetadata",
+    "CachedMavenAnalysis",
+    "MavenCache",
+    "get_maven_cache",
+    # Sonar Cache
+    "SonarCacheMetadata",
+    "CachedSonarAnalysis",
+    "SonarCache",
+    "get_sonar_cache",
+    "DEFAULT_TTL_SECONDS",
 ]

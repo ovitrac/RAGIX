@@ -11,7 +11,7 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-
 try:
     from ragix_core.version import __version__
 except ImportError:
-    __version__ = "0.20.0"
+    __version__ = "0.21.0"
 
 from .validate import (
     validate_json,

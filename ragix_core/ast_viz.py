@@ -56,16 +56,17 @@ class VizConfig:
 
 # Color palettes
 COLORS = {
+    # Solar system analogy: Classes=yellow stars, Constructors=red dwarfs, Methods=blue planets
     ColorScheme.DEFAULT: {
-        NodeType.CLASS: "#4a90d9",
-        NodeType.INTERFACE: "#50c878",
-        NodeType.METHOD: "#f5a623",
-        NodeType.FUNCTION: "#f5a623",
-        NodeType.FIELD: "#9b59b6",
-        NodeType.CONSTANT: "#e74c3c",
+        NodeType.CLASS: "#FFD700",       # Gold (big stars)
+        NodeType.INTERFACE: "#50c878",   # Green (nebulae)
+        NodeType.METHOD: "#5B9BD5",      # Blue (planets)
+        NodeType.FUNCTION: "#5B9BD5",    # Blue (planets)
+        NodeType.FIELD: "#9b59b6",       # Purple (moons)
+        NodeType.CONSTANT: "#CD5C5C",    # Indian red (asteroids)
         NodeType.MODULE: "#34495e",
         NodeType.PACKAGE: "#2c3e50",
-        NodeType.ENUM: "#1abc9c",
+        NodeType.ENUM: "#1abc9c",        # Teal (gas giants)
         "edge_import": "#999999",
         "edge_inheritance": "#3498db",
         "edge_call": "#2ecc71",
@@ -319,6 +320,10 @@ class D3Renderer:
         symbols = graph.get_symbols()
         deps = graph.get_all_dependencies()
 
+        # Always filter out imports and modules - they clutter visualization
+        excluded_types = {NodeType.IMPORT, NodeType.IMPORT_FROM, NodeType.MODULE}
+        symbols = [s for s in symbols if s.node_type not in excluded_types]
+
         if self.config.filter_types:
             symbols = [s for s in symbols if s.node_type in self.config.filter_types]
 
@@ -341,16 +346,73 @@ class D3Renderer:
                 "color": _get_color(sym.node_type, self.config.color_scheme),
             })
 
-        # Build link list
+        # Build short name to qualified name mapping for name resolution
+        short_to_qualified: Dict[str, str] = {}
+        for qname in node_index:
+            short = qname.split('.')[-1]
+            # Prefer shorter qualified names (avoid method/field noise)
+            if short not in short_to_qualified or len(qname) < len(short_to_qualified[short]):
+                short_to_qualified[short] = qname
+
+        def resolve_name(name: str) -> Optional[str]:
+            """Resolve a dependency name to a node qualified name."""
+            if name in node_index:
+                return name
+            if name in short_to_qualified:
+                return short_to_qualified[name]
+            # Try extracting last part (module.Class.method -> method, then Class)
+            parts = name.split('.')
+            for i in range(len(parts) - 1, -1, -1):
+                part = parts[i]
+                if part in short_to_qualified:
+                    return short_to_qualified[part]
+            return None
+
+        # Build link list with name resolution
         links = []
+        seen_links = set()  # Avoid duplicate edges
         for dep in deps:
-            if dep.source in node_index and dep.target in node_index:
-                links.append({
-                    "source": node_index[dep.source],
-                    "target": node_index[dep.target],
-                    "type": dep.dep_type.value,
-                    "color": _get_edge_color(dep.dep_type, self.config.color_scheme),
-                })
+            source = resolve_name(dep.source)
+            target = resolve_name(dep.target)
+            if source and target and source in node_index and target in node_index:
+                # Avoid self-loops and duplicates
+                if source != target:
+                    link_key = (node_index[source], node_index[target], dep.dep_type.value)
+                    if link_key not in seen_links:
+                        seen_links.add(link_key)
+                        links.append({
+                            "source": node_index[source],
+                            "target": node_index[target],
+                            "type": dep.dep_type.value,
+                            "color": _get_edge_color(dep.dep_type, self.config.color_scheme),
+                        })
+
+        # Add structural edges: connect methods/fields/constructors to parent classes
+        # These create the "solar system" effect - members orbit their class
+        satellite_types = {"method", "field", "constructor", "constant"}
+        class_types = {"class", "interface", "enum"}
+        structural_color = "#333333"  # Dark color for structural links
+
+        # Build class lookup for quick parent finding
+        class_ids = {n["id"] for n in nodes if n["type"] in class_types}
+
+        for node in nodes:
+            if node["type"] in satellite_types:
+                # Infer parent class from qualified name (e.g., MyClass.myMethod -> MyClass)
+                parts = node["id"].split(".")
+                if len(parts) >= 2:
+                    parent_id = ".".join(parts[:-1])
+                    if parent_id in node_index and parent_id in class_ids:
+                        # Add structural edge (member -> class)
+                        link_key = (node_index[node["id"]], node_index[parent_id], "structural")
+                        if link_key not in seen_links:
+                            seen_links.add(link_key)
+                            links.append({
+                                "source": node_index[node["id"]],
+                                "target": node_index[parent_id],
+                                "type": "structural",
+                                "color": structural_color,
+                            })
 
         return {
             "nodes": nodes,
@@ -1640,6 +1702,1388 @@ class HTMLRenderer:
         return "\n".join(items)
 
 
+# Threshold for switching to vis.js renderer (GPU-accelerated)
+VIS_RENDERER_THRESHOLD = 2000
+
+
+class VisHTMLRenderer:
+    """
+    Render interactive HTML visualization using vis.js for large graphs.
+
+    vis.js uses Canvas rendering (GPU-accelerated) which performs much better
+    than D3.js SVG for graphs with >2000 nodes.
+
+    Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-29
+    """
+
+    def __init__(self, config: Optional[VizConfig] = None):
+        self.config = config or VizConfig()
+
+    @staticmethod
+    def _hash_rand(seed: str, salt: str = "", mod: float = 1.0) -> float:
+        """
+        Deterministic hash-based random number generator.
+        Returns a value in [0, mod) based on the hash of seed+salt.
+        Produces stable, reproducible layouts across renders.
+        """
+        import hashlib
+        h = hashlib.sha256((seed + salt).encode()).hexdigest()
+        return (int(h[:8], 16) % 10_000_000) / 10_000_000.0 * mod
+
+    def render(self, graph: DependencyGraph, title: str = "Dependency Graph") -> str:
+        """Render graph to interactive HTML with vis.js."""
+        d3_renderer = D3Renderer(self.config)
+        graph_data = d3_renderer.to_dict(graph)
+
+        # Add package information to nodes
+        for node in graph_data["nodes"]:
+            parts = node["id"].split(".")
+            node["package"] = ".".join(parts[:-1]) if len(parts) > 1 else "(default)"
+
+        # Compute package statistics
+        packages: Dict[str, int] = {}
+        for node in graph_data["nodes"]:
+            pkg = node["package"]
+            packages[pkg] = packages.get(pkg, 0) + 1
+
+        return self._render_vis_html(graph_data, title, packages)
+
+    def _render_vis_html(
+        self,
+        graph_data: Dict[str, Any],
+        title: str,
+        packages: Dict[str, int]
+    ) -> str:
+        """Render HTML with vis.js network visualization.
+
+        Version 3: Implements physics-based hierarchical layout with:
+        - Ghost edges for method-to-class clustering ("solar system" effect)
+        - Node mass/sizing based on method count
+        - Color-coded dependency edges
+        """
+        # --- Pre-process: Calculate class sizes and identify method-class relationships ---
+        class_method_count: Dict[str, int] = {}
+        method_to_class: Dict[str, str] = {}
+
+        # First pass: identify all classes/interfaces
+        for node in graph_data["nodes"]:
+            node_type = node.get("type", "")
+            if node_type in ("class", "interface"):
+                class_method_count[node["id"]] = 0
+
+        # Second pass: link methods, fields, constructors, constants to their parent classes
+        # These are the "satellites" that should orbit around their class "sun"
+        satellite_types = ("method", "field", "constructor", "constant")
+        for node in graph_data["nodes"]:
+            if node.get("type") in satellite_types:
+                # Infer parent class from qualified name (e.g., com.a.MyClass.myMethod -> com.a.MyClass)
+                parent_class_id = ".".join(node["id"].split(".")[:-1])
+                if parent_class_id in class_method_count:
+                    class_method_count[parent_class_id] += 1
+                    method_to_class[node["id"]] = parent_class_id
+
+        # --- Compute class positions using PCoA/MDS on topology-derived distances ---
+        # This seeds 2D coordinates from actual graph structure (inheritance, calls)
+        # rather than arbitrary geometric placement
+        import math
+        import numpy as np
+
+        # Group classes by package (for later package centroid calculation)
+        package_classes: Dict[str, List[str]] = {}
+        for node in graph_data["nodes"]:
+            if node.get("type") in ("class", "interface", "enum"):
+                pkg = node.get("package", "(default)")
+                if pkg not in package_classes:
+                    package_classes[pkg] = []
+                package_classes[pkg].append(node["id"])
+
+        # Build list of class IDs for matrix indexing
+        class_types = {"class", "interface", "enum"}
+        class_ids = [n["id"] for n in graph_data["nodes"] if n.get("type") in class_types]
+        class_to_idx = {cid: i for i, cid in enumerate(class_ids)}
+        n_classes = len(class_ids)
+
+        # Build weighted adjacency matrix (class-to-class only)
+        # Weight: inheritance=3.0, implementation=3.0, call=1.0 (damped by out-degree)
+        weight_matrix = np.zeros((n_classes, n_classes), dtype=np.float64)
+
+        # Count out-degree per class for call weight normalization
+        out_degree: Dict[str, int] = {cid: 0 for cid in class_ids}
+        for link in graph_data.get("links", []):
+            source_id = graph_data["nodes"][link["source"]]["id"] if isinstance(link["source"], int) else link["source"]
+            if source_id in out_degree:
+                out_degree[source_id] += 1
+
+        # Populate weight matrix from edges
+        for link in graph_data.get("links", []):
+            source_id = graph_data["nodes"][link["source"]]["id"] if isinstance(link["source"], int) else link["source"]
+            target_id = graph_data["nodes"][link["target"]]["id"] if isinstance(link["target"], int) else link["target"]
+            dep_type = link.get("type", "dependency")
+
+            # Only process class-to-class edges
+            if source_id not in class_to_idx or target_id not in class_to_idx:
+                continue
+
+            i, j = class_to_idx[source_id], class_to_idx[target_id]
+
+            # Weight by dependency type
+            if dep_type in ("inheritance", "implementation"):
+                w = 3.0  # Strong structural relationship
+            elif dep_type == "call":
+                # Dampen by out-degree to avoid hubs dominating
+                deg = max(out_degree.get(source_id, 1), 1)
+                w = 1.0 / math.sqrt(deg)  # sqrt dampening
+            else:
+                w = 0.5  # Other dependencies (type_reference, import, etc.)
+
+            # Symmetric: both directions
+            weight_matrix[i, j] += w
+            weight_matrix[j, i] += w
+
+        # Convert weights to distances: dist = 1 / (epsilon + weight)
+        epsilon = 1e-3
+        dist_matrix = np.zeros((n_classes, n_classes), dtype=np.float64)
+        for i in range(n_classes):
+            for j in range(n_classes):
+                if i == j:
+                    dist_matrix[i, j] = 0.0
+                elif weight_matrix[i, j] > 0:
+                    dist_matrix[i, j] = 1.0 / (epsilon + weight_matrix[i, j])
+                else:
+                    dist_matrix[i, j] = -1  # Mark disconnected, fill later
+
+        # For disconnected pairs, use 95th percentile of finite distances
+        finite_dists = dist_matrix[dist_matrix > 0]
+        if len(finite_dists) > 0:
+            fallback_dist = np.percentile(finite_dists, 95)
+        else:
+            fallback_dist = 100.0  # No edges at all
+
+        dist_matrix[dist_matrix < 0] = fallback_dist
+
+        # Run PCoA/MDS for 2D coordinates (deterministic)
+        class_positions: Dict[str, Tuple[float, float]] = {}
+
+        if n_classes >= 2:
+            try:
+                from sklearn.manifold import MDS
+                mds = MDS(
+                    n_components=2,
+                    dissimilarity="precomputed",
+                    random_state=42,  # Deterministic
+                    max_iter=300,
+                    normalized_stress="auto"
+                )
+                coords_2d = mds.fit_transform(dist_matrix)
+
+                # Scale coordinates by CONSTANT factor to preserve relative distances
+                # Do NOT normalize to bounding box - that causes square confinement
+                # MDS returns coords in distance-space units; multiply by ~300-500 for vis.js
+                coords_2d -= coords_2d.mean(axis=0)  # Center only
+                coords_2d *= 400.0  # Constant scale factor - preserves topology distances
+
+                for idx, cid in enumerate(class_ids):
+                    class_positions[cid] = (float(coords_2d[idx, 0]), float(coords_2d[idx, 1]))
+
+            except ImportError:
+                # Fallback: simple circular layout if sklearn not available
+                for idx, cid in enumerate(class_ids):
+                    angle = 2 * math.pi * idx / n_classes
+                    class_positions[cid] = (400 * math.cos(angle), 400 * math.sin(angle))
+        else:
+            # Single class: center
+            for cid in class_ids:
+                class_positions[cid] = (0.0, 0.0)
+
+        # Compute package positions as centroids of their classes
+        package_positions: Dict[str, Tuple[float, float]] = {}
+        for pkg, classes in package_classes.items():
+            if classes:
+                xs = [class_positions.get(c, (0, 0))[0] for c in classes]
+                ys = [class_positions.get(c, (0, 0))[1] for c in classes]
+                package_positions[pkg] = (sum(xs) / len(xs), sum(ys) / len(ys))
+            else:
+                package_positions[pkg] = (0.0, 0.0)
+
+        # --- Prepare nodes with mass, size, and initial position ---
+        vis_nodes = []
+        for node in graph_data["nodes"]:
+            node_id = node["id"]
+            node_type = node.get("type", "class")
+            node_name = node.get("name", node_id.split(".")[-1])
+            pkg = node.get("package", "(default)")
+
+            # Default mass and size
+            mass = 1.0
+            value = 10.0
+            x, y = None, None
+            node_fixed = None  # Will be set for anchored nodes
+
+            # Classes/interfaces/enums: scale mass and size based on member count
+            if node_type in ("class", "interface", "enum"):
+                member_count = class_method_count.get(node_id, 0)
+                mass = 2 + member_count * 0.3  # Heavier classes attract more
+                value = 15 + min(member_count * 0.5, 40)  # Larger visualization, capped
+                if node_id in class_positions:
+                    x, y = class_positions[node_id]
+            # Satellite nodes: smaller and lighter
+            elif node_type == "method":
+                mass = 0.2
+                value = 5
+            elif node_type == "field":
+                mass = 0.15
+                value = 4
+            elif node_type == "constructor":
+                mass = 0.25
+                value = 6
+            elif node_type == "constant":
+                mass = 0.1
+                value = 3
+            elif node_type == "import":
+                mass = 0.05
+                value = 2
+            elif node_type == "package":
+                mass = 10.0  # Packages are heavy anchors
+                value = 25
+                if pkg in package_positions:
+                    x, y = package_positions[pkg]
+                # Packages are pinned - they don't move during simulation
+                node_fixed = {"x": True, "y": True}
+
+            # Position satellites near their parent class using deterministic tiny halos
+            if node_id in method_to_class:
+                parent_id = method_to_class[node_id]
+                if parent_id in class_positions:
+                    cx, cy = class_positions[parent_id]
+                    m = class_method_count.get(parent_id, 1)  # Member count for this class
+
+                    # Halo radius: R_mem = 40 + 6 * sqrt(m), capped at 80 (larger to spread members)
+                    halo_radius = min(40 + 6 * math.sqrt(m), 80)
+
+                    # Get member index within this class for angular distribution
+                    # Sort members by id for consistent ordering
+                    class_members = [mid for mid, cid in method_to_class.items() if cid == parent_id]
+                    class_members.sort()
+                    member_idx = class_members.index(node_id) if node_id in class_members else 0
+
+                    # Base angle distributed evenly, with deterministic jitter
+                    base_angle = (2 * math.pi * member_idx) / max(m, 1)
+                    angle_jitter = self._hash_rand(node_id, "mem_angle", math.pi / (2 * max(1, m)))
+                    angle = base_angle + angle_jitter - math.pi / (4 * max(1, m))
+
+                    # Radius jitter: r = R_mem * (0.7 + 0.3 * hash_rand) for organic feel
+                    radius_factor = 0.7 + 0.3 * self._hash_rand(node_id, "mem_r")
+                    offset = halo_radius * radius_factor
+
+                    x = cx + offset * math.cos(angle)
+                    y = cy + offset * math.sin(angle)
+
+            node_data = {
+                "id": node_id,
+                "label": node_name,
+                "group": node_type,
+                "title": f"{node_name}\nType: {node_type}\nPackage: {pkg}",  # Plain text tooltip
+                "package": pkg,
+                "value": value,
+                "mass": mass,
+            }
+
+            # Add initial position if computed
+            if x is not None and y is not None:
+                node_data["x"] = x
+                node_data["y"] = y
+
+            # Add fixed property for pinned nodes (packages)
+            if node_fixed is not None:
+                node_data["fixed"] = node_fixed
+
+            vis_nodes.append(node_data)
+
+        # --- Prepare edges with type information for color coding ---
+        vis_edges = []
+        edge_counter = 0
+        real_edge_count = 0
+
+        # Build node id -> name lookup for tooltips
+        node_name_lookup = {n["id"]: n.get("name", n["id"].split(".")[-1]) for n in graph_data["nodes"]}
+
+        # Edge weight/length by dependency type
+        # Since PCoA seeds positions, use shorter springs for local refinement
+        # Inheritance/implementation tighter to reinforce structure
+        edge_length_by_type = {
+            "inheritance": 80,       # Strong: class hierarchy (tight)
+            "implementation": 80,    # Strong: interface contracts (tight)
+            "call": 120,             # Medium: method calls
+            "field_access": 120,     # Medium: field usage
+            "type_reference": 150,   # Weak: type mentions (looser)
+            "import": 150,           # Weak: imports (looser)
+            "dependency": 100,       # Default
+        }
+
+        # Add real dependency edges
+        for link in graph_data.get("links", []):
+            source_id = graph_data["nodes"][link["source"]]["id"] if isinstance(link["source"], int) else link["source"]
+            target_id = graph_data["nodes"][link["target"]]["id"] if isinstance(link["target"], int) else link["target"]
+            dep_type = link.get("type", "dependency")
+
+            # Get readable names for tooltip
+            source_name = node_name_lookup.get(source_id, source_id.split(".")[-1])
+            target_name = node_name_lookup.get(target_id, target_id.split(".")[-1])
+
+            # Get edge length based on dependency type
+            edge_length = edge_length_by_type.get(dep_type, 120)
+
+            vis_edges.append({
+                "id": edge_counter,
+                "from": source_id,
+                "to": target_id,
+                "arrows": "to",
+                "title": f"{source_name} → {target_name}\n({dep_type})",  # Plain text tooltip
+                "edgeType": dep_type,  # For color coding in JS
+                "length": edge_length,  # Spring length by type
+            })
+            edge_counter += 1
+            real_edge_count += 1
+
+        # Add "structural" edges (method/field -> parent class)
+        # These create the "solar system" effect - members orbit their class
+        # Hidden by default to reduce clutter, toggleable via UI
+        # For large graphs (>5000 nodes), disable physics on structural edges
+        structural_edge_count = 0
+
+        # For very large graphs, disable structural edge physics entirely
+        total_nodes = len(graph_data["nodes"])
+        structural_physics_enabled = total_nodes < 5000  # Disable for large graphs
+        is_large_graph = total_nodes > 5000
+
+        for method_id, class_id in method_to_class.items():
+            method_name = node_name_lookup.get(method_id, method_id.split(".")[-1])
+            class_name = node_name_lookup.get(class_id, class_id.split(".")[-1])
+
+            # Halo radius for this class: R_mem = 40 + 6 * sqrt(m), capped at 80
+            member_count = class_method_count.get(class_id, 1)
+            halo_radius = min(40 + 6 * math.sqrt(member_count), 80)
+
+            # Spring length = 0.6 * halo_radius (pulls members close but not collapsed)
+            length = halo_radius * 0.6
+
+            vis_edges.append({
+                "id": edge_counter,
+                "from": method_id,
+                "to": class_id,
+                "edgeType": "structural",
+                "title": f"{method_name} ∈ {class_name}\n(member of)",
+                "hidden": True,  # Hidden by default - reduces clutter, toggleable
+                "physics": structural_physics_enabled,  # Disabled for large graphs
+                "length": length,  # Proportional to halo radius
+                "smooth": False,  # Straight lines for performance
+            })
+            edge_counter += 1
+            structural_edge_count += 1
+
+        # Note: Class positions are seeded from PCoA/MDS (topology-based)
+        # Physics only needs to do local refinement, not global rearrangement
+
+        node_count = len(vis_nodes)
+        edge_count = real_edge_count  # Only count visible edges for display
+
+        # Physics settings for LOCAL refinement only
+        # PCoA provides global structure - physics just untangles local overlaps
+        # Longer springs + low central gravity reduce pull toward center square
+        gravitational_constant = -150  # Strong repulsion to spread nodes
+        spring_length = 200  # Long springs to maintain spread
+        spring_constant = 0.05  # Moderate stiffness
+        central_gravity = 0.002  # Very weak central pull (preserve spread)
+
+        if node_count > 10000:
+            physics_enabled = False
+            stabilization_iterations = 0
+        elif node_count > 5000:
+            physics_enabled = True
+            stabilization_iterations = 50
+        elif node_count > 2000:
+            physics_enabled = True
+            stabilization_iterations = 150
+        else:
+            physics_enabled = True
+            stabilization_iterations = 250
+
+        # Generate package list HTML
+        package_items = []
+        sorted_packages = sorted(packages.items(), key=lambda x: (-x[1], x[0]))
+        for i, (pkg, count) in enumerate(sorted_packages):
+            hue = (i * 137.5) % 360
+            color = f"hsl({hue}, 60%, 50%)"
+            display = pkg if len(pkg) <= 40 else "..." + pkg[-37:]
+            escaped_pkg = html.escape(pkg).replace("'", "\\'")
+            package_items.append(
+                f'<div class="pkg-item" data-pkg="{html.escape(pkg)}">'
+                f'<input type="checkbox" checked onchange="togglePackage(\'{escaped_pkg}\', this.checked)">'
+                f'<span class="pkg-color" style="background:{color}"></span>'
+                f'<span class="pkg-name" title="{html.escape(pkg)}">{html.escape(display)}</span>'
+                f'<span class="pkg-count">{count}</span>'
+                f'</div>'
+            )
+        package_html = "\n".join(package_items)
+
+        return f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{html.escape(title)}</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
+    <style>
+        * {{ box-sizing: border-box; }}
+        body {{
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+        }}
+        #container {{
+            display: flex;
+            height: 100vh;
+        }}
+        #graph-container {{
+            flex: 1;
+            position: relative;
+        }}
+        #graph {{
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }}
+        #controls {{
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            gap: 8px;
+            z-index: 100;
+        }}
+        .btn {{
+            padding: 8px 14px;
+            border: none;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }}
+        .btn:hover {{ background: rgba(255,255,255,0.2); }}
+        #info {{
+            position: absolute;
+            top: 10px;
+            right: 340px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 13px;
+        }}
+        #sidebar {{
+            width: 320px;
+            background: #16213e;
+            border-left: 1px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }}
+        #sidebar-header {{
+            padding: 15px;
+            background: #0f3460;
+        }}
+        #sidebar-header h2 {{
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            color: #e94560;
+        }}
+        #search {{
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 13px;
+        }}
+        #search::placeholder {{ color: #666; }}
+        #stats {{
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }}
+        .stat {{
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }}
+        .stat-value {{ font-size: 20px; font-weight: bold; color: #e94560; }}
+        .stat-label {{ font-size: 11px; color: #888; }}
+        #pkg-list {{
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }}
+        .pkg-item {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }}
+        .pkg-item:hover {{ background: rgba(255,255,255,0.05); }}
+        .pkg-color {{
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }}
+        .pkg-name {{
+            flex: 1;
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }}
+        .pkg-count {{
+            font-size: 11px;
+            color: #888;
+            background: rgba(255,255,255,0.1);
+            padding: 2px 6px;
+            border-radius: 10px;
+        }}
+        .pkg-actions {{
+            padding: 10px;
+            display: flex;
+            gap: 5px;
+            border-top: 1px solid #0f3460;
+        }}
+        .pkg-actions .btn {{ flex: 1; font-size: 11px; }}
+        #legend {{
+            padding: 10px;
+            border-top: 1px solid #0f3460;
+            font-size: 11px;
+        }}
+        #legend h3 {{
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: #e94560;
+        }}
+        .legend-item {{
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 4px 0;
+        }}
+        .legend-color {{
+            width: 20px;
+            height: 3px;
+            border-radius: 1px;
+        }}
+        .type-toggle {{
+            cursor: pointer;
+            user-select: none;
+        }}
+        .type-toggle:hover {{
+            background: rgba(255,255,255,0.1);
+        }}
+        .type-toggle input {{
+            margin-right: 4px;
+            cursor: pointer;
+        }}
+        .type-toggle.disabled {{
+            opacity: 0.4;
+        }}
+        #loading {{
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(26, 26, 46, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }}
+        #loading.hidden {{ display: none; }}
+        .spinner {{
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(233, 69, 96, 0.3);
+            border-top-color: #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }}
+        @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+        .loading-text {{
+            margin-top: 20px;
+            font-size: 14px;
+            color: #888;
+        }}
+        .progress-bar {{
+            width: 200px;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            margin-top: 15px;
+            overflow: hidden;
+            position: relative;
+        }}
+        .progress-fill {{
+            height: 100%;
+            background: linear-gradient(90deg, #e94560, #f5a623, #e94560);
+            background-size: 200% 100%;
+            width: 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+        }}
+        .progress-fill.complete {{ background: #50c878; animation: none; }}
+        @keyframes shimmer {{ 0% {{ background-position: 200% 0; }} 100% {{ background-position: -200% 0; }} }}
+        /* Fullscreen mode */
+        body.fullscreen #sidebar {{ display: none !important; }}
+        body.fullscreen #container {{ width: 100vw; }}
+        body.fullscreen #graph-container {{ width: 100%; flex: 1; }}
+        body.fullscreen #graph {{ width: 100%; height: 100%; }}
+        body.fullscreen #info {{ right: 20px; top: 10px; }}
+        /* Help panel */
+        #help-panel {{
+            position: fixed;
+            top: 0; right: -420px;
+            width: 420px;
+            height: 100vh;
+            background: #16213e;
+            border-left: 2px solid #e94560;
+            padding: 20px;
+            overflow-y: auto;
+            transition: right 0.3s ease;
+            z-index: 2000;
+        }}
+        #help-panel.visible {{ right: 0; }}
+        #help-panel h2 {{
+            color: #e94560;
+            font-size: 18px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        #help-panel .close-btn {{
+            background: none; border: none; color: #888; font-size: 24px; cursor: pointer;
+        }}
+        #help-panel .close-btn:hover {{ color: #fff; }}
+        .help-section {{
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }}
+        .help-section h3 {{ color: #4fc3f7; font-size: 14px; margin-bottom: 10px; }}
+        .help-section p {{ color: #ccc; font-size: 13px; line-height: 1.6; margin-bottom: 8px; }}
+        .help-section ul {{ margin: 8px 0 0 20px; color: #aaa; font-size: 12px; }}
+        .help-section li {{ margin-bottom: 6px; }}
+        .help-section code {{ background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; color: #f5a623; }}
+        .help-overlay {{
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); opacity: 0; pointer-events: none;
+            transition: opacity 0.3s; z-index: 1999;
+        }}
+        .help-overlay.visible {{ opacity: 1; pointer-events: auto; }}
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Building dependency graph...</div>
+        <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+    </div>
+    <div id="container">
+        <div id="graph-container">
+            <div id="graph"></div>
+            <div id="controls">
+                <button class="btn" onclick="network.fit()">Fit View</button>
+                <button class="btn" onclick="togglePhysics()">Toggle Physics</button>
+                <button class="btn" onclick="hideSelected()" title="Hide selected nodes (click to select)">Hide Selected</button>
+                <button class="btn" onclick="showAll()" title="Show all hidden nodes">Show All</button>
+                <button class="btn" onclick="exportPNG()">Export PNG</button>
+                <button class="btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+                <button class="btn" onclick="toggleHelp()">❓ Help</button>
+            </div>
+    <div class="help-overlay" id="help-overlay" onclick="toggleHelp()"></div>
+    <div id="help-panel">
+        <h2>
+            <span>🌐 Dependency Graph Guide</span>
+            <button class="close-btn" onclick="toggleHelp()">×</button>
+        </h2>
+        <div class="help-section">
+            <h3>What is this Graph?</h3>
+            <p>This interactive visualization shows dependencies between code elements in your project. Nodes represent classes, methods, fields, etc. Edges show how they depend on each other (inheritance, method calls, imports).</p>
+        </div>
+        <div class="help-section">
+            <h3>Navigation</h3>
+            <ul>
+                <li><strong>Scroll</strong> to zoom in/out</li>
+                <li><strong>Drag background</strong> to pan the view</li>
+                <li><strong>Click node</strong> to select it</li>
+                <li><strong>Ctrl+Click</strong> to multi-select nodes</li>
+                <li><strong>Fit View</strong> resets zoom to show all nodes</li>
+            </ul>
+        </div>
+        <div class="help-section">
+            <h3>Node Types (click legend to toggle)</h3>
+            <ul>
+                <li><code style="background:#FFD700;color:#1a1a2e">Gold circles</code> - Classes (stars ⭐)</li>
+                <li><code style="background:#50c878">Green circles</code> - Interfaces (nebulae)</li>
+                <li><code style="background:#5B9BD5">Blue dots</code> - Methods (planets 🔵)</li>
+                <li><code style="background:#CD5C5C">Red dots</code> - Constructors (red dwarfs 🔴)</li>
+                <li><code style="background:#9b59b6">Purple dots</code> - Fields (moons)</li>
+                <li><code style="background:#34495e">Dark boxes</code> - Packages</li>
+            </ul>
+        </div>
+        <div class="help-section">
+            <h3>Edge Colors</h3>
+            <ul>
+                <li><code style="background:#d95f02">Orange</code> - Inheritance (extends)</li>
+                <li><code style="background:#7570b3">Purple</code> - Implementation (implements)</li>
+                <li><code style="background:#1b9e77">Green</code> - Method calls</li>
+                <li><code style="background:#66a61e">Light green</code> - Imports</li>
+                <li><code style="background:#e6ab02">Yellow</code> - Type references</li>
+            </ul>
+        </div>
+        <div class="help-section">
+            <h3>Package Filtering</h3>
+            <ul>
+                <li><strong>Checkboxes</strong> - Toggle package visibility</li>
+                <li><strong>Search box</strong> - Filter packages by name</li>
+                <li><strong>Select/Deselect Filtered</strong> - Bulk toggle filtered packages</li>
+            </ul>
+        </div>
+        <div class="help-section">
+            <h3>Exploring Dependencies</h3>
+            <ul>
+                <li><strong>↑ Parents</strong> - Show what selected nodes depend on</li>
+                <li><strong>↓ Children</strong> - Show what depends on selected nodes</li>
+                <li><strong>Hide Selected</strong> - Remove selected nodes from view</li>
+                <li><strong>Show All</strong> - Restore all hidden nodes</li>
+            </ul>
+        </div>
+        <div class="help-section">
+            <h3>Physics Simulation</h3>
+            <p>The graph uses physics-based layout where nodes repel each other and edges act as springs. Classes attract their methods (like solar systems).</p>
+            <p><strong>Toggle Physics</strong> to enable/disable animation. For very large graphs, physics may be disabled for performance.</p>
+        </div>
+    </div>
+            <div id="info">
+                <span id="visible-count">{node_count}</span> / {node_count} nodes | {edge_count} edges
+            </div>
+            <div id="layout-info" style="display: block; position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); background: rgba(0,80,160,0.9); padding: 10px 18px; border-radius: 6px; font-size: 12px; max-width: 550px; text-align: center;">
+                {'⚡ Large graph (' + f'{node_count:,}' + ' nodes): Physics disabled. PCoA layout based on inheritance/call topology. Filter packages to reduce, then use "🔄 Restart Sim".' if not physics_enabled else '🔬 PCoA-seeded layout: classes positioned by inheritance/call distances. Physics refines locally. Connected classes cluster together.'}
+            </div>
+        </div>
+        <div id="sidebar">
+            <div id="sidebar-header">
+                <h2>📦 Packages ({len(packages)})</h2>
+                <input type="text" id="search" placeholder="Filter packages..." oninput="filterPackages(this.value)">
+                <div id="stats">
+                    <div class="stat">
+                        <div class="stat-value">{node_count}</div>
+                        <div class="stat-label">Nodes</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">{edge_count}</div>
+                        <div class="stat-label">Edges</div>
+                    </div>
+                </div>
+            </div>
+            <div id="pkg-list">
+                {package_html}
+            </div>
+            <div class="pkg-actions">
+                <button class="btn" onclick="selectFiltered()">Select Filtered</button>
+                <button class="btn" onclick="deselectFiltered()">Deselect Filtered</button>
+            </div>
+            <div class="pkg-actions" style="border-top: none; padding-top: 0;">
+                <button class="btn" onclick="expandParents()" title="Add nodes that selected nodes depend on">↑ Parents</button>
+                <button class="btn" onclick="expandChildren()" title="Add nodes that depend on selected nodes">↓ Children</button>
+            </div>
+            <div class="pkg-actions" style="border-top: none; padding-top: 0;">
+                <button class="btn" onclick="restartSimulation(false)" title="Restart physics simulation from current positions">🔄 Restart Sim</button>
+                <button class="btn" onclick="restartSimulation(true)" title="Randomize positions and restart simulation">🎲 Randomize</button>
+            </div>
+            <div id="legend">
+                <h3>🔗 Edge Types <span style="font-size:10px;color:#888">(click to toggle)</span></h3>
+                <div class="legend-item type-toggle" data-edge="inheritance" onclick="toggleEdgeType('inheritance')"><input type="checkbox" checked><span class="legend-color" style="background:#d95f02"></span> Inheritance</div>
+                <div class="legend-item type-toggle" data-edge="implementation" onclick="toggleEdgeType('implementation')"><input type="checkbox" checked><span class="legend-color" style="background:#7570b3"></span> Implementation</div>
+                <div class="legend-item type-toggle" data-edge="call" onclick="toggleEdgeType('call')"><input type="checkbox" checked><span class="legend-color" style="background:#1b9e77"></span> Method Call</div>
+                <div class="legend-item type-toggle" data-edge="import" onclick="toggleEdgeType('import')"><input type="checkbox" checked><span class="legend-color" style="background:#66a61e"></span> Import</div>
+                <div class="legend-item type-toggle" data-edge="type_reference" onclick="toggleEdgeType('type_reference')"><input type="checkbox"><span class="legend-color" style="background:#e6ab02"></span> Type Reference</div>
+                <div class="legend-item type-toggle disabled" data-edge="structural" onclick="toggleEdgeType('structural')"><input type="checkbox"><span class="legend-color" style="background:#2a2a3e"></span> Structural</div>
+                <h3 style="margin-top:12px">⭐ Node Types <span style="font-size:10px;color:#888">(click to toggle)</span></h3>
+                <div class="legend-item type-toggle" data-type="class" onclick="toggleNodeType('class')"><input type="checkbox" checked><span class="legend-color" style="background:#FFD700; height:12px; width:12px; border-radius:50%"></span> Class ⭐</div>
+                <div class="legend-item type-toggle" data-type="interface" onclick="toggleNodeType('interface')"><input type="checkbox" checked><span class="legend-color" style="background:#50c878; height:12px; width:12px; border-radius:50%"></span> Interface</div>
+                <div class="legend-item type-toggle" data-type="enum" onclick="toggleNodeType('enum')"><input type="checkbox" checked><span class="legend-color" style="background:#1abc9c; height:10px; width:10px; border-radius:50%"></span> Enum</div>
+                <div class="legend-item type-toggle" data-type="method" onclick="toggleNodeType('method')"><input type="checkbox" checked><span class="legend-color" style="background:#5B9BD5; height:6px; width:6px; border-radius:50%"></span> Method 🔵</div>
+                <div class="legend-item type-toggle" data-type="constructor" onclick="toggleNodeType('constructor')"><input type="checkbox" checked><span class="legend-color" style="background:#CD5C5C; height:7px; width:7px; border-radius:50%"></span> Constructor 🔴</div>
+                <div class="legend-item type-toggle" data-type="field" onclick="toggleNodeType('field')"><input type="checkbox" checked><span class="legend-color" style="background:#9b59b6; height:5px; width:5px; border-radius:50%"></span> Field</div>
+                <div class="legend-item type-toggle" data-type="constant" onclick="toggleNodeType('constant')"><input type="checkbox" checked><span class="legend-color" style="background:#CD5C5C; height:4px; width:4px; border-radius:50%"></span> Constant</div>
+                <div class="legend-item type-toggle" data-type="import" onclick="toggleNodeType('import')"><input type="checkbox"><span class="legend-color" style="background:#95a5a6; height:3px; width:3px; border-radius:50%"></span> Import</div>
+                <div class="legend-item type-toggle" data-type="package" onclick="toggleNodeType('package')"><input type="checkbox" checked><span class="legend-color" style="background:#34495e; height:14px; width:14px; border-radius:2px"></span> Package</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        // Data
+        const allNodes = {json.dumps(vis_nodes)};
+        const allEdges = {json.dumps(vis_edges)};
+
+        // Edge color scheme by dependency type
+        const edgeColors = {{
+            'inheritance': {{ color: '#d95f02', highlight: '#ff7f0e', opacity: 0.9 }},
+            'implementation': {{ color: '#7570b3', highlight: '#9467bd', opacity: 0.9 }},
+            'call': {{ color: '#1b9e77', highlight: '#2ca02c', opacity: 0.6 }},
+            'import': {{ color: '#66a61e', highlight: '#8bc34a', opacity: 0.5 }},
+            'type_reference': {{ color: '#e6ab02', highlight: '#ffeb3b', opacity: 0.5 }},
+            'field_access': {{ color: '#a6761d', highlight: '#d4a574', opacity: 0.5 }},
+            'structural': {{ color: '#2a2a3e', highlight: '#3a3a4e', opacity: 0.3 }},  // Dark visible link
+            'default': {{ color: '#888888', highlight: '#aaaaaa', opacity: 0.4 }}
+        }};
+
+        // Apply colors and physics properties to edges
+        allEdges.forEach(edge => {{
+            const edgeType = edge.edgeType || 'default';
+            const colorInfo = edgeColors[edgeType] || edgeColors['default'];
+
+            if (edgeType === 'structural') {{
+                // Structural edges: dark visible link to show class-member relationship
+                edge.color = {{ color: colorInfo.color, highlight: colorInfo.highlight, opacity: colorInfo.opacity }};
+                edge.width = 0.3;
+                edge.length = 30;  // Short spring pulls members to classes
+                edge.smooth = false;
+                edge.arrows = {{ to: {{ enabled: false }} }};  // No arrow for structural
+                edge.dashes = false;
+            }} else {{
+                edge.color = {{ color: colorInfo.color, highlight: colorInfo.highlight, opacity: colorInfo.opacity }};
+                edge.width = edgeType === 'inheritance' || edgeType === 'implementation' ? 1.5 : 0.8;
+                edge.length = 150;  // Regular edges are longer
+            }}
+        }});
+
+        // vis.js datasets
+        const nodes = new vis.DataSet(allNodes);
+        const edges = new vis.DataSet(allEdges);
+
+        // Package visibility state
+        const packageVisible = {{}};
+        allNodes.forEach(n => packageVisible[n.package] = true);
+
+        // Node type visibility state (import hidden by default)
+        const typeVisible = {{
+            'class': true,
+            'interface': true,
+            'enum': true,
+            'method': true,
+            'constructor': true,
+            'field': true,
+            'constant': true,
+            'function': true,
+            'import': false,
+            'package': true
+        }};
+
+        // Edge type visibility state (type_reference hidden by default - too cluttered)
+        const edgeTypeVisible = {{
+            'inheritance': true,
+            'implementation': true,
+            'call': true,
+            'import': true,
+            'type_reference': false,
+            'structural': false,  // Hidden by default - toggle to see member halos
+            'field_access': true,
+            'default': true
+        }};
+
+        // Toggle node type visibility from legend
+        function toggleNodeType(nodeType) {{
+            typeVisible[nodeType] = !typeVisible[nodeType];
+            const item = document.querySelector(`.type-toggle[data-type="${{nodeType}}"]`);
+            if (item) {{
+                const cb = item.querySelector('input');
+                cb.checked = typeVisible[nodeType];
+                item.classList.toggle('disabled', !typeVisible[nodeType]);
+            }}
+            updateVisibility();
+        }}
+
+        // Toggle edge type visibility from legend
+        function toggleEdgeType(edgeType) {{
+            edgeTypeVisible[edgeType] = !edgeTypeVisible[edgeType];
+            const item = document.querySelector(`.type-toggle[data-edge="${{edgeType}}"]`);
+            if (item) {{
+                const cb = item.querySelector('input');
+                cb.checked = edgeTypeVisible[edgeType];
+                item.classList.toggle('disabled', !edgeTypeVisible[edgeType]);
+            }}
+            updateEdgeVisibility();
+        }}
+
+        // Update edge visibility based on edge type toggles
+        function updateEdgeVisibility() {{
+            const updates = [];
+            allEdges.forEach(edge => {{
+                const edgeType = edge.edgeType || 'default';
+                const visible = edgeTypeVisible[edgeType] !== false;
+                updates.push({{ id: edge.id, hidden: !visible }});
+            }});
+            edges.update(updates);
+        }}
+
+        // Create network
+        const container = document.getElementById('graph');
+        const data = {{ nodes, edges }};
+        const options = {{
+            nodes: {{
+                shape: 'dot',
+                scaling: {{
+                    min: 6,
+                    max: 50,
+                    label: {{
+                        enabled: true,
+                        min: 8,
+                        max: 16,
+                        drawThreshold: 12,  // Only show labels when zoomed in
+                        maxVisible: 20      // Max font size when fully zoomed
+                    }}
+                }},
+                font: {{
+                    size: 11,
+                    color: '#ffffff',
+                    strokeWidth: 2,
+                    strokeColor: '#1a1a2e',
+                    face: 'arial',
+                    vadjust: -2
+                }},
+                borderWidth: 2,
+                borderWidthSelected: 4
+            }},
+            edges: {{
+                smooth: {{
+                    type: 'continuous',
+                    roundness: 0.3
+                }},
+                arrows: {{
+                    to: {{ enabled: true, scaleFactor: 0.5 }}
+                }},
+                selectionWidth: 2
+            }},
+            layout: {{
+                improvedLayout: false  // Disable vis.js auto-compaction
+            }},
+            physics: {{
+                enabled: {'true' if physics_enabled else 'false'},
+                solver: 'forceAtlas2Based',
+                forceAtlas2Based: {{
+                    gravitationalConstant: {gravitational_constant},
+                    centralGravity: {central_gravity},
+                    springLength: {spring_length},
+                    springConstant: {spring_constant},
+                    damping: 0.5,
+                    avoidOverlap: 0.8
+                }},
+                maxVelocity: 40,
+                minVelocity: 0.1,  // Low threshold to preserve spread
+                stabilization: {{
+                    enabled: {stabilization_iterations} > 0,
+                    iterations: {stabilization_iterations},
+                    updateInterval: 15,
+                    fit: false  // Don't auto-fit during stabilization
+                }}
+            }},
+            interaction: {{
+                tooltipDelay: 100,
+                hideEdgesOnDrag: true,
+                hideEdgesOnZoom: true,
+                hover: true,
+                multiselect: true,
+                navigationButtons: false,
+                keyboard: true
+            }},
+            // Solar system analogy: Classes=yellow stars, Constructors=red dwarfs, Methods=blue planets
+            groups: {{
+                "class": {{
+                    color: {{ background: "#FFD700", border: "#DAA520" }},  // Gold (big stars)
+                    font: {{ size: 12, color: '#1a1a2e', strokeWidth: 2, strokeColor: '#ffffff' }}
+                }},
+                "interface": {{
+                    color: {{ background: "#50c878", border: "#2ca25f" }},  // Green (nebulae)
+                    font: {{ size: 12, color: '#ffffff', strokeWidth: 2, strokeColor: '#1a1a2e' }}
+                }},
+                "enum": {{
+                    color: {{ background: "#1abc9c", border: "#16a085" }},  // Teal (gas giants)
+                    font: {{ size: 11, color: '#ffffff', strokeWidth: 2, strokeColor: '#1a1a2e' }}
+                }},
+                "method": {{
+                    color: {{ background: "#5B9BD5", border: "#4080B0" }},  // Blue (planets)
+                    font: {{ size: 0 }},  // Hidden - show on hover only
+                    scaling: {{ min: 3, max: 10 }}
+                }},
+                "constructor": {{
+                    color: {{ background: "#CD5C5C", border: "#A94442" }},  // Indian red (red dwarf stars)
+                    font: {{ size: 0 }},  // Hidden
+                    scaling: {{ min: 4, max: 12 }}
+                }},
+                "field": {{
+                    color: {{ background: "#9b59b6", border: "#8e44ad" }},  // Purple (moons)
+                    font: {{ size: 0 }},  // Hidden
+                    scaling: {{ min: 2, max: 8 }}
+                }},
+                "constant": {{
+                    color: {{ background: "#CD5C5C", border: "#A94442" }},  // Indian red (asteroids)
+                    font: {{ size: 0 }},  // Hidden
+                    scaling: {{ min: 2, max: 6 }}
+                }},
+                "function": {{
+                    color: {{ background: "#5B9BD5", border: "#4080B0" }},  // Blue (planets)
+                    font: {{ size: 0 }}  // Hidden
+                }},
+                "import": {{
+                    color: {{ background: "#95a5a6", border: "#7f8c8d" }},
+                    font: {{ size: 0 }},  // Hidden
+                    scaling: {{ min: 1, max: 4 }}
+                }},
+                "package": {{
+                    shape: "box",
+                    color: {{ background: "#34495e", border: "#2c3e50" }},
+                    font: {{ size: 14, color: '#ffffff', strokeWidth: 3, strokeColor: '#1a1a2e' }}
+                }}
+            }}
+        }};
+
+        // Simple loading - CSS animation handles the visual feedback
+        function completeLoading() {{
+            document.querySelector('.loading-text').textContent = 'Done!';
+            document.getElementById('progress').classList.add('complete');
+            setTimeout(() => {{
+                document.getElementById('loading').classList.add('hidden');
+            }}, 400);
+        }}
+
+        document.querySelector('.loading-text').textContent = 'Creating network...';
+
+        const network = new vis.Network(container, data, options);
+        let physicsEnabled = {'true' if physics_enabled else 'false'};
+
+        // Apply initial edge type visibility (hides type_reference by default)
+        updateEdgeVisibility();
+
+        document.querySelector('.loading-text').textContent = physicsEnabled ? 'Stabilizing layout...' : 'Rendering graph...';
+
+        // Auto-hide layout info after 5 seconds
+        setTimeout(() => {{
+            const info = document.getElementById('layout-info');
+            if (info) info.style.display = 'none';
+        }}, 5000);
+
+        // Stabilization progress (text only, CSS handles animation)
+        network.on("stabilizationProgress", function(params) {{
+            const pct = Math.round((params.iterations / params.total) * 100);
+            document.querySelector('.loading-text').textContent = 'Stabilizing layout... ' + pct + '%';
+        }});
+
+        network.on("stabilizationIterationsDone", function() {{
+            completeLoading();
+            network.setOptions({{ physics: false }});
+            physicsEnabled = false;
+            // Relaxed fit: scale 0.5 leaves generous headroom, prevents square confinement
+            network.fit({{ animation: {{ duration: 0 }}, scale: 0.5 }});
+        }});
+
+        // For non-physics graphs, hide loading immediately after drawing
+        if (!physicsEnabled) {{
+            network.once("afterDrawing", function() {{
+                completeLoading();
+                // Relaxed fit: scale 0.5 leaves generous headroom
+                network.fit({{ animation: {{ duration: 0 }}, scale: 0.5 }});
+            }});
+        }}
+
+        // Toggle physics
+        function togglePhysics() {{
+            physicsEnabled = !physicsEnabled;
+            network.setOptions({{ physics: {{ enabled: physicsEnabled }} }});
+        }}
+
+        // Restart simulation (optionally randomize positions)
+        function restartSimulation(randomize) {{
+            if (randomize) {{
+                // Randomize node positions before restarting
+                const positions = network.getPositions();
+                const updates = [];
+                const canvas = network.getViewPosition();
+                const scale = network.getScale();
+                const spreadX = 800 / scale;
+                const spreadY = 600 / scale;
+
+                Object.keys(positions).forEach(nodeId => {{
+                    updates.push({{
+                        id: nodeId,
+                        x: canvas.x + (Math.random() - 0.5) * spreadX,
+                        y: canvas.y + (Math.random() - 0.5) * spreadY
+                    }});
+                }});
+                nodes.update(updates);
+            }}
+
+            // Enable physics and restart stabilization
+            physicsEnabled = true;
+            network.setOptions({{ physics: {{ enabled: true }} }});
+            network.stabilize(500);  // Run stabilization for 500 iterations
+        }}
+
+        // Package filtering
+        function togglePackage(pkg, visible) {{
+            packageVisible[pkg] = visible;
+            updateVisibility();
+        }}
+
+        function updateVisibility() {{
+            // Update node visibility using update() to preserve positions and not restart simulation
+            const nodeUpdates = [];
+            let visibleCount = 0;
+            allNodes.forEach(n => {{
+                const shouldBeVisible = packageVisible[n.package] && typeVisible[n.group] && !hiddenNodes.has(n.id);
+                nodeUpdates.push({{ id: n.id, hidden: !shouldBeVisible }});
+                if (shouldBeVisible) visibleCount++;
+            }});
+            nodes.update(nodeUpdates);
+
+            // Build set of visible node IDs for edge filtering
+            const visibleIds = new Set(
+                allNodes.filter(n => packageVisible[n.package] && typeVisible[n.group] && !hiddenNodes.has(n.id))
+                    .map(n => n.id)
+            );
+
+            // Update edge visibility - show only edges where both endpoints are visible
+            const edgeUpdates = [];
+            allEdges.forEach(e => {{
+                const bothVisible = visibleIds.has(e.from) && visibleIds.has(e.to);
+                const typeVisible = edgeTypeVisible[e.edgeType || 'default'] !== false;
+                edgeUpdates.push({{ id: e.id, hidden: !bothVisible || !typeVisible }});
+            }});
+            edges.update(edgeUpdates);
+
+            document.getElementById('visible-count').textContent = visibleCount;
+        }}
+
+        // Track hidden nodes (moved up for reference)
+        const hiddenNodes = new Set();
+
+        // Select/Deselect only filtered (visible in list) packages
+        function selectFiltered() {{
+            document.querySelectorAll('.pkg-item').forEach(item => {{
+                if (item.style.display !== 'none') {{
+                    const pkg = item.dataset.pkg;
+                    const cb = item.querySelector('input');
+                    cb.checked = true;
+                    packageVisible[pkg] = true;
+                }}
+            }});
+            updateVisibility();
+        }}
+
+        function deselectFiltered() {{
+            document.querySelectorAll('.pkg-item').forEach(item => {{
+                if (item.style.display !== 'none') {{
+                    const pkg = item.dataset.pkg;
+                    const cb = item.querySelector('input');
+                    cb.checked = false;
+                    packageVisible[pkg] = false;
+                }}
+            }});
+            updateVisibility();
+        }}
+
+        function filterPackages(query) {{
+            const q = query.toLowerCase();
+            document.querySelectorAll('.pkg-item').forEach(item => {{
+                const pkg = item.dataset.pkg.toLowerCase();
+                item.style.display = pkg.includes(q) ? 'flex' : 'none';
+            }});
+        }}
+
+        // Build dependency index for parent/child expansion
+        // Edge direction: from -> to means "from" USES/DEPENDS ON "to"
+        // Parent = what I depend on (targets of my outgoing edges)
+        // Child = what depends on me (sources of edges pointing to me)
+        const nodeIndex = {{}};  // Quick lookup for nodes
+        allNodes.forEach(n => nodeIndex[n.id] = n);
+
+        const dependsOn = {{}};  // nodeId -> [nodeIds that this node depends on] (parents)
+        const dependedBy = {{}};  // nodeId -> [nodeIds that depend on this node] (children)
+
+        allEdges.forEach(edge => {{
+            if (edge.edgeType !== 'structural') {{
+                // from depends on to (from -> to)
+                if (!dependsOn[edge.from]) dependsOn[edge.from] = [];
+                if (!dependedBy[edge.to]) dependedBy[edge.to] = [];
+                dependsOn[edge.from].push(edge.to);  // to is a parent of from
+                dependedBy[edge.to].push(edge.from);  // from is a child of to
+            }}
+        }});
+
+        // Expand to show parent packages (nodes that visible nodes DEPEND ON)
+        function expandParents() {{
+            const currentVisibleIds = new Set(nodes.getIds());
+            const newPackages = new Set();
+            let newNodeCount = 0;
+
+            currentVisibleIds.forEach(nodeId => {{
+                const parents = dependsOn[nodeId] || [];
+                parents.forEach(parentId => {{
+                    const parentNode = nodeIndex[parentId];
+                    if (parentNode) {{
+                        const pkg = parentNode.package;
+                        if (!packageVisible[pkg]) {{
+                            newPackages.add(pkg);
+                        }}
+                        if (!currentVisibleIds.has(parentId)) {{
+                            newNodeCount++;
+                        }}
+                    }}
+                }});
+            }});
+
+            if (newPackages.size === 0) {{
+                console.log('No new parent packages to add. All dependencies are in visible packages.');
+                return;
+            }}
+
+            // Enable these packages
+            newPackages.forEach(pkg => {{
+                packageVisible[pkg] = true;
+                const item = document.querySelector(`.pkg-item[data-pkg="${{CSS.escape(pkg)}}"]`);
+                if (item) {{
+                    const cb = item.querySelector('input');
+                    if (cb) cb.checked = true;
+                }}
+            }});
+
+            updateVisibility();
+            console.log(`Added ${{newPackages.size}} parent packages (${{newNodeCount}} new nodes):`, Array.from(newPackages));
+        }}
+
+        // Expand to show child packages (nodes that DEPEND ON visible nodes)
+        function expandChildren() {{
+            const currentVisibleIds = new Set(nodes.getIds());
+            const newPackages = new Set();
+            let newNodeCount = 0;
+
+            currentVisibleIds.forEach(nodeId => {{
+                const children = dependedBy[nodeId] || [];
+                children.forEach(childId => {{
+                    const childNode = nodeIndex[childId];
+                    if (childNode) {{
+                        const pkg = childNode.package;
+                        if (!packageVisible[pkg]) {{
+                            newPackages.add(pkg);
+                        }}
+                        if (!currentVisibleIds.has(childId)) {{
+                            newNodeCount++;
+                        }}
+                    }}
+                }});
+            }});
+
+            if (newPackages.size === 0) {{
+                console.log('No new child packages to add. Nothing else depends on visible nodes.');
+                return;
+            }}
+
+            // Enable these packages
+            newPackages.forEach(pkg => {{
+                packageVisible[pkg] = true;
+                const item = document.querySelector(`.pkg-item[data-pkg="${{CSS.escape(pkg)}}"]`);
+                if (item) {{
+                    const cb = item.querySelector('input');
+                    if (cb) cb.checked = true;
+                }}
+            }});
+
+            updateVisibility();
+            console.log(`Added ${{newPackages.size}} child packages (${{newNodeCount}} new nodes):`, Array.from(newPackages));
+        }}
+
+        // Export to PNG
+        function exportPNG() {{
+            const canvas = document.querySelector('#graph canvas');
+            if (canvas) {{
+                const link = document.createElement('a');
+                link.download = 'dependency-graph.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }}
+        }}
+
+        // Hide selected nodes
+        function hideSelected() {{
+            const selected = network.getSelectedNodes();
+            if (selected.length === 0) {{
+                console.log('No nodes selected. Click on nodes to select them first.');
+                return;
+            }}
+
+            selected.forEach(nodeId => hiddenNodes.add(nodeId));
+            updateVisibility();
+            network.unselectAll();
+            console.log(`Hidden ${{selected.length}} nodes. Total hidden: ${{hiddenNodes.size}}`);
+        }}
+
+        // Show all hidden nodes
+        function showAll() {{
+            hiddenNodes.clear();
+            updateVisibility();
+            console.log('All nodes restored');
+        }}
+
+        // Node click to select (for multi-select, hold Ctrl)
+        network.on('click', function(params) {{
+            if (params.nodes.length > 0) {{
+                const nodeId = params.nodes[0];
+                const node = nodes.get(nodeId);
+                console.log('Selected:', node.label, '(' + node.group + ')');
+            }}
+        }});
+
+        // Fullscreen toggle
+        function toggleFullscreen() {{
+            document.body.classList.toggle('fullscreen');
+            setTimeout(() => network.fit(), 100);
+        }}
+
+        // Help toggle
+        function toggleHelp() {{
+            document.getElementById('help-panel').classList.toggle('visible');
+            document.getElementById('help-overlay').classList.toggle('visible');
+        }}
+    </script>
+</body>
+</html>'''
+
+
+def get_optimal_renderer(node_count: int) -> str:
+    """
+    Determine the optimal renderer based on graph size.
+
+    Returns:
+        'vis' for large graphs (>2000 nodes), 'd3' for smaller graphs
+    """
+    if node_count > VIS_RENDERER_THRESHOLD:
+        return 'vis'
+    return 'd3'
+
+
 class DSMRenderer:
     """Render Dependency Structure Matrix (DSM) visualization."""
 
@@ -1690,6 +3134,27 @@ class DSMRenderer:
         n = len(sym_ids)
         matrix = [[0] * n for _ in range(n)]
 
+        # Build short name to qualified name mapping for name resolution
+        short_to_qualified: Dict[str, str] = {}
+        for sid in sym_index:
+            short = sid.split('.')[-1]
+            if short not in short_to_qualified or len(sid) < len(short_to_qualified[short]):
+                short_to_qualified[short] = sid
+
+        def resolve_name(name: str) -> Optional[str]:
+            """Resolve a dependency name to a symbol index key."""
+            if name in sym_index:
+                return name
+            if name in short_to_qualified:
+                return short_to_qualified[name]
+            # Try extracting parts (module.Class.method -> Class)
+            parts = name.split('.')
+            for i in range(len(parts) - 1, -1, -1):
+                part = parts[i]
+                if part in short_to_qualified:
+                    return short_to_qualified[part]
+            return None
+
         # Count dependencies
         for dep in deps:
             if level == "package":
@@ -1704,9 +3169,13 @@ class DSMRenderer:
                     if i != j:
                         matrix[i][j] += 1
             else:
-                if dep.source in sym_index and dep.target in sym_index:
-                    i, j = sym_index[dep.source], sym_index[dep.target]
-                    matrix[i][j] += 1
+                # Use name resolution for class-level matching
+                source = resolve_name(dep.source)
+                target = resolve_name(dep.target)
+                if source and target and source in sym_index and target in sym_index:
+                    i, j = sym_index[source], sym_index[target]
+                    if i != j:
+                        matrix[i][j] += 1
 
         # Find cycles (cells above diagonal with corresponding below-diagonal cells)
         cycles = []
@@ -1743,6 +3212,47 @@ class DSMRenderer:
             background: #1a1a2e;
             color: #eee;
         }}
+        /* Fullscreen mode */
+        body.fullscreen #sidebar {{ display: none !important; }}
+        body.fullscreen #row-selector {{ display: none !important; }}
+        body.fullscreen #container {{ width: 100vw; height: 100vh; }}
+        body.fullscreen #matrix-container {{ width: 100%; flex: 1; }}
+        /* Loading overlay */
+        #loading {{
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(26, 26, 46, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }}
+        #loading.hidden {{ display: none; }}
+        .spinner {{
+            width: 60px; height: 60px;
+            border: 4px solid rgba(233, 69, 96, 0.3);
+            border-top-color: #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }}
+        @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+        .loading-text {{ margin-top: 20px; font-size: 14px; color: #888; }}
+        .progress-bar {{
+            width: 200px; height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px; margin-top: 15px; overflow: hidden;
+            position: relative;
+        }}
+        .progress-fill {{
+            height: 100%;
+            background: linear-gradient(90deg, #e94560, #f5a623, #e94560);
+            background-size: 200% 100%;
+            width: 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+        }}
+        .progress-fill.complete {{ background: #50c878; animation: none; }}
+        @keyframes shimmer {{ 0% {{ background-position: 200% 0; }} 100% {{ background-position: -200% 0; }} }}
         #container {{
             display: flex;
             height: 100vh;
@@ -1752,6 +3262,64 @@ class DSMRenderer:
             overflow: auto;
             padding: 20px;
         }}
+        /* Row selector */
+        #row-selector {{
+            width: 200px;
+            background: #16213e;
+            border-right: 1px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }}
+        #row-selector-header {{
+            padding: 10px;
+            background: #0f3460;
+        }}
+        #row-selector-header h3 {{
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: #e94560;
+        }}
+        #row-search {{
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 11px;
+        }}
+        #row-search::placeholder {{ color: #666; }}
+        #row-list {{
+            flex: 1;
+            overflow-y: auto;
+            padding: 5px;
+        }}
+        .row-item {{
+            display: flex;
+            align-items: center;
+            padding: 4px 6px;
+            font-size: 10px;
+            cursor: pointer;
+            border-radius: 3px;
+        }}
+        .row-item:hover {{ background: rgba(255,255,255,0.1); }}
+        .row-item.selected {{ background: rgba(233, 69, 96, 0.3); }}
+        .row-item.hidden {{ display: none; }}
+        .row-item input {{ margin-right: 6px; }}
+        .row-item-name {{
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }}
+        .row-selector-actions {{
+            padding: 8px;
+            display: flex;
+            gap: 5px;
+            border-top: 1px solid #0f3460;
+        }}
+        .row-selector-actions .btn {{ flex: 1; font-size: 10px; padding: 6px; }}
         #sidebar {{
             width: 300px;
             background: #16213e;
@@ -1836,13 +3404,31 @@ class DSMRenderer:
         .col-labels {{
             display: flex;
             margin-left: 120px;
+            margin-bottom: 5px;
         }}
         .col-label {{
             width: 24px;
-            height: 100px;
+            min-width: 24px;
+            height: 120px;
             writing-mode: vertical-rl;
             transform: rotate(180deg);
-            padding-bottom: 8px;
+            padding: 3px 2px;
+            font-size: 10px;
+            color: #ccc;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            box-sizing: border-box;
+        }}
+        .col-label:hover {{
+            color: #e94560;
+            background: rgba(255,255,255,0.1);
+        }}
+        .fullscreen-btn {{
+            position: fixed;
+            top: 10px;
+            right: 320px;
+            z-index: 1000;
         }}
         #cell-info {{
             background: rgba(255,255,255,0.05);
@@ -1918,15 +3504,120 @@ class DSMRenderer:
             z-index: 1000;
             max-width: 300px;
         }}
+        /* Help panel */
+        #help-panel {{
+            position: fixed;
+            top: 0; right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: #16213e;
+            border-left: 2px solid #e94560;
+            padding: 20px;
+            overflow-y: auto;
+            transition: right 0.3s ease;
+            z-index: 2000;
+        }}
+        #help-panel.visible {{ right: 0; }}
+        #help-panel h2 {{
+            color: #e94560;
+            font-size: 18px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        #help-panel .close-btn {{
+            background: none; border: none; color: #888; font-size: 24px; cursor: pointer;
+        }}
+        #help-panel .close-btn:hover {{ color: #fff; }}
+        .help-section {{
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }}
+        .help-section h3 {{ color: #4fc3f7; font-size: 14px; margin-bottom: 10px; }}
+        .help-section p {{ color: #ccc; font-size: 13px; line-height: 1.6; margin-bottom: 8px; }}
+        .help-section ul {{ margin: 8px 0 0 20px; color: #aaa; font-size: 12px; }}
+        .help-section li {{ margin-bottom: 6px; }}
+        .help-section code {{ background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; color: #f5a623; }}
+        .help-overlay {{
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); opacity: 0; pointer-events: none;
+            transition: opacity 0.3s; z-index: 1999;
+        }}
+        .help-overlay.visible {{ opacity: 1; pointer-events: auto; }}
     </style>
 </head>
 <body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Building matrix...</div>
+        <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+    </div>
+    <div class="help-overlay" id="help-overlay" onclick="toggleHelp()"></div>
     <div id="container">
+        <div id="row-selector">
+            <div id="row-selector-header">
+                <h3>📋 Row Selector</h3>
+                <input type="text" id="row-search" placeholder="Search rows..." oninput="filterRows()">
+            </div>
+            <div id="row-list"></div>
+            <div class="row-selector-actions">
+                <button class="btn" onclick="selectAllRows()">All</button>
+                <button class="btn" onclick="deselectAllRows()">None</button>
+                <button class="btn" onclick="selectDependents()">↓ Deps</button>
+            </div>
+        </div>
         <div id="matrix-container">
             <div class="controls">
-                <button class="btn" onclick="exportCSV()">Export CSV</button>
-                <button class="btn" onclick="highlightCycles()">Show Cycles</button>
+                <button class="btn" onclick="exportCSV()">📄 CSV</button>
+                <button class="btn" onclick="exportPNG()">🖼️ PNG</button>
+                <button class="btn" onclick="exportSVG()">📐 SVG</button>
+                <button class="btn" onclick="highlightCycles()">🔄 Cycles</button>
+                <button class="btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+                <button class="btn" onclick="toggleHelp()">❓ Help</button>
             </div>
+    <div id="help-panel">
+        <h2>
+            <span>📊 DSM Matrix Guide</span>
+            <button class="close-btn" onclick="toggleHelp()">×</button>
+        </h2>
+        <div class="help-section">
+            <h3>What is a DSM?</h3>
+            <p>A Dependency Structure Matrix (DSM) is a compact visual representation of dependencies between code elements. Each cell shows whether the row element depends on the column element.</p>
+        </div>
+        <div class="help-section">
+            <h3>Reading the Matrix</h3>
+            <ul>
+                <li><strong>Rows</strong> represent source elements (who depends)</li>
+                <li><strong>Columns</strong> represent target elements (what is depended on)</li>
+                <li><strong>Cell value</strong> shows the number of dependencies</li>
+                <li><strong>Diagonal cells</strong> represent self-references (always dark)</li>
+            </ul>
+        </div>
+        <div class="help-section">
+            <h3>Color Codes</h3>
+            <ul>
+                <li><code style="background:#333">Dark gray</code> - Diagonal (self)</li>
+                <li><code style="background:#3498db">Blue</code> - Has dependency</li>
+                <li><code style="background:#1abc9c">Teal</code> - High coupling (5+ deps)</li>
+                <li><code style="background:#e74c3c">Red</code> - Cyclic dependency (bi-directional)</li>
+            </ul>
+        </div>
+        <div class="help-section">
+            <h3>Cyclic Dependencies</h3>
+            <p>Red cells indicate cyclic dependencies - where A depends on B and B depends on A. These are often problematic and worth investigating.</p>
+            <p>Use the <strong>Show Cycles</strong> button to highlight only cyclic dependencies.</p>
+        </div>
+        <div class="help-section">
+            <h3>Interactivity</h3>
+            <ul>
+                <li><strong>Hover over cells</strong> to see detailed connection info</li>
+                <li><strong>Click row/column labels</strong> to see element details</li>
+                <li><strong>Export</strong> to CSV, PNG, or SVG for reports</li>
+            </ul>
+        </div>
+    </div>
             <div id="matrix-wrapper"></div>
         </div>
         <div id="sidebar">
@@ -1972,24 +3663,139 @@ class DSMRenderer:
     <script>
         const data = {json.dumps(data)};
         let showCyclesOnly = false;
+        let selectedRows = new Set(); // Track selected rows
+        let filterMode = 'all'; // 'all', 'selected', or 'deps'
+
+        // Initialize selected rows (all selected by default)
+        for (let i = 0; i < data.size; i++) {{
+            selectedRows.add(i);
+        }}
+
+        // Simple loading - CSS animation handles the visual feedback
+        function completeLoading() {{
+            document.querySelector('.loading-text').textContent = 'Done!';
+            document.getElementById('progress').classList.add('complete');
+            setTimeout(() => {{
+                document.getElementById('loading').classList.add('hidden');
+            }}, 400);
+        }}
+
+        // Initialize row selector panel
+        function initRowSelector() {{
+            const rowList = document.getElementById('row-list');
+            let html = '';
+            for (let i = 0; i < data.size; i++) {{
+                const checked = selectedRows.has(i) ? 'checked' : '';
+                html += `<div class="row-item ${{selectedRows.has(i) ? 'selected' : ''}}" data-index="${{i}}" onclick="toggleRow(${{i}})">
+                    <input type="checkbox" ${{checked}} onclick="event.stopPropagation(); toggleRow(${{i}})">
+                    <span class="row-item-name" title="${{data.full_labels[i]}}">${{data.labels[i]}}</span>
+                </div>`;
+            }}
+            rowList.innerHTML = html;
+        }}
+
+        // Filter rows based on search
+        function filterRows() {{
+            const search = document.getElementById('row-search').value.toLowerCase();
+            const items = document.querySelectorAll('.row-item');
+            items.forEach((item, i) => {{
+                const label = data.labels[i].toLowerCase();
+                const fullLabel = data.full_labels[i].toLowerCase();
+                if (label.includes(search) || fullLabel.includes(search)) {{
+                    item.classList.remove('hidden');
+                }} else {{
+                    item.classList.add('hidden');
+                }}
+            }});
+        }}
+
+        // Toggle single row selection
+        function toggleRow(index) {{
+            if (selectedRows.has(index)) {{
+                selectedRows.delete(index);
+            }} else {{
+                selectedRows.add(index);
+            }}
+            updateRowItemUI(index);
+            renderMatrix();
+        }}
+
+        function updateRowItemUI(index) {{
+            const item = document.querySelector(`.row-item[data-index="${{index}}"]`);
+            const checkbox = item.querySelector('input');
+            if (selectedRows.has(index)) {{
+                item.classList.add('selected');
+                checkbox.checked = true;
+            }} else {{
+                item.classList.remove('selected');
+                checkbox.checked = false;
+            }}
+        }}
+
+        // Select all visible rows
+        function selectAllRows() {{
+            const items = document.querySelectorAll('.row-item:not(.hidden)');
+            items.forEach(item => {{
+                const i = parseInt(item.dataset.index);
+                selectedRows.add(i);
+                updateRowItemUI(i);
+            }});
+            renderMatrix();
+        }}
+
+        // Deselect all visible rows
+        function deselectAllRows() {{
+            const items = document.querySelectorAll('.row-item:not(.hidden)');
+            items.forEach(item => {{
+                const i = parseInt(item.dataset.index);
+                selectedRows.delete(i);
+                updateRowItemUI(i);
+            }});
+            renderMatrix();
+        }}
+
+        // Select rows that are dependencies of currently selected rows
+        function selectDependents() {{
+            const currentSelected = new Set(selectedRows);
+            // Find all columns (targets) that have dependencies from selected rows
+            currentSelected.forEach(rowIdx => {{
+                for (let colIdx = 0; colIdx < data.size; colIdx++) {{
+                    if (data.matrix[rowIdx][colIdx] > 0) {{
+                        selectedRows.add(colIdx); // Add dependent
+                    }}
+                }}
+            }});
+            // Update UI
+            for (let i = 0; i < data.size; i++) {{
+                updateRowItemUI(i);
+            }}
+            renderMatrix();
+        }}
 
         function renderMatrix() {{
             const wrapper = document.getElementById('matrix-wrapper');
             let html = '';
 
-            // Column labels
+            // Get visible row/col indices based on selection
+            const visibleIndices = Array.from(selectedRows).sort((a, b) => a - b);
+            if (visibleIndices.length === 0) {{
+                wrapper.innerHTML = '<div style="color:#666;padding:20px;">No rows selected. Select rows from the left panel.</div>';
+                return;
+            }}
+
+            // Column labels (only for visible columns)
             html += '<div class="col-labels">';
-            for (let j = 0; j < data.size; j++) {{
+            for (const j of visibleIndices) {{
                 html += `<div class="col-label" title="${{data.full_labels[j]}}">${{data.labels[j]}}</div>`;
             }}
             html += '</div>';
 
-            // Matrix rows
+            // Matrix rows (only visible rows/cols)
             html += '<div id="matrix">';
-            for (let i = 0; i < data.size; i++) {{
+            for (const i of visibleIndices) {{
                 html += '<div class="matrix-row">';
                 html += `<div class="row-label" title="${{data.full_labels[i]}}">${{data.labels[i]}}</div>`;
-                for (let j = 0; j < data.size; j++) {{
+                for (const j of visibleIndices) {{
                     const value = data.matrix[i][j];
                     const isCycle = data.cycles.some(c => (c[0] === i && c[1] === j) || (c[0] === j && c[1] === i));
                     const isDiagonal = i === j;
@@ -2084,7 +3890,106 @@ class DSMRenderer:
             URL.revokeObjectURL(url);
         }}
 
-        renderMatrix();
+        function exportPNG() {{
+            const wrapper = document.getElementById('matrix-wrapper');
+            html2canvas(wrapper, {{
+                backgroundColor: '#1a1a2e',
+                scale: 2
+            }}).then(canvas => {{
+                const link = document.createElement('a');
+                link.download = 'dependency-matrix.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }}).catch(err => {{
+                // Fallback: use simpler approach
+                alert('PNG export requires html2canvas library. Try SVG export instead.');
+            }});
+        }}
+
+        function exportSVG() {{
+            const wrapper = document.getElementById('matrix-wrapper');
+            const rect = wrapper.getBoundingClientRect();
+
+            // Create SVG from current matrix
+            let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${{rect.width}}" height="${{rect.height + 130}}" style="background:#1a1a2e">`;
+            svg += `<style>.label {{ font-family: Arial, sans-serif; font-size: 10px; fill: #ccc; }} .cell {{ stroke: #2a2a4e; }}</style>`;
+
+            const cellSize = 24;
+            const labelWidth = 120;
+            const colLabelHeight = 120;
+
+            // Column labels (vertical)
+            for (let j = 0; j < data.size; j++) {{
+                const x = labelWidth + j * cellSize + cellSize/2;
+                svg += `<text x="${{x}}" y="${{colLabelHeight - 5}}" class="label" transform="rotate(-90, ${{x}}, ${{colLabelHeight - 5}})" text-anchor="start">${{data.labels[j]}}</text>`;
+            }}
+
+            // Row labels and cells
+            for (let i = 0; i < data.size; i++) {{
+                const y = colLabelHeight + i * cellSize;
+                // Row label
+                svg += `<text x="${{labelWidth - 5}}" y="${{y + cellSize/2 + 3}}" class="label" text-anchor="end">${{data.labels[i]}}</text>`;
+
+                for (let j = 0; j < data.size; j++) {{
+                    const x = labelWidth + j * cellSize;
+                    const val = data.matrix[i][j];
+                    let fill = '#1a1a2e';
+                    if (i === j) fill = '#333';
+                    else if (val >= 5) fill = '#1abc9c';
+                    else if (val > 0) fill = '#3498db';
+
+                    // Check for cycle
+                    const isCycle = data.cycles.some(c => (c[0] === i && c[1] === j) || (c[0] === j && c[1] === i));
+                    if (isCycle && val > 0) fill = '#e74c3c';
+
+                    svg += `<rect x="${{x}}" y="${{y}}" width="${{cellSize}}" height="${{cellSize}}" fill="${{fill}}" class="cell"/>`;
+                    if (val > 0) {{
+                        svg += `<text x="${{x + cellSize/2}}" y="${{y + cellSize/2 + 3}}" text-anchor="middle" fill="white" font-size="9">${{val}}</text>`;
+                    }}
+                }}
+            }}
+
+            svg += '</svg>';
+
+            const blob = new Blob([svg], {{ type: 'image/svg+xml' }});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'dependency-matrix.svg';
+            a.click();
+            URL.revokeObjectURL(url);
+        }}
+
+        function toggleFullscreen() {{
+            document.body.classList.toggle('fullscreen');
+            // Also hide row-selector in fullscreen
+            const rowSelector = document.getElementById('row-selector');
+            if (document.body.classList.contains('fullscreen')) {{
+                rowSelector.style.display = 'none';
+            }} else {{
+                rowSelector.style.display = 'flex';
+            }}
+        }}
+
+        function toggleHelp() {{
+            document.getElementById('help-panel').classList.toggle('visible');
+            document.getElementById('help-overlay').classList.toggle('visible');
+        }}
+
+        // Start render after showing loading screen
+        setTimeout(() => {{
+            document.querySelector('.loading-text').textContent = 'Building matrix...';
+            setTimeout(() => {{
+                try {{
+                    initRowSelector();
+                    renderMatrix();
+                }} catch (e) {{
+                    console.error('Render error:', e);
+                    document.querySelector('.loading-text').textContent = 'Error: ' + e.message;
+                }}
+                setTimeout(completeLoading, 100);
+            }}, 50);
+        }}, 100);
     </script>
 </body>
 </html>'''

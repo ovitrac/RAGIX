@@ -510,7 +510,7 @@
         <header class="header">
             <div class="header-left">
                 <h1>RAGIX</h1>
-                <span class="version">v0.10.1</span>
+                <span class="version">v0.21.0</span>
             </div>
             <div class="header-right">
                 <span id="status" class="status status-disconnected">Disconnected</span>
@@ -629,6 +629,10 @@
                             <div class="status-item">
                                 <span class="status-dot" id="sandboxStatusDot"></span>
                                 <span class="status-text" id="sandboxStatusText">Sandbox: Loading...</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-dot" id="cacheStatusDot"></span>
+                                <span class="status-text" id="cacheStatusText">Cache: Checking...</span>
                             </div>
                         </div>
                     </div>
@@ -2342,6 +2346,15 @@
             currentProject: null,
             recentProjects: [],
 
+            // Normalize path to prevent duplicates (remove trailing slashes, handle case)
+            normalizePath(path) {
+                if (!path) return path;
+                // Remove trailing slashes (except for root /)
+                let normalized = path.replace(/\/+$/, '');
+                if (normalized === '') normalized = '/';
+                return normalized;
+            },
+
             async init() {
                 // Load recent projects from localStorage
                 this.loadRecentProjects();
@@ -2355,14 +2368,18 @@
                 try {
                     const stored = localStorage.getItem('ragix_recent_projects');
                     const parsed = stored ? JSON.parse(stored) : [];
-                    // Deduplicate by path (keep first occurrence)
+                    // Normalize paths and deduplicate (keep first occurrence)
                     const seen = new Set();
-                    this.recentProjects = parsed.filter(p => {
-                        if (seen.has(p.path)) return false;
-                        seen.add(p.path);
+                    this.recentProjects = parsed.map(p => ({
+                        ...p,
+                        path: this.normalizePath(p.path)
+                    })).filter(p => {
+                        const normalized = this.normalizePath(p.path);
+                        if (seen.has(normalized)) return false;
+                        seen.add(normalized);
                         return true;
                     });
-                    // Save cleaned data back if there were duplicates
+                    // Save cleaned data back if there were duplicates or path changes
                     if (this.recentProjects.length !== parsed.length) {
                         this.saveRecentProjects();
                     }
@@ -2397,17 +2414,20 @@
 
             async loadProject() {
                 const input = document.getElementById('dashboardProjectPath');
-                const path = input.value.trim();
+                const rawPath = input.value.trim();
 
-                if (!path) {
+                if (!rawPath) {
                     alert('Please enter a project path');
                     return;
                 }
 
+                // Normalize path to prevent duplicates
+                const path = this.normalizePath(rawPath);
+                input.value = path; // Update input with normalized path
                 this.currentProject = path;
 
-                // Add to recent projects
-                const existing = this.recentProjects.findIndex(p => p.path === path);
+                // Remove existing entry with same normalized path
+                const existing = this.recentProjects.findIndex(p => this.normalizePath(p.path) === path);
                 if (existing >= 0) {
                     this.recentProjects.splice(existing, 1);
                 }
@@ -2518,6 +2538,21 @@
                 } catch (e) {
                     document.getElementById('sandboxStatusDot').className = 'status-dot status-error';
                     document.getElementById('sandboxStatusText').textContent = 'Server: Error';
+                }
+
+                // Check cache
+                try {
+                    const resp = await fetch('/api/ast/cache/stats');
+                    const data = await resp.json();
+                    const dot = document.getElementById('cacheStatusDot');
+                    const text = document.getElementById('cacheStatusText');
+                    dot.className = 'status-dot status-ok';
+                    const entries = data.entry_count || 0;
+                    const sizeMb = data.total_size_mb || 0;
+                    text.textContent = `Cache: ${entries} project(s), ${sizeMb} MB`;
+                } catch (e) {
+                    document.getElementById('cacheStatusDot').className = 'status-dot status-warn';
+                    document.getElementById('cacheStatusText').textContent = 'Cache: Not available';
                 }
             },
 

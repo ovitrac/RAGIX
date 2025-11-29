@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ragix"
-version = "0.20.0"
+version = "0.21.0"
 description = "RAGIX - Retrieval-Augmented Generative Interactive eXecution Agent"
 authors = [
     {name = "Olivier Vitrac", email = "olivier.vitrac@adservio.fr"}

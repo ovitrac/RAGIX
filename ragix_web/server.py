@@ -46,10 +46,20 @@ try:
         VizConfig,
         ColorScheme,
         D3Renderer,
+        HTMLRenderer,
+        VisHTMLRenderer,
+        VIS_RENDERER_THRESHOLD,
+        get_optimal_renderer,
         DependencyType,
         NodeType,
         RadialExplorer,
         DSMRenderer,
+    )
+    from ragix_core.analysis_cache import (
+        AnalysisCache,
+        CachedAnalysis,
+        get_cache,
+        get_or_analyze,
     )
     AST_AVAILABLE = True
 except ImportError:
@@ -63,6 +73,11 @@ try:
         scan_maven_projects,
         find_dependency_conflicts,
     )
+    from ragix_core.maven_cache import (
+        MavenCache,
+        CachedMavenAnalysis,
+        get_maven_cache,
+    )
     MAVEN_AVAILABLE = True
 except ImportError:
     MAVEN_AVAILABLE = False
@@ -73,6 +88,11 @@ try:
         SonarClient,
         SonarSeverity,
         get_project_report,
+    )
+    from ragix_core.sonar_cache import (
+        SonarCache,
+        CachedSonarAnalysis,
+        get_sonar_cache,
     )
     SONAR_AVAILABLE = True
 except ImportError:
@@ -696,6 +716,80 @@ async def delete_user_context(session_id: str):
 # AST Analysis API Endpoints
 # =============================================================================
 
+def get_cached_data_only(
+    target_path: Path,
+    use_cache: bool = True
+) -> tuple:
+    """
+    Get cached metrics/cycles data WITHOUT rebuilding the graph.
+    Use this for endpoints that don't need the graph object.
+
+    Returns:
+        Tuple of (metrics_dict, cycles, symbols, dependencies, was_cached)
+        Returns (None, None, None, None, False) if not cached
+    """
+    if not use_cache:
+        return None, None, None, None, False
+
+    cache = get_cache()
+    fingerprint, file_count, total_size = cache.get_fingerprint(target_path)
+
+    if cache.is_cached(fingerprint):
+        cached = cache.load(fingerprint)
+        if cached and cached.metrics:
+            return cached.metrics, cached.cycles, cached.symbols, cached.dependencies, True
+
+    return None, None, None, None, False
+
+
+def get_cached_graph(
+    target_path: Path,
+    patterns: list = None,
+    use_cache: bool = True
+) -> tuple:
+    """
+    Build dependency graph with caching support.
+
+    Caching is now handled internally by build_dependency_graph().
+    This helper provides metrics and cycles along with the graph.
+
+    Args:
+        target_path: Path to analyze
+        patterns: Optional file patterns (e.g., ["*.py", "*.java"])
+        use_cache: Whether to use cached results
+
+    Returns:
+        Tuple of (graph, metrics_dict, cycles, was_cached)
+    """
+    from ragix_core.code_metrics import calculate_metrics_from_graph
+
+    cache = get_cache()
+    fingerprint, file_count, total_size = cache.get_fingerprint(target_path)
+
+    # Check cache status before building
+    was_cached = use_cache and cache.is_cached(fingerprint)
+
+    # Build graph (caching handled internally by build_dependency_graph)
+    graph = build_dependency_graph([target_path], patterns=patterns, use_cache=use_cache)
+
+    # Try to get cached metrics/cycles
+    if was_cached:
+        cached = cache.load(fingerprint)
+        if cached and cached.metrics:
+            return graph, cached.metrics, cached.cycles, True
+
+    # Calculate fresh metrics and cycles
+    cycles = graph.detect_cycles()
+    metrics = calculate_metrics_from_graph(graph)
+    metrics_dict = metrics.summary() if hasattr(metrics, 'summary') else {}
+
+    # Add hotspots to metrics
+    hotspots = [{"name": name, "complexity": cc} for name, cc in metrics.get_hotspots(20)]
+    metrics_dict['hotspots'] = hotspots
+
+    return graph, metrics_dict, cycles, was_cached
+
+
 @app.get("/api/ast/status")
 async def ast_status():
     """Check AST analysis availability."""
@@ -705,13 +799,242 @@ async def ast_status():
     }
 
 
+# =============================================================================
+# Cache Management API
+# =============================================================================
+
+@app.get("/api/ast/cache/info")
+async def get_cache_info(path: str):
+    """
+    Get cache information for a project.
+
+    Args:
+        path: Project path to check
+
+    Returns:
+        Cache info including fingerprint, whether cached, and metadata
+    """
+    if not AST_AVAILABLE:
+        raise HTTPException(status_code=503, detail="AST analysis not available")
+
+    target_path = Path(path).expanduser()
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+
+    try:
+        cache = get_cache()
+        fingerprint, file_count, total_size = cache.get_fingerprint(target_path)
+        is_cached = cache.is_cached(fingerprint)
+        cache_info = cache.get_cache_info(fingerprint) if is_cached else None
+
+        return {
+            "path": str(target_path),
+            "fingerprint": fingerprint,
+            "file_count": file_count,
+            "total_size": total_size,
+            "is_cached": is_cached,
+            "cache_info": cache_info
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ast/cache/stats")
+async def get_cache_stats():
+    """Get overall cache statistics."""
+    if not AST_AVAILABLE:
+        raise HTTPException(status_code=503, detail="AST analysis not available")
+
+    try:
+        cache = get_cache()
+        stats = cache.get_stats()
+        cached_list = cache.list_cached()
+
+        return {
+            **stats,
+            "entries": cached_list[:20]  # Return last 20 entries
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ast/cache/clear")
+async def clear_cache(path: Optional[str] = None):
+    """
+    Clear cache entries.
+
+    Args:
+        path: If provided, clear cache for this project only. Otherwise clear all.
+    """
+    if not AST_AVAILABLE:
+        raise HTTPException(status_code=503, detail="AST analysis not available")
+
+    try:
+        cache = get_cache()
+
+        if path:
+            target_path = Path(path).expanduser()
+            count = cache.invalidate_project(target_path)
+            return {"cleared": count, "path": str(target_path)}
+        else:
+            count = cache.clear()
+            return {"cleared": count, "all": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ast/analyze")
+async def analyze_project(
+    path: str,
+    use_cache: bool = True,
+    lang: str = "auto"
+):
+    """
+    Full project analysis with caching support.
+
+    Returns symbols, dependencies, metrics, and cycles in one call.
+    Results are cached based on project fingerprint.
+
+    Args:
+        path: Project path to analyze
+        use_cache: Whether to use cached results (default True)
+        lang: Language filter (auto, python, java)
+    """
+    if not AST_AVAILABLE:
+        raise HTTPException(status_code=503, detail="AST analysis not available")
+
+    target_path = Path(path).expanduser()
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+
+    import time
+    start_time = time.time()
+
+    try:
+        cache = get_cache()
+        fingerprint, file_count, total_size = cache.get_fingerprint(target_path)
+
+        # Check cache first
+        if use_cache:
+            cached = cache.load(fingerprint)
+            if cached:
+                return JSONResponse(content={
+                    "cached": True,
+                    "fingerprint": fingerprint,
+                    "cached_at": cached.metadata.created_at,
+                    "analysis_time_ms": cached.metadata.analysis_time_ms,
+                    "file_count": cached.metadata.file_count,
+                    "symbols_count": len(cached.symbols),
+                    "dependencies_count": len(cached.dependencies),
+                    "metrics": cached.metrics,
+                    "cycles_count": len(cached.cycles),
+                    "packages": cached.packages
+                })
+
+        # Run fresh analysis
+        patterns = None
+        if lang and lang != "auto":
+            lang_patterns = {
+                "python": ["*.py"],
+                "java": ["*.java"],
+                "javascript": ["*.js", "*.jsx", "*.ts", "*.tsx"],
+            }
+            patterns = lang_patterns.get(lang)
+
+        # Disable internal caching - this endpoint handles its own detailed caching
+        graph = build_dependency_graph([target_path], patterns=patterns, use_cache=False)
+        metrics = calculate_metrics_from_graph(graph)
+        cycles = graph.detect_cycles()
+
+        # Convert symbols to serializable format (exclude imports and modules)
+        excluded_types = {NodeType.IMPORT, NodeType.IMPORT_FROM, NodeType.MODULE}
+        symbols_list = []
+        for sym in graph.get_symbols():
+            if sym.node_type not in excluded_types:
+                symbols_list.append({
+                    "name": sym.name,
+                    "qualified_name": sym.qualified_name,
+                    "type": sym.node_type.value if hasattr(sym.node_type, 'value') else str(sym.node_type),
+                    "file": str(sym.file_path) if sym.file_path else None,
+                    "line": sym.line_number
+                })
+
+        # Convert dependencies to serializable format
+        deps_list = []
+        for dep in graph.get_all_dependencies():
+            deps_list.append({
+                "source": dep.source,
+                "target": dep.target,
+                "type": dep.dep_type.value if hasattr(dep.dep_type, 'value') else str(dep.dep_type)
+            })
+
+        # Calculate packages (exclude imports and modules)
+        packages: Dict[str, int] = {}
+        for sym in graph.get_symbols():
+            if sym.node_type not in excluded_types:
+                parts = sym.qualified_name.split(".")
+                pkg = ".".join(parts[:-1]) if len(parts) > 1 else "(default)"
+                packages[pkg] = packages.get(pkg, 0) + 1
+
+        # Convert metrics to serializable format
+        total_blank_lines = sum(f.blank_lines for f in metrics.file_metrics)
+        metrics_dict = {
+            "total_files": metrics.total_files,
+            "total_lines": metrics.total_lines,
+            "code_lines": metrics.total_code_lines,
+            "comment_lines": metrics.total_comment_lines,
+            "blank_lines": total_blank_lines,
+            "total_classes": metrics.total_classes,
+            "total_functions": metrics.total_functions,
+            "avg_complexity": round(metrics.avg_complexity_per_method, 2),
+            "total_complexity": metrics.total_complexity,
+            "maintainability_index": metrics.maintainability_index,
+            "debt_hours": round(metrics.estimated_debt_hours, 1),
+            "debt_days": round(metrics.estimated_debt_days, 1),
+            "hotspots": [{"name": n, "complexity": c} for n, c in metrics.get_hotspots(20)]
+        }
+
+        analysis_time_ms = int((time.time() - start_time) * 1000)
+
+        # Save to cache
+        cache.save(
+            fingerprint=fingerprint,
+            project_path=target_path,
+            symbols=symbols_list,
+            dependencies=deps_list,
+            metrics=metrics_dict,
+            cycles=cycles,
+            packages=packages,
+            file_count=file_count,
+            total_size=total_size,
+            analysis_time_ms=analysis_time_ms,
+            settings={"lang": lang}
+        )
+
+        return JSONResponse(content={
+            "cached": False,
+            "fingerprint": fingerprint,
+            "analysis_time_ms": analysis_time_ms,
+            "file_count": file_count,
+            "symbols_count": len(symbols_list),
+            "dependencies_count": len(deps_list),
+            "metrics": metrics_dict,
+            "cycles_count": len(cycles),
+            "packages": packages
+        })
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/ast/graph")
 async def get_dependency_graph(
     path: str,
     lang: str = "auto",
     filter_types: Optional[str] = None,
     filter_deps: Optional[str] = None,
-    max_nodes: int = 1000
+    max_nodes: int = 1000,
+    use_cache: bool = True
 ):
     """
     Get dependency graph for a path.
@@ -722,6 +1045,7 @@ async def get_dependency_graph(
         filter_types: Comma-separated node types (class,interface,method)
         filter_deps: Comma-separated dependency types (inheritance,call,import)
         max_nodes: Maximum nodes to return (default 1000)
+        use_cache: Whether to use cached results (default True)
     """
     if not AST_AVAILABLE:
         raise HTTPException(status_code=503, detail="AST analysis not available")
@@ -731,8 +1055,7 @@ async def get_dependency_graph(
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
 
     try:
-        # Build dependency graph - pass as list, language is auto-detected from extensions
-        # Use patterns to filter by language if specified
+        # Get language patterns
         patterns = None
         if lang and lang != "auto":
             lang_patterns = {
@@ -741,7 +1064,9 @@ async def get_dependency_graph(
                 "javascript": ["*.js", "*.jsx", "*.ts", "*.tsx"],
             }
             patterns = lang_patterns.get(lang)
-        graph = build_dependency_graph([target_path], patterns=patterns)
+
+        # Use cached graph helper (builds graph but caches metrics/cycles)
+        graph, metrics_data, cycles, was_cached = get_cached_graph(target_path, patterns, use_cache)
 
         # Apply filters
         config = VizConfig()
@@ -760,6 +1085,7 @@ async def get_dependency_graph(
         data["total_nodes"] = len(data["nodes"])
         data["total_edges"] = len(data["links"])
         data["total_files"] = len(graph._files)
+        data["from_cache"] = was_cached
 
         # Limit nodes if too many
         if len(data["nodes"]) > max_nodes:
@@ -779,7 +1105,8 @@ async def get_dependency_graph(
 @app.get("/api/ast/metrics")
 async def get_project_metrics(
     path: str,
-    lang: str = "auto"
+    lang: str = "auto",
+    use_cache: bool = True
 ):
     """
     Get code metrics for a path.
@@ -787,6 +1114,7 @@ async def get_project_metrics(
     Args:
         path: Directory or file path to analyze
         lang: Language filter (auto, python, java)
+        use_cache: Whether to use cached results (default True)
     """
     if not AST_AVAILABLE:
         raise HTTPException(status_code=503, detail="AST analysis not available")
@@ -796,20 +1124,56 @@ async def get_project_metrics(
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
 
     try:
-        # Build graph and calculate metrics
+        # Try to get cached data first (no graph rebuild needed)
+        cached_metrics, cached_cycles, cached_symbols, cached_deps, was_cached = get_cached_data_only(target_path, use_cache)
+
+        if was_cached and cached_metrics:
+            # Return cached metrics directly - FAST PATH
+            result = {
+                "path": str(target_path),
+                "from_cache": True,
+                "summary": {
+                    "total_files": cached_metrics.get('files', 0),
+                    "total_lines": cached_metrics.get('lines', {}).get('total', 0),
+                    "code_lines": cached_metrics.get('lines', {}).get('code', 0),
+                    "comment_lines": cached_metrics.get('lines', {}).get('comments', 0),
+                    "blank_lines": cached_metrics.get('lines', {}).get('blank', 0),
+                    "total_classes": cached_metrics.get('classes', 0),
+                    "total_functions": cached_metrics.get('functions', 0),
+                },
+                "complexity": {
+                    "average_cyclomatic": cached_metrics.get('complexity', {}).get('avg_per_method', 0),
+                    "total_complexity": cached_metrics.get('complexity', {}).get('total', 0),
+                },
+                "maintainability": {
+                    "index": cached_metrics.get('maintainability_index', 0),
+                },
+                "debt": {
+                    "estimated_hours": cached_metrics.get('technical_debt', {}).get('hours', 0),
+                    "estimated_days": cached_metrics.get('technical_debt', {}).get('days', 0),
+                },
+                "hotspots": cached_metrics.get('hotspots', []),
+            }
+            return JSONResponse(content=result)
+
+        # Not cached - need to build graph and calculate metrics
         patterns = None
         if lang and lang != "auto":
             lang_patterns = {"python": ["*.py"], "java": ["*.java"], "javascript": ["*.js", "*.jsx", "*.ts", "*.tsx"]}
             patterns = lang_patterns.get(lang)
-        graph = build_dependency_graph([target_path], patterns=patterns)
+
+        # Disable internal caching - this endpoint handles its own caching with hotspots
+        graph = build_dependency_graph([target_path], patterns=patterns, use_cache=False)
         metrics = calculate_metrics_from_graph(graph)
+        cycles = graph.detect_cycles()
 
         # Convert to JSON-serializable format
-        # Calculate blank lines from file metrics
         total_blank_lines = sum(f.blank_lines for f in metrics.file_metrics)
+        hotspots = [{"name": name, "complexity": cc} for name, cc in metrics.get_hotspots(20)]
 
         result = {
             "path": str(target_path),
+            "from_cache": False,
             "summary": {
                 "total_files": metrics.total_files,
                 "total_lines": metrics.total_lines,
@@ -830,11 +1194,48 @@ async def get_project_metrics(
                 "estimated_hours": round(metrics.estimated_debt_hours, 1),
                 "estimated_days": round(metrics.estimated_debt_days, 1),
             },
-            "hotspots": [
-                {"name": name, "complexity": cc}
-                for name, cc in metrics.get_hotspots(20)
-            ],
+            "hotspots": hotspots,
         }
+
+        # Cache the results with hotspots included (exclude imports and modules)
+        cache = get_cache()
+        fingerprint, file_count, total_size = cache.get_fingerprint(target_path)
+        excluded_types_cache = {NodeType.IMPORT, NodeType.IMPORT_FROM, NodeType.MODULE}
+        symbols = [
+            {
+                'name': s.qualified_name,
+                'type': s.node_type.value,
+                'file': str(s.location.file) if s.location and s.location.file else '',
+                'line': s.location.line if s.location else 0,
+                'end_line': s.location.end_line if s.location and s.location.end_line else 0
+            }
+            for s in graph.get_symbols()
+            if s.node_type not in excluded_types_cache
+        ]
+        dependencies = [
+            {'source': d.source, 'target': d.target, 'type': d.dep_type.value}
+            for d in graph._dependencies
+        ]
+        metrics_dict = metrics.summary() if hasattr(metrics, 'summary') else {}
+        metrics_dict['hotspots'] = hotspots  # Include hotspots in cache
+
+        packages = {}
+        for sym in graph.get_symbols():
+            if sym.node_type not in excluded_types_cache:
+                pkg = sym.qualified_name.rsplit('.', 1)[0] if '.' in sym.qualified_name else '(default)'
+                packages[pkg] = packages.get(pkg, 0) + 1
+
+        cache.save(
+            fingerprint=fingerprint,
+            project_path=target_path,
+            symbols=symbols,
+            dependencies=dependencies,
+            metrics=metrics_dict,
+            cycles=cycles,
+            packages=packages,
+            file_count=file_count,
+            total_size=total_size,
+        )
 
         return JSONResponse(content=result)
 
@@ -950,7 +1351,8 @@ async def get_hotspots(
 async def visualize_dependencies(
     path: str,
     title: str = "Dependency Graph",
-    color_scheme: str = "default"
+    color_scheme: str = "default",
+    renderer: str = "auto"
 ):
     """
     Generate interactive HTML visualization.
@@ -959,6 +1361,7 @@ async def visualize_dependencies(
         path: Directory to analyze
         title: Graph title
         color_scheme: Color scheme (default, pastel, dark, monochrome)
+        renderer: Renderer choice (auto, d3, vis). Auto chooses vis.js for large graphs.
     """
     if not AST_AVAILABLE:
         raise HTTPException(status_code=503, detail="AST analysis not available")
@@ -969,12 +1372,25 @@ async def visualize_dependencies(
 
     try:
         graph = build_dependency_graph([target_path])
+        node_count = len(graph.get_symbols())
 
         # Configure visualization
         scheme = ColorScheme(color_scheme) if color_scheme in [s.value for s in ColorScheme] else ColorScheme.DEFAULT
         config = VizConfig(color_scheme=scheme)
 
-        html_content = graph_to_html(graph, title=title, config=config)
+        # Choose renderer based on node count or explicit choice
+        if renderer == "auto":
+            optimal = get_optimal_renderer(node_count)
+        else:
+            optimal = renderer if renderer in ("d3", "vis") else "d3"
+
+        # Use VisHTMLRenderer for large graphs (>2000 nodes)
+        if optimal == "vis":
+            vis_renderer = VisHTMLRenderer(config)
+            html_content = vis_renderer.render(graph, title=title)
+        else:
+            html_content = graph_to_html(graph, title=title, config=config)
+
         return HTMLResponse(content=html_content)
 
     except Exception as e:
@@ -985,7 +1401,8 @@ async def visualize_dependencies(
 async def visualize_dsm_matrix(
     path: str,
     title: str = "Dependency Structure Matrix",
-    level: str = "class"
+    level: str = "class",
+    use_cache: bool = True
 ):
     """
     Generate interactive DSM (Dependency Structure Matrix) HTML visualization.
@@ -994,6 +1411,7 @@ async def visualize_dsm_matrix(
         path: Directory to analyze
         title: Matrix title
         level: Aggregation level ('class', 'package', 'file')
+        use_cache: Whether to use cached results (default True)
     """
     if not AST_AVAILABLE:
         raise HTTPException(status_code=503, detail="AST analysis not available")
@@ -1003,7 +1421,8 @@ async def visualize_dsm_matrix(
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
 
     try:
-        graph = build_dependency_graph([target_path])
+        # Use cached graph helper
+        graph, metrics_data, cycles, was_cached = get_cached_graph(target_path, None, use_cache)
 
         # Create DSM renderer and generate HTML
         renderer = DSMRenderer()
@@ -1018,7 +1437,8 @@ async def visualize_dsm_matrix(
 async def get_radial_graph(
     path: str,
     focal: Optional[str] = None,
-    levels: int = 3
+    levels: int = 3,
+    use_cache: bool = True
 ):
     """
     Get ego-centric radial graph data for a focal node.
@@ -1027,6 +1447,7 @@ async def get_radial_graph(
         path: Directory to analyze
         focal: Focal node (class name or qualified name). If not provided, auto-selects.
         levels: Maximum depth levels (default 3)
+        use_cache: Whether to use cached results (default True)
 
     Returns:
         JSON with nodes organized by level and links
@@ -1039,7 +1460,8 @@ async def get_radial_graph(
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
 
     try:
-        graph = build_dependency_graph([target_path])
+        # Use cached graph helper
+        graph, metrics_data, cycles, was_cached = get_cached_graph(target_path, None, use_cache)
         symbols = {s.qualified_name: s for s in graph.get_symbols()}
 
         # Determine focal node
@@ -1594,12 +2016,13 @@ async def radial_explorer_page(
 # =============================================================================
 
 @app.get("/api/ast/maven")
-async def maven_analysis(path: str):
+async def maven_analysis(path: str, use_cache: bool = True):
     """
     Analyze Maven projects in a directory.
 
     Args:
         path: Directory containing pom.xml files
+        use_cache: Whether to use cached results (default True)
     """
     if not MAVEN_AVAILABLE:
         raise HTTPException(status_code=503, detail="Maven analysis not available")
@@ -1609,10 +2032,26 @@ async def maven_analysis(path: str):
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
 
     try:
-        # Check for pom.xml
+        # Try cache first - FAST PATH
+        if use_cache:
+            cache = get_maven_cache()
+            fingerprint, pom_count, total_size = cache.get_fingerprint(target_path)
+
+            if cache.is_cached(fingerprint):
+                cached = cache.load(fingerprint)
+                if cached:
+                    return {
+                        "found": True,
+                        "from_cache": True,
+                        "count": len(cached.projects),
+                        "projects": cached.projects,
+                        "conflicts": cached.conflicts,
+                        "conflict_count": cached.conflict_count
+                    }
+
+        # Not cached - parse POMs
         pom_path = target_path / "pom.xml" if target_path.is_dir() else target_path
         if target_path.is_dir() and not pom_path.exists():
-            # Scan for Maven projects
             projects = scan_maven_projects(target_path)
         elif pom_path.exists() and pom_path.name == "pom.xml":
             projects = [parse_pom(pom_path)]
@@ -1620,12 +2059,7 @@ async def maven_analysis(path: str):
             return {"found": False, "message": "No pom.xml found", "projects": []}
 
         # Convert to JSON-serializable format
-        result = {
-            "found": True,
-            "count": len(projects),
-            "projects": []
-        }
-
+        projects_data = []
         for project in projects:
             proj_data = {
                 "gav": project.coordinate.gav,
@@ -1647,19 +2081,45 @@ async def maven_analysis(path: str):
                 "compile_deps": len(project.get_compile_dependencies()),
                 "test_deps": len(project.get_test_dependencies()),
             }
-            result["projects"].append(proj_data)
+            projects_data.append(proj_data)
 
         # Check for conflicts if multiple projects
+        conflicts_data = []
+        conflict_count = 0
         if len(projects) > 1:
             conflicts = find_dependency_conflicts(projects)
-            result["conflicts"] = [
+            conflicts_data = [
                 {
                     "artifact": c["artifact"],
                     "versions": {v: len(users) for v, users in c["versions"].items()}
                 }
                 for c in conflicts[:10]
             ]
-            result["conflict_count"] = len(conflicts)
+            conflict_count = len(conflicts)
+
+        # Cache results
+        if use_cache:
+            cache = get_maven_cache()
+            fingerprint, pom_count, total_size = cache.get_fingerprint(target_path)
+            cache.save(
+                fingerprint=fingerprint,
+                project_path=target_path,
+                projects=projects_data,
+                conflicts=conflicts_data,
+                conflict_count=conflict_count,
+                pom_count=pom_count,
+                total_size=total_size
+            )
+
+        result = {
+            "found": True,
+            "from_cache": False,
+            "count": len(projects_data),
+            "projects": projects_data
+        }
+        if conflicts_data:
+            result["conflicts"] = conflicts_data
+            result["conflict_count"] = conflict_count
 
         return result
 
@@ -1668,7 +2128,7 @@ async def maven_analysis(path: str):
 
 
 @app.get("/api/ast/maven/page", response_class=HTMLResponse)
-async def maven_page(path: str):
+async def maven_page(path: str, use_cache: bool = True):
     """Generate Maven analysis HTML page."""
     if not MAVEN_AVAILABLE:
         raise HTTPException(status_code=503, detail="Maven analysis not available")
@@ -1678,7 +2138,7 @@ async def maven_page(path: str):
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
 
     try:
-        # Get Maven data
+        # Get Maven data (page needs actual objects for methods, cache used for fingerprint check)
         pom_path = target_path / "pom.xml" if target_path.is_dir() else target_path
         if target_path.is_dir() and not pom_path.exists():
             projects = scan_maven_projects(target_path)
@@ -1785,7 +2245,8 @@ async def sonar_analysis(
     project: str,
     url: Optional[str] = None,
     token: Optional[str] = None,
-    organization: Optional[str] = None
+    organization: Optional[str] = None,
+    use_cache: bool = True
 ):
     """
     Query SonarQube/SonarCloud for project metrics.
@@ -1795,6 +2256,7 @@ async def sonar_analysis(
         url: Sonar server URL (defaults to SONAR_URL env or sonarcloud.io)
         token: API token (defaults to SONAR_TOKEN env)
         organization: Organization key for SonarCloud
+        use_cache: Whether to use cached results (default True, TTL 5 min)
     """
     if not SONAR_AVAILABLE:
         raise HTTPException(status_code=503, detail="SonarQube integration not available")
@@ -1805,36 +2267,51 @@ async def sonar_analysis(
     org = organization or os.environ.get("SONAR_ORGANIZATION")
 
     try:
+        # Try cache first - FAST PATH (TTL-based)
+        if use_cache:
+            cache = get_sonar_cache()
+            cache_key = cache.get_cache_key(project, base_url)
+
+            if cache.is_cached(cache_key):
+                cached = cache.load(cache_key)
+                if cached:
+                    return {
+                        "project_key": cached.project_key,
+                        "server": cached.server,
+                        "from_cache": True,
+                        "quality_gate": cached.quality_gate,
+                        "metrics": cached.metrics,
+                        "issues": cached.issues,
+                        "hotspots": cached.hotspots,
+                        "top_issues": cached.top_issues
+                    }
+
+        # Not cached or expired - fetch from SonarQube
         client = SonarClient(base_url=base_url, token=api_token, organization=org)
         report = get_project_report(client, project)
 
         proj = report.project
 
-        result = {
-            "project_key": project,
-            "server": base_url,
-            "quality_gate": proj.quality_gate.value,
-            "metrics": {
-                "bugs": proj.bugs,
-                "vulnerabilities": proj.vulnerabilities,
-                "code_smells": proj.code_smells,
-                "coverage": proj.coverage,
-                "duplicated_lines_density": proj.duplicated_lines_density,
-            },
-            "issues": {
-                "total": len(report.issues),
-                "by_severity": {}
-            },
-            "hotspots": len(report.hotspots),
+        metrics = {
+            "bugs": proj.bugs,
+            "vulnerabilities": proj.vulnerabilities,
+            "code_smells": proj.code_smells,
+            "coverage": proj.coverage,
+            "duplicated_lines_density": proj.duplicated_lines_density,
+        }
+
+        issues = {
+            "total": len(report.issues),
+            "by_severity": {}
         }
 
         # Count by severity
         for issue in report.issues:
             sev = issue.severity.value
-            result["issues"]["by_severity"][sev] = result["issues"]["by_severity"].get(sev, 0) + 1
+            issues["by_severity"][sev] = issues["by_severity"].get(sev, 0) + 1
 
         # Top issues
-        result["top_issues"] = [
+        top_issues = [
             {
                 "rule": i.rule,
                 "message": i.message[:100],
@@ -1845,7 +2322,29 @@ async def sonar_analysis(
             for i in report.issues[:10]
         ]
 
-        return result
+        # Cache results
+        if use_cache:
+            cache = get_sonar_cache()
+            cache.save(
+                project_key=project,
+                server_url=base_url,
+                quality_gate=proj.quality_gate.value,
+                metrics=metrics,
+                issues=issues,
+                hotspots=len(report.hotspots),
+                top_issues=top_issues
+            )
+
+        return {
+            "project_key": project,
+            "server": base_url,
+            "from_cache": False,
+            "quality_gate": proj.quality_gate.value,
+            "metrics": metrics,
+            "issues": issues,
+            "hotspots": len(report.hotspots),
+            "top_issues": top_issues
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1856,7 +2355,8 @@ async def sonar_page(
     project: str,
     url: Optional[str] = None,
     token: Optional[str] = None,
-    organization: Optional[str] = None
+    organization: Optional[str] = None,
+    use_cache: bool = True
 ):
     """Generate SonarQube analysis HTML page."""
     if not SONAR_AVAILABLE:
@@ -1868,13 +2368,68 @@ async def sonar_page(
     org = organization or os.environ.get("SONAR_ORGANIZATION")
 
     try:
-        client = SonarClient(base_url=base_url, token=api_token, organization=org)
-        report = get_project_report(client, project)
-        proj = report.project
+        # Try cache first - FAST PATH (TTL-based)
+        cached_data = None
+        if use_cache:
+            cache = get_sonar_cache()
+            cache_key = cache.get_cache_key(project, base_url)
+            if cache.is_cached(cache_key):
+                cached_data = cache.load(cache_key)
+
+        if cached_data:
+            # Use cached data for rendering
+            quality_gate = cached_data.quality_gate
+            metrics = cached_data.metrics
+            issues_data = cached_data.issues
+            hotspots_count = cached_data.hotspots
+            top_issues = cached_data.top_issues
+        else:
+            # Fetch from SonarQube
+            client = SonarClient(base_url=base_url, token=api_token, organization=org)
+            report = get_project_report(client, project)
+            proj = report.project
+
+            quality_gate = proj.quality_gate.value
+            metrics = {
+                "bugs": proj.bugs,
+                "vulnerabilities": proj.vulnerabilities,
+                "code_smells": proj.code_smells,
+                "coverage": proj.coverage,
+                "duplicated_lines_density": proj.duplicated_lines_density,
+            }
+            issues_data = {"total": len(report.issues), "by_severity": {}}
+            for issue in report.issues:
+                sev = issue.severity.value
+                issues_data["by_severity"][sev] = issues_data["by_severity"].get(sev, 0) + 1
+
+            hotspots_count = len(report.hotspots)
+            top_issues = [
+                {
+                    "rule": i.rule,
+                    "message": i.message[:100],
+                    "severity": i.severity.value,
+                    "file": i.file_path,
+                    "line": i.line,
+                }
+                for i in report.issues[:30]  # More for page display
+            ]
+
+            # Cache results
+            if use_cache:
+                cache = get_sonar_cache()
+                cache.save(
+                    project_key=project,
+                    server_url=base_url,
+                    quality_gate=quality_gate,
+                    metrics=metrics,
+                    issues=issues_data,
+                    hotspots=hotspots_count,
+                    top_issues=top_issues
+                )
 
         # Quality gate styling
         gate_colors = {"OK": "#238636", "WARN": "#d29922", "ERROR": "#f85149", "NONE": "#6e7681"}
-        gate_color = gate_colors.get(proj.quality_gate.value, "#6e7681")
+        gate_color = gate_colors.get(quality_gate, "#6e7681")
 
         html = f'''<!DOCTYPE html>
 <html lang="en">
@@ -1909,51 +2464,52 @@ async def sonar_page(
     <h1>SonarQube Analysis</h1>
     <p class="subtitle">Project: {project} | Server: {base_url}</p>
 
-    <div class="quality-gate">Quality Gate: {proj.quality_gate.value}</div>
+    <div class="quality-gate">Quality Gate: {quality_gate}</div>
 
     <h2>Metrics</h2>
     <div class="metrics">
         <div class="metric">
-            <div class="metric-value">{proj.bugs}</div>
+            <div class="metric-value">{metrics.get('bugs', 0)}</div>
             <div class="metric-label">Bugs</div>
         </div>
         <div class="metric">
-            <div class="metric-value">{proj.vulnerabilities}</div>
+            <div class="metric-value">{metrics.get('vulnerabilities', 0)}</div>
             <div class="metric-label">Vulnerabilities</div>
         </div>
         <div class="metric">
-            <div class="metric-value">{proj.code_smells}</div>
+            <div class="metric-value">{metrics.get('code_smells', 0)}</div>
             <div class="metric-label">Code Smells</div>
         </div>
         <div class="metric">
-            <div class="metric-value">{proj.coverage or 'N/A'}{'%' if proj.coverage else ''}</div>
+            <div class="metric-value">{metrics.get('coverage') or 'N/A'}{'%' if metrics.get('coverage') else ''}</div>
             <div class="metric-label">Coverage</div>
         </div>
         <div class="metric">
-            <div class="metric-value">{proj.duplicated_lines_density or 'N/A'}{'%' if proj.duplicated_lines_density else ''}</div>
+            <div class="metric-value">{metrics.get('duplicated_lines_density') or 'N/A'}{'%' if metrics.get('duplicated_lines_density') else ''}</div>
             <div class="metric-label">Duplication</div>
         </div>
         <div class="metric">
-            <div class="metric-value">{len(report.hotspots)}</div>
+            <div class="metric-value">{hotspots_count}</div>
             <div class="metric-label">Security Hotspots</div>
         </div>
     </div>
 
-    <h2>Issues ({len(report.issues)})</h2>
+    <h2>Issues ({issues_data.get('total', 0)})</h2>
     <table class="issues-table">
         <tr><th>Severity</th><th>Rule</th><th>Message</th><th>Location</th></tr>
 '''
-        for issue in report.issues[:30]:
+        for issue in top_issues[:30]:
             html += f'''
         <tr>
-            <td><span class="severity sev-{issue.severity.value}">{issue.severity.value}</span></td>
-            <td>{issue.rule}</td>
-            <td>{issue.message[:80]}{'...' if len(issue.message) > 80 else ''}</td>
-            <td>{issue.file_path}:{issue.line or ''}</td>
+            <td><span class="severity sev-{issue.get('severity', '')}">{issue.get('severity', '')}</span></td>
+            <td>{issue.get('rule', '')}</td>
+            <td>{issue.get('message', '')[:80]}{'...' if len(issue.get('message', '')) > 80 else ''}</td>
+            <td>{issue.get('file', '')}:{issue.get('line', '')}</td>
         </tr>'''
 
-        if len(report.issues) > 30:
-            html += f'<tr><td colspan="4" style="text-align:center;color:#888;">... and {len(report.issues) - 30} more issues</td></tr>'
+        total_issues = issues_data.get('total', 0)
+        if total_issues > 30:
+            html += f'<tr><td colspan="4" style="text-align:center;color:#888;">... and {total_issues - 30} more issues</td></tr>'
 
         html += '''
     </table>
@@ -1975,12 +2531,13 @@ async def sonar_page(
 # =============================================================================
 
 @app.get("/api/ast/cycles")
-async def detect_cycles(path: str):
+async def detect_cycles(path: str, use_cache: bool = True):
     """
     Detect circular dependencies in the codebase.
 
     Args:
         path: Directory to analyze
+        use_cache: Whether to use cached results (default True)
     """
     if not AST_AVAILABLE:
         raise HTTPException(status_code=503, detail="AST analysis not available")
@@ -1990,11 +2547,21 @@ async def detect_cycles(path: str):
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
 
     try:
-        graph = build_dependency_graph([target_path])
-        cycles = graph.detect_cycles()
+        # Try to get cached data first (no graph rebuild needed) - FAST PATH
+        cached_metrics, cached_cycles, cached_symbols, cached_deps, was_cached = get_cached_data_only(target_path, use_cache)
+
+        if was_cached and cached_cycles is not None:
+            cycles = cached_cycles
+            from_cache = True
+        else:
+            # Build graph (caching handled internally by build_dependency_graph)
+            graph = build_dependency_graph([target_path], use_cache=use_cache)
+            cycles = graph.detect_cycles()
+            from_cache = False
 
         return {
             "path": str(target_path),
+            "from_cache": from_cache,
             "has_cycles": len(cycles) > 0,
             "count": len(cycles),
             "cycles": [
@@ -2011,7 +2578,7 @@ async def detect_cycles(path: str):
 
 
 @app.get("/api/ast/cycles/page", response_class=HTMLResponse)
-async def cycles_page(path: str):
+async def cycles_page(path: str, use_cache: bool = True):
     """Generate cycles detection HTML page."""
     if not AST_AVAILABLE:
         raise HTTPException(status_code=503, detail="AST analysis not available")
@@ -2021,8 +2588,15 @@ async def cycles_page(path: str):
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
 
     try:
-        graph = build_dependency_graph([target_path])
-        cycles = graph.detect_cycles()
+        # Try to get cached data first (no graph rebuild needed) - FAST PATH
+        cached_metrics, cached_cycles, cached_symbols, cached_deps, was_cached = get_cached_data_only(target_path, use_cache)
+
+        if was_cached and cached_cycles is not None:
+            cycles = cached_cycles
+        else:
+            # Build graph (caching handled internally by build_dependency_graph)
+            graph = build_dependency_graph([target_path], use_cache=use_cache)
+            cycles = graph.detect_cycles()
 
         status_color = "#f85149" if cycles else "#238636"
         status_text = f"{len(cycles)} Circular Dependencies Found" if cycles else "No Circular Dependencies"
@@ -2124,7 +2698,8 @@ async def generate_report(
     path: str,
     report_type: str = "executive",
     project_name: Optional[str] = None,
-    standard: str = "sonarqube"
+    standard: str = "sonarqube",
+    use_cache: bool = True
 ):
     """
     Generate analysis report.
@@ -2134,6 +2709,7 @@ async def generate_report(
         report_type: executive, technical, or compliance
         project_name: Name for the report
         standard: Compliance standard (for compliance reports)
+        use_cache: Whether to use cached analysis (default True)
     """
     if not REPORTS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Report generation not available")
@@ -2146,8 +2722,8 @@ async def generate_report(
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
 
     try:
-        # Build dependency graph and metrics
-        graph = build_dependency_graph([target_path])
+        # Use cached graph helper - cycles are cached
+        graph, metrics_data, cycles, was_cached = get_cached_graph(target_path, None, use_cache)
         code_metrics = calculate_metrics_from_graph(graph)
 
         project = project_name or target_path.name
@@ -2200,7 +2776,8 @@ async def treemap_visualization(
     path: str,
     metric: str = "loc",
     depth: int = 4,
-    title: Optional[str] = None
+    title: Optional[str] = None,
+    use_cache: bool = True
 ):
     """
     Generate treemap visualization.
@@ -2210,6 +2787,7 @@ async def treemap_visualization(
         metric: Size metric (loc, complexity, count, debt)
         depth: Maximum depth
         title: Custom title
+        use_cache: Whether to use cached results (default True)
     """
     if not AST_AVAILABLE:
         raise HTTPException(status_code=503, detail="AST analysis not available")
@@ -2226,7 +2804,8 @@ async def treemap_visualization(
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
 
     try:
-        graph = build_dependency_graph([target_path])
+        # Use cached graph helper
+        graph, metrics_data, cycles, was_cached = get_cached_graph(target_path, None, use_cache)
 
         metric_map = {
             "loc": TreemapMetric.LOC,
@@ -2255,7 +2834,8 @@ async def treemap_visualization(
 async def sunburst_visualization(
     path: str,
     depth: int = 5,
-    title: Optional[str] = None
+    title: Optional[str] = None,
+    use_cache: bool = True
 ):
     """
     Generate sunburst visualization.
@@ -2264,6 +2844,7 @@ async def sunburst_visualization(
         path: Directory to analyze
         depth: Maximum depth
         title: Custom title
+        use_cache: Whether to use cached results (default True)
     """
     if not AST_AVAILABLE:
         raise HTTPException(status_code=503, detail="AST analysis not available")
@@ -2278,7 +2859,8 @@ async def sunburst_visualization(
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
 
     try:
-        graph = build_dependency_graph([target_path])
+        # Use cached graph helper
+        graph, metrics_data, cycles, was_cached = get_cached_graph(target_path, None, use_cache)
 
         config = SunburstConfig(
             title=title or f"Sunburst - {target_path.name}",
@@ -2301,7 +2883,8 @@ async def chord_visualization(
     path: str,
     group_by: str = "package",
     min_connections: int = 1,
-    title: Optional[str] = None
+    title: Optional[str] = None,
+    use_cache: bool = True
 ):
     """
     Generate chord diagram visualization.
@@ -2311,6 +2894,7 @@ async def chord_visualization(
         group_by: Grouping method (package, file)
         min_connections: Minimum connections to show
         title: Custom title
+        use_cache: Whether to use cached results (default True)
     """
     if not AST_AVAILABLE:
         raise HTTPException(status_code=503, detail="AST analysis not available")
@@ -2325,7 +2909,8 @@ async def chord_visualization(
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
 
     try:
-        graph = build_dependency_graph([target_path])
+        # Use cached graph helper
+        graph, metrics_data, cycles, was_cached = get_cached_graph(target_path, None, use_cache)
 
         config = ChordConfig(
             title=title or f"Dependencies - {target_path.name}",

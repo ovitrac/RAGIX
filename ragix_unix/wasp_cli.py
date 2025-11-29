@@ -12,6 +12,12 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+# Import version from centralized source
+try:
+    from ragix_core.version import __version__ as RAGIX_VERSION
+except ImportError:
+    RAGIX_VERSION = "0.21.0"
+
 # Try to import YAML for manifest parsing
 try:
     import yaml
@@ -324,7 +330,7 @@ def main():
     parser.add_argument(
         "--version",
         action="version",
-        version="%(prog)s 0.9.0",
+        version=f"%(prog)s {RAGIX_VERSION}",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")

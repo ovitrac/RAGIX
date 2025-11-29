@@ -171,4 +171,10 @@ inject_global_menu.py
 # Claude files
 CLAUDE.md
 GEMINI.md
+AGENTS.md
 QUICKSTART_CLAUDE_CODE.md
+
+# Agent-generated artifacts (Claude/Gemini/Codex)
+FORREVIEW_*
+.agent_logs/
+.ragix/

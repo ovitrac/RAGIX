@@ -26,6 +26,7 @@ from ragix_core.ast_base import (
     get_ast_registry,
     count_nodes,
 )
+from ragix_core.version import __version__ as RAGIX_VERSION
 from ragix_core.dependencies import (
     DependencyGraph,
     DependencyType,
@@ -104,6 +105,58 @@ try:
     REPORTS_AVAILABLE = True
 except ImportError:
     REPORTS_AVAILABLE = False
+
+# Analysis caching
+try:
+    from ragix_core.analysis_cache import (
+        AnalysisCache,
+        CachedAnalysis,
+        get_cache,
+        get_or_analyze,
+    )
+    CACHE_AVAILABLE = True
+except ImportError:
+    CACHE_AVAILABLE = False
+
+
+def get_cached_graph_cli(path: Path, patterns: list = None, use_cache: bool = True):
+    """
+    Build or retrieve a dependency graph with caching support (CLI version).
+
+    Caching is now handled internally by build_dependency_graph().
+
+    Args:
+        path: Path to analyze
+        patterns: Optional file patterns
+        use_cache: Whether to use cached results
+
+    Returns:
+        Tuple of (graph, cycles, was_cached)
+    """
+    # Check cache status before building (for user feedback)
+    was_cached = False
+    if CACHE_AVAILABLE and use_cache:
+        cache = get_cache()
+        fingerprint, _, _ = cache.get_fingerprint(path)
+        was_cached = cache.is_cached(fingerprint)
+
+    if was_cached:
+        print(f"Using cached analysis (fingerprint: {fingerprint[:8]}...)")
+    else:
+        print(f"Analyzing {path}...")
+
+    # Build graph (caching handled internally by build_dependency_graph)
+    graph = build_dependency_graph([path], patterns=patterns, use_cache=use_cache)
+
+    # Get cycles from cache or detect fresh
+    if was_cached and CACHE_AVAILABLE:
+        cached = cache.load(fingerprint)
+        if cached and cached.cycles is not None:
+            return graph, cached.cycles, True
+
+    # Detect cycles fresh
+    cycles = graph.detect_cycles()
+    return graph, cycles, was_cached
 
 
 def cmd_parse(args: argparse.Namespace) -> int:
@@ -291,11 +344,14 @@ def cmd_graph(args: argparse.Namespace) -> int:
         print(f"Error: Path not found: {path}", file=sys.stderr)
         return 1
 
+    use_cache = not getattr(args, 'no_cache', False)
+
     if path.is_file():
+        # Single file - no caching for single files
         graph = DependencyGraph()
         graph.add_file(path)
     else:
-        graph = build_dependency_graph([path])
+        graph, cycles, was_cached = get_cached_graph_cli(path, None, use_cache)
 
     # Build visualization config
     config = VizConfig()
@@ -373,8 +429,8 @@ def cmd_cycles(args: argparse.Namespace) -> int:
         print(f"Error: Path not found: {path}", file=sys.stderr)
         return 1
 
-    graph = build_dependency_graph([path])
-    cycles = graph.detect_cycles()
+    use_cache = not getattr(args, 'no_cache', False)
+    graph, cycles, was_cached = get_cached_graph_cli(path, None, use_cache)
 
     if not cycles:
         print("No circular dependencies detected")
@@ -401,8 +457,8 @@ def cmd_matrix(args: argparse.Namespace) -> int:
         print(f"Error: Path not found: {path}", file=sys.stderr)
         return 1
 
-    print(f"Analyzing {path}...")
-    graph = build_dependency_graph([path])
+    use_cache = not getattr(args, 'no_cache', False)
+    graph, cycles, was_cached = get_cached_graph_cli(path, None, use_cache)
 
     # Create DSM renderer
     config = VizConfig()
@@ -458,8 +514,8 @@ def cmd_radial(args: argparse.Namespace) -> int:
         print(f"Error: Path not found: {path}", file=sys.stderr)
         return 1
 
-    print(f"Analyzing {path}...")
-    graph = build_dependency_graph([path])
+    use_cache = not getattr(args, 'no_cache', False)
+    graph, cycles, was_cached = get_cached_graph_cli(path, None, use_cache)
     symbols = {s.qualified_name: s for s in graph.get_symbols()}
 
     # Determine focal node
@@ -564,9 +620,8 @@ def cmd_metrics(args: argparse.Namespace) -> int:
         print(f"Error: Path not found: {path}", file=sys.stderr)
         return 1
 
-    # Build dependency graph for coupling analysis
-    print(f"Analyzing {path}...")
-    graph = build_dependency_graph([path])
+    use_cache = not getattr(args, 'no_cache', False)
+    graph, cycles, was_cached = get_cached_graph_cli(path, None, use_cache)
     stats = graph.get_stats()
 
     # Calculate code metrics from graph
@@ -1121,6 +1176,76 @@ def cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_cache(args: argparse.Namespace) -> int:
+    """Manage the analysis cache."""
+    if not CACHE_AVAILABLE:
+        print("Error: Cache module not available", file=sys.stderr)
+        return 1
+
+    cache = get_cache()
+    action = args.action
+
+    if action == "stats":
+        stats = cache.get_stats()
+        print("Cache Statistics")
+        print("=" * 50)
+        print(f"  Cached projects:    {stats['entry_count']}")
+        print(f"  Total size:         {stats['total_size_mb']:.2f} MB")
+        print(f"  Cache directory:    {stats['cache_dir']}")
+
+    elif action == "list":
+        entries = cache.list_cached()
+        if not entries:
+            print("No cached analyses found.")
+            return 0
+
+        print(f"Cached analyses ({len(entries)}):")
+        print("=" * 70)
+        for entry in entries:
+            fp = entry['fingerprint']
+            path = entry.get('project_path', 'unknown')
+            files = entry.get('file_count', 0)
+            version = entry.get('ragix_version', '?')
+            print(f"  {fp}  {files:>5} files  v{version}  {path}")
+
+    elif action == "clear":
+        if args.path:
+            path = Path(args.path).resolve()
+            count = cache.invalidate_project(path)
+            print(f"Cleared {count} cache entries for {path}")
+        else:
+            count = cache.clear()
+            print(f"Cleared all {count} cache entries")
+
+    elif action == "info":
+        if not args.path:
+            print("Error: --path required for 'info' action", file=sys.stderr)
+            return 1
+
+        path = Path(args.path).resolve()
+        fingerprint, file_count, total_size = cache.get_fingerprint(path)
+
+        print(f"Cache Info for {path}")
+        print("=" * 50)
+        print(f"  Fingerprint:        {fingerprint}")
+        print(f"  Tracked files:      {file_count}")
+        print(f"  Total size:         {total_size / (1024*1024):.2f} MB")
+
+        if cache.is_cached(fingerprint):
+            info = cache.get_cache_info(fingerprint)
+            print(f"  Status:             CACHED")
+            print(f"  Cached at:          {info.get('created_at', 'unknown')}")
+            print(f"  RAGIX version:      {info.get('ragix_version', 'unknown')}")
+        else:
+            print(f"  Status:             NOT CACHED")
+
+    else:
+        print(f"Unknown action: {action}", file=sys.stderr)
+        return 1
+
+    return 0
+
+
 def main() -> int:
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -1131,7 +1256,7 @@ def main() -> int:
     parser.add_argument(
         "--version",
         action="version",
-        version="%(prog)s 0.11.1",
+        version=f"%(prog)s {RAGIX_VERSION}",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
@@ -1150,6 +1275,7 @@ def main() -> int:
     scan_parser.add_argument("--lang", "-l", help="Languages (py,java,js)")
     scan_parser.add_argument("--no-recursive", action="store_true", help="Don't recurse")
     scan_parser.add_argument("--stats", "-s", action="store_true", help="Show statistics")
+    scan_parser.add_argument("--no-cache", action="store_true", help="Disable cache (force re-analysis)")
     scan_parser.set_defaults(func=cmd_scan)
 
     # deps command
@@ -1180,11 +1306,13 @@ def main() -> int:
                               help="Color scheme (default, pastel, dark, mono)")
     graph_parser.add_argument("--cluster", action="store_true",
                               help="Cluster nodes by file")
+    graph_parser.add_argument("--no-cache", action="store_true", help="Disable cache (force re-analysis)")
     graph_parser.set_defaults(func=cmd_graph)
 
     # cycles command
     cycles_parser = subparsers.add_parser("cycles", help="Detect circular dependencies")
     cycles_parser.add_argument("path", help="File or directory")
+    cycles_parser.add_argument("--no-cache", action="store_true", help="Disable cache (force re-analysis)")
     cycles_parser.set_defaults(func=cmd_cycles)
 
     # matrix command (DSM)
@@ -1195,6 +1323,7 @@ def main() -> int:
                                help="Aggregation level (class, package)")
     matrix_parser.add_argument("--csv", action="store_true", help="Output as CSV")
     matrix_parser.add_argument("--json", action="store_true", help="Output as JSON")
+    matrix_parser.add_argument("--no-cache", action="store_true", help="Disable cache (force re-analysis)")
     matrix_parser.set_defaults(func=cmd_matrix)
 
     # radial command (ego-centric explorer)
@@ -1204,12 +1333,14 @@ def main() -> int:
     radial_parser.add_argument("--levels", "-l", type=int, default=3,
                                help="Maximum depth levels (default: 3)")
     radial_parser.add_argument("--output", "-o", help="Output file")
+    radial_parser.add_argument("--no-cache", action="store_true", help="Disable cache (force re-analysis)")
     radial_parser.set_defaults(func=cmd_radial)
 
     # metrics command
     metrics_parser = subparsers.add_parser("metrics", help="Show professional code metrics")
     metrics_parser.add_argument("path", help="File or directory")
     metrics_parser.add_argument("--json", action="store_true", help="Output as JSON")
+    metrics_parser.add_argument("--no-cache", action="store_true", help="Disable cache (force re-analysis)")
     metrics_parser.set_defaults(func=cmd_metrics)
 
     # info command
@@ -1285,6 +1416,13 @@ def main() -> int:
     report_parser.add_argument("--standard", "-s", default="sonarqube",
                                help="Compliance standard (sonarqube, owasp, iso25010)")
     report_parser.set_defaults(func=cmd_report)
+
+    # cache command
+    cache_parser = subparsers.add_parser("cache", help="Manage analysis cache")
+    cache_parser.add_argument("action", choices=["stats", "list", "clear", "info"],
+                              help="Cache action (stats, list, clear, info)")
+    cache_parser.add_argument("--path", "-p", help="Project path (for clear/info)")
+    cache_parser.set_defaults(func=cmd_cache)
 
     args = parser.parse_args()
 

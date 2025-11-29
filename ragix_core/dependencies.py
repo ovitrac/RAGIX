@@ -89,6 +89,83 @@ class DependencyGraph:
         self._outgoing: Dict[str, Set[Dependency]] = defaultdict(set)
         self._incoming: Dict[str, Set[Dependency]] = defaultdict(set)
 
+    @classmethod
+    def from_cached_data(
+        cls,
+        symbols: List[Dict[str, Any]],
+        dependencies: List[Dict[str, Any]]
+    ) -> 'DependencyGraph':
+        """
+        Reconstruct a DependencyGraph from cached data.
+
+        This creates a "light" graph without full AST nodes, suitable for
+        visualizations and most analysis operations. Much faster than re-parsing.
+
+        Args:
+            symbols: List of symbol dicts with 'name' and 'type' keys
+            dependencies: List of dependency dicts with 'source', 'target', 'type' keys
+
+        Returns:
+            Reconstructed DependencyGraph
+        """
+        graph = cls()
+
+        # Reconstruct symbols with location data from cache
+        for sym_data in symbols:
+            name = sym_data.get('name', '')
+            type_str = sym_data.get('type', 'UNKNOWN')
+
+            # Convert type string to NodeType enum
+            try:
+                node_type = NodeType(type_str)
+            except ValueError:
+                node_type = NodeType.UNKNOWN
+
+            # Reconstruct location from cached data
+            file_str = sym_data.get('file', '')
+            location = SourceLocation(
+                file=Path(file_str) if file_str else Path("."),
+                line=sym_data.get('line', 0),
+                column=0,
+                end_line=sym_data.get('end_line', 0),
+                end_column=0
+            )
+
+            symbol = Symbol(
+                name=name.split('.')[-1] if '.' in name else name,
+                qualified_name=name,
+                node_type=node_type,
+                location=location,
+                language=Language.UNKNOWN
+            )
+            graph._symbols[name] = symbol
+
+        # Reconstruct dependencies (location not cached - use placeholder)
+        dep_location = SourceLocation(file=Path("."), line=0, column=0)
+        for dep_data in dependencies:
+            source = dep_data.get('source', '')
+            target = dep_data.get('target', '')
+            type_str = dep_data.get('type', 'import')
+
+            # Convert type string to DependencyType enum
+            try:
+                dep_type = DependencyType(type_str)
+            except ValueError:
+                dep_type = DependencyType.IMPORT
+
+            dep = Dependency(
+                source=source,
+                target=target,
+                dep_type=dep_type,
+                location=dep_location
+            )
+
+            graph._dependencies.add(dep)
+            graph._outgoing[source].add(dep)
+            graph._incoming[target].add(dep)
+
+        return graph
+
     def add_file(self, path: Path) -> Optional[ASTNode]:
         """
         Add a file to the dependency graph.
@@ -529,17 +606,46 @@ class DependencyGraph:
 def build_dependency_graph(
     paths: List[Path],
     patterns: Optional[List[str]] = None,
+    use_cache: bool = True,
 ) -> DependencyGraph:
     """
     Build a dependency graph from multiple paths.
 
+    Uses caching by default - if the project hasn't changed (based on file fingerprint),
+    returns a reconstructed graph from cache without re-parsing files.
+
     Args:
         paths: List of files or directories
         patterns: File patterns for directories
+        use_cache: Whether to use cached results (default True)
 
     Returns:
         DependencyGraph instance
     """
+    # Import cache here to avoid circular imports
+    try:
+        from .analysis_cache import get_cache
+        cache_available = True
+    except ImportError:
+        cache_available = False
+        use_cache = False
+
+    # For single directory path, try cache first
+    if use_cache and cache_available and len(paths) == 1 and paths[0].is_dir():
+        cache = get_cache()
+        target_path = paths[0].resolve()
+        fingerprint, file_count, total_size = cache.get_fingerprint(target_path)
+
+        if cache.is_cached(fingerprint):
+            cached = cache.load(fingerprint)
+            if cached and cached.symbols and cached.dependencies:
+                # Reconstruct from cache - FAST PATH (no file parsing!)
+                return DependencyGraph.from_cached_data(
+                    symbols=cached.symbols,
+                    dependencies=cached.dependencies
+                )
+
+    # Build fresh graph
     graph = DependencyGraph()
 
     for path in paths:
@@ -547,5 +653,56 @@ def build_dependency_graph(
             graph.add_file(path)
         elif path.is_dir():
             graph.add_directory(path, patterns)
+
+    # Cache results for single directory
+    if use_cache and cache_available and len(paths) == 1 and paths[0].is_dir():
+        target_path = paths[0].resolve()
+        fingerprint, file_count, total_size = cache.get_fingerprint(target_path)
+
+        # Only cache if not already cached (fingerprint changed)
+        if not cache.is_cached(fingerprint):
+            # Filter out imports and modules - only cache actual code entities
+            excluded_types = {NodeType.IMPORT, NodeType.IMPORT_FROM, NodeType.MODULE}
+            symbols = [
+                {
+                    'name': s.qualified_name,
+                    'type': s.node_type.value,
+                    'file': str(s.location.file) if s.location and s.location.file else '',
+                    'line': s.location.line if s.location else 0,
+                    'end_line': s.location.end_line if s.location and s.location.end_line else 0
+                }
+                for s in graph.get_symbols()
+                if s.node_type not in excluded_types
+            ]
+            dependencies = [
+                {'source': d.source, 'target': d.target, 'type': d.dep_type.value}
+                for d in graph._dependencies
+            ]
+            cycles = graph.detect_cycles()
+
+            # Calculate basic metrics
+            metrics_dict = {
+                'files': len(graph._files),
+                'symbols': len(graph._symbols),
+                'dependencies': len(graph._dependencies),
+            }
+
+            packages = {}
+            for sym in graph.get_symbols():
+                if sym.node_type not in excluded_types:
+                    pkg = sym.qualified_name.rsplit('.', 1)[0] if '.' in sym.qualified_name else '(default)'
+                    packages[pkg] = packages.get(pkg, 0) + 1
+
+            cache.save(
+                fingerprint=fingerprint,
+                project_path=target_path,
+                symbols=symbols,
+                dependencies=dependencies,
+                metrics=metrics_dict,
+                cycles=cycles,
+                packages=packages,
+                file_count=file_count,
+                total_size=total_size
+            )
 
     return graph
