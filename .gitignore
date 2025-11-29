@@ -176,5 +176,7 @@ QUICKSTART_CLAUDE_CODE.md
 
 # Agent-generated artifacts (Claude/Gemini/Codex)
 FORREVIEW_*
-.agent_logs/
+REVIEW_*
+.session*
 .ragix/
+.agent_logs/

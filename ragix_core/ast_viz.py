@@ -1735,12 +1735,40 @@ class VisHTMLRenderer:
         d3_renderer = D3Renderer(self.config)
         graph_data = d3_renderer.to_dict(graph)
 
-        # Add package information to nodes
-        for node in graph_data["nodes"]:
-            parts = node["id"].split(".")
-            node["package"] = ".".join(parts[:-1]) if len(parts) > 1 else "(default)"
+        # Container types: nodes that can have members
+        container_types = ("class", "interface", "enum", "module", "namespace", "component", "object")
 
-        # Compute package statistics
+        # Build node lookup and identify containers
+        node_by_id = {node["id"]: node for node in graph_data["nodes"]}
+        container_ids = set()
+
+        # First pass: assign packages to containers (real packages or (default))
+        for node in graph_data["nodes"]:
+            node_type = node.get("type", "")
+            if node_type in container_types:
+                container_ids.add(node["id"])
+                parts = node["id"].split(".")
+                node["package"] = ".".join(parts[:-1]) if len(parts) > 1 else "(default)"
+
+        # Second pass: members inherit package from their container
+        for node in graph_data["nodes"]:
+            if node["id"] in container_ids:
+                continue  # Already handled
+            # Try to find parent container
+            node_id = node["id"]
+            if "." in node_id:
+                parent_id = ".".join(node_id.split(".")[:-1])
+                if parent_id in node_by_id:
+                    # Inherit package from parent
+                    parent_node = node_by_id[parent_id]
+                    node["package"] = parent_node.get("package", "(default)")
+                else:
+                    # Parent not found, use derived package
+                    node["package"] = parent_id if parent_id else "(default)"
+            else:
+                node["package"] = "(default)"
+
+        # Compute package statistics (only count containers for cleaner list)
         packages: Dict[str, int] = {}
         for node in graph_data["nodes"]:
             pkg = node["package"]
@@ -1765,22 +1793,44 @@ class VisHTMLRenderer:
         class_method_count: Dict[str, int] = {}
         method_to_class: Dict[str, str] = {}
 
-        # First pass: identify all classes/interfaces
+        # Container types: nodes that can have members (classes, interfaces, enums, modules, etc.)
+        container_types = ("class", "interface", "enum", "module", "namespace", "component", "object")
+
+        # Satellite types: nodes that belong to a container (methods, fields, properties, etc.)
+        satellite_types = ("method", "field", "constructor", "constant", "function", "property", "getter", "setter")
+
+        # First pass: identify all container types
         for node in graph_data["nodes"]:
             node_type = node.get("type", "")
-            if node_type in ("class", "interface"):
+            if node_type in container_types:
                 class_method_count[node["id"]] = 0
 
-        # Second pass: link methods, fields, constructors, constants to their parent classes
+        # Build node ID set for fallback parent detection
+        all_node_ids = {node["id"] for node in graph_data["nodes"]}
+
+        # Second pass: link satellites to their parent containers
         # These are the "satellites" that should orbit around their class "sun"
-        satellite_types = ("method", "field", "constructor", "constant")
         for node in graph_data["nodes"]:
-            if node.get("type") in satellite_types:
-                # Infer parent class from qualified name (e.g., com.a.MyClass.myMethod -> com.a.MyClass)
-                parent_class_id = ".".join(node["id"].split(".")[:-1])
+            node_type = node.get("type", "")
+            # Skip container types - they don't have parents in this sense
+            if node_type in container_types:
+                continue
+
+            # For satellites and any unrecognized types with a dotted ID, try to find parent
+            node_id = node["id"]
+            if "." in node_id:
+                parent_class_id = ".".join(node_id.split(".")[:-1])
+                # Check if parent is a known container
                 if parent_class_id in class_method_count:
                     class_method_count[parent_class_id] += 1
-                    method_to_class[node["id"]] = parent_class_id
+                    method_to_class[node_id] = parent_class_id
+                # Fallback: if parent exists as any node, link to it anyway
+                elif parent_class_id in all_node_ids:
+                    # Add parent to class_method_count if not already there
+                    if parent_class_id not in class_method_count:
+                        class_method_count[parent_class_id] = 0
+                    class_method_count[parent_class_id] += 1
+                    method_to_class[node_id] = parent_class_id
 
         # --- Compute class positions using PCoA/MDS on topology-derived distances ---
         # This seeds 2D coordinates from actual graph structure (inheritance, calls)
@@ -1872,15 +1922,16 @@ class VisHTMLRenderer:
                     dissimilarity="precomputed",
                     random_state=42,  # Deterministic
                     max_iter=300,
+                    n_init=4,  # Explicit to avoid FutureWarning (default changes in sklearn 1.9)
                     normalized_stress="auto"
                 )
                 coords_2d = mds.fit_transform(dist_matrix)
 
                 # Scale coordinates by CONSTANT factor to preserve relative distances
                 # Do NOT normalize to bounding box - that causes square confinement
-                # MDS returns coords in distance-space units; multiply by ~300-500 for vis.js
+                # MDS returns coords in distance-space units; scale for vis.js canvas
                 coords_2d -= coords_2d.mean(axis=0)  # Center only
-                coords_2d *= 400.0  # Constant scale factor - preserves topology distances
+                coords_2d *= 2000.0  # Standard scale for class positions
 
                 for idx, cid in enumerate(class_ids):
                     class_positions[cid] = (float(coords_2d[idx, 0]), float(coords_2d[idx, 1]))
@@ -1889,11 +1940,22 @@ class VisHTMLRenderer:
                 # Fallback: simple circular layout if sklearn not available
                 for idx, cid in enumerate(class_ids):
                     angle = 2 * math.pi * idx / n_classes
-                    class_positions[cid] = (400 * math.cos(angle), 400 * math.sin(angle))
+                    class_positions[cid] = (2000 * math.cos(angle), 2000 * math.sin(angle))
         else:
             # Single class: center
             for cid in class_ids:
                 class_positions[cid] = (0.0, 0.0)
+
+        # Determine an outer ring radius for orphan members (no class or missing position)
+        if class_positions:
+            max_coord = max(
+                max(abs(pos[0]), abs(pos[1]))
+                for pos in class_positions.values()
+            )
+            # Shrink outer ring by factor 3 to bring orphans closer to galaxy
+            outer_ring_radius = (max_coord + 500.0) / 3.0
+        else:
+            outer_ring_radius = 667.0  # 2000 / 3
 
         # Compute package positions as centroids of their classes
         package_positions: Dict[str, Tuple[float, float]] = {}
@@ -1919,29 +1981,57 @@ class VisHTMLRenderer:
             x, y = None, None
             node_fixed = None  # Will be set for anchored nodes
 
-            # Classes/interfaces/enums: scale mass and size based on member count
-            if node_type in ("class", "interface", "enum"):
+            # === MASS-BASED PHASE SEPARATION ===
+            # Heavier nodes resist repulsion → stay closer to center/star
+            # Lighter nodes pushed outward → settle in outer orbits
+            # This creates natural "orbital bands" around class stars
+
+            # Classes: Sun (heaviest, scaled by member count)
+            if node_type == "class":
                 member_count = class_method_count.get(node_id, 0)
-                mass = 2 + member_count * 0.3  # Heavier classes attract more
-                value = 15 + min(member_count * 0.5, 40)  # Larger visualization, capped
+                mass = 5.0 + member_count * 0.5  # Heavy sun
+                value = 15 + min(member_count, 40)
                 if node_id in class_positions:
                     x, y = class_positions[node_id]
-            # Satellite nodes: smaller and lighter
+            # Interfaces: Heavy planet (inner orbit)
+            elif node_type == "interface":
+                member_count = class_method_count.get(node_id, 0)
+                mass = 4.0  # Heavy planet
+                value = 12 + min(member_count * 0.3, 20)
+                if node_id in class_positions:
+                    x, y = class_positions[node_id]
+            # Enums: Medium planet
+            elif node_type == "enum":
+                member_count = class_method_count.get(node_id, 0)
+                mass = 3.0  # Medium planet
+                value = 10 + min(member_count * 0.3, 15)
+                if node_id in class_positions:
+                    x, y = class_positions[node_id]
+            # Methods: Light planet (outer orbit)
             elif node_type == "method":
-                mass = 0.2
+                mass = 0.5  # Light planet
                 value = 5
-            elif node_type == "field":
-                mass = 0.15
-                value = 4
+            # Constructors: Light planet (like methods)
             elif node_type == "constructor":
-                mass = 0.25
+                mass = 0.5  # Light planet
                 value = 6
+            # Functions: Light planet (like methods)
+            elif node_type == "function":
+                mass = 0.5  # Light planet
+                value = 5
+            # Fields: Asteroid (lightest)
+            elif node_type == "field":
+                mass = 0.2  # Asteroid
+                value = 4
+            # Constants: Asteroid (lightest)
             elif node_type == "constant":
-                mass = 0.1
+                mass = 0.2  # Asteroid
                 value = 3
+            # Imports: Comet (very light, outermost)
             elif node_type == "import":
-                mass = 0.05
+                mass = 0.1  # Comet
                 value = 2
+            # Packages: Fixed anchors
             elif node_type == "package":
                 mass = 10.0  # Packages are heavy anchors
                 value = 25
@@ -1950,15 +2040,18 @@ class VisHTMLRenderer:
                 # Packages are pinned - they don't move during simulation
                 node_fixed = {"x": True, "y": True}
 
-            # Position satellites near their parent class using deterministic tiny halos
+            # Position satellites near their parent class using deterministic halos;
+            # or place orphans on an outer ring if the class position is missing.
             if node_id in method_to_class:
                 parent_id = method_to_class[node_id]
-                if parent_id in class_positions:
-                    cx, cy = class_positions[parent_id]
+                parent_pos = class_positions.get(parent_id)
+                if parent_pos:
+                    cx, cy = parent_pos
                     m = class_method_count.get(parent_id, 1)  # Member count for this class
 
-                    # Halo radius: R_mem = 40 + 6 * sqrt(m), capped at 80 (larger to spread members)
-                    halo_radius = min(40 + 6 * math.sqrt(m), 80)
+                    # Halo radius scaled for roughly uniform member density across classes
+                    # R_mem ~ 20 + 10 * sqrt(m), capped to prevent over-expansion
+                    halo_radius = min(20 + 10 * math.sqrt(m), 150)
 
                     # Get member index within this class for angular distribution
                     # Sort members by id for consistent ordering
@@ -1977,6 +2070,11 @@ class VisHTMLRenderer:
 
                     x = cx + offset * math.cos(angle)
                     y = cy + offset * math.sin(angle)
+                else:
+                    # Orphan member (missing class position) -> place on outer ring deterministically
+                    angle = self._hash_rand(node_id, "orphan_angle", 2 * math.pi)
+                    x = outer_ring_radius * math.cos(angle)
+                    y = outer_ring_radius * math.sin(angle)
 
             node_data = {
                 "id": node_id,
@@ -1997,6 +2095,11 @@ class VisHTMLRenderer:
             if node_fixed is not None:
                 node_data["fixed"] = node_fixed
 
+            # NOTE: Satellites now participate in physics for mass-based phase separation.
+            # Their lighter mass causes them to be pushed outward by heavier nodes,
+            # creating natural orbital bands around class stars.
+            # Only packages remain fixed (anchored).
+
             vis_nodes.append(node_data)
 
         # --- Prepare edges with type information for color coding ---
@@ -2007,18 +2110,23 @@ class VisHTMLRenderer:
         # Build node id -> name lookup for tooltips
         node_name_lookup = {n["id"]: n.get("name", n["id"].split(".")[-1]) for n in graph_data["nodes"]}
 
-        # Edge weight/length by dependency type
-        # Since PCoA seeds positions, use shorter springs for local refinement
-        # Inheritance/implementation tighter to reinforce structure
+        # === EDGE LENGTH HIERARCHY (Force Priority) ===
+        # Shorter length = stronger spring force = tighter coupling
+        # This hierarchy ensures solar systems stay intact while
+        # allowing weaker connections to stretch
         edge_length_by_type = {
-            "inheritance": 80,       # Strong: class hierarchy (tight)
-            "implementation": 80,    # Strong: interface contracts (tight)
-            "call": 120,             # Medium: method calls
-            "field_access": 120,     # Medium: field usage
-            "type_reference": 150,   # Weak: type mentions (looser)
-            "import": 150,           # Weak: imports (looser)
-            "dependency": 100,       # Default
+            # Priority 2: Strong, medium-length (class hierarchies cluster)
+            "inheritance": 100,
+            "implementation": 100,
+            # Priority 3: Medium (collaborating classes)
+            "call": 180,
+            "field_access": 180,
+            # Priority 4: Weakest, longest (loose references)
+            "type_reference": 250,
+            "import": 250,
+            "dependency": 200,  # Default for unknown types
         }
+        # Note: structural edges (Priority 1) are handled separately below with length=50
 
         # Add real dependency edges
         for link in graph_data.get("links", []):
@@ -2051,31 +2159,28 @@ class VisHTMLRenderer:
         # For large graphs (>5000 nodes), disable physics on structural edges
         structural_edge_count = 0
 
-        # For very large graphs, disable structural edge physics entirely
         total_nodes = len(graph_data["nodes"])
-        structural_physics_enabled = total_nodes < 5000  # Disable for large graphs
+        # Keep structural physics ON even for large graphs to anchor members to classes.
+        # Performance is mitigated by keeping these edges hidden and simple.
+        structural_physics_enabled = True
         is_large_graph = total_nodes > 5000
 
         for method_id, class_id in method_to_class.items():
             method_name = node_name_lookup.get(method_id, method_id.split(".")[-1])
             class_name = node_name_lookup.get(class_id, class_id.split(".")[-1])
 
-            # Halo radius for this class: R_mem = 40 + 6 * sqrt(m), capped at 80
-            member_count = class_method_count.get(class_id, 1)
-            halo_radius = min(40 + 6 * math.sqrt(member_count), 80)
-
-            # Spring length = 0.6 * halo_radius (pulls members close but not collapsed)
-            length = halo_radius * 0.6
-
+            # === STRUCTURAL EDGES: Priority 1 (Strongest, Shortest) ===
+            # These are the "gravitational bonds" keeping solar systems intact.
+            # Fixed short length ensures members stay close to their class star.
             vis_edges.append({
                 "id": edge_counter,
                 "from": method_id,
                 "to": class_id,
                 "edgeType": "structural",
                 "title": f"{method_name} ∈ {class_name}\n(member of)",
-                "hidden": True,  # Hidden by default - reduces clutter, toggleable
-                "physics": structural_physics_enabled,  # Disabled for large graphs
-                "length": length,  # Proportional to halo radius
+                "hidden": False,  # Visible so springs participate in physics
+                "physics": structural_physics_enabled,
+                "length": 50,  # Priority 1: Shortest, strongest binding
                 "smooth": False,  # Straight lines for performance
             })
             edge_counter += 1
@@ -2087,20 +2192,26 @@ class VisHTMLRenderer:
         node_count = len(vis_nodes)
         edge_count = real_edge_count  # Only count visible edges for display
 
-        # Physics settings for LOCAL refinement only
-        # PCoA provides global structure - physics just untangles local overlaps
-        # Longer springs + low central gravity reduce pull toward center square
-        gravitational_constant = -150  # Strong repulsion to spread nodes
-        spring_length = 200  # Long springs to maintain spread
-        spring_constant = 0.05  # Moderate stiffness
-        central_gravity = 0.002  # Very weak central pull (preserve spread)
+        # === REFINED PHYSICS CONSTANTS ===
+        # Tuned for multi-body simulation with mass-based phase separation.
+        # - Weaker global repulsion prevents infinite expansion
+        # - Stronger central gravity holds the "galaxy" together
+        # - Spring constant works with edge length hierarchy
+        gravitational_constant = -35  # Weaker repulsion (balanced by mass)
+        spring_length = 150  # Base spring length (overridden per edge type)
+        spring_constant = 0.07  # Slightly stiffer springs
+        central_gravity = 0.1  # Strong central pull (galactic core)
+        avoid_overlap = 0.8  # Prevent node overlap
 
+        # Physics control based on graph size
+        # >10k nodes: physics OFF by default (user can toggle on)
+        # <10k nodes: physics ON with stabilization
         if node_count > 10000:
             physics_enabled = False
             stabilization_iterations = 0
         elif node_count > 5000:
             physics_enabled = True
-            stabilization_iterations = 50
+            stabilization_iterations = 100
         elif node_count > 2000:
             physics_enabled = True
             stabilization_iterations = 150
@@ -2115,10 +2226,11 @@ class VisHTMLRenderer:
             hue = (i * 137.5) % 360
             color = f"hsl({hue}, 60%, 50%)"
             display = pkg if len(pkg) <= 40 else "..." + pkg[-37:]
-            escaped_pkg = html.escape(pkg).replace("'", "\\'")
+            # Use data attribute and read via dataset.pkg (auto-unescapes)
+            # This ensures consistency between checkbox click and selectFiltered()
             package_items.append(
                 f'<div class="pkg-item" data-pkg="{html.escape(pkg)}">'
-                f'<input type="checkbox" checked onchange="togglePackage(\'{escaped_pkg}\', this.checked)">'
+                f'<input type="checkbox" checked onchange="togglePackage(this.parentElement.dataset.pkg, this.checked)">'
                 f'<span class="pkg-color" style="background:{color}"></span>'
                 f'<span class="pkg-name" title="{html.escape(pkg)}">{html.escape(display)}</span>'
                 f'<span class="pkg-count">{count}</span>'
@@ -2299,6 +2411,80 @@ class VisHTMLRenderer:
         }}
         .type-toggle.disabled {{
             opacity: 0.4;
+        }}
+        /* Sidebar reorganization - collapsible sections */
+        .sidebar-actions {{
+            display: flex;
+            gap: 4px;
+            padding: 8px;
+            background: #0f3460;
+            align-items: center;
+            flex-shrink: 0;
+        }}
+        .btn-sm {{
+            padding: 6px 10px;
+            font-size: 14px;
+        }}
+        .btn-mini {{
+            padding: 2px 6px;
+            font-size: 9px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #aaa;
+            border-radius: 3px;
+            cursor: pointer;
+        }}
+        .btn-mini:hover {{ background: rgba(255,255,255,0.2); color: #fff; }}
+        .sidebar-section {{
+            flex-shrink: 0;
+            border-bottom: 1px solid #0f3460;
+        }}
+        .sidebar-section.packages-section {{
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            border-bottom: none;
+        }}
+        .section-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: rgba(15, 52, 96, 0.5);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            color: #e94560;
+        }}
+        .section-header:hover {{ background: rgba(15, 52, 96, 0.8); }}
+        .collapse-icon {{
+            font-size: 10px;
+            color: #888;
+            transition: transform 0.2s;
+        }}
+        .section-content {{
+            padding: 6px 8px;
+        }}
+        .collapsible.collapsed .section-content {{ display: none; }}
+        .collapsible.collapsed .collapse-icon {{ transform: rotate(0deg); }}
+        .legend-group {{
+            margin-bottom: 8px;
+        }}
+        .legend-group-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            color: #888;
+            margin-bottom: 4px;
+            padding-bottom: 2px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }}
+        .packages-section #pkg-list {{
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
         }}
         #loading {{
             position: fixed;
@@ -2483,53 +2669,155 @@ class VisHTMLRenderer:
             </div>
         </div>
         <div id="sidebar">
-            <div id="sidebar-header">
-                <h2>📦 Packages ({len(packages)})</h2>
-                <input type="text" id="search" placeholder="Filter packages..." oninput="filterPackages(this.value)">
-                <div id="stats">
-                    <div class="stat">
-                        <div class="stat-value">{node_count}</div>
-                        <div class="stat-label">Nodes</div>
+            <!-- Actions bar - always visible at top -->
+            <div class="sidebar-actions">
+                <button class="btn btn-sm" onclick="restartSimulation(false)" title="Reset to PCoA topology">🔄</button>
+                <button class="btn btn-sm" onclick="openSettings()" title="Physics settings">⚙️</button>
+                <button class="btn btn-sm" onclick="expandParents()" title="Show parents">↑</button>
+                <button class="btn btn-sm" onclick="expandChildren()" title="Show children">↓</button>
+                <span style="flex:1"></span>
+                <span id="visible-count" style="color:#4a90d9;font-weight:bold;">{node_count}</span>
+                <span style="color:#666;font-size:11px;">/{node_count}</span>
+            </div>
+
+            <!-- Legend - collapsible (collapsed by default for large graphs) -->
+            <div class="sidebar-section collapsible {'collapsed' if node_count > 500 else ''}">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span>🎨 Legend</span>
+                    <span class="collapse-icon">{'▶' if node_count > 500 else '▼'}</span>
+                </div>
+                <div class="section-content" style="{'display:none' if node_count > 500 else ''}">
+                    <div class="legend-group">
+                        <div class="legend-group-header">
+                            <span>Edges</span>
+                            <div style="display:flex;gap:2px;">
+                                <button class="btn-mini" onclick="event.stopPropagation();toggleAllEdges(true)">On</button>
+                                <button class="btn-mini" onclick="event.stopPropagation();toggleAllEdges(false)">Off</button>
+                            </div>
+                        </div>
+                        <div class="legend-item type-toggle" data-edge="inheritance" onclick="toggleEdgeType('inheritance')"><input type="checkbox" checked><span class="legend-color" style="background:#d95f02"></span> Inherit</div>
+                        <div class="legend-item type-toggle" data-edge="implementation" onclick="toggleEdgeType('implementation')"><input type="checkbox" checked><span class="legend-color" style="background:#7570b3"></span> Impl</div>
+                        <div class="legend-item type-toggle" data-edge="call" onclick="toggleEdgeType('call')"><input type="checkbox" checked><span class="legend-color" style="background:#1b9e77"></span> Call</div>
+                        <div class="legend-item type-toggle" data-edge="import" onclick="toggleEdgeType('import')"><input type="checkbox" checked><span class="legend-color" style="background:#66a61e"></span> Import</div>
+                        <div class="legend-item type-toggle" data-edge="type_reference" onclick="toggleEdgeType('type_reference')"><input type="checkbox"><span class="legend-color" style="background:#e6ab02"></span> TypeRef</div>
+                        <div class="legend-item type-toggle disabled" data-edge="structural" onclick="toggleEdgeType('structural')"><input type="checkbox"><span class="legend-color" style="background:#2a2a3e"></span> Struct</div>
                     </div>
-                    <div class="stat">
-                        <div class="stat-value">{edge_count}</div>
-                        <div class="stat-label">Edges</div>
+                    <div class="legend-group">
+                        <div class="legend-group-header">
+                            <span>Nodes</span>
+                            <div style="display:flex;gap:2px;">
+                                <button class="btn-mini" onclick="event.stopPropagation();toggleAllNodeTypes(true)">On</button>
+                                <button class="btn-mini" onclick="event.stopPropagation();toggleAllNodeTypes(false)">Off</button>
+                            </div>
+                        </div>
+                        <div class="legend-item type-toggle" data-type="class" onclick="toggleNodeType('class')"><input type="checkbox" checked><span class="legend-color" style="background:#FFD700; height:10px; width:10px; border-radius:50%"></span> Class</div>
+                        <div class="legend-item type-toggle" data-type="interface" onclick="toggleNodeType('interface')"><input type="checkbox" checked><span class="legend-color" style="background:#50c878; height:10px; width:10px; border-radius:50%"></span> Interface</div>
+                        <div class="legend-item type-toggle" data-type="enum" onclick="toggleNodeType('enum')"><input type="checkbox" checked><span class="legend-color" style="background:#1abc9c; height:8px; width:8px; border-radius:50%"></span> Enum</div>
+                        <div class="legend-item type-toggle" data-type="method" onclick="toggleNodeType('method')"><input type="checkbox" checked><span class="legend-color" style="background:#5B9BD5; height:6px; width:6px; border-radius:50%"></span> Method</div>
+                        <div class="legend-item type-toggle" data-type="constructor" onclick="toggleNodeType('constructor')"><input type="checkbox" checked><span class="legend-color" style="background:#CD5C5C; height:6px; width:6px; border-radius:50%"></span> Constr</div>
+                        <div class="legend-item type-toggle" data-type="field" onclick="toggleNodeType('field')"><input type="checkbox" checked><span class="legend-color" style="background:#9b59b6; height:5px; width:5px; border-radius:50%"></span> Field</div>
+                        <div class="legend-item type-toggle" data-type="constant" onclick="toggleNodeType('constant')"><input type="checkbox" checked><span class="legend-color" style="background:#CD5C5C; height:4px; width:4px; border-radius:50%"></span> Const</div>
+                        <div class="legend-item type-toggle" data-type="package" onclick="toggleNodeType('package')"><input type="checkbox" checked><span class="legend-color" style="background:#34495e; height:12px; width:12px; border-radius:2px"></span> Package</div>
                     </div>
                 </div>
             </div>
-            <div id="pkg-list">
-                {package_html}
+
+            <!-- Node Filter - filter by name within selected packages -->
+            <div class="sidebar-section" style="padding:8px;">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                    <span style="font-size:11px;color:#e94560;font-weight:bold;">🔍 Filter Nodes</span>
+                    <span id="filter-match-count" style="font-size:10px;color:#666;"></span>
+                </div>
+                <input type="text" id="node-filter" placeholder="Filter by class/method name..." oninput="filterNodes(this.value)" style="width:100%;padding:6px 8px;background:#2a2a3e;border:1px solid #444;color:#fff;border-radius:4px;font-size:11px;">
+                <div style="display:flex;gap:4px;margin-top:4px;">
+                    <button class="btn-mini" onclick="clearNodeFilter()" title="Clear filter">Clear</button>
+                    <button class="btn-mini" onclick="filterNodes(document.getElementById('node-filter').value, true)" title="Show only exact matches">Exact</button>
+                </div>
             </div>
-            <div class="pkg-actions">
-                <button class="btn" onclick="selectFiltered()">Select Filtered</button>
-                <button class="btn" onclick="deselectFiltered()">Deselect Filtered</button>
+
+            <!-- Packages - fills remaining space -->
+            <div class="sidebar-section packages-section">
+                <div class="section-header" style="cursor:default;">
+                    <span>📦 Packages ({len(packages)})</span>
+                    <div style="display:flex;gap:2px;">
+                        <button class="btn-mini" onclick="selectFiltered()" title="Select filtered">✓</button>
+                        <button class="btn-mini" onclick="deselectFiltered()" title="Deselect filtered">✗</button>
+                    </div>
+                </div>
+                <input type="text" id="search" placeholder="Filter packages..." oninput="filterPackages(this.value)" style="width:calc(100% - 16px);margin:4px 8px;padding:6px 8px;background:#2a2a3e;border:1px solid #444;color:#fff;border-radius:4px;font-size:11px;">
+                <div id="pkg-list">
+                    {package_html}
+                </div>
             </div>
-            <div class="pkg-actions" style="border-top: none; padding-top: 0;">
-                <button class="btn" onclick="expandParents()" title="Add nodes that selected nodes depend on">↑ Parents</button>
-                <button class="btn" onclick="expandChildren()" title="Add nodes that depend on selected nodes">↓ Children</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal - Compact 4-column layout -->
+    <div id="settings-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:10000; justify-content:center; align-items:center;">
+        <div style="background:#1a1a2e; border-radius:12px; padding:20px; width:720px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h2 style="margin:0; color:#fff; font-size:16px;">⚙️ Physics Settings</h2>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <select id="settings-template" onchange="applyTemplate(this.value)" style="padding:6px 10px; background:#2a2a3e; border:1px solid #444; color:#fff; border-radius:4px; font-size:12px;">
+                        <option value="default">Default</option>
+                        <option value="compact">Compact</option>
+                        <option value="expanded">Expanded</option>
+                        <option value="hierarchy">Hierarchy</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                    <button onclick="closeSettings()" style="background:none; border:none; color:#888; font-size:20px; cursor:pointer;">&times;</button>
+                </div>
             </div>
-            <div class="pkg-actions" style="border-top: none; padding-top: 0;">
-                <button class="btn" onclick="restartSimulation(false)" title="Restart physics simulation from current positions">🔄 Restart Sim</button>
-                <button class="btn" onclick="restartSimulation(true)" title="Randomize positions and restart simulation">🎲 Randomize</button>
+
+            <!-- 4-column grid for all sliders -->
+            <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;">
+                <!-- Force Parameters -->
+                <div style="background:#2a2a3e; padding:10px; border-radius:6px;">
+                    <label style="color:#888; font-size:10px; display:block; margin-bottom:4px;">Gravity</label>
+                    <input type="range" id="settings-gravity" min="-100" max="0" value="-35" oninput="updateSettingValue('grav-val', this.value)" style="width:100%;">
+                    <span id="grav-val" style="color:#4a90d9; font-size:11px;">-35</span>
+                </div>
+                <div style="background:#2a2a3e; padding:10px; border-radius:6px;">
+                    <label style="color:#888; font-size:10px; display:block; margin-bottom:4px;">Central</label>
+                    <input type="range" id="settings-central" min="0" max="0.3" step="0.01" value="0.1" oninput="updateSettingValue('central-val', this.value)" style="width:100%;">
+                    <span id="central-val" style="color:#4a90d9; font-size:11px;">0.1</span>
+                </div>
+                <div style="background:#2a2a3e; padding:10px; border-radius:6px;">
+                    <label style="color:#888; font-size:10px; display:block; margin-bottom:4px;">Spring</label>
+                    <input type="range" id="settings-spring" min="0.01" max="0.2" step="0.01" value="0.07" oninput="updateSettingValue('spring-val', this.value)" style="width:100%;">
+                    <span id="spring-val" style="color:#4a90d9; font-size:11px;">0.07</span>
+                </div>
+                <div style="background:#2a2a3e; padding:10px; border-radius:6px;">
+                    <label style="color:#888; font-size:10px; display:block; margin-bottom:4px;">Damping</label>
+                    <input type="range" id="settings-damping" min="0.1" max="1.0" step="0.05" value="0.5" oninput="updateSettingValue('damping-val', this.value)" style="width:100%;">
+                    <span id="damping-val" style="color:#4a90d9; font-size:11px;">0.5</span>
+                </div>
+                <!-- Edge Lengths -->
+                <div style="background:#1f1f35; padding:10px; border-radius:6px;">
+                    <label style="color:#888; font-size:10px; display:block; margin-bottom:4px;">Structural</label>
+                    <input type="range" id="settings-len-structural" min="20" max="150" value="50" oninput="updateSettingValue('len-structural-val', this.value)" style="width:100%;">
+                    <span id="len-structural-val" style="color:#e94560; font-size:11px;">50</span>
+                </div>
+                <div style="background:#1f1f35; padding:10px; border-radius:6px;">
+                    <label style="color:#888; font-size:10px; display:block; margin-bottom:4px;">Inheritance</label>
+                    <input type="range" id="settings-len-inherit" min="50" max="250" value="100" oninput="updateSettingValue('len-inherit-val', this.value)" style="width:100%;">
+                    <span id="len-inherit-val" style="color:#e94560; font-size:11px;">100</span>
+                </div>
+                <div style="background:#1f1f35; padding:10px; border-radius:6px;">
+                    <label style="color:#888; font-size:10px; display:block; margin-bottom:4px;">Call</label>
+                    <input type="range" id="settings-len-call" min="100" max="400" value="180" oninput="updateSettingValue('len-call-val', this.value)" style="width:100%;">
+                    <span id="len-call-val" style="color:#e94560; font-size:11px;">180</span>
+                </div>
+                <div style="background:#1f1f35; padding:10px; border-radius:6px;">
+                    <label style="color:#888; font-size:10px; display:block; margin-bottom:4px;">Other</label>
+                    <input type="range" id="settings-len-other" min="150" max="500" value="250" oninput="updateSettingValue('len-other-val', this.value)" style="width:100%;">
+                    <span id="len-other-val" style="color:#e94560; font-size:11px;">250</span>
+                </div>
             </div>
-            <div id="legend">
-                <h3>🔗 Edge Types <span style="font-size:10px;color:#888">(click to toggle)</span></h3>
-                <div class="legend-item type-toggle" data-edge="inheritance" onclick="toggleEdgeType('inheritance')"><input type="checkbox" checked><span class="legend-color" style="background:#d95f02"></span> Inheritance</div>
-                <div class="legend-item type-toggle" data-edge="implementation" onclick="toggleEdgeType('implementation')"><input type="checkbox" checked><span class="legend-color" style="background:#7570b3"></span> Implementation</div>
-                <div class="legend-item type-toggle" data-edge="call" onclick="toggleEdgeType('call')"><input type="checkbox" checked><span class="legend-color" style="background:#1b9e77"></span> Method Call</div>
-                <div class="legend-item type-toggle" data-edge="import" onclick="toggleEdgeType('import')"><input type="checkbox" checked><span class="legend-color" style="background:#66a61e"></span> Import</div>
-                <div class="legend-item type-toggle" data-edge="type_reference" onclick="toggleEdgeType('type_reference')"><input type="checkbox"><span class="legend-color" style="background:#e6ab02"></span> Type Reference</div>
-                <div class="legend-item type-toggle disabled" data-edge="structural" onclick="toggleEdgeType('structural')"><input type="checkbox"><span class="legend-color" style="background:#2a2a3e"></span> Structural</div>
-                <h3 style="margin-top:12px">⭐ Node Types <span style="font-size:10px;color:#888">(click to toggle)</span></h3>
-                <div class="legend-item type-toggle" data-type="class" onclick="toggleNodeType('class')"><input type="checkbox" checked><span class="legend-color" style="background:#FFD700; height:12px; width:12px; border-radius:50%"></span> Class ⭐</div>
-                <div class="legend-item type-toggle" data-type="interface" onclick="toggleNodeType('interface')"><input type="checkbox" checked><span class="legend-color" style="background:#50c878; height:12px; width:12px; border-radius:50%"></span> Interface</div>
-                <div class="legend-item type-toggle" data-type="enum" onclick="toggleNodeType('enum')"><input type="checkbox" checked><span class="legend-color" style="background:#1abc9c; height:10px; width:10px; border-radius:50%"></span> Enum</div>
-                <div class="legend-item type-toggle" data-type="method" onclick="toggleNodeType('method')"><input type="checkbox" checked><span class="legend-color" style="background:#5B9BD5; height:6px; width:6px; border-radius:50%"></span> Method 🔵</div>
-                <div class="legend-item type-toggle" data-type="constructor" onclick="toggleNodeType('constructor')"><input type="checkbox" checked><span class="legend-color" style="background:#CD5C5C; height:7px; width:7px; border-radius:50%"></span> Constructor 🔴</div>
-                <div class="legend-item type-toggle" data-type="field" onclick="toggleNodeType('field')"><input type="checkbox" checked><span class="legend-color" style="background:#9b59b6; height:5px; width:5px; border-radius:50%"></span> Field</div>
-                <div class="legend-item type-toggle" data-type="constant" onclick="toggleNodeType('constant')"><input type="checkbox" checked><span class="legend-color" style="background:#CD5C5C; height:4px; width:4px; border-radius:50%"></span> Constant</div>
-                <div class="legend-item type-toggle" data-type="import" onclick="toggleNodeType('import')"><input type="checkbox"><span class="legend-color" style="background:#95a5a6; height:3px; width:3px; border-radius:50%"></span> Import</div>
-                <div class="legend-item type-toggle" data-type="package" onclick="toggleNodeType('package')"><input type="checkbox" checked><span class="legend-color" style="background:#34495e; height:14px; width:14px; border-radius:2px"></span> Package</div>
+
+            <div style="display:flex; gap:8px; margin-top:16px;">
+                <button onclick="applySettings()" style="flex:1; padding:8px; background:#4a90d9; border:none; color:#fff; border-radius:6px; cursor:pointer; font-weight:bold; font-size:13px;">Apply & Restart</button>
+                <button onclick="closeSettings()" style="flex:1; padding:8px; background:#444; border:none; color:#fff; border-radius:6px; cursor:pointer; font-size:13px;">Cancel</button>
             </div>
         </div>
     </div>
@@ -2538,6 +2826,15 @@ class VisHTMLRenderer:
         // Data
         const allNodes = {json.dumps(vis_nodes)};
         const allEdges = {json.dumps(vis_edges)};
+
+        // Store original PCoA positions for reset functionality
+        // These are the topology-based positions computed from inheritance/call graph
+        const originalPositions = {{}};
+        allNodes.forEach(n => {{
+            if (n.x !== undefined && n.y !== undefined) {{
+                originalPositions[n.id] = {{ x: n.x, y: n.y }};
+            }}
+        }});
 
         // Edge color scheme by dependency type
         const edgeColors = {{
@@ -2557,17 +2854,19 @@ class VisHTMLRenderer:
             const colorInfo = edgeColors[edgeType] || edgeColors['default'];
 
             if (edgeType === 'structural') {{
-                // Structural edges: dark visible link to show class-member relationship
+                // Structural edges: Priority 1 - strongest, shortest bonds
+                // Low opacity/width for visual clarity, but physics enabled
                 edge.color = {{ color: colorInfo.color, highlight: colorInfo.highlight, opacity: colorInfo.opacity }};
-                edge.width = 0.3;
-                edge.length = 30;  // Short spring pulls members to classes
+                edge.width = 0.5;  // Thin but visible
+                edge.length = 50;  // Priority 1: Shortest spring (keeps solar systems intact)
                 edge.smooth = false;
                 edge.arrows = {{ to: {{ enabled: false }} }};  // No arrow for structural
                 edge.dashes = false;
             }} else {{
+                // Non-structural edges use type-based lengths from Python
                 edge.color = {{ color: colorInfo.color, highlight: colorInfo.highlight, opacity: colorInfo.opacity }};
                 edge.width = edgeType === 'inheritance' || edgeType === 'implementation' ? 1.5 : 0.8;
-                edge.length = 150;  // Regular edges are longer
+                // Length is set per edge in Python based on edge_length_by_type
             }}
         }});
 
@@ -2605,6 +2904,44 @@ class VisHTMLRenderer:
             'default': true
         }};
 
+        // Node name filter state
+        let nodeNameFilter = '';
+        let nodeNameFilterExact = false;
+
+        // Filter nodes by name (within selected packages)
+        function filterNodes(query, exact = false) {{
+            nodeNameFilter = query.toLowerCase().trim();
+            nodeNameFilterExact = exact;
+            updateVisibility();
+
+            // Update match count display
+            const countEl = document.getElementById('filter-match-count');
+            if (nodeNameFilter) {{
+                const matches = allNodes.filter(n => {{
+                    const name = (n.label || n.id).toLowerCase();
+                    return nodeNameFilterExact ? name === nodeNameFilter : name.includes(nodeNameFilter);
+                }}).length;
+                countEl.textContent = `(${{matches}} matches)`;
+            }} else {{
+                countEl.textContent = '';
+            }}
+        }}
+
+        function clearNodeFilter() {{
+            document.getElementById('node-filter').value = '';
+            nodeNameFilter = '';
+            nodeNameFilterExact = false;
+            document.getElementById('filter-match-count').textContent = '';
+            updateVisibility();
+        }}
+
+        // Check if node name matches current filter
+        function nodeMatchesFilter(node) {{
+            if (!nodeNameFilter) return true;
+            const name = (node.label || node.id).toLowerCase();
+            return nodeNameFilterExact ? name === nodeNameFilter : name.includes(nodeNameFilter);
+        }}
+
         // Toggle node type visibility from legend
         function toggleNodeType(nodeType) {{
             typeVisible[nodeType] = !typeVisible[nodeType];
@@ -2638,6 +2975,44 @@ class VisHTMLRenderer:
                 updates.push({{ id: edge.id, hidden: !visible }});
             }});
             edges.update(updates);
+        }}
+
+        // Toggle collapsible sidebar sections
+        function toggleSection(headerEl) {{
+            const section = headerEl.parentElement;
+            const content = section.querySelector('.section-content');
+            const icon = headerEl.querySelector('.collapse-icon');
+            const isCollapsed = section.classList.toggle('collapsed');
+            content.style.display = isCollapsed ? 'none' : '';
+            icon.textContent = isCollapsed ? '▶' : '▼';
+        }}
+
+        // Global toggle: all edge types on/off
+        function toggleAllEdges(visible) {{
+            Object.keys(edgeTypeVisible).forEach(edgeType => {{
+                edgeTypeVisible[edgeType] = visible;
+                const item = document.querySelector(`.type-toggle[data-edge="${{edgeType}}"]`);
+                if (item) {{
+                    const cb = item.querySelector('input');
+                    cb.checked = visible;
+                    item.classList.toggle('disabled', !visible);
+                }}
+            }});
+            updateEdgeVisibility();
+        }}
+
+        // Global toggle: all node types on/off
+        function toggleAllNodeTypes(visible) {{
+            Object.keys(typeVisible).forEach(nodeType => {{
+                typeVisible[nodeType] = visible;
+                const item = document.querySelector(`.type-toggle[data-type="${{nodeType}}"]`);
+                if (item) {{
+                    const cb = item.querySelector('input');
+                    cb.checked = visible;
+                    item.classList.toggle('disabled', !visible);
+                }}
+            }});
+            updateVisibility();
         }}
 
         // Create network
@@ -2796,16 +3171,12 @@ class VisHTMLRenderer:
             completeLoading();
             network.setOptions({{ physics: false }});
             physicsEnabled = false;
-            // Relaxed fit: scale 0.5 leaves generous headroom, prevents square confinement
-            network.fit({{ animation: {{ duration: 0 }}, scale: 0.5 }});
         }});
 
         // For non-physics graphs, hide loading immediately after drawing
         if (!physicsEnabled) {{
             network.once("afterDrawing", function() {{
                 completeLoading();
-                // Relaxed fit: scale 0.5 leaves generous headroom
-                network.fit({{ animation: {{ duration: 0 }}, scale: 0.5 }});
             }});
         }}
 
@@ -2816,6 +3187,7 @@ class VisHTMLRenderer:
         }}
 
         // Restart simulation (optionally randomize positions)
+        // When not randomizing, reset to original PCoA positions (topology-based)
         function restartSimulation(randomize) {{
             if (randomize) {{
                 // Randomize node positions before restarting
@@ -2834,6 +3206,16 @@ class VisHTMLRenderer:
                     }});
                 }});
                 nodes.update(updates);
+            }} else {{
+                // Reset to original PCoA positions (topology-based layout)
+                const updates = [];
+                allNodes.forEach(n => {{
+                    const orig = originalPositions[n.id];
+                    if (orig) {{
+                        updates.push({{ id: n.id, x: orig.x, y: orig.y }});
+                    }}
+                }});
+                nodes.update(updates);
             }}
 
             // Enable physics and restart stabilization
@@ -2842,18 +3224,211 @@ class VisHTMLRenderer:
             network.stabilize(500);  // Run stabilization for 500 iterations
         }}
 
+        // Reset to original PCoA positions (topology-based layout)
+        // This restores the initial positions computed from inheritance/call graph distances
+        function resetToPCoA(runPhysics) {{
+            const updates = [];
+            allNodes.forEach(n => {{
+                const orig = originalPositions[n.id];
+                if (orig) {{
+                    updates.push({{ id: n.id, x: orig.x, y: orig.y }});
+                }}
+            }});
+            nodes.update(updates);
+
+            if (runPhysics) {{
+                // Optionally run physics to refine the layout
+                physicsEnabled = true;
+                network.setOptions({{ physics: {{ enabled: true }} }});
+                network.stabilize(300);
+            }} else {{
+                // Just reset positions, no physics
+                network.setOptions({{ physics: {{ enabled: false }} }});
+                physicsEnabled = false;
+                network.fit({{ animation: {{ duration: 500 }} }});
+            }}
+        }}
+
+        // ============ Settings Modal Functions ============
+
+        // Current physics settings (can be modified via Settings panel)
+        // Defaults match the original working parameters from Python
+        const physicsSettings = {{
+            gravitationalConstant: -35,
+            centralGravity: 0.1,
+            springConstant: 0.07,
+            damping: 0.5,
+            edgeLengths: {{
+                structural: 50,
+                inheritance: 100,
+                call: 180,
+                other: 250
+            }}
+        }};
+
+        // Template presets (all tested for stability)
+        const settingsTemplates = {{
+            default: {{ gravitationalConstant: -35, centralGravity: 0.1, springConstant: 0.07, damping: 0.5, edgeLengths: {{ structural: 50, inheritance: 100, call: 180, other: 250 }} }},
+            compact: {{ gravitationalConstant: -25, centralGravity: 0.15, springConstant: 0.1, damping: 0.6, edgeLengths: {{ structural: 30, inheritance: 60, call: 100, other: 150 }} }},
+            expanded: {{ gravitationalConstant: -50, centralGravity: 0.05, springConstant: 0.04, damping: 0.4, edgeLengths: {{ structural: 80, inheritance: 150, call: 280, other: 400 }} }},
+            hierarchy: {{ gravitationalConstant: -35, centralGravity: 0.08, springConstant: 0.08, damping: 0.5, edgeLengths: {{ structural: 40, inheritance: 60, call: 200, other: 300 }} }}
+        }};
+
+        function openSettings() {{
+            // Sync UI with current settings
+            document.getElementById('settings-gravity').value = physicsSettings.gravitationalConstant;
+            document.getElementById('grav-val').textContent = physicsSettings.gravitationalConstant;
+            document.getElementById('settings-central').value = physicsSettings.centralGravity;
+            document.getElementById('central-val').textContent = physicsSettings.centralGravity;
+            document.getElementById('settings-spring').value = physicsSettings.springConstant;
+            document.getElementById('spring-val').textContent = physicsSettings.springConstant;
+            document.getElementById('settings-damping').value = physicsSettings.damping;
+            document.getElementById('damping-val').textContent = physicsSettings.damping;
+            document.getElementById('settings-len-structural').value = physicsSettings.edgeLengths.structural;
+            document.getElementById('len-structural-val').textContent = physicsSettings.edgeLengths.structural;
+            document.getElementById('settings-len-inherit').value = physicsSettings.edgeLengths.inheritance;
+            document.getElementById('len-inherit-val').textContent = physicsSettings.edgeLengths.inheritance;
+            document.getElementById('settings-len-call').value = physicsSettings.edgeLengths.call;
+            document.getElementById('len-call-val').textContent = physicsSettings.edgeLengths.call;
+            document.getElementById('settings-len-other').value = physicsSettings.edgeLengths.other;
+            document.getElementById('len-other-val').textContent = physicsSettings.edgeLengths.other;
+
+            document.getElementById('settings-modal').style.display = 'flex';
+        }}
+
+        function closeSettings() {{
+            document.getElementById('settings-modal').style.display = 'none';
+        }}
+
+        function updateSettingValue(spanId, value) {{
+            document.getElementById(spanId).textContent = value;
+            document.getElementById('settings-template').value = 'custom';
+        }}
+
+        function applyTemplate(templateName) {{
+            if (templateName === 'custom') return;
+            const t = settingsTemplates[templateName];
+            if (!t) return;
+
+            document.getElementById('settings-gravity').value = t.gravitationalConstant;
+            document.getElementById('grav-val').textContent = t.gravitationalConstant;
+            document.getElementById('settings-central').value = t.centralGravity;
+            document.getElementById('central-val').textContent = t.centralGravity;
+            document.getElementById('settings-spring').value = t.springConstant;
+            document.getElementById('spring-val').textContent = t.springConstant;
+            document.getElementById('settings-damping').value = t.damping;
+            document.getElementById('damping-val').textContent = t.damping;
+            document.getElementById('settings-len-structural').value = t.edgeLengths.structural;
+            document.getElementById('len-structural-val').textContent = t.edgeLengths.structural;
+            document.getElementById('settings-len-inherit').value = t.edgeLengths.inheritance;
+            document.getElementById('len-inherit-val').textContent = t.edgeLengths.inheritance;
+            document.getElementById('settings-len-call').value = t.edgeLengths.call;
+            document.getElementById('len-call-val').textContent = t.edgeLengths.call;
+            document.getElementById('settings-len-other').value = t.edgeLengths.other;
+            document.getElementById('len-other-val').textContent = t.edgeLengths.other;
+        }}
+
+        function applySettings() {{
+            // Read values from UI
+            physicsSettings.gravitationalConstant = parseFloat(document.getElementById('settings-gravity').value);
+            physicsSettings.centralGravity = parseFloat(document.getElementById('settings-central').value);
+            physicsSettings.springConstant = parseFloat(document.getElementById('settings-spring').value);
+            physicsSettings.damping = parseFloat(document.getElementById('settings-damping').value);
+            physicsSettings.edgeLengths.structural = parseInt(document.getElementById('settings-len-structural').value);
+            physicsSettings.edgeLengths.inheritance = parseInt(document.getElementById('settings-len-inherit').value);
+            physicsSettings.edgeLengths.call = parseInt(document.getElementById('settings-len-call').value);
+            physicsSettings.edgeLengths.other = parseInt(document.getElementById('settings-len-other').value);
+
+            // Update edge lengths
+            const edgeUpdates = [];
+            allEdges.forEach(edge => {{
+                let newLength;
+                switch (edge.edgeType) {{
+                    case 'structural': newLength = physicsSettings.edgeLengths.structural; break;
+                    case 'inheritance':
+                    case 'implementation': newLength = physicsSettings.edgeLengths.inheritance; break;
+                    case 'call': newLength = physicsSettings.edgeLengths.call; break;
+                    default: newLength = physicsSettings.edgeLengths.other; break;
+                }}
+                edgeUpdates.push({{ id: edge.id, length: newLength }});
+            }});
+            edges.update(edgeUpdates);
+
+            // Update physics options
+            network.setOptions({{
+                physics: {{
+                    enabled: true,
+                    forceAtlas2Based: {{
+                        gravitationalConstant: physicsSettings.gravitationalConstant,
+                        centralGravity: physicsSettings.centralGravity,
+                        springConstant: physicsSettings.springConstant,
+                        damping: physicsSettings.damping
+                    }}
+                }}
+            }});
+
+            // Reset to PCoA and restart
+            restartSimulation(false);
+            closeSettings();
+        }}
+
+        // Close modal on backdrop click
+        document.getElementById('settings-modal').addEventListener('click', function(e) {{
+            if (e.target === this) closeSettings();
+        }});
+
+        // ============ End Settings Modal Functions ============
+
         // Package filtering
         function togglePackage(pkg, visible) {{
             packageVisible[pkg] = visible;
             updateVisibility();
         }}
 
+        // Build parent class map from structural edges (member -> class)
+        // This is used to hide members when their parent class is hidden
+        const parentClassMap = {{}};
+        allEdges.forEach(e => {{
+            if (e.edgeType === 'structural') {{
+                // Structural edges: from=member, to=class
+                parentClassMap[e.from] = e.to;
+            }}
+        }});
+
+        // Helper: check if a node's parent class (if any) is visible
+        function isParentClassVisible(nodeId) {{
+            const parentId = parentClassMap[nodeId];
+            if (!parentId) return true;  // No parent = always visible (it's a class/interface itself)
+            const parentNode = allNodes.find(n => n.id === parentId);
+            if (!parentNode) return true;  // Parent not found = assume visible
+            // Check if parent class passes all visibility filters
+            return packageVisible[parentNode.package] &&
+                   typeVisible[parentNode.group] &&
+                   !hiddenNodes.has(parentId);
+        }}
+
         function updateVisibility() {{
             // Update node visibility using update() to preserve positions and not restart simulation
+            // Key rules:
+            // - Classes/interfaces: visible if their package is selected AND matches name filter
+            // - Members (methods, fields): visible if their PARENT CLASS is visible AND matches name filter
             const nodeUpdates = [];
             let visibleCount = 0;
             allNodes.forEach(n => {{
-                const shouldBeVisible = packageVisible[n.package] && typeVisible[n.group] && !hiddenNodes.has(n.id);
+                const hasParent = parentClassMap[n.id] !== undefined;
+                const typeVis = typeVisible[n.group] !== false;
+                const notHidden = !hiddenNodes.has(n.id);
+                const matchesFilter = nodeMatchesFilter(n);
+                let shouldBeVisible;
+
+                if (hasParent) {{
+                    // Members: visibility follows parent class + name filter
+                    shouldBeVisible = isParentClassVisible(n.id) && typeVis && notHidden && matchesFilter;
+                }} else {{
+                    // Classes/interfaces/enums: visibility based on package selection + name filter
+                    shouldBeVisible = packageVisible[n.package] && typeVis && notHidden && matchesFilter;
+                }}
+
                 nodeUpdates.push({{ id: n.id, hidden: !shouldBeVisible }});
                 if (shouldBeVisible) visibleCount++;
             }});
@@ -2861,16 +3436,25 @@ class VisHTMLRenderer:
 
             // Build set of visible node IDs for edge filtering
             const visibleIds = new Set(
-                allNodes.filter(n => packageVisible[n.package] && typeVisible[n.group] && !hiddenNodes.has(n.id))
-                    .map(n => n.id)
+                allNodes.filter(n => {{
+                    const hasParent = parentClassMap[n.id] !== undefined;
+                    const typeVis = typeVisible[n.group] !== false;
+                    const notHidden = !hiddenNodes.has(n.id);
+                    const matchesFilter = nodeMatchesFilter(n);
+                    if (hasParent) {{
+                        return isParentClassVisible(n.id) && typeVis && notHidden && matchesFilter;
+                    }} else {{
+                        return packageVisible[n.package] && typeVis && notHidden && matchesFilter;
+                    }}
+                }}).map(n => n.id)
             );
 
             // Update edge visibility - show only edges where both endpoints are visible
             const edgeUpdates = [];
             allEdges.forEach(e => {{
                 const bothVisible = visibleIds.has(e.from) && visibleIds.has(e.to);
-                const typeVisible = edgeTypeVisible[e.edgeType || 'default'] !== false;
-                edgeUpdates.push({{ id: e.id, hidden: !bothVisible || !typeVisible }});
+                const typeVis = edgeTypeVisible[e.edgeType || 'default'] !== false;
+                edgeUpdates.push({{ id: e.id, hidden: !bothVisible || !typeVis }});
             }});
             edges.update(edgeUpdates);
 
@@ -3059,7 +3643,6 @@ class VisHTMLRenderer:
         // Fullscreen toggle
         function toggleFullscreen() {{
             document.body.classList.toggle('fullscreen');
-            setTimeout(() => network.fit(), 100);
         }}
 
         // Help toggle

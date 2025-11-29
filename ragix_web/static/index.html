@@ -510,7 +510,7 @@
         <header class="header">
             <div class="header-left">
                 <h1>RAGIX</h1>
-                <span class="version">v0.21.0</span>
+                <span class="version">v0.22.0</span>
             </div>
             <div class="header-right">
                 <span id="status" class="status status-disconnected">Disconnected</span>
@@ -2442,7 +2442,7 @@
                         document.getElementById('dashStatFiles').textContent = data.summary?.total_files || '-';
                         document.getElementById('dashStatSymbols').textContent =
                             (data.summary?.total_classes || 0) + (data.summary?.total_methods || 0);
-                        document.getElementById('dashStatDeps').textContent = '-';
+                        document.getElementById('dashStatDeps').textContent = data.dependencies?.total || '-';
                         document.getElementById('dashStatDebt').textContent =
                             data.debt?.estimated_hours?.toFixed(1) || '-';
 

@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.20.0
+# RAGIX v0.22.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
@@ -15,8 +15,8 @@
 
 ---
 
-**Version:** 0.20.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Updated:** 2025-11-28
+**Version:** 0.22.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Updated:** 2025-11-29
 
 ---
 
@@ -42,28 +42,42 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 
 ---
 
-## **What's New in v0.20.0**
+## **What's New in v0.22.0**
 
 | Feature | Description |
 |---------|-------------|
+| **Galaxy Visualization** | "Solar system" metaphor: classes as stars, methods as planets |
+| **PCoA Topology Layout** | Initial positions based on actual inheritance/call distances |
+| **Mass-Based Physics** | Phase separation: heavy nodes (interfaces) stay close, light nodes (methods) orbit outward |
+| **Refined Force Model** | Balanced repulsion/attraction prevents expansion collapse |
+| **Dashboard Metrics** | Fixed dependency count in metrics API |
 | **Report Generation** | Executive Summary, Technical Audit, Compliance reports (PDF/HTML) |
 | **Advanced Visualizations** | Treemap, Sunburst, Chord diagram for package dependencies |
-| **Documentation Coverage** | Real Javadoc analysis (filters placeholders like "The Class X") |
-| **Maven & SonarQube** | Build tool and quality gate integration in reports |
 | **AST Analysis** | Multi-language parsing (Python + Java) with symbol extraction |
 | **Dependency Graph** | Full tracking with cycle detection and coupling metrics |
 | **Code Metrics** | Cyclomatic complexity, technical debt, maintainability |
-| **Interactive Visualizations** | Force-directed graph, DSM heatmap, radial explorer |
 | **Plugin System** | Extensible tools and workflows with trust levels |
-| **WASP Tools** | 18 deterministic tools for validation, markdown, search |
-| **Live Radial Server** | FastAPI server for real-time dependency exploration |
-| **ragix-ast CLI** | 15 commands for code analysis and reporting |
-| **Web UI** | Comprehensive web interface with AST dashboards |
-| **Knowledge Base** | Pattern storage for improved 7B model reasoning |
-| **Session Memory** | View, delete, and clear conversation history |
-| **User Context** | Custom instructions like Claude/ChatGPT |
 
-### v0.20.0 Highlights (Latest)
+### v0.22.0 Highlights (Latest)
+
+- **Galaxy Visualization Physics** — Multi-body simulation with mass-based phase separation
+  - Classes (stars): Heavy, anchor solar systems
+  - Interfaces/Enums: Heavy planets in inner orbits
+  - Methods: Light planets in outer orbits
+  - Fields/Constants: Asteroids at outer edges
+- **PCoA-Based Topology** — Initial class positions derived from inheritance/call graph distances via MDS
+- **Refined Physics Constants** — Balanced gravitational repulsion (-35), strong central gravity (0.1), proper spring lengths
+- **Edge Force Hierarchy** — Structural (50) → Inheritance (100) → Call (180) → Reference (250)
+- **Fixed Metrics API** — Dependency count now properly returned from cached and fresh analysis
+- **Version 0.22.0** — Centralized version management
+
+### v0.21.0 Highlights
+
+- **Analysis Caching** — Fast fingerprint-based caching for large codebases
+- **SonarQube Integration** — TTL-based cache for SonarQube API responses
+- **Performance** — PCoA seeding with constant scale factor (no bounding box normalization)
+
+### v0.20.0 Highlights
 
 - **Report Generation** — Executive Summary, Technical Audit, Compliance reports (PDF/HTML)
 - **Advanced Visualizations** — Treemap, Sunburst, Chord diagram for dependency analysis
@@ -1070,19 +1084,21 @@ pytest tests/test_caching.py -v
 
 ## **Roadmap**
 
-### v0.21 (Next)
+### v0.23 (Next)
+- **Reasoning Unification** — Single orchestrator for planning/execution/verification
+- **Structured Plans** — JSON schema-validated plans with tool allowlists
+- **Hardened Execution** — returncode/stderr-aware retries, stop reasons
+- **Persistent Traces** — Durable `.ragix/reasoning_traces/` with episodic summaries
+
+### v0.24
 - **Git integration** — Complexity evolution over commits, hotspot tracking
 - **Trend analysis** — Technical debt timeline, churn analysis
-- **Enhanced search** — More fusion strategies, better ranking
-
-### v0.22
-- **Distributed execution** — Multi-node agent coordination
-- **Real-time collaboration** — Shared analysis sessions
 
 ### Future (v1.0+)
 - IDE integrations (VS Code, JetBrains)
 - WASM-compiled tools for browser execution
 - Jupyter notebook integration
+- Distributed execution, real-time collaboration
 
 See `ACTION_PLAN.md` and `TODO.md` for detailed roadmap.
 

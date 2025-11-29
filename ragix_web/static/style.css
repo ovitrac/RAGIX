@@ -1687,7 +1687,7 @@ body {
 /* Dashboard Stats */
 .dashboard-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 16px;
 }
 
@@ -1725,7 +1725,7 @@ body {
 /* Quick Actions */
 .quick-actions {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
 }
 
@@ -1733,7 +1733,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 20px;
+    padding: 12px 8px;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -1749,19 +1749,19 @@ body {
 }
 
 .action-icon {
-    font-size: 32px;
-    margin-bottom: 8px;
-}
-
-.action-label {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
+    font-size: 24px;
     margin-bottom: 4px;
 }
 
+.action-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
 .action-desc {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-secondary);
 }
 

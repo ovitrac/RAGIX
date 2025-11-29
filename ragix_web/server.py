@@ -1152,6 +1152,9 @@ async def get_project_metrics(
                     "estimated_hours": cached_metrics.get('technical_debt', {}).get('hours', 0),
                     "estimated_days": cached_metrics.get('technical_debt', {}).get('days', 0),
                 },
+                "dependencies": {
+                    "total": len(cached_deps) if cached_deps else cached_metrics.get('dependencies', 0),
+                },
                 "hotspots": cached_metrics.get('hotspots', []),
             }
             return JSONResponse(content=result)
@@ -1193,6 +1196,9 @@ async def get_project_metrics(
             "debt": {
                 "estimated_hours": round(metrics.estimated_debt_hours, 1),
                 "estimated_days": round(metrics.estimated_debt_days, 1),
+            },
+            "dependencies": {
+                "total": len(graph._dependencies),
             },
             "hotspots": hotspots,
         }
