@@ -2715,7 +2715,7 @@ async def generate_report(
         report_type: executive, technical, or compliance
         project_name: Name for the report
         standard: Compliance standard (for compliance reports)
-        use_cache: Whether to use cached analysis (default True)
+        use_cache: Ignored - reports always use fresh analysis for accuracy
     """
     if not REPORTS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Report generation not available")
@@ -2728,8 +2728,10 @@ async def generate_report(
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
 
     try:
-        # Use cached graph helper - cycles are cached
-        graph, metrics_data, cycles, was_cached = get_cached_graph(target_path, None, use_cache)
+        # Reports need full graph with _files for detailed metrics calculation.
+        # Cached "light" graphs lack _files, so we force fresh build for reports.
+        # The metrics_data from cache is a summary dict, not a ProjectMetrics object.
+        graph, metrics_data, cycles, was_cached = get_cached_graph(target_path, None, use_cache=False)
         code_metrics = calculate_metrics_from_graph(graph)
 
         project = project_name or target_path.name
