@@ -57,34 +57,61 @@ async def get_agent_config(session_id: Optional[str] = None):
     """
     Get agent configuration.
 
-    Returns session-specific config if available, otherwise returns default.
+    Model inheritance hierarchy:
+    1. Session model = default (single source of truth)
+    2. Agent Config = optional override (inherits from session if not explicitly set in MINIMAL mode)
     """
     if not RAGIX_AVAILABLE:
         return {"error": "ragix_core not available", "available": False}
 
+    # Get session model from active_sessions (single source of truth)
+    session_model = None
+    if session_id and session_id in _active_sessions:
+        session_model = _active_sessions[session_id].get("model")
+
+    # Fallback to config default
+    if session_model is None:
+        try:
+            from ragix_core.config import get_config
+            config = get_config()
+            session_model = config.llm.model if hasattr(config, 'llm') and config.llm else "mistral"
+        except Exception:
+            session_model = "mistral"
+
     # Detect available models
     available_models = detect_ollama_models()
-
-    # Get default config
-    default_config = AgentConfig()
 
     # Check for session-specific override
     if session_id and session_id in _session_agent_configs:
         agent_config = _session_agent_configs[session_id]
+        is_override = True
     else:
-        agent_config = default_config
+        agent_config = AgentConfig()
+        is_override = False
+
+    # Resolve models based on mode - MINIMAL mode inherits from session
+    mode = agent_config.mode.value if hasattr(agent_config.mode, 'value') else agent_config.mode
+    if mode == "minimal":
+        planner = session_model
+        worker = session_model
+        verifier = session_model
+    else:
+        planner = agent_config.planner_model
+        worker = agent_config.worker_model
+        verifier = agent_config.verifier_model
 
     return {
-        "mode": agent_config.mode.value if hasattr(agent_config.mode, 'value') else agent_config.mode,
-        "planner_model": agent_config.planner_model,
-        "worker_model": agent_config.worker_model,
-        "verifier_model": agent_config.verifier_model,
-        "single_model_mode": agent_config.mode == AgentMode.MINIMAL if AgentMode else False,
+        "mode": mode,
+        "planner_model": planner,
+        "worker_model": worker,
+        "verifier_model": verifier,
+        "session_model": session_model,  # Expose for UI
+        "single_model_mode": mode == "minimal",
         "available_models": [
             {"name": m.name, "size_gb": m.size_gb, "parameter_size": m.category, "params_b": m.params_b}
             for m in available_models
         ],
-        "is_session_override": session_id in _session_agent_configs if session_id else False,
+        "is_session_override": is_override,
     }
 
 

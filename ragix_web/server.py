@@ -135,11 +135,13 @@ try:
         context_router,
         agents_router,
         logs_router,
+        reasoning_router,
     )
     from ragix_web.routers.sessions import set_sessions_store
     from ragix_web.routers.context import set_context_store
     from ragix_web.routers.agents import set_stores as set_agent_stores
     from ragix_web.routers.logs import set_sessions_store as set_logs_sessions
+    from ragix_web.routers.reasoning import set_stores as set_reasoning_stores
     ROUTERS_AVAILABLE = True
 except ImportError:
     ROUTERS_AVAILABLE = False
@@ -193,6 +195,10 @@ session_agent_configs: Dict[str, AgentConfig] = {}
 session_reasoning_traces: Dict[str, List[Dict[str, Any]]] = {}
 session_user_context: Dict[str, Dict[str, Any]] = {}
 
+# v0.23: Storage for reasoning graph states and experience corpora
+session_reasoning_states: Dict[str, Dict[str, Any]] = {}
+session_experience_corpora: Dict[str, Any] = {}
+
 # Register modular routers if available
 if ROUTERS_AVAILABLE:
     # Set shared state references
@@ -200,6 +206,7 @@ if ROUTERS_AVAILABLE:
     set_context_store(session_user_context)
     set_agent_stores(active_sessions, session_agent_configs, session_reasoning_traces)
     set_logs_sessions(active_sessions)
+    set_reasoning_stores(active_sessions, session_reasoning_states, session_experience_corpora)
 
     # Include routers with their prefixes
     # Note: These provide modular, organized endpoints
@@ -210,6 +217,7 @@ if ROUTERS_AVAILABLE:
     app.include_router(context_router, tags=["Context (v2)"])
     app.include_router(agents_router, tags=["Agents (v2)"])
     app.include_router(logs_router, tags=["Logs (v2)"])
+    app.include_router(reasoning_router, tags=["Reasoning Graph (v0.23)"])
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -441,6 +449,105 @@ async def delete_session(session_id: str):
         return {"status": "deleted", "session_id": session_id}
     else:
         raise HTTPException(status_code=404, detail="Session not found")
+
+
+@app.get("/api/sessions/{session_id}/status")
+async def get_session_status(session_id: str):
+    """
+    Get comprehensive session status including actual agent configuration.
+
+    This returns the real values being used (from agent config overrides),
+    not just the originally stored session values.
+
+    If the session doesn't exist (e.g., after server restart), it will be
+    auto-created with default settings.
+    """
+    if session_id not in active_sessions:
+        # Auto-create session with defaults (handles server restart case)
+        # Get defaults from config or use fallbacks
+        try:
+            config = get_config()
+            default_model = config.llm.model if hasattr(config, 'llm') and config.llm else "mistral"
+            default_profile = "dev"
+        except Exception:
+            default_model = "mistral"
+            default_profile = "dev"
+
+        active_sessions[session_id] = {
+            "id": session_id,
+            "sandbox_root": LAUNCH_DIRECTORY,
+            "model": default_model,
+            "profile": default_profile,
+            "created_at": datetime.now().isoformat(),
+            "message_history": [],
+            "auto_created": True  # Flag to indicate this was auto-created
+        }
+
+    session = active_sessions[session_id]
+
+    # Session model is the single source of truth
+    session_model = session.get("model", "mistral")
+
+    # Get agent config (may be session-specific override)
+    agent_config = session_agent_configs.get(session_id)
+    if not agent_config:
+        try:
+            config = get_config()
+            agent_config = config.agents if hasattr(config, 'agents') and config.agents else None
+        except Exception:
+            agent_config = None
+
+    # Model resolution hierarchy:
+    # 1. Session model = default (single source of truth)
+    # 2. Agent Config = optional override (inherits from session if not explicitly set)
+    # 3. Reasoning = inherits from Agent Config worker model
+    if session_id in session_agents:
+        # Agent exists - use its resolved model (most authoritative)
+        agent = session_agents[session_id]
+        actual_model = getattr(agent, '_resolved_model', None) or \
+                       (agent.llm.model if hasattr(agent, 'llm') else session_model)
+    elif agent_config:
+        # Check if agent config has explicit override
+        configured_model = agent_config.get_model(AgentRole.WORKER)
+        # Use session model if agent config still has hardcoded default
+        if configured_model == "granite3.1-moe:3b" and session_model != "granite3.1-moe:3b":
+            actual_model = session_model
+        else:
+            actual_model = configured_model
+    else:
+        actual_model = session_model
+
+    # Get reasoning config - inherits from agent worker model
+    from ragix_web.routers.reasoning import _session_reasoning_config
+    reasoning_config = _session_reasoning_config.get(session_id, {})
+    reasoning_strategy = reasoning_config.get("strategy", os.environ.get("RAGIX_REASONING_STRATEGY", "loop_v1"))
+
+    # For planner/worker/verifier display: show actual model if not explicitly overridden
+    agent_mode = agent_config.mode.value if agent_config else "minimal"
+    planner_model = agent_config.planner_model if agent_config else actual_model
+    worker_model = agent_config.worker_model if agent_config else actual_model
+    verifier_model = agent_config.verifier_model if agent_config else actual_model
+
+    # If in minimal mode and models are default, show session model instead
+    if agent_mode == "minimal" or not agent_config:
+        planner_model = actual_model
+        worker_model = actual_model
+        verifier_model = actual_model
+
+    return {
+        "session_id": session_id,
+        "sandbox_root": session.get("sandbox_root", ""),
+        "model": actual_model,
+        "session_model": session_model,  # Original session model for reference
+        "profile": session.get("profile", "dev"),
+        "reasoning_strategy": reasoning_strategy,
+        "agent_mode": agent_mode,
+        "planner_model": planner_model,
+        "worker_model": worker_model,
+        "verifier_model": verifier_model,
+        "created_at": session.get("created_at", ""),
+        "has_agent_override": session_id in session_agent_configs,
+    }
 
 
 @app.get("/api/sessions/{session_id}/logs")
@@ -3053,37 +3160,81 @@ async def get_agent_config(session_id: Optional[str] = None):
     """
     Get current agent configuration.
 
-    Returns session-specific config if available, otherwise returns default.
+    Model inheritance hierarchy:
+    1. Session model = default (single source of truth)
+    2. Agent Config = optional override (inherits from session if not explicitly set)
+    3. Reasoning = inherits from Agent Config worker model
     """
+    # Get session model (single source of truth)
+    session_model = None  # Will be set if session found
+    if session_id:
+        if session_id in active_sessions:
+            session_model = active_sessions[session_id].get("model", "mistral")
+        else:
+            # Session not found - log available sessions for debugging
+            logger.warning(f"Session {session_id} not in active_sessions. Available: {list(active_sessions.keys())}")
+
+    # Fallback to default model if session not found
+    if session_model is None:
+        try:
+            config = get_config()
+            session_model = config.llm.model if hasattr(config, 'llm') and config.llm else "mistral"
+        except Exception:
+            session_model = "mistral"
+
     # Get default config from ragix.yaml
     try:
         config = get_config()
-        default_config = config.agents if hasattr(config, 'agents') and config.agents else AgentConfig()
+        default_config = config.agents if hasattr(config, 'agents') and config.agents else None
     except Exception:
-        default_config = AgentConfig()
+        default_config = None
 
     # Check for session-specific override
     if session_id and session_id in session_agent_configs:
         agent_config = session_agent_configs[session_id]
+        is_override = True
     else:
         agent_config = default_config
+        is_override = False
 
     # Detect available models
     available_models = detect_ollama_models()
 
+    # Resolve actual models (inherit from session if not explicitly set)
+    if agent_config:
+        mode = agent_config.mode.value
+        # In minimal mode or if using default, inherit from session
+        if mode == "minimal":
+            planner = session_model
+            worker = session_model
+            verifier = session_model
+        else:
+            planner = agent_config.planner_model
+            worker = agent_config.worker_model
+            verifier = agent_config.verifier_model
+        fallback = agent_config.fallback_model
+    else:
+        # No config - use session model for all
+        mode = "minimal"
+        planner = session_model
+        worker = session_model
+        verifier = session_model
+        fallback = session_model
+
     return {
-        "mode": agent_config.mode.value,
-        "planner_model": agent_config.planner_model,
-        "worker_model": agent_config.worker_model,
-        "verifier_model": agent_config.verifier_model,
-        "fallback_model": agent_config.fallback_model,
-        "strict_enforcement": agent_config.strict_enforcement,
-        "is_session_override": session_id in session_agent_configs if session_id else False,
+        "mode": mode,
+        "planner_model": planner,
+        "worker_model": worker,
+        "verifier_model": verifier,
+        "fallback_model": fallback,
+        "session_model": session_model,  # Expose for UI to show inheritance
+        "strict_enforcement": agent_config.strict_enforcement if agent_config else False,
+        "is_session_override": is_override,
         "available_models": [
             {
                 "name": m.name,
                 "size_gb": m.size_gb,
-                "parameter_size": m.category,  # Use category property
+                "parameter_size": m.category,
                 "params_b": m.params_b,
             }
             for m in available_models
@@ -3098,16 +3249,14 @@ async def get_agent_config(session_id: Optional[str] = None):
         },
         "recommended": {
             "minimal": {
-                "description": "All agents use 3B model (≤8GB VRAM / CPU)",
-                "planner": "granite3.1-moe:3b",
-                "worker": "granite3.1-moe:3b",
-                "verifier": "granite3.1-moe:3b",
+                "description": "All agents use session model (≤8GB VRAM / CPU)",
+                "note": "Inherits from session model setting",
             },
             "strict": {
                 "description": "Planner uses 7B+, Worker/Verifier use 3B",
                 "planner": "mistral:latest",
-                "worker": "granite3.1-moe:3b",
-                "verifier": "granite3.1-moe:3b",
+                "worker": session_model,
+                "verifier": session_model,
             }
         }
     }
@@ -3136,19 +3285,27 @@ async def update_agent_config(request: AgentConfigRequest, session_id: Optional[
         worker = request.worker_model
         verifier = request.verifier_model
 
+    # Determine fallback model - use worker model if specified (for MINIMAL mode)
+    # This ensures MINIMAL mode uses the user's selected model, not the hardcoded default
+    fallback = request.single_model or worker or "granite3.1-moe:3b"
+
     # Create agent config
     agent_config = AgentConfig(
         mode=mode,
-        planner_model=planner or "granite3.1-moe:3b",
-        worker_model=worker or "granite3.1-moe:3b",
-        verifier_model=verifier or "granite3.1-moe:3b",
+        planner_model=planner or fallback,
+        worker_model=worker or fallback,
+        verifier_model=verifier or fallback,
         strict_enforcement=mode == AgentMode.STRICT,
-        fallback_model=request.single_model or "granite3.1-moe:3b",
+        fallback_model=fallback,
     )
 
     # Store as session override
     target_session = session_id or "default"
     session_agent_configs[target_session] = agent_config
+
+    # Invalidate cached agent so it will be recreated with the new config
+    if target_session in session_agents:
+        del session_agents[target_session]
 
     return {
         "status": "ok",
@@ -3576,8 +3733,17 @@ session_agents: Dict[str, UnixRAGAgent] = {}
 
 
 def get_or_create_agent(session: Dict[str, Any]) -> UnixRAGAgent:
-    """Get or create an agent for a session."""
+    """Get or create an agent for a session.
+
+    Model resolution hierarchy:
+    1. Session model = default/fallback (single source of truth)
+    2. Agent Config = optional override (inherits from session if not set)
+    3. Reasoning = inherits from Agent Config worker model
+    """
     session_id = session["id"]
+
+    # Session model is the single source of truth
+    session_model = session.get("model", "mistral")
 
     # Check for session-specific agent config
     agent_config = session_agent_configs.get(session_id)
@@ -3585,13 +3751,23 @@ def get_or_create_agent(session: Dict[str, Any]) -> UnixRAGAgent:
         # Try to get default from global config
         try:
             config = get_config()
-            agent_config = config.agents if hasattr(config, 'agents') and config.agents else AgentConfig()
+            agent_config = config.agents if hasattr(config, 'agents') and config.agents else None
         except Exception:
-            agent_config = AgentConfig()
+            agent_config = None
 
-    # Determine which model to use based on agent config
-    # For now, use the worker model as the primary model (it does the most work)
-    model_to_use = agent_config.get_model(AgentRole.WORKER)
+    # Determine model to use:
+    # - If agent_config exists and has explicit model set, use it
+    # - Otherwise, use session model (inheritance)
+    if agent_config:
+        # Check if agent config has explicit override (not default)
+        configured_model = agent_config.get_model(AgentRole.WORKER)
+        # Use session model if agent config still has hardcoded default
+        if configured_model == "granite3.1-moe:3b" and session_model != "granite3.1-moe:3b":
+            model_to_use = session_model
+        else:
+            model_to_use = configured_model
+    else:
+        model_to_use = session_model
 
     # Invalidate cached agent if model changed
     if session_id in session_agents:
@@ -3621,10 +3797,15 @@ def get_or_create_agent(session: Dict[str, Any]) -> UnixRAGAgent:
             shell=sandbox
         )
 
-        # Store agent config reference for later use
+        # Store agent config reference and session model for later use
         agent._agent_config = agent_config
+        agent._session_model = session_model  # Original session model (source of truth)
+        agent._resolved_model = model_to_use  # Actually used model
 
         session_agents[session_id] = agent
+
+        # Determine mode for logging
+        agent_mode = agent_config.mode.value if agent_config else "minimal"
 
         # Log reasoning trace for agent creation
         if session_id not in session_reasoning_traces:
@@ -3632,7 +3813,7 @@ def get_or_create_agent(session: Dict[str, Any]) -> UnixRAGAgent:
         session_reasoning_traces[session_id].append({
             "type": "system",
             "timestamp": datetime.now().isoformat(),
-            "content": f"Agent initialized with model: {model_to_use}, mode: {agent_config.mode.value}",
+            "content": f"Agent initialized with model: {model_to_use} (session: {session_model}), mode: {agent_mode}",
         })
 
     return session_agents[session_id]
@@ -3704,9 +3885,16 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
         actual_model = agent.llm.model if hasattr(agent, 'llm') else session.get('model', 'mistral')
         agent_mode = agent._agent_config.mode.value if hasattr(agent, '_agent_config') else 'unknown'
 
+        # Get reasoning strategy (check session-specific first, then env)
+        from ragix_web.routers.reasoning import _session_reasoning_config
+        if session_id in _session_reasoning_config:
+            reasoning_strategy = _session_reasoning_config[session_id].get("strategy", "loop_v1")
+        else:
+            reasoning_strategy = os.environ.get("RAGIX_REASONING_STRATEGY", "loop_v1")
+
         await websocket.send_json({
             "type": "status",
-            "message": f"Connected to session {session_id} (model: {actual_model}, mode: {agent_mode})"
+            "message": f"Connected to session {session_id} (model: {actual_model}, mode: {agent_mode}, reasoning: {reasoning_strategy})"
         })
 
         while True:
@@ -3749,6 +3937,18 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                             "traces": traces,
                             "timestamp": datetime.now().isoformat()
                         })
+
+                    # v0.23: Send reasoning graph state if available
+                    if session_id in session_reasoning_states:
+                        graph_state = session_reasoning_states[session_id]
+                        state = graph_state.get("state")
+                        if state and hasattr(state, 'to_dict'):
+                            await websocket.send_json({
+                                "type": "reasoning_graph_state",
+                                "state": state.to_dict(),
+                                "current_node": graph_state.get("current_node"),
+                                "timestamp": datetime.now().isoformat()
+                            })
 
                     # Send agent response
                     await websocket.send_json({

@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.22.0
+# RAGIX v0.23.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
@@ -15,8 +15,8 @@
 
 ---
 
-**Version:** 0.22.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Updated:** 2025-11-29
+**Version:** 0.23.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Updated:** 2025-12-02
 
 ---
 
@@ -42,23 +42,30 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 
 ---
 
-## **What's New in v0.22.0**
+## **What's New in v0.23.0**
 
 | Feature | Description |
 |---------|-------------|
-| **Galaxy Visualization** | "Solar system" metaphor: classes as stars, methods as planets |
-| **PCoA Topology Layout** | Initial positions based on actual inheritance/call distances |
-| **Mass-Based Physics** | Phase separation: heavy nodes (interfaces) stay close, light nodes (methods) orbit outward |
-| **Refined Force Model** | Balanced repulsion/attraction prevents expansion collapse |
-| **Dashboard Metrics** | Fixed dependency count in metrics API |
-| **Report Generation** | Executive Summary, Technical Audit, Compliance reports (PDF/HTML) |
-| **Advanced Visualizations** | Treemap, Sunburst, Chord diagram for package dependencies |
-| **AST Analysis** | Multi-language parsing (Python + Java) with symbol extraction |
-| **Dependency Graph** | Full tracking with cycle detection and coupling metrics |
-| **Code Metrics** | Cyclomatic complexity, technical debt, maintainability |
-| **Plugin System** | Extensible tools and workflows with trust levels |
+| **Unified Model Hierarchy** | Session → Agent Config → Reasoning with proper inheritance |
+| **Web UI Improvements** | Consistent model display across Chat, Settings, and Reasoning panels |
+| **Agent Config API** | Fixed `/api/agents/config` to respect session model in MINIMAL mode |
+| **Session Management** | Auto-creation of sessions, proper state persistence across server restarts |
+| **Reasoning Panel** | Planner/Worker/Verifier cards correctly inherit from session model |
+| **Settings Modal** | Fixed session ID synchronization between Chat and Settings |
 
-### v0.22.0 Highlights (Latest)
+### v0.23.0 Highlights (Latest)
+
+- **Model Inheritance Architecture** — Single source of truth for LLM model selection
+  - Session model = default (configured in Settings → Session tab)
+  - Agent Config = inherits from Session in MINIMAL mode
+  - Reasoning = inherits from Agent Config (Planner/Worker/Verifier)
+- **Fixed Agent Config Router** — `/api/agents/config` endpoint now properly reads session model from `active_sessions`
+- **UI Consistency** — All panels (Chat sidebar, Chat thread, Reasoning cards) show correct model
+- **Session Auto-Creation** — Handles server restart gracefully by auto-creating missing sessions
+- **Removed Redundant Settings** — Reasoning model selector removed (now inherits automatically)
+- **Version 0.23.0** — Centralized version management
+
+### v0.22.0 Highlights
 
 - **Galaxy Visualization Physics** — Multi-body simulation with mass-based phase separation
   - Classes (stars): Heavy, anchor solar systems
@@ -69,7 +76,6 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 - **Refined Physics Constants** — Balanced gravitational repulsion (-35), strong central gravity (0.1), proper spring lengths
 - **Edge Force Hierarchy** — Structural (50) → Inheritance (100) → Call (180) → Reference (250)
 - **Fixed Metrics API** — Dependency count now properly returned from cached and fresh analysis
-- **Version 0.22.0** — Centralized version management
 
 ### v0.21.0 Highlights
 
@@ -1084,15 +1090,16 @@ pytest tests/test_caching.py -v
 
 ## **Roadmap**
 
-### v0.23 (Next)
-- **Reasoning Unification** — Single orchestrator for planning/execution/verification
-- **Structured Plans** — JSON schema-validated plans with tool allowlists
-- **Hardened Execution** — returncode/stderr-aware retries, stop reasons
-- **Persistent Traces** — Durable `.ragix/reasoning_traces/` with episodic summaries
+### v0.24 (Next)
+- **Reflective Reasoning Graph** — Graph-based reasoning with REFLECT node and read-only tool access
+- **Experience Corpus** — Hybrid global (`~/.ragix/`) + project (`.ragix/`) experience learning
+- **Graceful Degradation** — Attempt summaries when max_reflections reached
+- **Evaluation Harness** — Scenario-based testing for reasoning quality
 
-### v0.24
+### v0.25
 - **Git integration** — Complexity evolution over commits, hotspot tracking
 - **Trend analysis** — Technical debt timeline, churn analysis
+- **Default Graph Strategy** — `graph_v2` becomes default, `loop_v1` deprecated
 
 ### Future (v1.0+)
 - IDE integrations (VS Code, JetBrains)

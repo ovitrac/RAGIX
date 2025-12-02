@@ -122,15 +122,40 @@
             display: flex;
             flex-direction: column;
         }
+        /* Logs Content - Scrollable container with visible slider */
         .logs-content {
             flex: 1;
+            min-height: 150px;
+            max-height: calc(100vh - 350px);
             background: var(--code-bg);
             border-radius: 6px;
             padding: 15px;
+            padding-right: 8px;
             font-family: monospace;
             font-size: 12px;
-            overflow-y: auto;
+            overflow-y: scroll;
+            overflow-x: hidden;
             white-space: pre-wrap;
+            scrollbar-width: auto;
+            scrollbar-color: var(--accent-green) var(--bg-tertiary);
+        }
+        .logs-content::-webkit-scrollbar {
+            width: 12px;
+            background: var(--bg-tertiary);
+        }
+        .logs-content::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            margin: 4px;
+        }
+        .logs-content::-webkit-scrollbar-thumb {
+            background: var(--accent-green);
+            border-radius: 6px;
+            border: 2px solid var(--bg-tertiary);
+            min-height: 40px;
+        }
+        .logs-content::-webkit-scrollbar-thumb:hover {
+            background: #7ee787;
         }
         .log-entry {
             margin-bottom: 4px;
@@ -162,6 +187,28 @@
         .agent-item.selected, .workflow-item.selected {
             border-color: var(--accent-color);
             background: rgba(88, 166, 255, 0.2);
+        }
+        .workflow-toggle {
+            padding: 6px 10px;
+            color: var(--text-secondary);
+            font-size: 11px;
+            cursor: pointer;
+            text-align: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .workflow-toggle:hover {
+            color: var(--accent-color);
+            background: rgba(88, 166, 255, 0.1);
+        }
+        .workflow-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .workflow-desc {
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-top: 2px;
         }
         .agent-icon {
             font-size: 16px;
@@ -332,7 +379,8 @@
         /* Reasoning Panel */
         .reasoning-panel {
             padding: 20px;
-            height: 100%;
+            height: calc(100vh - 160px);
+            max-height: calc(100vh - 160px);
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -363,8 +411,9 @@
             background: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
+            padding: 12px;
+            margin-bottom: 12px;
+            flex-shrink: 0;
         }
         .agent-config-summary h3 {
             margin: 0 0 12px 0;
@@ -422,13 +471,37 @@
         .note-icon {
             font-size: 16px;
         }
-        /* Reasoning Timeline */
+        /* Reasoning Timeline - Scrollable container with visible slider */
         .reasoning-timeline {
             flex: 1;
-            overflow-y: auto;
+            min-height: 200px;
+            max-height: calc(100vh - 550px);
+            overflow-y: scroll;
+            overflow-x: hidden;
             background: var(--code-bg);
             border-radius: 8px;
             padding: 15px;
+            padding-right: 8px;
+            scrollbar-width: auto;
+            scrollbar-color: var(--accent-blue) var(--bg-tertiary);
+        }
+        .reasoning-timeline::-webkit-scrollbar {
+            width: 12px;
+            background: var(--bg-tertiary);
+        }
+        .reasoning-timeline::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            margin: 4px;
+        }
+        .reasoning-timeline::-webkit-scrollbar-thumb {
+            background: var(--accent-blue);
+            border-radius: 6px;
+            border: 2px solid var(--bg-tertiary);
+            min-height: 40px;
+        }
+        .reasoning-timeline::-webkit-scrollbar-thumb:hover {
+            background: #5bcfff;
         }
         .reasoning-empty {
             text-align: center;
@@ -448,6 +521,166 @@
             font-size: 12px;
             opacity: 0.7;
         }
+
+        /* v0.23 Reasoning Graph Styles */
+        .reasoning-graph-section {
+            margin: 15px 0;
+            padding: 15px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            flex-shrink: 0;
+            max-height: 350px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-blue) var(--bg-tertiary);
+        }
+        .reasoning-graph-section::-webkit-scrollbar {
+            width: 8px;
+        }
+        .reasoning-graph-section::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+        .reasoning-graph-section::-webkit-scrollbar-thumb {
+            background: var(--accent-blue);
+            border-radius: 4px;
+        }
+        .reasoning-graph-section h3 {
+            margin: 0 0 15px 0;
+            font-size: 14px;
+            color: var(--accent-blue);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+        .reasoning-graph-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .graph-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+        }
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        .status-indicator.checking { background: var(--accent-yellow); }
+        .status-indicator.available { background: var(--accent-green); animation: none; }
+        .status-indicator.unavailable { background: var(--accent-red); animation: none; }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        .graph-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .graph-controls .btn-sm {
+            padding: 6px 12px;
+            font-size: 11px;
+        }
+        .graph-visualization {
+            min-height: 150px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .graph-placeholder {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 20px;
+        }
+        .graph-placeholder .graph-icon {
+            font-size: 36px;
+            display: block;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+        .graph-placeholder p {
+            margin: 0;
+            font-size: 13px;
+        }
+        .graph-placeholder .graph-hint {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 8px;
+        }
+        .graph-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            padding: 12px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+        }
+        .graph-stats .stat-item {
+            text-align: center;
+        }
+        .graph-stats .stat-label {
+            display: block;
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .graph-stats .stat-value {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+        /* Graph node flow visualization */
+        .graph-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 15px;
+        }
+        .graph-node {
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            color: var(--text-secondary);
+            transition: all 0.3s;
+        }
+        .graph-node.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: #fff;
+            box-shadow: 0 0 12px rgba(79, 195, 247, 0.4);
+        }
+        .graph-node.visited {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+        .graph-node.failed {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+        .graph-arrow {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
         .reasoning-trace {
             margin-bottom: 15px;
             padding: 12px;
@@ -510,7 +743,7 @@
         <header class="header">
             <div class="header-left">
                 <h1>RAGIX</h1>
-                <span class="version">v0.22.0</span>
+                <span class="version">v0.23.0</span>
             </div>
             <div class="header-right">
                 <span id="status" class="status status-disconnected">Disconnected</span>
@@ -664,6 +897,10 @@
                                             <span class="label">Profile</span>
                                             <span id="profileName" class="value short">-</span>
                                         </div>
+                                        <div class="info-row">
+                                            <span class="label">Reasoning</span>
+                                            <span id="reasoningStrategy" class="value short">-</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -789,6 +1026,48 @@
                         <div class="config-note" id="configNote">
                             <span class="note-icon">&#128161;</span>
                             <span id="configNoteText">Single-model mode recommended for ≤8GB VRAM to avoid load/unload overhead.</span>
+                        </div>
+                    </div>
+
+                    <!-- Reasoning Graph Visualization -->
+                    <div id="reasoningGraphSection" class="reasoning-graph-section">
+                        <h3>Reasoning Graph</h3>
+                        <div class="reasoning-graph-container">
+                            <div class="graph-status" id="graphStatus">
+                                <span class="status-indicator checking"></span>
+                                <span id="graphStatusText">Checking graph availability...</span>
+                            </div>
+                            <div class="graph-controls">
+                                <button class="btn btn-sm" onclick="reasoningGraph.refresh()">Refresh Status</button>
+                                <button class="btn btn-sm" onclick="reasoningGraph.showNodes()">View Nodes</button>
+                                <button class="btn btn-sm" onclick="reasoningGraph.showExperience()">Experience Corpus</button>
+                                <button class="btn btn-sm" onclick="reasoningGraph.classify()">Classify Task</button>
+                            </div>
+                            <div class="graph-visualization" id="graphVisualization">
+                                <div class="graph-placeholder">
+                                    <span class="graph-icon">&#128200;</span>
+                                    <p>Graph visualization will appear here during reasoning.</p>
+                                    <p class="graph-hint">Nodes: CLASSIFY → PLAN → EXECUTE → VERIFY → RESPOND</p>
+                                </div>
+                            </div>
+                            <div class="graph-stats" id="graphStats" style="display: none;">
+                                <div class="stat-item">
+                                    <span class="stat-label">Complexity</span>
+                                    <span class="stat-value" id="graphComplexity">-</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Current Node</span>
+                                    <span class="stat-value" id="graphCurrentNode">-</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Reflections</span>
+                                    <span class="stat-value" id="graphReflections">0/2</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Status</span>
+                                    <span class="stat-value" id="graphStopReason">-</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -959,6 +1238,7 @@
                 <div class="settings-tabs">
                     <button class="settings-tab active" data-settings-tab="session">Session</button>
                     <button class="settings-tab" data-settings-tab="agents">Agent Config</button>
+                    <button class="settings-tab" data-settings-tab="reasoning">Reasoning</button>
                     <button class="settings-tab" data-settings-tab="memory">Memory</button>
                     <button class="settings-tab" data-settings-tab="context">User Context</button>
                 </div>
@@ -1069,6 +1349,70 @@
                     <div class="config-actions">
                         <button onclick="agentSettingsApp.reset()" class="btn">Reset to Defaults</button>
                         <span id="configSessionNote" class="session-note">Changes are session-specific and don't affect default configuration.</span>
+                    </div>
+                </div>
+
+                <!-- Reasoning Graph Settings -->
+                <div id="reasoningSettings" class="settings-content">
+                    <div class="agent-settings-header">
+                        <h3>Reasoning Graph</h3>
+                        <p class="settings-desc">Configure the reflective reasoning strategy. The graph handles task classification, planning, execution, verification, and reflection loops.</p>
+                    </div>
+
+                    <!-- Reasoning Strategy -->
+                    <div class="form-group">
+                        <label>Reasoning Strategy:</label>
+                        <select id="reasoningStrategyInput" onchange="reasoningSettingsApp.changeStrategy()">
+                            <option value="loop_v1">Loop v1 (Default - Iterative)</option>
+                            <option value="graph">Graph (Full reasoning graph)</option>
+                            <option value="simple">Simple (Direct execution)</option>
+                        </select>
+                        <small>Set RAGIX_REASONING_STRATEGY environment variable to persist selection.</small>
+                    </div>
+
+                    <!-- Max Reflections -->
+                    <div class="form-group">
+                        <label>Max Reflections:</label>
+                        <input type="number" id="maxReflectionsInput" value="2" min="0" max="5" style="width: 80px;">
+                        <small>Maximum self-reflection iterations before stopping (0-5).</small>
+                    </div>
+
+                    <!-- Model Inheritance Info -->
+                    <div class="form-group">
+                        <label>Reasoning Model:</label>
+                        <div class="inheritance-info" style="background: var(--bg-secondary); padding: 10px; border-radius: 6px; margin-top: 8px;">
+                            <span id="reasoningModelDisplay" style="font-weight: 500; color: var(--accent-blue);">-</span>
+                            <small style="display: block; margin-top: 4px; color: var(--text-secondary);">
+                                &#x2139; Inherits from Agent Config → Session. To change, update the Session or Agent Config settings.
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Experience Corpus Settings -->
+                    <div class="form-group">
+                        <label>Experience Corpus:</label>
+                        <div style="display: flex; gap: 12px; align-items: center; margin-top: 8px;">
+                            <label class="toggle-label">
+                                <input type="checkbox" id="enableExperienceCorpus" checked>
+                                <span>Enable learning from past experiences</span>
+                            </label>
+                        </div>
+                        <small>When enabled, the agent learns from successes and failures to improve future responses.</small>
+                    </div>
+
+                    <!-- Graph Status -->
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>Graph Status:</label>
+                        <div id="reasoningSettingsStatus" class="graph-status" style="margin-top: 8px;">
+                            <span class="status-indicator checking"></span>
+                            <span id="reasoningSettingsStatusText">Checking...</span>
+                        </div>
+                    </div>
+
+                    <!-- Reasoning Actions -->
+                    <div class="config-actions">
+                        <button onclick="reasoningSettingsApp.reset()" class="btn">Reset to Defaults</button>
+                        <button onclick="reasoningSettingsApp.save()" class="btn btn-primary">Apply Changes</button>
                     </div>
                 </div>
 
@@ -1693,7 +2037,17 @@
 
             formatLogLine(line, session = null) {
                 // Defensive: ensure line is a string
-                const lineStr = (typeof line === 'string') ? line : String(line || '');
+                let lineStr;
+                if (typeof line === 'string') {
+                    lineStr = line;
+                } else if (line && typeof line === 'object') {
+                    // Handle object entries - extract meaningful content
+                    lineStr = line.content || line.message || line.line ||
+                              line.command || line.event || JSON.stringify(line);
+                } else {
+                    lineStr = String(line || '');
+                }
+
                 let cls = 'log-entry';
                 if (lineStr.includes('CMD:')) cls += ' log-cmd';
                 else if (lineStr.includes('EDIT:')) cls += ' log-edit';
@@ -1747,6 +2101,8 @@
         const workflowsApp = {
             workflows: [],
             selectedWorkflow: null,
+            expanded: false,
+            defaultShowCount: 5,
 
             async load() {
                 const container = document.getElementById('workflowList');
@@ -1761,30 +2117,93 @@
                     }
 
                     this.workflows = workflows;
-
-                    container.innerHTML = workflows.slice(0, 5).map(wf => `
-                        <div class="workflow-item" data-workflow="${wf.id}" onclick="workflowsApp.select('${wf.id}')" title="${wf.description}">
-                            <span class="workflow-name">${wf.name.replace(' Workflow', '')}</span>
-                            <div class="workflow-desc">${(wf.steps || []).length} steps</div>
-                        </div>
-                    `).join('') + (workflows.length > 5 ? `<p style="color: var(--text-secondary); font-size: 11px;">+${workflows.length - 5} more...</p>` : '');
+                    this.render();
                 } catch (e) {
                     container.innerHTML = '<p style="color: #f85149; font-size: 11px;">Error loading workflows</p>';
                 }
             },
 
+            render() {
+                const container = document.getElementById('workflowList');
+                const showCount = this.expanded ? this.workflows.length : this.defaultShowCount;
+                const hasMore = this.workflows.length > this.defaultShowCount;
+
+                container.innerHTML = this.workflows.slice(0, showCount).map(wf => `
+                    <div class="workflow-item ${this.selectedWorkflow === wf.id ? 'selected' : ''}"
+                         data-workflow="${wf.id}"
+                         onclick="workflowsApp.select('${wf.id}')"
+                         title="${wf.description || ''}">
+                        <span class="workflow-name">${wf.name.replace(' Workflow', '')}</span>
+                        <div class="workflow-desc">${(wf.steps || []).length} steps</div>
+                    </div>
+                `).join('') + (hasMore ? `
+                    <div class="workflow-toggle" onclick="workflowsApp.toggleExpand()">
+                        ${this.expanded
+                            ? '<span>&#9650; Show less</span>'
+                            : `<span>&#9660; +${this.workflows.length - this.defaultShowCount} more...</span>`
+                        }
+                    </div>
+                ` : '');
+            },
+
+            toggleExpand() {
+                this.expanded = !this.expanded;
+                this.render();
+            },
+
             select(workflowId) {
+                // Toggle selection if clicking same workflow
+                if (this.selectedWorkflow === workflowId) {
+                    this.selectedWorkflow = null;
+                    this.render();
+                    document.getElementById('chatInput').placeholder = 'Ask RAGIX anything...';
+                    return;
+                }
+
                 this.selectedWorkflow = workflowId;
-                document.querySelectorAll('.workflow-item').forEach(el => {
-                    el.classList.toggle('selected', el.dataset.workflow === workflowId);
-                });
+                this.render();
+
                 const wf = this.workflows.find(w => w.id === workflowId);
                 if (wf) {
-                    // Show workflow info in chat
-                    const input = document.getElementById('chatInput');
-                    const params = (wf.parameters || []).map(p => p.name).join(', ') || 'none';
-                    input.placeholder = `Configure ${wf.name}... (parameters: ${params})`;
+                    this.showWorkflowDetails(wf);
                 }
+            },
+
+            showWorkflowDetails(wf) {
+                // Show workflow info in chat input placeholder
+                const input = document.getElementById('chatInput');
+                const params = (wf.parameters || []).map(p => p.name).join(', ') || 'none';
+                input.placeholder = `Use ${wf.name}... (parameters: ${params})`;
+
+                // Show detailed info as a system message
+                const stepsHtml = (wf.steps || []).map((s, i) =>
+                    `${i + 1}. ${s.name} (${s.agent_type})`
+                ).join('\n');
+
+                const paramsHtml = (wf.parameters || []).map(p =>
+                    `- ${p.name}${p.required ? '*' : ''}: ${p.description || p.type}`
+                ).join('\n') || 'None';
+
+                if (typeof app !== 'undefined' && app.addSystemMessage) {
+                    app.addSystemMessage(
+                        `**${wf.name}**\n` +
+                        `${wf.description || ''}\n\n` +
+                        `**Steps:**\n${stepsHtml}\n\n` +
+                        `**Parameters:**\n${paramsHtml}\n\n` +
+                        `_Click workflow again to deselect, or type a message to start._`
+                    );
+                }
+            },
+
+            async run(workflowId, params = {}) {
+                // For future: actually run the workflow
+                const wf = this.workflows.find(w => w.id === workflowId);
+                if (!wf) return;
+
+                if (typeof app !== 'undefined' && app.addSystemMessage) {
+                    app.addSystemMessage(`Starting workflow: ${wf.name}...`);
+                }
+                // TODO: Implement actual workflow execution via API
             }
         };
 
@@ -1853,8 +2272,10 @@
 
             async loadConfig() {
                 try {
-                    const sessionId = document.getElementById('sessionIdInput')?.value || 'default';
-                    const resp = await fetch(`/api/agents/config?session_id=${sessionId}`);
+                    // Use app.sessionId as the source of truth (not sessionIdInput which may be stale)
+                    const sessionId = (typeof app !== 'undefined' && app.sessionId) ? app.sessionId :
+                                      (document.getElementById('sessionIdInput')?.value || 'default');
+                    const resp = await fetch(`/api/agents/config?session_id=${encodeURIComponent(sessionId)}`);
                     this.config = await resp.json();
                     this.availableModels = this.config.available_models || [];
                     this.updateUI();
@@ -2113,6 +2534,316 @@
             }
         };
 
+        // v0.23 Reasoning Graph Application
+        const reasoningGraph = {
+            available: false,
+            strategy: 'unknown',
+            currentState: null,
+
+            async init() {
+                await this.refresh();
+            },
+
+            async refresh() {
+                try {
+                    const resp = await fetch('/api/reasoning/status');
+                    const data = await resp.json();
+
+                    this.available = data.available;
+                    this.strategy = data.strategy;
+
+                    // Update status display
+                    const indicator = document.querySelector('#graphStatus .status-indicator');
+                    const statusText = document.getElementById('graphStatusText');
+
+                    if (data.available) {
+                        indicator.className = 'status-indicator available';
+                        statusText.textContent = `Graph available (strategy: ${data.strategy})`;
+                    } else {
+                        indicator.className = 'status-indicator unavailable';
+                        statusText.textContent = 'Reasoning graph not available';
+                    }
+                } catch (e) {
+                    console.error('Failed to check reasoning graph status:', e);
+                    const indicator = document.querySelector('#graphStatus .status-indicator');
+                    indicator.className = 'status-indicator unavailable';
+                    document.getElementById('graphStatusText').textContent = 'Error checking status';
+                }
+            },
+
+            async showNodes() {
+                if (!this.available) {
+                    alert('Reasoning graph not available');
+                    return;
+                }
+
+                try {
+                    const resp = await fetch('/api/reasoning/nodes');
+                    const data = await resp.json();
+
+                    // Render nodes as a flow diagram
+                    const viz = document.getElementById('graphVisualization');
+                    viz.innerHTML = `
+                        <div class="graph-flow">
+                            ${data.nodes.map((node, i) => `
+                                <span class="graph-node">${node.name}</span>
+                                ${i < data.nodes.length - 1 ? '<span class="graph-arrow">→</span>' : ''}
+                            `).join('')}
+                        </div>
+                    `;
+                } catch (e) {
+                    console.error('Failed to load nodes:', e);
+                }
+            },
+
+            async showExperience() {
+                if (!this.available) {
+                    alert('Reasoning graph not available');
+                    return;
+                }
+
+                const sessionId = document.getElementById('sessionIdInput')?.value || 'default';
+
+                try {
+                    const resp = await fetch(`/api/reasoning/experience/stats?session_id=${sessionId}`);
+                    const data = await resp.json();
+
+                    const viz = document.getElementById('graphVisualization');
+                    viz.innerHTML = `
+                        <div style="padding: 20px; text-align: left;">
+                            <h4 style="margin: 0 0 15px 0; color: var(--accent-blue);">Experience Corpus Statistics</h4>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                                <div>
+                                    <strong>Global Corpus</strong>
+                                    <ul style="margin: 8px 0; padding-left: 20px; font-size: 12px;">
+                                        <li>Total: ${data.global_count}</li>
+                                        <li>Successes: ${data.global_successes}</li>
+                                        <li>Failures: ${data.global_failures}</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <strong>Project Corpus</strong>
+                                    <ul style="margin: 8px 0; padding-left: 20px; font-size: 12px;">
+                                        <li>Total: ${data.project_count}</li>
+                                        <li>Successes: ${data.project_successes}</li>
+                                        <li>Failures: ${data.project_failures}</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <p style="margin-top: 15px; font-size: 11px; color: var(--text-secondary);">
+                                Total events: ${data.total_events}
+                            </p>
+                        </div>
+                    `;
+                } catch (e) {
+                    console.error('Failed to load experience stats:', e);
+                }
+            },
+
+            async classify() {
+                if (!this.available) {
+                    alert('Reasoning graph not available');
+                    return;
+                }
+
+                const goal = prompt('Enter a task/goal to classify:');
+                if (!goal) return;
+
+                try {
+                    const resp = await fetch(`/api/reasoning/classify?goal=${encodeURIComponent(goal)}`);
+                    const data = await resp.json();
+
+                    const viz = document.getElementById('graphVisualization');
+                    viz.innerHTML = `
+                        <div style="padding: 20px; text-align: left;">
+                            <h4 style="margin: 0 0 15px 0; color: var(--accent-blue);">Classification Result</h4>
+                            <p><strong>Goal:</strong> ${escapeHtml(data.goal)}</p>
+                            <p><strong>Complexity:</strong> <span style="color: var(--accent-green);">${data.complexity.toUpperCase()}</span></p>
+                            <p><strong>Next Node:</strong> ${data.next_node}</p>
+                            <p><strong>Max Reflections:</strong> ${data.max_reflections}</p>
+                            <p><strong>Uses Planning:</strong> ${data.uses_planning ? 'Yes' : 'No'}</p>
+                        </div>
+                    `;
+                } catch (e) {
+                    console.error('Failed to classify:', e);
+                }
+            },
+
+            updateFromWebSocket(data) {
+                // Called when we receive reasoning_graph_state from WebSocket
+                this.currentState = data.state;
+
+                // Show stats
+                const statsDiv = document.getElementById('graphStats');
+                statsDiv.style.display = 'grid';
+
+                document.getElementById('graphComplexity').textContent = data.state.complexity || '-';
+                document.getElementById('graphCurrentNode').textContent = data.current_node || '-';
+                document.getElementById('graphReflections').textContent =
+                    `${data.state.reflection_count || 0}/${data.state.max_reflections || 2}`;
+                document.getElementById('graphStopReason').textContent = data.state.stop_reason || 'running';
+
+                // Update visualization with visited path
+                if (data.state.node_trace && data.state.node_trace.length > 0) {
+                    const nodes = ['START', 'CLASSIFY', 'PLAN', 'EXECUTE', 'VERIFY', 'REFLECT', 'RESPOND', 'END'];
+                    const visited = new Set(data.state.node_trace.map(t => {
+                        const parts = t.split(':');
+                        return parts.length > 1 ? parts[1] : t;
+                    }));
+
+                    const viz = document.getElementById('graphVisualization');
+                    viz.innerHTML = `
+                        <div class="graph-flow">
+                            ${nodes.map((node, i) => `
+                                <span class="graph-node ${visited.has(node) ? 'visited' : ''} ${node === data.current_node ? 'active' : ''}">${node}</span>
+                                ${i < nodes.length - 1 ? '<span class="graph-arrow">→</span>' : ''}
+                            `).join('')}
+                        </div>
+                    `;
+                }
+            }
+        };
+
+        // Reasoning Settings Application (v0.23)
+        // Model inheritance: Reasoning → Agent Config → Session
+        const reasoningSettingsApp = {
+            config: null,
+
+            async init() {
+                await this.loadConfig();
+            },
+
+            async loadConfig() {
+                try {
+                    // Use app.sessionId as the source of truth (not sessionIdInput which may be stale)
+                    const sessionId = (typeof app !== 'undefined' && app.sessionId) ? app.sessionId :
+                                      (document.getElementById('sessionIdInput')?.value || 'default');
+                    const resp = await fetch(`/api/reasoning/status?session_id=${encodeURIComponent(sessionId)}`);
+                    const data = await resp.json();
+                    this.config = data;
+
+                    // Update strategy dropdown
+                    const strategyInput = document.getElementById('reasoningStrategyInput');
+                    if (strategyInput && data.strategy) {
+                        strategyInput.value = data.strategy;
+                    }
+
+                    // Update max reflections
+                    const maxReflInput = document.getElementById('maxReflectionsInput');
+                    if (maxReflInput && data.max_reflections !== undefined) {
+                        maxReflInput.value = data.max_reflections;
+                    }
+
+                    // Update reasoning model display (inherited from session/agent)
+                    const modelDisplay = document.getElementById('reasoningModelDisplay');
+                    if (modelDisplay) {
+                        const model = data.reasoning_model || data.session_model || 'Not set';
+                        modelDisplay.textContent = model;
+                    }
+
+                    // Update experience corpus toggle
+                    const corpusToggle = document.getElementById('enableExperienceCorpus');
+                    if (corpusToggle && data.experience_corpus_enabled !== undefined) {
+                        corpusToggle.checked = data.experience_corpus_enabled;
+                    }
+
+                    // Update sidebar display
+                    const sidebarStrategy = document.getElementById('reasoningStrategy');
+                    if (sidebarStrategy && data.strategy) {
+                        sidebarStrategy.textContent = data.strategy;
+                    }
+
+                    // Update status display in settings
+                    const indicator = document.querySelector('#reasoningSettingsStatus .status-indicator');
+                    const statusText = document.getElementById('reasoningSettingsStatusText');
+
+                    if (indicator && statusText) {
+                        if (data.available) {
+                            indicator.className = 'status-indicator available';
+                            const overrideNote = data.is_session_override ? ' (session override)' : '';
+                            statusText.textContent = `Graph available (${data.strategy})${overrideNote}`;
+                        } else {
+                            indicator.className = 'status-indicator unavailable';
+                            statusText.textContent = 'Graph not available';
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to load reasoning config:', e);
+                }
+            },
+
+            changeStrategy() {
+                const strategy = document.getElementById('reasoningStrategyInput').value;
+                console.log('Reasoning strategy changed to:', strategy);
+            },
+
+            async save() {
+                const sessionId = document.getElementById('sessionIdInput')?.value || 'default';
+                const strategy = document.getElementById('reasoningStrategyInput').value;
+                const maxReflections = parseInt(document.getElementById('maxReflectionsInput')?.value || '2');
+                const enableCorpus = document.getElementById('enableExperienceCorpus')?.checked ?? true;
+
+                try {
+                    // Save to backend (no reasoning_model - it's inherited)
+                    const resp = await fetch(`/api/reasoning/config?session_id=${encodeURIComponent(sessionId)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            strategy: strategy,
+                            max_reflections: maxReflections,
+                            experience_corpus_enabled: enableCorpus
+                        })
+                    });
+
+                    if (!resp.ok) {
+                        throw new Error('Failed to save reasoning config');
+                    }
+
+                    const data = await resp.json();
+
+                    // Update the sidebar display
+                    const strategyEl = document.getElementById('reasoningStrategy');
+                    if (strategyEl) {
+                        strategyEl.textContent = strategy;
+                    }
+
+                    // Refresh the reasoning graph display
+                    await reasoningGraph.refresh();
+
+                    // Update load config to reflect changes
+                    await this.loadConfig();
+
+                    // Refresh session info in main app
+                    if (typeof app !== 'undefined' && app.loadSessionInfo) {
+                        await app.loadSessionInfo();
+                    }
+
+                    // Show success feedback
+                    console.log('Reasoning settings saved:', data);
+
+                    // Show a brief indicator that settings were saved
+                    const statusText = document.getElementById('reasoningSettingsStatusText');
+                    if (statusText) {
+                        const originalText = statusText.textContent;
+                        statusText.textContent = '✓ Settings saved!';
+                        setTimeout(() => {
+                            statusText.textContent = originalText;
+                        }, 2000);
+                    }
+
+                } catch (e) {
+                    alert('Error saving reasoning settings: ' + e.message);
+                }
+            },
+
+            reset() {
+                document.getElementById('reasoningStrategyInput').value = 'loop_v1';
+                document.getElementById('maxReflectionsInput').value = '2';
+                document.getElementById('enableExperienceCorpus').checked = true;
+                // Model is inherited - no reset needed
+            }
+        };
+
         // Memory Management Application
         const memoryApp = {
             messages: [],
@@ -2331,6 +3062,8 @@
         workflowsApp.load();
         agentSettingsApp.init();
         reasoningApp.init();
+        reasoningGraph.init();  // Reasoning Graph
+        reasoningSettingsApp.init();  // Reasoning Settings
 
         // Update app.showTraces to use tracesApp
         if (typeof app !== 'undefined') {
@@ -2587,27 +3320,54 @@
         // Auto-refresh reasoning when switching to reasoning tab
         document.querySelector('.nav-tab[data-tab="reasoning"]').addEventListener('click', () => {
             reasoningApp.refresh();
+            // Also refresh agent config to update Planner/Worker/Verifier display
+            agentSettingsApp.loadConfig();
         });
 
-        // Override app.saveSettings to include agent config
+        // Override app.saveSettings to handle unified model configuration
+        // Model hierarchy: Session → Agent Config → Reasoning (all inherit)
         if (typeof app !== 'undefined') {
-            const originalSaveSettings = app.saveSettings;
+            const originalSaveSettings = app.saveSettings.bind(app);
             app.saveSettings = async function() {
-                // Save agent settings first
-                await agentSettingsApp.save();
-                // Then call original saveSettings
-                if (originalSaveSettings) {
-                    originalSaveSettings.call(app);
+                // Get the session model from the Session tab (single source of truth)
+                const sessionModel = document.getElementById('modelInput').value;
+
+                // First, call original saveSettings which creates the new session
+                await originalSaveSettings();
+
+                // Update sessionIdInput to the new session ID so config loads use correct session
+                const sessionIdInput = document.getElementById('sessionIdInput');
+                if (sessionIdInput && app.sessionId) {
+                    sessionIdInput.value = app.sessionId;
+                }
+
+                // Wait a moment for WebSocket to connect and agent to initialize
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Now that session exists, the agent will be created with session model
+                // The agent config in MINIMAL mode automatically inherits from session
+                // No need to save agent config separately - it inherits from session
+
+                // Refresh all displays to show the new model
+                await agentSettingsApp.loadConfig();
+                await reasoningSettingsApp.loadConfig();
+
+                // Update the reasoning panel display
+                const modelDisplay = document.getElementById('reasoningModelDisplay');
+                if (modelDisplay) {
+                    modelDisplay.textContent = sessionModel || 'Not set';
                 }
             };
 
             // Also override openSettings to load agent config
-            const originalOpenSettings = app.openSettings;
-            app.openSettings = function() {
+            const originalOpenSettings = app.openSettings.bind(app);
+            app.openSettings = async function() {
                 if (originalOpenSettings) {
-                    originalOpenSettings.call(app);
+                    await originalOpenSettings();
                 }
-                agentSettingsApp.loadConfig();
+                // Load agent and reasoning configs after session info is loaded
+                await agentSettingsApp.loadConfig();
+                await reasoningSettingsApp.loadConfig();
             };
         }
 

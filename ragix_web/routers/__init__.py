@@ -11,6 +11,7 @@ from .memory import router as memory_router
 from .context import router as context_router
 from .agents import router as agents_router
 from .logs import router as logs_router
+from .reasoning import router as reasoning_router
 
 __all__ = [
     "sessions_router",
@@ -18,4 +19,5 @@ __all__ = [
     "context_router",
     "agents_router",
     "logs_router",
+    "reasoning_router",
 ]

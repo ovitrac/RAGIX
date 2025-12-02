@@ -1,0 +1,3 @@
+  1068 ./CHANGELOG.md
+  1152 ./README.md
+  1184 ./docs/archive/V07_PROGRESS.md

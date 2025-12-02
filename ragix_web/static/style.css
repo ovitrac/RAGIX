@@ -451,9 +451,20 @@ body {
 }
 
 .message-content {
-    line-height: 1.5;
-    white-space: pre-wrap;
+    line-height: 1.4;
+    white-space: normal;
     word-wrap: break-word;
+}
+/* Reduce excessive spacing from br tags */
+.message-content br {
+    display: block;
+    margin: 0;
+    content: "";
+}
+/* Compact spacing for agent messages */
+.message-content br + br {
+    display: block;
+    margin: 4px 0;
 }
 
 .message-content code {

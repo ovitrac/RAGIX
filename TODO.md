@@ -1,7 +1,118 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-11-28 (v0.20.0 Release)
+**Updated:** 2025-12-02 (v0.23.0 Release)
 **Reference:** See `ACTION_PLAN.md` for detailed implementation plan
+
+---
+
+## Session Completed (2025-12-02 - v0.23.0)
+
+### Unified Model Inheritance & Web UI Fixes
+
+| Task | Status |
+|------|--------|
+| **Model Inheritance Hierarchy** - Session → Agent Config → Reasoning | ✅ Done |
+| **Fixed Agent Config Router** - `/api/agents/config` reads from `active_sessions` | ✅ Done |
+| **MINIMAL Mode Inheritance** - Planner/Worker/Verifier inherit session model | ✅ Done |
+| **UI Consistency** - All panels show correct model | ✅ Done |
+| **Session Auto-Creation** - Handle server restart gracefully | ✅ Done |
+| **Settings Modal Sync** - Session ID consistent between Chat and Settings | ✅ Done |
+| **Removed Redundant Settings** - Reasoning model selector now inherits | ✅ Done |
+| **Version Bump** - 0.23.0 centralized in `ragix_core/version.py` | ✅ Done |
+
+**Key Files Modified:**
+- `ragix_web/routers/agents.py` - Major fix for model inheritance
+- `ragix_web/server.py` - Session management and auto-creation
+- `ragix_web/static/app.js` - Settings modal fixes
+- `ragix_web/static/index.html` - UI consistency updates
+
+**Model Inheritance Architecture:**
+```
+Session (Settings → Session tab)
+    └── Agent Config (in MINIMAL mode, inherits session model)
+            └── Reasoning (Planner/Worker/Verifier inherit from Agent Config)
+```
+
+---
+
+## Next Steps (v0.24.0) — Reflective Reasoning Graph
+
+**Reference:** See `PLAN_v0.23_REASONING.md` for full specification
+
+### Phase 1: Foundation (Schema + Hardening)
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **Create `reasoning_types.py`** - Pydantic schemas for Plan, Step, State | 4h | Pending |
+| **Harden `execute_step`** - returncode/stderr capture, structured results | 3h | Pending |
+| **ReasoningEvent schema** - Unified event for experience corpus | 2h | Pending |
+
+### Phase 2: Reasoning Graph
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **BaseNode class** - Abstract node with `run(state) -> (state, next)` | 2h | Pending |
+| **ReasoningGraph orchestrator** - Graph execution with trace | 3h | Pending |
+| **ClassifyNode** - SIMPLE vs MODERATE vs COMPLEX routing | 2h | Pending |
+| **PlanNode** - Generate plan with reflection context | 3h | Pending |
+| **ExecuteNode** - Step execution with reflection routing | 4h | Pending |
+
+### Phase 3: REFLECT Node with Tool Access
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **ReflectNode** - Read-only tools (`ls`, `find`, `grep`, etc.) | 4h | Pending |
+| **Experience corpus query** - Search past failures | 2h | Pending |
+| **Reflection prompt** - Diagnosis + new plan generation | 2h | Pending |
+| **ReflectionAttempt tracking** - Record each attempt | 1h | Pending |
+
+### Phase 4: Hybrid Experience Corpus
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **ExperienceCorpus class** - JSONL storage with TTL pruning | 3h | Pending |
+| **HybridExperienceCorpus** - Global (`~/.ragix/`) + Project (`.ragix/`) | 3h | Pending |
+| **Keyword + recency search** - Simple retrieval for LLM context | 2h | Pending |
+| **Success bonus scoring** - Prefer successful recoveries | 1h | Pending |
+
+### Phase 5: Graceful Degradation
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **RespondNode** - Build attempt summary on max_reflections | 2h | Pending |
+| **Recommendation generator** - Pattern-based suggestions | 2h | Pending |
+| **Partial results collector** - Gather successful steps | 1h | Pending |
+
+### Phase 6: Evaluation Harness
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **Scenario YAML format** - Test case definition | 2h | Pending |
+| **Harness runner** - Execute scenarios with metrics | 4h | Pending |
+| **Mock repo fixtures** - Test file structures | 2h | Pending |
+| **Success metrics** - Plan success rate, recovery rate | 2h | Pending |
+
+**Total Estimated Effort:** ~52 hours
+
+**File Structure for v0.24:**
+```
+ragix_core/
+├── reasoning.py              # Existing - hardened
+├── reasoning_types.py        # NEW - Pydantic schemas
+├── reasoning_graph.py        # NEW - Graph + nodes
+├── reasoning_nodes.py        # NEW - Node implementations
+├── experience_corpus.py      # NEW - Hybrid corpus
+
+tests/reasoning/
+├── harness.py                # Evaluation runner
+├── scenarios/                # YAML test cases
+│   ├── file_search.yaml
+│   └── code_analysis.yaml
+└── test_reasoning_graph.py
+
+~/.ragix/experience/          # Global experience corpus
+.ragix/experience/            # Project experience corpus
+```
 
 ---
 

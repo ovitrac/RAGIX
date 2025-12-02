@@ -52,6 +52,8 @@ class RAGIXApp {
             console.log('WebSocket connected');
             this.updateStatus('connected');
             this.reconnectAttempts = 0;
+            // Refresh session info now that agent is initialized
+            setTimeout(() => this.loadSessionInfo(), 500);
         };
 
         this.ws.onmessage = (event) => {
@@ -114,6 +116,13 @@ class RAGIXApp {
                 // Handle reasoning traces from Planner/Worker/Verifier loop
                 if (data.traces && Array.isArray(data.traces)) {
                     this.addReasoningTraces(data.traces);
+                }
+                break;
+
+            case 'reasoning_graph_state':
+                // v0.23: Handle reasoning graph state updates
+                if (typeof reasoningGraph !== 'undefined') {
+                    reasoningGraph.updateFromWebSocket(data);
                 }
                 break;
 
@@ -315,23 +324,70 @@ class RAGIXApp {
 
     async loadSessionInfo() {
         try {
-            const response = await fetch(`/api/sessions`);
-            const data = await response.json();
+            // Use the new status endpoint that returns actual values
+            const response = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/status`);
 
-            const session = data.sessions.find(s => s.id === this.sessionId);
-            if (session) {
-                document.getElementById('sandboxPath').textContent = session.sandbox_root;
-                document.getElementById('modelName').textContent = session.model;
-                document.getElementById('profileName').textContent = session.profile;
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('sandboxPath').textContent = data.sandbox_root || '-';
+                document.getElementById('modelName').textContent = data.model || '-';
+                document.getElementById('profileName').textContent = data.profile || '-';
+                document.getElementById('reasoningStrategy').textContent = data.reasoning_strategy || '-';
+            } else {
+                // Fallback to basic session list if status endpoint fails
+                const listResp = await fetch(`/api/sessions`);
+                const listData = await listResp.json();
+                const session = listData.sessions.find(s => s.id === this.sessionId);
+                if (session) {
+                    document.getElementById('sandboxPath').textContent = session.sandbox_root || '-';
+                    document.getElementById('modelName').textContent = session.model || '-';
+                    document.getElementById('profileName').textContent = session.profile || '-';
+                }
+
+                // Fetch reasoning separately
+                try {
+                    const reasoningResp = await fetch(`/api/reasoning/status?session_id=${encodeURIComponent(this.sessionId)}`);
+                    const reasoningData = await reasoningResp.json();
+                    document.getElementById('reasoningStrategy').textContent = reasoningData.strategy || '-';
+                } catch (e) {
+                    console.error('Failed to load reasoning status:', e);
+                }
             }
         } catch (error) {
             console.error('Failed to load session info:', error);
         }
     }
 
-    openSettings() {
+    async openSettings() {
         this.settingsModal.classList.remove('hidden');
-        this.loadOllamaModels();
+
+        // Always update session ID field to current session
+        document.getElementById('sessionIdInput').value = this.sessionId;
+
+        // Load current session values
+        try {
+            const response = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/status`);
+            if (response.ok) {
+                const data = await response.json();
+                // Store current session model to select after loading models
+                this._currentSessionModel = data.model || data.session_model || 'mistral';
+                this._currentSessionSandbox = data.sandbox_root || '';
+                this._currentSessionProfile = data.profile || 'dev';
+
+                // Update form fields with current values
+                document.getElementById('sandboxInput').value = this._currentSessionSandbox;
+                document.getElementById('profileInput').value = this._currentSessionProfile;
+            } else {
+                // Use defaults if status fetch fails
+                this._currentSessionModel = 'mistral';
+            }
+        } catch (e) {
+            console.error('Failed to load session status:', e);
+            this._currentSessionModel = 'mistral';
+        }
+
+        // Load models and select the current one
+        await this.loadOllamaModels();
     }
 
     closeSettings() {
@@ -364,9 +420,21 @@ class RAGIXApp {
             }
 
             // Build options from available models
-            select.innerHTML = data.models.map((m, idx) =>
-                `<option value="${m.name}" ${idx === 0 ? 'selected' : ''}>${m.name} (${m.size})</option>`
-            ).join('');
+            const currentModel = this._currentSessionModel || 'mistral';
+            select.innerHTML = data.models.map(m => {
+                const isSelected = m.name === currentModel || m.name.startsWith(currentModel.split(':')[0]);
+                return `<option value="${m.name}" ${isSelected ? 'selected' : ''}>${m.name} (${m.size})</option>`;
+            }).join('');
+
+            // If current model not found in list, try exact match
+            if (select.value !== currentModel) {
+                for (const opt of select.options) {
+                    if (opt.value === currentModel) {
+                        opt.selected = true;
+                        break;
+                    }
+                }
+            }
 
             statusEl.textContent = `${data.count} sovereign AI model(s) available locally`;
             statusEl.style.color = 'var(--success)';

@@ -223,6 +223,44 @@ from .reasoning import (
     PlanStep,
     Plan,
     ReasoningLoop,
+    # v0.23 Graph-based reasoning
+    ReasoningStrategy,
+    GraphReasoningLoop,
+    create_reasoning_loop,
+    get_reasoning_strategy,
+)
+# Reasoning Graph v2 types
+from .reasoning_types import (
+    StepStatus,
+    StopReason,
+    ReasoningState,
+    ReasoningEvent,
+    ReflectionAttempt,
+    get_max_reflections,
+)
+from .reasoning_types import (
+    PlanStep as GraphPlanStep,
+    Plan as GraphPlan,
+    TaskComplexity as GraphTaskComplexity,
+)
+# Experience Corpus
+from .experience_corpus import (
+    ExperienceCorpus,
+    HybridExperienceCorpus,
+    get_hybrid_corpus,
+)
+# Reasoning Graph
+from .reasoning_graph import (
+    BaseNode,
+    ReasoningGraph,
+    ClassifyNode,
+    DirectExecNode,
+    PlanNode,
+    ExecuteNode,
+    ReflectNode,
+    VerifyNode,
+    RespondNode,
+    create_reasoning_graph,
 )
 from .knowledge_base import (
     CommandPattern,
@@ -610,6 +648,35 @@ __all__ = [
     "PlanStep",
     "Plan",
     "ReasoningLoop",
+    # v0.23 Reflective Reasoning Graph
+    "ReasoningStrategy",
+    "GraphReasoningLoop",
+    "create_reasoning_loop",
+    "get_reasoning_strategy",
+    "StepStatus",
+    "StopReason",
+    "ReasoningState",
+    "ReasoningEvent",
+    "ReflectionAttempt",
+    "get_max_reflections",
+    "GraphPlanStep",
+    "GraphPlan",
+    "GraphTaskComplexity",
+    # Experience Corpus
+    "ExperienceCorpus",
+    "HybridExperienceCorpus",
+    "get_hybrid_corpus",
+    # Reasoning Graph Nodes
+    "BaseNode",
+    "ReasoningGraph",
+    "ClassifyNode",
+    "DirectExecNode",
+    "PlanNode",
+    "ExecuteNode",
+    "ReflectNode",
+    "VerifyNode",
+    "RespondNode",
+    "create_reasoning_graph",
     # Knowledge Base
     "CommandPattern",
     "ReasoningRule",
