@@ -949,6 +949,35 @@
                     <main class="chat-area">
                         <div id="chatMessages" class="chat-messages"></div>
 
+                        <!-- Quick Actions Bar -->
+                        <div class="quick-actions-bar" id="quickActionsBar">
+                            <div class="quick-actions-row">
+                                <button class="quick-action-btn" onclick="app.loadQuickAction('folder')" title="Project Overview">
+                                    <span class="qa-icon">📁</span>
+                                </button>
+                                <button class="quick-action-btn" onclick="app.loadQuickAction('chart')" title="Code Stats">
+                                    <span class="qa-icon">📊</span>
+                                </button>
+                                <button class="quick-action-btn" onclick="app.loadQuickAction('clock')" title="Recent Changes">
+                                    <span class="qa-icon">🕐</span>
+                                </button>
+                                <button class="quick-action-btn" onclick="app.loadQuickAction('bug')" title="Find Bugs">
+                                    <span class="qa-icon">🐛</span>
+                                </button>
+                                <button class="quick-action-btn" onclick="app.loadQuickAction('link')" title="Dependencies">
+                                    <span class="qa-icon">🔗</span>
+                                </button>
+                                <select id="promptComplexity" class="prompt-complexity-select" onchange="app.loadPromptsByComplexity(this.value)">
+                                    <option value="">Demo Prompts...</option>
+                                    <option value="bypass">💭 BYPASS (Concepts)</option>
+                                    <option value="simple">⚡ SIMPLE (Single Command)</option>
+                                    <option value="moderate">🔧 MODERATE (Multi-step)</option>
+                                    <option value="complex">🔬 COMPLEX (Investigation)</option>
+                                </select>
+                            </div>
+                            <div id="promptsList" class="prompts-list hidden"></div>
+                        </div>
+
                         <div class="chat-input-container">
                             <textarea
                                 id="chatInput"

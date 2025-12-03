@@ -81,6 +81,7 @@ class ReasoningGraph:
         start: str = "CLASSIFY",
         end: str = "END",
         max_iterations: int = 50,
+        progress_callback: Optional[Callable[[str, str, Optional[Dict]], None]] = None,
     ):
         """
         Initialize the reasoning graph.
@@ -90,12 +91,26 @@ class ReasoningGraph:
             start: Name of the starting node
             end: Name of the ending node
             max_iterations: Maximum iterations to prevent infinite loops
+            progress_callback: Optional callback(node_name, message, metadata) for progress
         """
         self.nodes = nodes
         self.start = start
         self.end = end
         self.max_iterations = max_iterations
         self.trace: List[Tuple[str, str]] = []  # (timestamp, node_name)
+        self._progress_callback = progress_callback
+
+    def set_progress_callback(self, callback: Callable[[str, str, Optional[Dict]], None]):
+        """Set callback for streaming progress updates."""
+        self._progress_callback = callback
+
+    def _emit_progress(self, node_name: str, message: str, metadata: Optional[Dict] = None):
+        """Emit a progress update via callback."""
+        if self._progress_callback:
+            try:
+                self._progress_callback(node_name, message, metadata)
+            except Exception:
+                pass  # Don't let callback errors break reasoning
 
     def run(self, state: ReasoningState) -> ReasoningState:
         """
@@ -113,6 +128,19 @@ class ReasoningGraph:
 
         logger.info(f"Starting reasoning graph for goal: {state.goal[:50]}...")
 
+        # Node descriptions for progress messages
+        node_descriptions = {
+            "CLASSIFY": "Classifying task complexity",
+            "PLAN": "Generating execution plan",
+            "EXECUTE": "Executing plan steps",
+            "DIRECT_EXEC": "Executing directly",
+            "REFLECT": "Reflecting on results",
+            "RESPOND": "Preparing response",
+        }
+
+        # Track whether we've emitted plan_ready
+        plan_announced = False
+
         while current != self.end and iterations < self.max_iterations:
             timestamp = datetime.utcnow().isoformat()
             self.trace.append((timestamp, current))
@@ -127,13 +155,79 @@ class ReasoningGraph:
             node = self.nodes[current]
             logger.debug(f"Executing node: {current}")
 
+            # Emit progress BEFORE node runs
+            desc = node_descriptions.get(current, f"Processing: {current}")
+            self._emit_progress(current, desc, {"iteration": iterations, "node": current})
+
             try:
                 state, next_node = node.run(state)
+
+                # Emit progress AFTER node completes with results
+                if current == "CLASSIFY" and state.complexity:
+                    self._emit_progress(
+                        "classification_complete",
+                        f"📊 Task classified as: {state.complexity.value}",
+                        {"complexity": state.complexity.value}
+                    )
+
+                # Emit plan details after PLAN node generates the plan
+                if current == "PLAN" and state.plan and not plan_announced:
+                    plan_announced = True
+                    # Show objective
+                    self._emit_progress(
+                        "plan_ready",
+                        f"📋 Plan: {state.plan.objective}",
+                        {"objective": state.plan.objective, "num_steps": len(state.plan.steps)}
+                    )
+                    # Show each step
+                    for i, step in enumerate(state.plan.steps):
+                        step_desc = step.description[:80] + "..." if len(step.description) > 80 else step.description
+                        self._emit_progress(
+                            "plan_step",
+                            f"  📌 Step {i+1}: {step_desc}",
+                            {"step_num": i+1, "description": step.description}
+                        )
+
+                # Emit progress during EXECUTE - track which step is being executed
+                if current == "EXECUTE" and state.plan:
+                    completed = sum(1 for s in state.plan.steps if s.status.value == "success")
+                    failed = sum(1 for s in state.plan.steps if s.status.value == "failed")
+                    total = len(state.plan.steps)
+
+                    if completed > 0 or failed > 0:
+                        # Report on the step that just completed
+                        last_step = None
+                        for s in state.plan.steps:
+                            if s.status.value in ("success", "failed"):
+                                last_step = s
+                        if last_step:
+                            status_icon = "✅" if last_step.status.value == "success" else "❌"
+                            result_preview = ""
+                            if last_step.result:
+                                result_preview = last_step.result[:100].replace('\n', ' ')
+                                if len(last_step.result) > 100:
+                                    result_preview += "..."
+                            self._emit_progress(
+                                "step_complete",
+                                f"  {status_icon} Step {last_step.num} complete{': ' + result_preview if result_preview else ''}",
+                                {"step_num": last_step.num, "status": last_step.status.value, "result": last_step.result[:500] if last_step.result else ""}
+                            )
+
+                    # If there's a next step pending
+                    if completed + failed < total:
+                        self._emit_progress(
+                            "executing",
+                            f"⚙️ Executing step {completed + failed + 1}/{total}",
+                            {"completed": completed, "failed": failed, "total": total}
+                        )
+
                 current = next_node
+
             except Exception as e:
                 logger.exception(f"Error in node {current}: {e}")
                 state.stop_reason = StopReason.ERROR
                 state.last_error = str(e)
+                self._emit_progress("error", f"❌ Error in {current}: {str(e)[:100]}", {"error": str(e)})
                 current = "RESPOND"  # Try to generate a response
 
             iterations += 1
@@ -791,15 +885,40 @@ class RespondNode(BaseNode):
         if state.plan:
             parts.append(f"📋 **{state.plan.objective}**\n")
 
-            # Show step summary
+            # Show step details with actual output
             for step in state.plan.steps:
                 icon = "✅" if step.status == StepStatus.SUCCESS else "❌"
-                parts.append(f"  {icon} {step.description[:60]}...")
+                parts.append(f"{icon} **Step {step.num}:** {step.description}")
+
+                # Show actual command output if available
+                if step.result and step.result.strip():
+                    output = step.result.strip()
+
+                    # Skip if output looks like a raw JSON action (shouldn't be shown)
+                    # Check for various JSON action patterns (with single/double quotes, malformed, etc.)
+                    if (output.startswith('{"action"') or
+                        output.startswith("{'action'") or
+                        '{"action":' in output or
+                        '"action":' in output[:50] or
+                        "'action':" in output[:50]):
+                        # Try to extract and show just the command if it's a bash action
+                        if '"command"' in output or "'command'" in output:
+                            import re
+                            cmd_match = re.search(r'["\']command["\']\s*:\s*["\']([^"\']+)["\']', output)
+                            if cmd_match:
+                                parts.append(f"   → `{cmd_match.group(1)[:100]}`\n")
+                        continue
+
+                    # Format as code block if it looks like command output
+                    if "\n" in output or len(output) > 100:
+                        parts.append(f"\n```\n{output}\n```\n")
+                    else:
+                        parts.append(f"   → `{output}`\n")
 
             parts.append("")
 
-        # Add results
-        if state.step_results:
+        # Add any additional step results not already shown
+        if state.step_results and not state.plan:
             parts.append("**Results:**")
             for result in state.step_results:
                 parts.append(result)
@@ -868,6 +987,7 @@ def create_reasoning_graph(
     episodic_memory: Optional[Any] = None,
     emit_event_fn: Optional[Callable[[ReasoningEvent], None]] = None,
     classify_fn: Optional[Callable[[str], TaskComplexity]] = None,
+    progress_callback: Optional[Callable[[str, str, Optional[Dict]], None]] = None,
 ) -> ReasoningGraph:
     """
     Factory function to create a fully configured ReasoningGraph.
@@ -881,6 +1001,7 @@ def create_reasoning_graph(
         episodic_memory: Optional episodic memory
         emit_event_fn: Optional event emission function
         classify_fn: Optional custom classification function
+        progress_callback: Optional callback(node_name, message, metadata) for streaming progress
 
     Returns:
         Configured ReasoningGraph instance
@@ -904,4 +1025,4 @@ def create_reasoning_graph(
         "RESPOND": RespondNode(),
     }
 
-    return ReasoningGraph(nodes=nodes)
+    return ReasoningGraph(nodes=nodes, progress_callback=progress_callback)

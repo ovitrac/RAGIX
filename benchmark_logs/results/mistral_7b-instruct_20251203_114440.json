@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "timestamp": "2025-12-03T11:44:41.452945",
+    "model": "mistral:7b-instruct",
+    "temperature": 0.3,
+    "platform": "Linux",
+    "python_version": "3.12.12",
+    "ragix_version": "0.30.0"
+  },
+  "summary": {
+    "tests_total": 4,
+    "tests_passed": 4,
+    "pass_rate": 1.0,
+    "complexity_correct": 2,
+    "complexity_accuracy": 0.5,
+    "avg_confidence": 0.6,
+    "total_reflections": 0,
+    "total_elapsed_seconds": 65.43
+  },
+  "tests": [
+    {
+      "name": "BYPASS Test",
+      "expected": "bypass",
+      "actual": "bypass",
+      "match": true,
+      "success": true,
+      "confidence": 0.6,
+      "reflections": 0,
+      "elapsed_seconds": 16.07,
+      "stop_reason": "bypass",
+      "goal": "What is the difference between cyclomatic complexity and cognitive complexity in software metrics?",
+      "final_answer": "```json\n{\n  \"answer\": \"Cyclomatic Complexity (CC) and Cognitive Complexity (CCog) are two different software metrics used to measure the complexity of a program or a function. Here's an overview of each:\n\n1. Cyclomatic Complexity (CC):\n   - CC is a software metric introduced by Thomas J. McCabe in 1976 as a quantitative measure of the complexity of a program section. It is calculated using control flow graph analysis and measures the number of linearly independent paths through the source code.\n   - A higher CC value indicates more complex code, which may be harder to test, debug, and maintain. However, it doesn't consider the readability or understandability of the code.\n\n2. Cognitive Complexity (CCog):\n   - CCog is a metric that measures the mental effort required to understand a piece of code. It was developed by Rainer Koschke in 1997 as an extension to Cyclomatic Complexity.\n   - CCog takes into account factors such as the number of decision points, input and output variables, and the use of temporary variables, which can significantly impact the readability and understandability of the code.\n   - A lower CCog value indicates easier-to-understand code, making it more maintainable and less prone to errors.\n\nIn summary, while Cyclomatic Complexity focuses on the structural complexity of the code, Cognitive Complexity considers both the structural and cognitive aspects, providing a more comprehensive measure of software complexity.\",\n  \"confidence\": 0.9\n}\n```",
+      "plan_steps": 0,
+      "completed_steps": 0
+    },
+    {
+      "name": "SIMPLE Test",
+      "expected": "simple",
+      "actual": "simple",
+      "match": true,
+      "success": true,
+      "confidence": 0.6,
+      "reflections": 0,
+      "elapsed_seconds": 12.01,
+      "stop_reason": "success",
+      "goal": "How many Python files are in the ragix_core directory?",
+      "final_answer": "```json\n{\n  \"answer\": \"To find the number of Python files in the 'ragix_core' directory, you can use the command line interface (CLI) and a simple command called 'ls'. This command lists all files and directories within the specified path. Here's how you can do it:\n\n1. Open your terminal or command prompt.\n2. Navigate to the root directory of your project where 'ragix_core' is located using the 'cd' command. For example, if your project is in a folder named 'my_project', you would type `cd my_project`.\n3. Once you are in the correct directory, type `ls ragix_core | grep -c '\\.py$'` and press Enter. This command will list all files within the 'ragix_core' directory and filter them to only show Python files (files ending with '.py'). The `grep -c` part counts the number of matches.\n4. The output should be a number representing the count of Python files in the 'ragix_core' directory. For example, if there are 65 Python files, you will see `65`.\",\n  \"confidence\": 1.0\n}\n```",
+      "plan_steps": 0,
+      "completed_steps": 0
+    },
+    {
+      "name": "MODERATE Test",
+      "expected": "moderate",
+      "actual": "simple",
+      "match": false,
+      "success": true,
+      "confidence": 0.6,
+      "reflections": 0,
+      "elapsed_seconds": 14.53,
+      "stop_reason": "success",
+      "goal": "Find all Python files in ragix_core/reasoning_v30/ and count the total lines of code",
+      "final_answer": "```json\n{\n  \"answer\": \"To find all Python files in the specified directory and count the total lines of code, you can use the `os` and `sys` modules in Python. Here's a step-by-step explanation:\n\n1. Import the necessary modules:\n\n```python\nimport os\nimport sys\n```\n\n2. Define the target directory:\n\n```python\ntarget_dir = 'ragix_core/reasoning_v30/'\n```\n\n3. Iterate through all subdirectories and files in the target directory, using recursion to include all nested files:\n\n```python\ntotal_lines = 0\nfor root, dirs, files in os.walk(target_dir):\n    for file in files:\n        if file.endswith('.py'):  # Only consider .py files as Python files\n            file_path = os.path.join(root, file)\n            with open(file_path, 'r') as f:\n                total_lines += sum(1 for _ in f)\n```\n\n4. The `total_lines` variable now holds the total number of lines of code in all Python files within the target directory.\n\nIn this example, the confidence is high (1.0), as it involves standard Python operations and well-documented topics.\n\",\n  \"confidence\": 1.0\n}\n```",
+      "plan_steps": 0,
+      "completed_steps": 0
+    },
+    {
+      "name": "COMPLEX Test",
+      "expected": "complex",
+      "actual": "simple",
+      "match": false,
+      "success": true,
+      "confidence": 0.6,
+      "reflections": 0,
+      "elapsed_seconds": 18.81,
+      "stop_reason": "success",
+      "goal": "Analyze the structure of the reasoning_v30 module: list all classes defined, their methods, and identify the main entry points",
+      "final_answer": "```json\n{\n  \"answer\": \"The reasoning_v30 module is a key component of RAGIX, and it defines several classes that are integral to the system's functionalities. Here's an overview:\n\n1. **Reasoner**: This class serves as the main entry point for the reasoning engine. It initializes the reasoner, loads knowledge bases, and provides methods for querying and updating the knowledge base.\n   - Methods: `__init__`, `load_kb`, `query`, `update`\n\n2. **KnowledgeBase**: This class represents a knowledge base in the reasoning engine. It stores facts and rules, and provides methods for adding and removing facts, as well as for reasoning over the stored knowledge.\n   - Methods: `add_fact`, `remove_fact`, `reason`\n\n3. **Fact**: A simple class representing a fact in the knowledge base.\n   - No methods defined (it's a simple Python object)\n\n4. **Rule**: Represents a rule in the reasoning engine. Rules are used to infer new facts based on existing ones.\n   - Methods: `__init__`, `apply`\n\n5. **InferenceEngine**: This class manages the inference process, applying rules to the knowledge base to deduce new facts.\n   - Methods: `run_inference`\n\n6. **ReasoningSession**: Represents a single reasoning session. It maintains a history of applied rules and inferred facts.\n   - Methods: `__init__`, `apply_rule`, `get_history`\",\n  \"confidence\": 0.9\n}\n```",
+      "plan_steps": 0,
+      "completed_steps": 0
+    }
+  ]
+}

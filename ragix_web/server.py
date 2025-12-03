@@ -12,7 +12,7 @@ import asyncio
 import argparse
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Callable, Awaitable
 from datetime import datetime
 import json
 
@@ -100,6 +100,13 @@ except ImportError:
 
 from ragix_unix import UnixRAGAgent
 
+# Import prompt database
+try:
+    from ragix_core.prompts import get_prompt_database, PromptDatabase
+    PROMPTS_AVAILABLE = True
+except ImportError:
+    PROMPTS_AVAILABLE = False
+
 # Import workflow templates
 try:
     from ragix_core.workflow_templates import (
@@ -176,7 +183,7 @@ active_websockets: List[WebSocket] = []
 class SessionCreateRequest(BaseModel):
     """Request body for creating a session."""
     sandbox_root: str = ""  # Empty means use LAUNCH_DIRECTORY
-    model: str = "mistral"
+    model: str = "qwen2.5:7b"
     profile: str = "dev"
 
 
@@ -451,6 +458,102 @@ async def delete_session(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
 
 
+# =============================================================================
+# Prompts API - Demo prompts database for quick selection
+# =============================================================================
+
+@app.get("/api/prompts")
+async def list_prompts(complexity: Optional[str] = None):
+    """
+    List available demo prompts.
+
+    Query params:
+        complexity: Filter by complexity level (bypass, simple, moderate, complex)
+    """
+    if not PROMPTS_AVAILABLE:
+        return {"available": False, "prompts": [], "error": "Prompt database not available"}
+
+    db = get_prompt_database()
+
+    if complexity:
+        prompts = db.get_by_complexity(complexity)
+    else:
+        prompts = db.get_all()
+
+    return {
+        "available": True,
+        "total": len(prompts),
+        "prompts": [p.to_dict() for p in prompts],
+        "summary": db.get_summary(),
+    }
+
+
+@app.get("/api/prompts/quick-actions")
+async def get_quick_action_prompts():
+    """Get quick action prompts for UI buttons."""
+    if not PROMPTS_AVAILABLE:
+        return {"available": False, "quick_actions": []}
+
+    db = get_prompt_database()
+    return {
+        "available": True,
+        "quick_actions": [p.to_dict() for p in db.get_quick_actions()],
+    }
+
+
+@app.get("/api/prompts/search")
+async def search_prompts(q: str, complexity: Optional[str] = None):
+    """
+    Search prompts by keyword.
+
+    Query params:
+        q: Search query
+        complexity: Optional complexity filter
+    """
+    if not PROMPTS_AVAILABLE:
+        return {"available": False, "results": []}
+
+    db = get_prompt_database()
+    results = db.search(q, complexity)
+
+    return {
+        "available": True,
+        "query": q,
+        "total": len(results),
+        "results": [p.to_dict() for p in results],
+    }
+
+
+@app.get("/api/prompts/{prompt_id}")
+async def get_prompt_by_id(prompt_id: str):
+    """Get a specific prompt by ID."""
+    if not PROMPTS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Prompt database not available")
+
+    db = get_prompt_database()
+    prompt = db.get_by_id(prompt_id)
+
+    if not prompt:
+        raise HTTPException(status_code=404, detail=f"Prompt not found: {prompt_id}")
+
+    return prompt.to_dict()
+
+
+@app.get("/api/prompts/random/{complexity}")
+async def get_random_prompt(complexity: str):
+    """Get a random prompt for a given complexity level."""
+    if not PROMPTS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Prompt database not available")
+
+    db = get_prompt_database()
+    prompt = db.get_random(complexity)
+
+    if not prompt:
+        raise HTTPException(status_code=404, detail=f"No prompts found for complexity: {complexity}")
+
+    return prompt.to_dict()
+
+
 @app.get("/api/sessions/{session_id}/status")
 async def get_session_status(session_id: str):
     """
@@ -467,10 +570,10 @@ async def get_session_status(session_id: str):
         # Get defaults from config or use fallbacks
         try:
             config = get_config()
-            default_model = config.llm.model if hasattr(config, 'llm') and config.llm else "mistral"
+            default_model = config.llm.model if hasattr(config, 'llm') and config.llm else "qwen2.5:7b"
             default_profile = "dev"
         except Exception:
-            default_model = "mistral"
+            default_model = "qwen2.5:7b"
             default_profile = "dev"
 
         active_sessions[session_id] = {
@@ -486,7 +589,7 @@ async def get_session_status(session_id: str):
     session = active_sessions[session_id]
 
     # Session model is the single source of truth
-    session_model = session.get("model", "mistral")
+    session_model = session.get("model", "qwen2.5:7b")
 
     # Get agent config (may be session-specific override)
     agent_config = session_agent_configs.get(session_id)
@@ -520,7 +623,7 @@ async def get_session_status(session_id: str):
     # Get reasoning config - inherits from agent worker model
     from ragix_web.routers.reasoning import _session_reasoning_config
     reasoning_config = _session_reasoning_config.get(session_id, {})
-    reasoning_strategy = reasoning_config.get("strategy", os.environ.get("RAGIX_REASONING_STRATEGY", "loop_v1"))
+    reasoning_strategy = reasoning_config.get("strategy", os.environ.get("RAGIX_REASONING_STRATEGY", "graph_v30"))
 
     # For planner/worker/verifier display: show actual model if not explicitly overridden
     agent_mode = agent_config.mode.value if agent_config else "minimal"
@@ -3169,7 +3272,7 @@ async def get_agent_config(session_id: Optional[str] = None):
     session_model = None  # Will be set if session found
     if session_id:
         if session_id in active_sessions:
-            session_model = active_sessions[session_id].get("model", "mistral")
+            session_model = active_sessions[session_id].get("model", "qwen2.5:7b")
         else:
             # Session not found - log available sessions for debugging
             logger.warning(f"Session {session_id} not in active_sessions. Available: {list(active_sessions.keys())}")
@@ -3178,9 +3281,9 @@ async def get_agent_config(session_id: Optional[str] = None):
     if session_model is None:
         try:
             config = get_config()
-            session_model = config.llm.model if hasattr(config, 'llm') and config.llm else "mistral"
+            session_model = config.llm.model if hasattr(config, 'llm') and config.llm else "qwen2.5:7b"
         except Exception:
-            session_model = "mistral"
+            session_model = "qwen2.5:7b"
 
     # Get default config from ragix.yaml
     try:
@@ -3743,7 +3846,7 @@ def get_or_create_agent(session: Dict[str, Any]) -> UnixRAGAgent:
     session_id = session["id"]
 
     # Session model is the single source of truth
-    session_model = session.get("model", "mistral")
+    session_model = session.get("model", "qwen2.5:7b")
 
     # Check for session-specific agent config
     agent_config = session_agent_configs.get(session_id)
@@ -3819,35 +3922,186 @@ def get_or_create_agent(session: Dict[str, Any]) -> UnixRAGAgent:
     return session_agents[session_id]
 
 
-async def run_agent_async(agent: UnixRAGAgent, message: str, session_id: str = "default") -> Tuple[str, List[Dict]]:
+async def run_agent_async(
+    agent: UnixRAGAgent,
+    message: str,
+    session_id: str = "default",
+    timeout_seconds: int = 180,
+    progress_callback: Optional[Callable[[Dict], Awaitable[None]]] = None
+) -> Tuple[str, List[Dict]]:
     """
     Run agent in a thread pool to avoid blocking.
 
     Uses step_with_reasoning for complex tasks (Planner/Worker/Verifier loop).
 
+    Args:
+        agent: UnixRAGAgent instance
+        message: User message
+        session_id: Session identifier
+        timeout_seconds: Maximum time to wait for response (default: 180s)
+        progress_callback: Optional async callback for streaming progress updates
+
     Returns:
         Tuple of (response_text, reasoning_traces)
     """
     import concurrent.futures
+    import time
+    import queue
+    import threading
+
+    start_time = time.time()
+    progress_queue: queue.Queue = queue.Queue()
+    accumulated_traces: List[Dict] = []
+
+    def emit_progress(event_type: str, content: str, metadata: Optional[Dict] = None):
+        """Emit a progress event to the queue."""
+        event = {
+            "type": event_type,
+            "content": content,
+            "timestamp": datetime.now().isoformat(),
+            "elapsed": time.time() - start_time,
+            **(metadata or {})
+        }
+        progress_queue.put(event)
+        accumulated_traces.append(event)
 
     def execute_step():
         """Execute agent step with reasoning and format response."""
+        # Set up real-time progress callback on the reasoning loop
+        if hasattr(agent, '_reasoning_loop') and agent._reasoning_loop:
+            # Create a callback that emits traces to the progress queue in real-time
+            def trace_callback(trace: Dict):
+                """Real-time callback for reasoning traces."""
+                emit_progress(
+                    trace.get("type", "trace"),
+                    trace.get("content", ""),
+                    trace.get("metadata", {})
+                )
+
+            # Set the callback on the reasoning loop
+            if hasattr(agent._reasoning_loop, 'set_progress_callback'):
+                agent._reasoning_loop.set_progress_callback(trace_callback)
+
+            # Also classify task and emit initial progress
+            complexity = agent._reasoning_loop.classify_task(message)
+            emit_progress("classification", f"Task classified as: {complexity.value}", {"complexity": complexity.value})
+
         # Use reasoning-enabled step
         cmd_result, response, traces = agent.step_with_reasoning(message)
 
+        # Emit trace events as progress
+        for trace in traces:
+            emit_progress(trace.get("type", "trace"), trace.get("content", ""), trace)
+
         # Build response string
         parts = []
-        if response:
+
+        # Check if response is a CommandResult repr (shouldn't be displayed raw)
+        if response and not (response.startswith('CommandResult(') and response.endswith(')')):
             parts.append(response)
+
         if cmd_result:
-            parts.append(f"\n**Command executed:**\n```\n{cmd_result.as_text_block()}\n```")
+            # Format command output cleanly
+            output = cmd_result.stdout.strip() if cmd_result.stdout else ""
+            stderr = cmd_result.stderr.strip() if cmd_result.stderr else ""
+
+            # Filter out binary file warnings from stderr
+            if stderr:
+                stderr_lines = [l for l in stderr.split('\n')
+                               if not l.startswith('grep:') or 'binary file' not in l.lower()]
+                stderr = '\n'.join(stderr_lines)
+
+            # Truncate very long outputs
+            max_lines = 50
+            output_lines = output.split('\n')
+            if len(output_lines) > max_lines:
+                output = '\n'.join(output_lines[:max_lines])
+                output += f"\n\n... ({len(output_lines) - max_lines} more lines truncated)"
+
+            # Build formatted output
+            cmd_output = f"\n**Command:** `{cmd_result.command}`\n"
+            if output:
+                cmd_output += f"```\n{output}\n```"
+            if stderr and cmd_result.returncode != 0:
+                cmd_output += f"\n**Errors:**\n```\n{stderr}\n```"
+
+            parts.append(cmd_output)
 
         result_text = "\n".join(parts) if parts else "No response from agent."
-        return result_text, traces
+        emit_progress("complete", "Execution completed", {"success": True})
+        return result_text, accumulated_traces
+
+    # Process progress updates in background
+    async def process_progress():
+        """Process and send progress updates."""
+        while True:
+            try:
+                # Check for progress events (non-blocking)
+                event = progress_queue.get_nowait()
+                if progress_callback:
+                    await progress_callback(event)
+            except queue.Empty:
+                await asyncio.sleep(0.1)  # Brief pause before checking again
 
     loop = asyncio.get_event_loop()
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        result_text, traces = await loop.run_in_executor(pool, execute_step)
+    result_text = ""
+    traces = []
+
+    try:
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            # Start the execution
+            future = loop.run_in_executor(pool, execute_step)
+
+            # Poll for progress while waiting for completion
+            while not future.done():
+                # Process any pending progress events
+                try:
+                    while True:
+                        event = progress_queue.get_nowait()
+                        if progress_callback:
+                            await progress_callback(event)
+                except queue.Empty:
+                    pass
+
+                # Check if we've exceeded timeout
+                if time.time() - start_time > timeout_seconds:
+                    # Try to get partial results
+                    partial_traces = list(accumulated_traces)
+                    raise asyncio.TimeoutError()
+
+                await asyncio.sleep(0.2)  # Brief pause before checking again
+
+            # Get final result
+            result_text, traces = future.result()
+
+            # Process any remaining progress events
+            try:
+                while True:
+                    event = progress_queue.get_nowait()
+                    if progress_callback:
+                        await progress_callback(event)
+            except queue.Empty:
+                pass
+
+    except asyncio.TimeoutError:
+        elapsed = time.time() - start_time
+
+        # Build partial results message
+        partial_info = ""
+        if accumulated_traces:
+            partial_info = "\n\n**Partial progress before timeout:**\n"
+            for trace in accumulated_traces[-5:]:  # Show last 5 events
+                trace_type = trace.get("type", "unknown")
+                content = trace.get("content", "")[:100]
+                trace_elapsed = trace.get("elapsed", 0)
+                partial_info += f"- [{trace_elapsed:.1f}s] {trace_type}: {content}\n"
+
+        result_text = f"⏱️ **Request timed out** after {elapsed:.1f}s\n\nThe LLM took too long to respond. This can happen with complex queries. Try:\n- Simplifying your question\n- Breaking it into smaller steps\n- Checking if Ollama is responsive (`ollama list`){partial_info}"
+        traces = accumulated_traces + [{"type": "timeout", "content": f"Request timed out after {elapsed:.1f}s", "timestamp": datetime.now().isoformat()}]
+
+    # Calculate and append execution time
+    elapsed = time.time() - start_time
+    result_text = f"{result_text}\n\n---\n⏱️ *Execution time: {elapsed:.2f}s*"
 
     # Store reasoning traces in session
     if session_id not in session_reasoning_traces:
@@ -3888,9 +4142,9 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
         # Get reasoning strategy (check session-specific first, then env)
         from ragix_web.routers.reasoning import _session_reasoning_config
         if session_id in _session_reasoning_config:
-            reasoning_strategy = _session_reasoning_config[session_id].get("strategy", "loop_v1")
+            reasoning_strategy = _session_reasoning_config[session_id].get("strategy", "graph_v30")
         else:
-            reasoning_strategy = os.environ.get("RAGIX_REASONING_STRATEGY", "loop_v1")
+            reasoning_strategy = os.environ.get("RAGIX_REASONING_STRATEGY", "graph_v30")
 
         await websocket.send_json({
             "type": "status",
@@ -3926,9 +4180,27 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                     "timestamp": datetime.now().isoformat()
                 })
 
+                # Progress callback for streaming updates
+                async def send_progress(event: Dict):
+                    """Send progress update to WebSocket."""
+                    try:
+                        await websocket.send_json({
+                            "type": "progress",
+                            "event": event,
+                            "timestamp": datetime.now().isoformat()
+                        })
+                        # Also update reasoning traces in real-time
+                        await websocket.send_json({
+                            "type": "reasoning_trace_update",
+                            "trace": event,
+                            "timestamp": datetime.now().isoformat()
+                        })
+                    except Exception:
+                        pass  # Ignore errors sending progress
+
                 try:
                     # Run the agent with reasoning (Planner/Worker/Verifier)
-                    response, traces = await run_agent_async(agent, user_message, session_id)
+                    response, traces = await run_agent_async(agent, user_message, session_id, progress_callback=send_progress)
 
                     # Send reasoning traces if any (for Reasoning tab visualization)
                     if traces:
@@ -4015,7 +4287,7 @@ def main():
     )
     parser.add_argument(
         "--model",
-        default="mistral",
+        default="qwen2.5:7b",
         help="Default Ollama model (default: mistral)"
     )
     parser.add_argument(

@@ -47,15 +47,16 @@ patterns:
   # Documentation patterns
   find_todos:
     description: "Find TODO comments"
-    pattern: 'grep -rn "TODO\|FIXME\|XXX" --include="*.py" --include="*.md" .'
+    pattern: 'grep -rn "TODO" --include="*.py" --include="*.md" --include="*.js" --include="*.ts" --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=__pycache__ --exclude-dir=.ragix .'
     examples:
-      - 'grep -rn "TODO" --include="*.py" .'
-      - 'grep -rn "FIXME" --include="*.java" .'
+      - 'grep -rn "TODO" --include="*.py" --exclude-dir=__pycache__ .'
+      - 'grep -rn "FIXME" --include="*.py" --exclude-dir=__pycache__ .'
+      - 'grep -rn "TODO\|FIXME" --include="*.py" --include="*.md" --exclude-dir=.git .'
     triggers:
       - "todo"
       - "fixme"
       - "pending"
-    notes: "Common markers: TODO, FIXME, XXX, HACK"
+    notes: "Always use --include to limit file types and --exclude-dir to skip .git, __pycache__, .ragix, node_modules"
 
   # Git patterns
   recent_changes:

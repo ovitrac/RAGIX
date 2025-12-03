@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "timestamp": "2025-12-03T12:04:26.602866",
+    "model": "qwen2.5:7b",
+    "temperature": 0.3,
+    "platform": "Linux",
+    "python_version": "3.12.12",
+    "ragix_version": "0.30.0"
+  },
+  "summary": {
+    "tests_total": 4,
+    "tests_passed": 4,
+    "pass_rate": 1.0,
+    "complexity_correct": 3,
+    "complexity_accuracy": 0.75,
+    "avg_confidence": 0.887,
+    "total_reflections": 0,
+    "total_elapsed_seconds": 40.83
+  },
+  "tests": [
+    {
+      "name": "BYPASS Test",
+      "expected": "bypass",
+      "actual": "bypass",
+      "match": true,
+      "success": true,
+      "confidence": 0.9,
+      "reflections": 0,
+      "elapsed_seconds": 13.33,
+      "stop_reason": "bypass",
+      "goal": "What is the difference between cyclomatic complexity and cognitive complexity in software metrics?",
+      "final_answer": "Cyclomatic complexity and cognitive complexity are both measures used in software metrics to assess the complexity of code, but they differ in their approach and interpretation.\n\n- **Cyclomatic Complexity**: This metric is based on the control flow graph of a program. It counts the number of linearly independent paths through a program's source code. A higher cyclomatic complexity indicates more complex logic that may be harder to understand and maintain. For example, if you have a function with nested conditions or multiple loops, it will likely have a higher cyclomatic complexity.\n\n- **Cognitive Complexity**: This metric focuses on the cognitive effort required by a developer to understand a piece of code. It measures how many steps are needed to comprehend the logic within a single block of code. Cognitive complexity considers factors like the number of conditions in an if statement, the nesting level of loops and conditionals, and the length of expressions. For instance, a function with a simple `if` statement might have low cognitive complexity, but adding multiple nested `else if` statements would increase it.\n",
+      "plan_steps": 0,
+      "completed_steps": 0
+    },
+    {
+      "name": "SIMPLE Test",
+      "expected": "simple",
+      "actual": "simple",
+      "match": true,
+      "success": true,
+      "confidence": 0.95,
+      "reflections": 0,
+      "elapsed_seconds": 1.33,
+      "stop_reason": "success",
+      "goal": "How many Python files are in the ragix_core directory?",
+      "final_answer": "**Command executed successfully**\n\n```\n65\n```",
+      "plan_steps": 0,
+      "completed_steps": 0
+    },
+    {
+      "name": "MODERATE Test",
+      "expected": "moderate",
+      "actual": "moderate",
+      "match": true,
+      "success": true,
+      "confidence": 0.9,
+      "reflections": 0,
+      "elapsed_seconds": 9.25,
+      "stop_reason": "success",
+      "goal": "Find all Python files in ragix_core/reasoning_v30/ and count the total lines of code",
+      "final_answer": "## Step 1: Find all Python files in the specified directory\n\n```\nragix_core/reasoning_v30/prompts.py\nragix_core/reasoning_v30/types.py\nragix_core/reasoning_v30/config.py\nragix_core/reasoning_v30/experience.py\nragix_core/reasoning_v30/__init__.py\nragix_core/reasoning_v30/graph.py\nragix_core/reasoning_v30/nodes.py\n```\n\n## Step 2: Count the total lines of code across all found Python files\n\n```\n0\n```",
+      "plan_steps": 2,
+      "completed_steps": 2
+    },
+    {
+      "name": "COMPLEX Test",
+      "expected": "complex",
+      "actual": "moderate",
+      "match": false,
+      "success": true,
+      "confidence": 0.8,
+      "reflections": 0,
+      "elapsed_seconds": 12.9,
+      "stop_reason": "success",
+      "goal": "Analyze the structure of the reasoning_v30 module: list all classes defined, their methods, and identify the main entry points",
+      "final_answer": "## Step 1: Find all Python files in the project directory\n\n```\n./unix-rag-agent-new.py\n./examples/claude_demo.py\n./examples/resilience_example.py\n./examples/hybrid_search_example.py\n./examples/workflow_example.py\n./ragix_tools.py\n./plugins/json-validator/json_tools.py\n./plugins/file-stats/stats_tools.py\n./wasp_tools/search.py\n./wasp_tools/__init__.py\n./wasp_tools/mdparse.py\n./wasp_tools/validate.py\n./tests/test_agent_llm_bridge.py\n./tests/test_bm25_index.py\n./tests/test_workflow_templates.py\n./tests/test_hybrid_search.py\n./tests/reasoning_v30/test_experience.py\n./tests/reasoning_v30/__init__.py\n./tests/reasoning_v30/test_types.py\n./tests/reasoning_v30/test_graph.py\n```\n\n## Step 2: Search for class definitions in the found Python files\n\n```\n./PLAN_v0.30_REASONING.md:76:class TaskComplexity(Enum):\n./PLAN_v0.30_REASONING.md:83:class StepStatus(Enum):\n./PLAN_v0.30_REASONING.md:92:class ToolCall:\n./PLAN_v0.30_REASONING.md:99:class ToolResult:\n./PLAN_v0.30_REASONING.md:109:class PlanStep:\n./PLAN_v0.30_REASONING.md:118:class Plan:\n./PLAN_v0.30_REASONING.md:133:class ReflectionAttempt:\n./PLAN_v0.30_REASONING.md:142:class ReasoningState:\n./PLAN_v0.30_REASONING.md:157:class ReasoningEvent:\n./PLAN_v0.30_REASONING.md:189:class BaseNode(ABC):\n./PLAN_v0.30_REASONING.md:197:class ReasoningGraph:\n./PLAN_v0.30_REASONING.md:243:class ClassifyNode(BaseNode):\n./PLAN_v0.30_REASONING.md:262:class DirectExecNode(BaseNode):\n./PLAN_v0.30_REASONING.md:285:class PlanNode(BaseNode):\n./PLAN_v0.30_REASONING.md:311:class ExecuteNode(BaseNode):\n./PLAN_v0.30_REASONING.md:354:class ReflectNode(BaseNode):\n./PLAN_v0.30_REASONING.md:433:class VerifyNode(BaseNode):\n./PLAN_v0.30_REASONING.md:451:class RespondNode(BaseNode):\n./PLAN_v0.30_REASONING.md:505:class ExperienceCorpus:\n./PLAN_v0.30_REASONING.md:565:class HybridExperienceCorpus:\n```\n\n## Step 3: List methods associated with each class by searching for method definitions\n\n```\n./PLAN_v0.30_REASONING.md:705:def dummy_classify(goal: str) -> TaskComplex",
+      "plan_steps": 4,
+      "completed_steps": 4
+    }
+  ]
+}

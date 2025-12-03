@@ -1,0 +1,43 @@
+# BYPASS complexity test scenarios - pure reasoning, no tools
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-03
+
+- id: conceptual-question
+  description: Pure reasoning about complexity metrics
+  input: "Explain the difference between cyclomatic complexity and cognitive complexity."
+  expected_patterns:
+    - "cyclomatic"
+    - "cognitive"
+    - "control flow"
+  must_run_commands: []
+  max_steps: 1
+  complexity: BYPASS
+
+- id: explanation-request
+  description: Explain a programming concept
+  input: "What is dependency injection and why is it useful?"
+  expected_patterns:
+    - "dependency"
+    - "injection"
+  must_run_commands: []
+  max_steps: 1
+  complexity: BYPASS
+
+- id: comparison-question
+  description: Compare two approaches
+  input: "What are the pros and cons of monolithic vs microservices architecture?"
+  expected_patterns:
+    - "monolithic"
+    - "microservices"
+  must_run_commands: []
+  max_steps: 1
+  complexity: BYPASS
+
+- id: definition-question
+  description: Define a term
+  input: "What is technical debt?"
+  expected_patterns:
+    - "technical"
+    - "debt"
+  must_run_commands: []
+  max_steps: 1
+  complexity: BYPASS

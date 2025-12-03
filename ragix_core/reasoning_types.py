@@ -19,6 +19,7 @@ import json
 
 class TaskComplexity(Enum):
     """Task complexity levels determining reasoning strategy."""
+    BYPASS = "bypass"      # Pure conceptual/conversational, no tools needed
     SIMPLE = "simple"      # Single command, no planning needed
     MODERATE = "moderate"  # 2-3 steps, brief planning
     COMPLEX = "complex"    # Multi-step, full [PLAN] required

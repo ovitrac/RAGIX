@@ -23,13 +23,74 @@ def extract_json_object(text: str) -> Optional[Dict[str, Any]]:
         Parsed JSON dict or None if extraction fails
     """
     start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end == -1:
+    if start == -1:
         return None
+
+    # Try to find matching closing brace by counting braces
+    # This handles nested JSON in message content
+    brace_count = 0
+    in_string = False
+    escape_next = False
+    end = -1
+
+    for i, char in enumerate(text[start:], start):
+        if escape_next:
+            escape_next = False
+            continue
+
+        if char == '\\' and in_string:
+            escape_next = True
+            continue
+
+        if char == '"' and not escape_next:
+            in_string = not in_string
+            continue
+
+        if not in_string:
+            if char == '{':
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    end = i
+                    break
+
+    if end == -1:
+        # Fallback to rfind if parsing fails
+        end = text.rfind("}")
+        if end == -1:
+            return None
+
     candidate = text[start:end + 1]
+
+    # Try standard JSON parsing first
     try:
         return json.loads(candidate)
-    except Exception:
+    except json.JSONDecodeError:
+        pass
+
+    # Try to fix common LLM JSON errors
+    try:
+        import re
+        fixed = candidate
+
+        # Fix 1: Unquoted keys like `message:` -> `"message":`
+        fixed = re.sub(r'([{,]\s*)(\w+)(\s*:)', r'\1"\2"\3', fixed)
+
+        # Fix 2: Single quotes to double quotes (but not inside strings)
+        # This is tricky - do a simple replacement if no double quotes present
+        if '"' not in fixed.replace('\\"', ''):
+            fixed = fixed.replace("'", '"')
+        # If we have mixed quotes, try to fix single-quoted string values
+        elif "'" in fixed:
+            # Replace 'value' patterns with "value" but be careful
+            fixed = re.sub(r":\s*'([^']*)'", r': "\1"', fixed)
+
+        # Fix 3: Trailing commas (common LLM error)
+        fixed = re.sub(r',\s*([}\]])', r'\1', fixed)
+
+        return json.loads(fixed)
+    except (json.JSONDecodeError, Exception):
         return None
 
 

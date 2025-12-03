@@ -1,8 +1,48 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-12-03 (v0.30.0 Planning)
+**Updated:** 2025-12-03 (v0.30.0 Streaming Progress)
 **Reference:** See `PLAN_v0.30_REASONING.md` for full implementation plan
 **Review:** See `REVIEW_current_reasoning_towardsv0.30.md` for colleague feedback
+
+---
+
+## Session Completed (2025-12-03 - v0.30.0 Streaming Progress)
+
+### Real-Time Progress Streaming & Robust JSON Handling
+
+| Task | Status |
+|------|--------|
+| **Progress Callback Pipeline** - ReasoningGraph → GraphReasoningLoop → WebSocket | ✅ Done |
+| **Graph Progress Events** - Classification, planning, step execution, reflection | ✅ Done |
+| **Server Progress Setup** - Set callback before execution for real-time updates | ✅ Done |
+| **Tool Traces Panel** - New icons for plan_ready, plan_step, step_complete, etc. | ✅ Done |
+| **Robust JSON Parsing** - Handle unquoted keys, single quotes, trailing commas | ✅ Done |
+| **JSON Action Execution** - Direct command execution from malformed LLM JSON | ✅ Done |
+| **Output Filtering** - Filter raw JSON from RespondNode final response | ✅ Done |
+
+**Key Files Modified:**
+- `ragix_core/reasoning_graph.py` - `_emit_progress()`, enhanced `run()` loop, `RespondNode` filtering
+- `ragix_core/reasoning.py` - `graph_progress_callback`, `_execute_step_wrapper` JSON handling
+- `ragix_core/orchestrator.py` - `extract_json_object()` with JSON repair
+- `ragix_web/server.py` - `trace_callback` setup in `execute_step()`
+- `ragix_web/static/app.js` - Extended icon mapping, `handleProgressUpdate()` cases
+
+**Progress Pipeline:**
+```
+ReasoningGraph._emit_progress(node_name, message, metadata)
+    → graph_progress_callback(node, msg, meta)
+        → GraphReasoningLoop._add_trace(trace_type, content, meta)
+            → self._progress_callback(trace)  [set by server]
+                → emit_progress() → progress_queue
+                    → WebSocket send_progress()
+                        → app.js handleProgressUpdate() / addSingleReasoningTrace()
+```
+
+**JSON Repair in `extract_json_object()`:**
+- Unquoted keys: `{action: "bash"}` → `{"action": "bash"}`
+- Single quotes: `{'action': 'bash'}` → `{"action": "bash"}`
+- Mixed quotes: `{"action": "respond", message: "test"}` → fixed
+- Trailing commas: `{"a": 1,}` → `{"a": 1}`
 
 ---
 

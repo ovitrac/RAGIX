@@ -1,0 +1,36 @@
+# Code analysis test scenarios - COMPLEX tasks
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-03
+
+- id: analyze-structure
+  description: Analyze codebase structure
+  input: "Analyze the structure of this codebase and identify the main modules"
+  expected_patterns:
+    - "module"
+    - "structure"
+  must_run_commands:
+    - "find"
+    - "ls"
+  max_steps: 7
+  complexity: COMPLEX
+
+- id: find-dependencies
+  description: Find file dependencies
+  input: "Find all files that import the utils module"
+  expected_patterns:
+    - "import"
+    - "utils"
+  must_run_commands:
+    - "grep"
+  max_steps: 5
+  complexity: MODERATE
+
+- id: code-review
+  description: Review code quality
+  input: "Review the main.py file for potential improvements"
+  expected_patterns:
+    - "improvement"
+    - "suggestion"
+  must_run_commands:
+    - "cat"
+  max_steps: 6
+  complexity: COMPLEX

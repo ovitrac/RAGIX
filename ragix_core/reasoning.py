@@ -24,6 +24,7 @@ from .knowledge_base import get_knowledge_base, KnowledgeBase
 
 class TaskComplexity(Enum):
     """Task complexity levels."""
+    BYPASS = "bypass"      # Pure conceptual/conversational, no tools needed
     SIMPLE = "simple"      # Single command, no planning needed
     MODERATE = "moderate"  # 2-3 steps, brief planning
     COMPLEX = "complex"    # Multi-step, full [PLAN] required
@@ -1023,6 +1024,7 @@ class ReasoningStrategy:
     """Enum-like class for reasoning strategy selection."""
     LOOP_V1 = "loop_v1"  # Original Planner/Worker/Verifier loop
     GRAPH_V2 = "graph_v2"  # Reflective Reasoning Graph
+    GRAPH_V30 = "graph_v30"  # Reflective Reasoning Graph v0.30 (best performance)
 
 
 def get_reasoning_strategy() -> str:
@@ -1030,9 +1032,9 @@ def get_reasoning_strategy() -> str:
     Get the configured reasoning strategy.
 
     Environment variable: RAGIX_REASONING_STRATEGY
-    Default: loop_v1 (for backwards compatibility)
+    Default: graph_v30 (best performing strategy based on benchmarks)
     """
-    return os.getenv("RAGIX_REASONING_STRATEGY", ReasoningStrategy.LOOP_V1)
+    return os.getenv("RAGIX_REASONING_STRATEGY", ReasoningStrategy.GRAPH_V30)
 
 
 class GraphReasoningLoop:
@@ -1096,6 +1098,9 @@ class GraphReasoningLoop:
         # Current plan (for compatibility)
         self.current_plan = None
 
+        # Progress callback for streaming updates (set externally)
+        self._progress_callback: Optional[callable] = None
+
         # Create graph lazily
         self._graph: Optional[ReasoningGraph] = None
         self._create_graph = create_reasoning_graph
@@ -1111,17 +1116,113 @@ class GraphReasoningLoop:
         step.status = self._StepStatus.RUNNING
 
         try:
-            # Execute via the provided function
+            # Build command from tool and args if available
+            if step.tool and step.args:
+                # Construct shell command from tool and args
+                cmd = self._build_command_from_tool(step.tool, step.args)
+                if cmd and self.shell_executor:
+                    # Execute directly via shell
+                    result = self.shell_executor.run(cmd)
+                    step.returncode = result.returncode
+                    step.stdout = getattr(result, 'stdout', '')
+                    step.stderr = getattr(result, 'stderr', '')
+                    step.result = step.stdout
+                    step.status = self._StepStatus.SUCCESS if result.returncode == 0 else self._StepStatus.FAILED
+                    if step.status == self._StepStatus.FAILED:
+                        step.error = step.stderr or f"Command failed with code {result.returncode}"
+                    return step
+
+            # Fallback: Execute via the provided function (agent step)
             result = execute_fn(step.description)
 
             if isinstance(result, tuple):
-                success, message = result
-                step.result = message
-                step.stdout = message
-                step.returncode = 0 if success else 1
-                step.status = self._StepStatus.SUCCESS if success else self._StepStatus.FAILED
-                if not success:
-                    step.error = message
+                cmd_result, message = result
+                # If we got a CommandResult, extract stdout
+                if hasattr(cmd_result, 'stdout'):
+                    step.result = cmd_result.stdout
+                    step.stdout = cmd_result.stdout
+                    step.stderr = getattr(cmd_result, 'stderr', '')
+                    step.returncode = cmd_result.returncode
+                    step.status = self._StepStatus.SUCCESS if cmd_result.returncode == 0 else self._StepStatus.FAILED
+                elif cmd_result is None:
+                    # No command result, check if message is a JSON action we should execute
+                    msg_stripped = (message or "").strip()
+                    is_json_action = (
+                        msg_stripped.startswith('{"action"') or
+                        msg_stripped.startswith("{'action'") or
+                        ('"action"' in msg_stripped[:50] and '{' in msg_stripped[:10]) or
+                        ("'action'" in msg_stripped[:50] and '{' in msg_stripped[:10])
+                    )
+
+                    if is_json_action:
+                        try:
+                            import json
+                            import re
+                            # Try to fix common JSON issues (single quotes -> double quotes)
+                            fixed_json = msg_stripped
+                            if "'" in fixed_json and '"' not in fixed_json:
+                                fixed_json = fixed_json.replace("'", '"')
+                            action = json.loads(fixed_json)
+
+                            if action.get("action") == "bash" and action.get("command"):
+                                # Execute the bash command directly
+                                if self.shell_executor:
+                                    shell_result = self.shell_executor.run(action["command"])
+                                    step.result = shell_result.stdout
+                                    step.stdout = shell_result.stdout
+                                    step.stderr = shell_result.stderr
+                                    step.returncode = shell_result.returncode
+                                    step.status = self._StepStatus.SUCCESS if shell_result.returncode == 0 else self._StepStatus.FAILED
+                                else:
+                                    step.result = f"Command: {action['command']} (shell not available)"
+                                    step.status = self._StepStatus.SUCCESS
+                            elif action.get("action") == "bash_and_respond":
+                                # Execute command and use message
+                                if self.shell_executor and action.get("command"):
+                                    shell_result = self.shell_executor.run(action["command"])
+                                    step.result = shell_result.stdout or action.get("message", "")
+                                    step.stdout = shell_result.stdout
+                                    step.stderr = shell_result.stderr
+                                    step.returncode = shell_result.returncode
+                                    step.status = self._StepStatus.SUCCESS if shell_result.returncode == 0 else self._StepStatus.FAILED
+                                else:
+                                    step.result = action.get("message", "")
+                                    step.status = self._StepStatus.SUCCESS
+                            elif action.get("action") == "respond":
+                                step.result = action.get("message", "")
+                                step.status = self._StepStatus.SUCCESS
+                            else:
+                                step.result = message or ""
+                                step.status = self._StepStatus.SUCCESS
+                        except (json.JSONDecodeError, KeyError, TypeError):
+                            # Try to extract command using regex as last resort
+                            import re
+                            cmd_match = re.search(r'["\']command["\']\s*:\s*["\']([^"\']+)["\']', msg_stripped)
+                            if cmd_match and self.shell_executor:
+                                try:
+                                    shell_result = self.shell_executor.run(cmd_match.group(1))
+                                    step.result = shell_result.stdout
+                                    step.stdout = shell_result.stdout
+                                    step.stderr = shell_result.stderr
+                                    step.returncode = shell_result.returncode
+                                    step.status = self._StepStatus.SUCCESS if shell_result.returncode == 0 else self._StepStatus.FAILED
+                                except Exception:
+                                    step.result = message or ""
+                                    step.status = self._StepStatus.SUCCESS
+                            else:
+                                step.result = message or ""
+                                step.status = self._StepStatus.SUCCESS
+                    else:
+                        step.result = message or ""
+                        step.status = self._StepStatus.SUCCESS
+                    step.stdout = step.result
+                    step.returncode = 0
+                else:
+                    # cmd_result is some other object - try to get stdout or use message
+                    step.result = message or getattr(cmd_result, 'stdout', '') or ""
+                    step.stdout = step.result
+                    step.returncode = getattr(cmd_result, 'returncode', 0)
+                    step.status = self._StepStatus.SUCCESS
             elif hasattr(result, 'returncode'):
                 # CommandResult-like object
                 step.returncode = result.returncode
@@ -1131,8 +1232,16 @@ class GraphReasoningLoop:
                 step.status = self._StepStatus.SUCCESS if result.returncode == 0 else self._StepStatus.FAILED
                 if step.status == self._StepStatus.FAILED:
                     step.error = step.stderr or f"Command failed with code {result.returncode}"
+            elif hasattr(result, 'stdout'):
+                # Object with stdout attribute
+                step.result = result.stdout
+                step.stdout = result.stdout
+                step.stderr = getattr(result, 'stderr', '')
+                step.returncode = getattr(result, 'returncode', 0)
+                step.status = self._StepStatus.SUCCESS
             else:
-                step.result = str(result)
+                # Plain string or other - use as-is but avoid repr of objects
+                step.result = str(result) if not hasattr(result, '__dict__') else ""
                 step.status = self._StepStatus.SUCCESS
                 step.returncode = 0
 
@@ -1143,8 +1252,41 @@ class GraphReasoningLoop:
 
         return step
 
+    def _build_command_from_tool(self, tool: str, args: dict) -> str:
+        """Build a shell command from tool name and arguments."""
+        if tool == "find":
+            path = args.get("path", ".")
+            pattern = args.get("pattern", "*")
+            return f"find {path} -name '{pattern}' -type f 2>/dev/null | wc -l"
+        elif tool == "grep":
+            pattern = args.get("pattern", "")
+            path = args.get("path", ".")
+            return f"grep -r -n '{pattern}' {path} 2>/dev/null | head -50"
+        elif tool == "wc":
+            path = args.get("path", "")
+            return f"wc -l {path} 2>/dev/null"
+        elif tool == "head":
+            path = args.get("path", "")
+            n = args.get("n", 20)
+            return f"head -n {n} {path}"
+        elif tool == "tail":
+            path = args.get("path", "")
+            n = args.get("n", 20)
+            return f"tail -n {n} {path}"
+        elif tool == "cat":
+            path = args.get("path", "")
+            return f"cat {path}"
+        elif tool == "ls":
+            path = args.get("path", ".")
+            return f"ls -la {path}"
+        elif tool == "bash":
+            return args.get("command", "")
+        else:
+            # Unknown tool - return None to use fallback
+            return None
+
     def _add_trace(self, trace_type: str, content: str, metadata: Optional[Dict] = None):
-        """Add a reasoning trace (for compatibility)."""
+        """Add a reasoning trace (for compatibility) and notify callback."""
         trace = {
             "type": trace_type,
             "agent": trace_type.split("_")[0] if "_" in trace_type else trace_type,
@@ -1153,7 +1295,19 @@ class GraphReasoningLoop:
             "metadata": metadata or {},
         }
         self.reasoning_traces.append(trace)
+
+        # Notify progress callback if set
+        if self._progress_callback:
+            try:
+                self._progress_callback(trace)
+            except Exception:
+                pass  # Don't let callback errors break reasoning
+
         return trace
+
+    def set_progress_callback(self, callback: callable):
+        """Set callback for streaming progress updates."""
+        self._progress_callback = callback
 
     def run(self, user_input: str, execute_fn: callable) -> Tuple[str, List[Dict]]:
         """
@@ -1189,7 +1343,25 @@ class GraphReasoningLoop:
         def simple_executor(goal: str):
             return execute_fn(goal)
 
-        # Create the graph
+        # Create progress callback wrapper that calls _add_trace
+        def graph_progress_callback(node_name: str, message: str, metadata: Optional[Dict] = None):
+            """Translate graph progress to reasoning traces."""
+            # Map node names to trace types
+            trace_type_map = {
+                "CLASSIFY": "classification",
+                "PLAN": "planning",
+                "plan_ready": "plan_ready",
+                "EXECUTE": "execution",
+                "executing": "step_execution",
+                "DIRECT_EXEC": "direct_execution",
+                "REFLECT": "reflection",
+                "VERIFY": "verification",
+                "RESPOND": "responding",
+            }
+            trace_type = trace_type_map.get(node_name, node_name.lower())
+            self._add_trace(trace_type, message, metadata)
+
+        # Create the graph with progress callback
         graph = create_reasoning_graph(
             llm_generate=self.llm_generate,
             execute_fn=simple_executor,
@@ -1198,6 +1370,7 @@ class GraphReasoningLoop:
             shell_executor=self.shell_executor,
             episodic_memory=self.episodic_memory,
             emit_event_fn=self._emit_event,
+            progress_callback=graph_progress_callback,
         )
 
         # Add trace for start
@@ -1242,18 +1415,57 @@ class GraphReasoningLoop:
         """Classify task (for compatibility, delegates to graph's classifier)."""
         from .reasoning_types import TaskComplexity as GraphTaskComplexity
 
-        # Use simple heuristics matching the original
+        # Use heuristics for task classification
         input_lower = user_input.lower()
 
-        if any(kw in input_lower for kw in ["who are you", "hello", "help", "thanks"]):
-            return TaskComplexity.SIMPLE
+        # BYPASS: Conversational and conceptual questions (no file/code access needed)
+        bypass_patterns = [
+            "who are you", "hello", "help", "thanks", "thank you",
+            "goodbye", "bye", "hi ", "hey ",
+        ]
+        if any(kw in input_lower for kw in bypass_patterns):
+            return TaskComplexity.BYPASS
 
-        if any(kw in input_lower for kw in ["and then", "refactor", "implement", "largest"]):
+        # BYPASS: Pure conceptual/theory questions (no file references)
+        conceptual_patterns = [
+            "what is the difference between",
+            "explain the", "what are the key differences",
+            "compare and contrast", "pros and cons",
+            "when should i use", "what is cyclomatic",
+            "what is cognitive complexity", "solid principles",
+            "rest vs graphql", "docker vs", "microservices vs",
+            "testing pyramid", "cap theorem", "git flow",
+        ]
+        # Check for conceptual questions that don't reference files/code
+        file_indicators = [".py", ".js", ".ts", ".md", "file", "directory", "folder",
+                         "codebase", "project", "source", "ragix", "src/", "find", "search"]
+        if any(kw in input_lower for kw in conceptual_patterns):
+            if not any(ind in input_lower for ind in file_indicators):
+                return TaskComplexity.BYPASS
+
+        # COMPLEX: Multi-step operations
+        if any(kw in input_lower for kw in ["and then", "refactor", "implement", "largest", "analyze"]):
             return TaskComplexity.COMPLEX
 
-        if any(kw in input_lower for kw in ["what is", "where is", "show me", "ls", "pwd"]):
+        # SIMPLE: Direct queries, single commands
+        simple_patterns = [
+            "where is", "show me", "ls", "pwd", "list", "count",
+            "how many", "what files", "which files", "show files",
+            "first 20 lines", "first 10 lines", "head of",
+            # Search patterns - single grep operations
+            "find all todo", "find todo", "search for todo",
+            "find all fixme", "find fixme", "search for fixme",
+            "grep for", "search for", "find all comments",
+            "find all imports", "find all functions", "find all classes",
+            "show all", "display all",
+            # System info - single commands
+            "what is the date", "what time", "current date", "current time",
+            "what day", "today's date", "what is today",
+        ]
+        if any(kw in input_lower for kw in simple_patterns):
             return TaskComplexity.SIMPLE
 
+        # Default to MODERATE for most tasks requiring tools
         return TaskComplexity.MODERATE
 
     def get_traces(self) -> List[Dict]:
@@ -1285,11 +1497,11 @@ def create_reasoning_loop(
         strategy: Optional override for reasoning strategy
 
     Returns:
-        ReasoningLoop (v1) or GraphReasoningLoop (v2)
+        ReasoningLoop (v1) or GraphReasoningLoop (v2/v30)
     """
     strategy = strategy or get_reasoning_strategy()
 
-    if strategy == ReasoningStrategy.GRAPH_V2:
+    if strategy in (ReasoningStrategy.GRAPH_V2, ReasoningStrategy.GRAPH_V30):
         return GraphReasoningLoop(
             llm_generate=llm_generate,
             agent_config=agent_config,

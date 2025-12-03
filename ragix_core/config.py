@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class LLMConfig:
     """LLM backend configuration."""
     backend: str = "ollama"
-    model: str = "mistral"
+    model: str = "qwen2.5:7b"  # Best performing model in v0.30 benchmarks
     base_url: str = "http://localhost:11434"
     api_key: Optional[str] = None  # For cloud backends
     temperature: float = 0.1

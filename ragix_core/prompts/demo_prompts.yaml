@@ -1,0 +1,335 @@
+# RAGIX Demo Prompts Database
+# Sorted by complexity level for reasoning_v30 graph
+#
+# Complexity Levels:
+#   BYPASS   - Pure conceptual questions, no tools needed
+#   SIMPLE   - Single command, direct answer
+#   MODERATE - Multi-step, 2-4 tools
+#   COMPLEX  - Investigation, analysis, multiple reflections possible
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-03
+
+version: "1.0"
+description: "Demo prompts for RAGIX reasoning graph evaluation"
+
+# =============================================================================
+# BYPASS - Conceptual Questions (No Tools)
+# =============================================================================
+bypass:
+  - id: bypass_001
+    name: "Cyclomatic vs Cognitive Complexity"
+    prompt: "What is the difference between cyclomatic complexity and cognitive complexity in software metrics?"
+    category: "concepts"
+    tags: ["metrics", "code-quality", "theory"]
+
+  - id: bypass_002
+    name: "SOLID Principles"
+    prompt: "Explain the SOLID principles in object-oriented programming with brief examples."
+    category: "concepts"
+    tags: ["oop", "design-patterns", "best-practices"]
+
+  - id: bypass_003
+    name: "REST vs GraphQL"
+    prompt: "What are the key differences between REST and GraphQL APIs? When should I use each?"
+    category: "concepts"
+    tags: ["api", "architecture", "web"]
+
+  - id: bypass_004
+    name: "Git Branching Strategies"
+    prompt: "Compare Git Flow, GitHub Flow, and Trunk-Based Development. What are the pros and cons of each?"
+    category: "concepts"
+    tags: ["git", "workflow", "devops"]
+
+  - id: bypass_005
+    name: "Testing Pyramid"
+    prompt: "Explain the testing pyramid concept. What types of tests should be at each level?"
+    category: "concepts"
+    tags: ["testing", "quality", "best-practices"]
+
+  - id: bypass_006
+    name: "Microservices vs Monolith"
+    prompt: "When should I choose microservices architecture over a monolith? What are the trade-offs?"
+    category: "concepts"
+    tags: ["architecture", "scalability", "design"]
+
+  - id: bypass_007
+    name: "Docker vs Virtual Machines"
+    prompt: "What are the key differences between Docker containers and virtual machines?"
+    category: "concepts"
+    tags: ["docker", "devops", "infrastructure"]
+
+  - id: bypass_008
+    name: "CAP Theorem"
+    prompt: "Explain the CAP theorem and its implications for distributed systems design."
+    category: "concepts"
+    tags: ["distributed-systems", "database", "theory"]
+
+# =============================================================================
+# SIMPLE - Single Command Tasks
+# =============================================================================
+simple:
+  - id: simple_001
+    name: "Count Python Files"
+    prompt: "How many Python files are in the ragix_core directory?"
+    category: "file-operations"
+    tags: ["files", "count", "python"]
+    expected_tool: "find"
+
+  - id: simple_002
+    name: "List Recent Files"
+    prompt: "Show me the 10 most recently modified files in the project."
+    category: "file-operations"
+    tags: ["files", "recent", "list"]
+    expected_tool: "find"
+
+  - id: simple_003
+    name: "Count Lines in File"
+    prompt: "How many lines of code are in ragix_core/config.py?"
+    category: "file-operations"
+    tags: ["lines", "count", "single-file"]
+    expected_tool: "wc"
+
+  - id: simple_004
+    name: "Find TODO Comments"
+    prompt: "Find all TODO comments in the project."
+    category: "code-search"
+    tags: ["todo", "search", "comments"]
+    expected_tool: "grep"
+
+  - id: simple_005
+    name: "List Directories"
+    prompt: "What are the main directories in this project?"
+    category: "file-operations"
+    tags: ["directories", "structure", "list"]
+    expected_tool: "ls"
+
+  - id: simple_006
+    name: "Find Test Files"
+    prompt: "List all test files in the project (files starting with test_)."
+    category: "file-operations"
+    tags: ["tests", "files", "list"]
+    expected_tool: "find"
+
+  - id: simple_007
+    name: "Show File Head"
+    prompt: "Show me the first 20 lines of README.md."
+    category: "file-operations"
+    tags: ["read", "head", "preview"]
+    expected_tool: "head"
+
+  - id: simple_008
+    name: "Find Large Files"
+    prompt: "What is the largest Python file in the project by line count?"
+    category: "file-operations"
+    tags: ["files", "size", "analysis"]
+    expected_tool: "wc"
+
+# =============================================================================
+# MODERATE - Multi-Step Tasks
+# =============================================================================
+moderate:
+  - id: moderate_001
+    name: "Count Total Lines"
+    prompt: "Find all Python files in ragix_core/reasoning_v30/ and count the total lines of code."
+    category: "code-analysis"
+    tags: ["lines", "count", "aggregate"]
+    expected_steps: 2
+
+  - id: moderate_002
+    name: "Find Import Statements"
+    prompt: "Find all files that import the 'logging' module and show the import lines."
+    category: "code-search"
+    tags: ["imports", "dependencies", "search"]
+    expected_steps: 2
+
+  - id: moderate_003
+    name: "Search Function Definitions"
+    prompt: "Find all functions that start with 'create_' and list which files they are in."
+    category: "code-search"
+    tags: ["functions", "naming", "search"]
+    expected_steps: 2
+
+  - id: moderate_004
+    name: "Configuration Analysis"
+    prompt: "Find all YAML configuration files and show their structure (first 10 lines of each)."
+    category: "code-analysis"
+    tags: ["config", "yaml", "analysis"]
+    expected_steps: 3
+
+  - id: moderate_005
+    name: "Error Handling Patterns"
+    prompt: "Find all try/except blocks in the ragix_core directory and summarize the exception types caught."
+    category: "code-analysis"
+    tags: ["error-handling", "patterns", "analysis"]
+    expected_steps: 2
+
+  - id: moderate_006
+    name: "API Endpoints"
+    prompt: "Find all FastAPI route definitions (@app.get, @app.post, etc.) in the web server."
+    category: "code-search"
+    tags: ["api", "routes", "fastapi"]
+    expected_steps: 2
+
+  - id: moderate_007
+    name: "Class Hierarchy"
+    prompt: "List all classes in ragix_core/ that inherit from a base class (contain '(BaseClass)' pattern)."
+    category: "code-analysis"
+    tags: ["classes", "inheritance", "oop"]
+    expected_steps: 2
+
+  - id: moderate_008
+    name: "Documentation Coverage"
+    prompt: "Find Python files in ragix_core/ that have docstrings vs those without."
+    category: "code-analysis"
+    tags: ["documentation", "quality", "analysis"]
+    expected_steps: 3
+
+# =============================================================================
+# COMPLEX - Investigation Tasks
+# =============================================================================
+complex:
+  - id: complex_001
+    name: "Module Structure Analysis"
+    prompt: "Analyze the structure of the reasoning_v30 module: list all classes defined, their methods, and identify the main entry points."
+    category: "architecture"
+    tags: ["classes", "methods", "structure", "analysis"]
+    expected_steps: 4
+    may_reflect: true
+
+  - id: complex_002
+    name: "Dependency Analysis"
+    prompt: "Analyze the import dependencies between modules in ragix_core/. Which modules are most imported? Create a dependency summary."
+    category: "architecture"
+    tags: ["dependencies", "imports", "architecture"]
+    expected_steps: 4
+    may_reflect: true
+
+  - id: complex_003
+    name: "Code Quality Audit"
+    prompt: "Perform a code quality audit of the ragix_web directory: find long functions (>50 lines), complex files, and potential code smells."
+    category: "code-quality"
+    tags: ["audit", "quality", "metrics"]
+    expected_steps: 5
+    may_reflect: true
+
+  - id: complex_004
+    name: "Test Coverage Analysis"
+    prompt: "Analyze the test coverage: which modules in ragix_core/ have corresponding test files? List covered and uncovered modules."
+    category: "testing"
+    tags: ["tests", "coverage", "analysis"]
+    expected_steps: 4
+    may_reflect: true
+
+  - id: complex_005
+    name: "API Documentation"
+    prompt: "Generate a summary of all public API functions in ragix_core/: function names, parameters, and docstrings."
+    category: "documentation"
+    tags: ["api", "documentation", "summary"]
+    expected_steps: 5
+    may_reflect: true
+
+  - id: complex_006
+    name: "Security Review"
+    prompt: "Review the codebase for potential security issues: hardcoded secrets, SQL injection risks, unsafe file operations."
+    category: "security"
+    tags: ["security", "audit", "vulnerabilities"]
+    expected_steps: 5
+    may_reflect: true
+
+  - id: complex_007
+    name: "Performance Bottlenecks"
+    prompt: "Identify potential performance bottlenecks: find nested loops, large file reads, and synchronous operations in async code."
+    category: "performance"
+    tags: ["performance", "optimization", "analysis"]
+    expected_steps: 4
+    may_reflect: true
+
+  - id: complex_008
+    name: "Refactoring Opportunities"
+    prompt: "Identify refactoring opportunities: find duplicate code patterns, overly long functions, and tightly coupled modules."
+    category: "refactoring"
+    tags: ["refactoring", "code-quality", "improvement"]
+    expected_steps: 5
+    may_reflect: true
+
+# =============================================================================
+# Domain-Specific Prompts
+# =============================================================================
+domain_specific:
+  ragix:
+    - id: ragix_001
+      name: "RAGIX Architecture Overview"
+      prompt: "Explain the architecture of RAGIX: what are the main components and how do they interact?"
+      complexity: "bypass"
+      category: "documentation"
+
+    - id: ragix_002
+      name: "Reasoning Graph Flow"
+      prompt: "Trace through the reasoning_v30 graph: what nodes exist and how does state flow between them?"
+      complexity: "moderate"
+      category: "architecture"
+
+    - id: ragix_003
+      name: "Tool Execution Safety"
+      prompt: "How does RAGIX ensure safe command execution? Find the sandboxing and validation logic."
+      complexity: "complex"
+      category: "security"
+
+  python:
+    - id: python_001
+      name: "Find Async Functions"
+      prompt: "List all async functions (async def) in the project."
+      complexity: "simple"
+      category: "code-search"
+
+    - id: python_002
+      name: "Type Hints Usage"
+      prompt: "Analyze type hint usage: which files use type hints extensively vs those without?"
+      complexity: "moderate"
+      category: "code-quality"
+
+    - id: python_003
+      name: "Dataclass Inventory"
+      prompt: "Find all dataclasses in the project and summarize their fields."
+      complexity: "moderate"
+      category: "code-analysis"
+
+# =============================================================================
+# Quick Actions (Single-Click Prompts for UI)
+# =============================================================================
+quick_actions:
+  - id: quick_001
+    name: "Project Overview"
+    icon: "folder"
+    prompt: "Give me an overview of this project: main directories, key files, and purpose."
+    complexity: "simple"
+
+  - id: quick_002
+    name: "Find Bugs"
+    icon: "bug"
+    prompt: "Search for common bug patterns: unhandled exceptions, null checks, resource leaks."
+    complexity: "complex"
+
+  - id: quick_003
+    name: "Code Stats"
+    icon: "chart"
+    prompt: "Generate code statistics: total files, lines of code, file types distribution."
+    complexity: "moderate"
+
+  - id: quick_004
+    name: "Recent Changes"
+    icon: "clock"
+    prompt: "What files were modified most recently? Show the last 10 changed files."
+    complexity: "simple"
+
+  - id: quick_005
+    name: "Health Check"
+    icon: "heart"
+    prompt: "Perform a project health check: verify all imports work, no syntax errors, tests pass."
+    complexity: "complex"
+
+  - id: quick_006
+    name: "Dependencies"
+    icon: "link"
+    prompt: "List all external dependencies from requirements.txt or pyproject.toml."
+    complexity: "simple"

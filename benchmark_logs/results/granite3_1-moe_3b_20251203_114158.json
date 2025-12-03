@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "timestamp": "2025-12-03T11:41:59.550942",
+    "model": "granite3.1-moe:3b",
+    "temperature": 0.3,
+    "platform": "Linux",
+    "python_version": "3.12.12",
+    "ragix_version": "0.30.0"
+  },
+  "summary": {
+    "tests_total": 4,
+    "tests_passed": 3,
+    "pass_rate": 0.75,
+    "complexity_correct": 1,
+    "complexity_accuracy": 0.25,
+    "avg_confidence": 0.925,
+    "total_reflections": 7,
+    "total_elapsed_seconds": 68.27
+  },
+  "tests": [
+    {
+      "name": "BYPASS Test",
+      "expected": "bypass",
+      "actual": "complex",
+      "match": false,
+      "success": true,
+      "confidence": 0.9,
+      "reflections": 2,
+      "elapsed_seconds": 18.76,
+      "stop_reason": "success",
+      "goal": "What is the difference between cyclomatic complexity and cognitive complexity in software metrics?",
+      "final_answer": "The goal was not fully achieved as the provided steps did not identify and count cyclomatic complexity in the given Python source files. The steps only focused on locating class definitions using 'grep' and 'th'. To accurately determine cyclomatic complexity, additional analysis of control flow within these classes is required. This could involve applying a static code analysis tool or writing custom scripts to calculate cyclomatic complexity.",
+      "plan_steps": 3,
+      "completed_steps": 3
+    },
+    {
+      "name": "SIMPLE Test",
+      "expected": "simple",
+      "actual": "complex",
+      "match": false,
+      "success": false,
+      "confidence": 0.95,
+      "reflections": 3,
+      "elapsed_seconds": 19.9,
+      "stop_reason": "max_reflections",
+      "goal": "How many Python files are in the ragix_core directory?",
+      "final_answer": "## Partial Results\n\nI attempted to complete your request but encountered persistent issues after 3 recovery attempts.\n\n### What Was Tried\n\n**Attempt 1** (Step 3)\n- Error: Command failed: wc: .: Is a directory\n...\n- Diagnosis: The command 'wc' was used incorrectly, as it cannot operate on directories. It requires a file path as an argument....\n\n**Attempt 2** (Step 3)\n- Error: Command failed: wc: .: Is a directory\n...\n- Diagnosis: The command 'wc' was used incorrectly, as it cannot operate on directories. It requires a file path as an argument....\n\n**Attempt 3** (Step 3)\n- Error: Command failed: wc: .: Is a directory\n...\n- Diagnosis: The command 'wc' was used incorrectly, as it cannot operate on directories. It requires a file path as an argument....\n\n### Recommendation\n\nConsider breaking this task into smaller steps or providing more specific guidance.\n\n### Partial Output\n\n- Step 1: List all files in the ragix_core directory\n  Output: total 620\ndrwxrwxr-x 22 olivi olivi  4096 Dec  3 11:40 .\ndrwxrwxr-x 12 olivi olivi  4096 Nov 27 14:29 ..\ndrwxrwxr-x  4 olivi olivi  4096 Nov 29 13:19 ~\n-rw-------  1 olivi olivi 22629 Nov 28 19:14 ACT...\n- Step 2: Filter for Python files (.py)\n  Output: ./unix-rag-agent-new.py\n./examples/claude_demo.py\n./examples/resilience_example.py\n./examples/hybrid_search_example.py\n./examples/workflow_example.py\n./ragix_tools.py\n./plugins/json-validator/json_too...",
+      "plan_steps": 3,
+      "completed_steps": 2
+    },
+    {
+      "name": "MODERATE Test",
+      "expected": "moderate",
+      "actual": "complex",
+      "match": false,
+      "success": true,
+      "confidence": 0.95,
+      "reflections": 1,
+      "elapsed_seconds": 13.6,
+      "stop_reason": "success",
+      "goal": "Find all Python files in ragix_core/reasoning_v30/ and count the total lines of code",
+      "final_answer": "The goal was not fully achieved as the 'cat' command output indicates that 'ragix_core/reasoning_v30/' is a directory and not a file. Therefore, no Python files were found in this directory.",
+      "plan_steps": 3,
+      "completed_steps": 3
+    },
+    {
+      "name": "COMPLEX Test",
+      "expected": "complex",
+      "actual": "complex",
+      "match": true,
+      "success": true,
+      "confidence": 0.9,
+      "reflections": 1,
+      "elapsed_seconds": 12.0,
+      "stop_reason": "success",
+      "goal": "Analyze the structure of the reasoning_v30 module: list all classes defined, their methods, and identify the main entry points",
+      "final_answer": "The goal was partially achieved as outlined in the executed plan. While all Python files were identified and class definitions along with their methods were listed (as per Step 1), the main entry points could not be identified due to the lack of function definitions, which is required for this step. The provided output indicates that the tool 'ca' was used to list classes and their methods.",
+      "plan_steps": 4,
+      "completed_steps": 4
+    }
+  ]
+}

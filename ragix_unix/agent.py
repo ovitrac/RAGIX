@@ -12,7 +12,7 @@ from typing import List, Dict, Optional, Tuple, Any
 
 from ragix_core import OllamaLLM, ShellSandbox, CommandResult, extract_json_object
 from ragix_core.agent_config import AgentConfig, AgentMode, AgentRole
-from ragix_core.reasoning import ReasoningLoop, EpisodicMemory, TaskComplexity
+from ragix_core.reasoning import ReasoningLoop, EpisodicMemory, TaskComplexity, create_reasoning_loop
 
 
 # System prompt for Unix-RAG agent
@@ -37,7 +37,11 @@ You can:
 IMPORTANT BEHAVIOR (Unix-RAG style):
 - When exploring, start with listing and discovery:
   * `ls`, `find . -maxdepth ...`
-  * `grep -R -n "keyword" .`
+  * `grep -rn "keyword" --include="*.py" --exclude-dir=.git --exclude-dir=__pycache__ .`
+- For grep searches, ALWAYS use these options:
+  * `--include="*.py"` (or appropriate extension) to limit file types
+  * `--exclude-dir=.git --exclude-dir=__pycache__ --exclude-dir=node_modules --exclude-dir=.ragix`
+  * Example: `grep -rn "TODO" --include="*.py" --include="*.md" --exclude-dir=.git --exclude-dir=__pycache__ .`
 - Never dump entire large files:
   * Use `wc -l file` to gauge size.
   * Use `head`, `tail`, or `sed -n 'start,endp'` to show relevant parts.
@@ -182,12 +186,14 @@ class UnixRAGAgent:
         ragix_dir = Path(self.shell.root) / ".ragix"
         self._episodic_memory = EpisodicMemory(storage_path=ragix_dir)
 
-        # Initialize reasoning loop
+        # Initialize reasoning loop using factory (honors RAGIX_REASONING_STRATEGY)
         if self.use_reasoning_loop:
-            self._reasoning_loop = ReasoningLoop(
+            self._reasoning_loop = create_reasoning_loop(
                 llm_generate=self._llm_generate_for_reasoning,
                 agent_config=self.agent_config,
                 episodic_memory=self._episodic_memory,
+                shell_executor=self.shell,
+                project_path=Path(self.shell.root),
             )
 
         # Run project overview
@@ -398,6 +404,18 @@ class UnixRAGAgent:
 
         # Classify task complexity
         complexity = self._reasoning_loop.classify_task(user_text)
+
+        if complexity == TaskComplexity.BYPASS:
+            # For BYPASS tasks (conceptual questions), generate direct LLM response
+            # without any tool execution
+            result, msg = self.step(user_text)
+
+            traces = [{
+                "type": "bypass",
+                "timestamp": "",
+                "content": f"Bypass (conceptual): {user_text[:100]}",
+            }]
+            return None, msg, traces
 
         if complexity == TaskComplexity.SIMPLE:
             # For simple tasks, use direct step but still record in memory

@@ -1,0 +1,47 @@
+# File search test scenarios
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-03
+
+- id: largest-py-file
+  description: Find largest Python file by line count
+  input: "Find the largest Python file in this repo by line count"
+  expected_patterns:
+    - "largest"
+    - ".py"
+    - "lines"
+  must_run_commands:
+    - "find"
+    - "wc"
+  max_steps: 5
+  complexity: MODERATE
+
+- id: count-python-files
+  description: Count Python files in directory
+  input: "How many Python files are in this directory?"
+  expected_patterns:
+    - "python"
+    - "files"
+  must_run_commands:
+    - "find"
+  max_steps: 3
+  complexity: SIMPLE
+
+- id: find-todos
+  description: Find TODO comments in code
+  input: "Find all TODO comments in the Python files"
+  expected_patterns:
+    - "TODO"
+  must_run_commands:
+    - "grep"
+  max_steps: 4
+  complexity: MODERATE
+
+- id: list-functions
+  description: List all functions in a file
+  input: "List all functions defined in main.py"
+  expected_patterns:
+    - "def"
+    - "function"
+  must_run_commands:
+    - "grep"
+  max_steps: 3
+  complexity: SIMPLE

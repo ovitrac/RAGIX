@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "timestamp": "2025-12-03T12:00:52.958950",
+    "model": "mistral:7b-instruct",
+    "temperature": 0.3,
+    "platform": "Linux",
+    "python_version": "3.12.12",
+    "ragix_version": "0.30.0"
+  },
+  "summary": {
+    "tests_total": 4,
+    "tests_passed": 4,
+    "pass_rate": 1.0,
+    "complexity_correct": 2,
+    "complexity_accuracy": 0.5,
+    "avg_confidence": 0.925,
+    "total_reflections": 0,
+    "total_elapsed_seconds": 51.82
+  },
+  "tests": [
+    {
+      "name": "BYPASS Test",
+      "expected": "bypass",
+      "actual": "bypass",
+      "match": true,
+      "success": true,
+      "confidence": 1.0,
+      "reflections": 0,
+      "elapsed_seconds": 18.59,
+      "stop_reason": "bypass",
+      "goal": "What is the difference between cyclomatic complexity and cognitive complexity in software metrics?",
+      "final_answer": "Cyclomatic Complexity (CC) and Cognitive Complexity (CCog) are two different software metrics used to measure the complexity of a program or a function. Here's a comparison between them:",
+      "plan_steps": 0,
+      "completed_steps": 0
+    },
+    {
+      "name": "SIMPLE Test",
+      "expected": "simple",
+      "actual": "simple",
+      "match": true,
+      "success": true,
+      "confidence": 0.95,
+      "reflections": 0,
+      "elapsed_seconds": 2.77,
+      "stop_reason": "success",
+      "goal": "How many Python files are in the ragix_core directory?",
+      "final_answer": "**Command executed successfully**\n\n```\n65\n```",
+      "plan_steps": 0,
+      "completed_steps": 0
+    },
+    {
+      "name": "MODERATE Test",
+      "expected": "moderate",
+      "actual": "simple",
+      "match": false,
+      "success": true,
+      "confidence": 0.95,
+      "reflections": 0,
+      "elapsed_seconds": 3.47,
+      "stop_reason": "success",
+      "goal": "Find all Python files in ragix_core/reasoning_v30/ and count the total lines of code",
+      "final_answer": "**Command executed successfully**\n\n```\n7\n```",
+      "plan_steps": 0,
+      "completed_steps": 0
+    },
+    {
+      "name": "COMPLEX Test",
+      "expected": "complex",
+      "actual": "moderate",
+      "match": false,
+      "success": true,
+      "confidence": 0.8,
+      "reflections": 0,
+      "elapsed_seconds": 22.98,
+      "stop_reason": "success",
+      "goal": "Analyze the structure of the reasoning_v30 module: list all classes defined, their methods, and identify the main entry points",
+      "final_answer": "## Step 1: Find all Python files in the current directory\n\n```\n./unix-rag-agent-new.py\n./examples/claude_demo.py\n./examples/resilience_example.py\n./examples/hybrid_search_example.py\n./examples/workflow_example.py\n./ragix_tools.py\n./plugins/json-validator/json_tools.py\n./plugins/file-stats/stats_tools.py\n./wasp_tools/search.py\n./wasp_tools/__init__.py\n./wasp_tools/mdparse.py\n./wasp_tools/validate.py\n./tests/test_agent_llm_bridge.py\n./tests/test_bm25_index.py\n./tests/test_workflow_templates.py\n./tests/test_hybrid_search.py\n./tests/reasoning_v30/test_experience.py\n./tests/reasoning_v30/__init__.py\n./tests/reasoning_v30/test_types.py\n./tests/reasoning_v30/test_graph.py\n```\n\n## Step 2: Search for class definitions and count their number\n\n```\n./PLAN_v0.30_REASONING.md:76:class TaskComplexity(Enum):\n./PLAN_v0.30_REASONING.md:83:class StepStatus(Enum):\n./PLAN_v0.30_REASONING.md:92:class ToolCall:\n./PLAN_v0.30_REASONING.md:99:class ToolResult:\n./PLAN_v0.30_REASONING.md:109:class PlanStep:\n./PLAN_v0.30_REASONING.md:118:class Plan:\n./PLAN_v0.30_REASONING.md:133:class ReflectionAttempt:\n./PLAN_v0.30_REASONING.md:142:class ReasoningState:\n./PLAN_v0.30_REASONING.md:157:class ReasoningEvent:\n./PLAN_v0.30_REASONING.md:189:class BaseNode(ABC):\n./PLAN_v0.30_REASONING.md:197:class ReasoningGraph:\n./PLAN_v0.30_REASONING.md:243:class ClassifyNode(BaseNode):\n./PLAN_v0.30_REASONING.md:262:class DirectExecNode(BaseNode):\n./PLAN_v0.30_REASONING.md:285:class PlanNode(BaseNode):\n./PLAN_v0.30_REASONING.md:311:class ExecuteNode(BaseNode):\n./PLAN_v0.30_REASONING.md:354:class ReflectNode(BaseNode):\n./PLAN_v0.30_REASONING.md:433:class VerifyNode(BaseNode):\n./PLAN_v0.30_REASONING.md:451:class RespondNode(BaseNode):\n./PLAN_v0.30_REASONING.md:505:class ExperienceCorpus:\n./PLAN_v0.30_REASONING.md:565:class HybridExperienceCorpus:\n```\n\n## Step 3: List the names of all classes found\n\n```\n./CHANGELOG.md:61:ragix-ast matrix /path/to/project --level class --csv  # Export as CSV\n./CHANGELOG.md:66:Focus on a",
+      "plan_steps": 5,
+      "completed_steps": 5
+    }
+  ]
+}

@@ -126,6 +126,20 @@ class RAGIXApp {
                 }
                 break;
 
+            case 'progress':
+                // Handle streaming progress updates
+                if (data.event) {
+                    this.handleProgressUpdate(data.event);
+                }
+                break;
+
+            case 'reasoning_trace_update':
+                // Handle real-time trace updates (add to trace panel immediately)
+                if (data.trace) {
+                    this.addSingleReasoningTrace(data.trace);
+                }
+                break;
+
             case 'error':
                 this.hideThinking();
                 this.addSystemMessage(message, 'error');
@@ -162,6 +176,131 @@ class RAGIXApp {
         if (thinkingEl) {
             thinkingEl.remove();
         }
+    }
+
+    updateThinking(message) {
+        // Update the thinking indicator text without removing it
+        const thinkingEl = document.getElementById('thinking-indicator');
+        if (thinkingEl) {
+            const dotsEl = thinkingEl.querySelector('.thinking-dots');
+            if (dotsEl) {
+                dotsEl.textContent = message;
+            }
+        } else {
+            this.showThinking(message);
+        }
+    }
+
+    handleProgressUpdate(event) {
+        // Update thinking indicator with progress info
+        const eventType = event.type || 'processing';
+        const content = event.content || '';
+        const elapsed = event.elapsed ? `[${event.elapsed.toFixed(1)}s]` : '';
+
+        // Format progress message based on event type
+        let progressMsg = `${elapsed} ${content}`.trim();
+
+        switch (eventType) {
+            case 'classification':
+            case 'classification_complete':
+                progressMsg = `${elapsed} 📊 ${content}`;
+                break;
+            case 'graph_start':
+                progressMsg = `${elapsed} 🚀 Starting reasoning...`;
+                break;
+            case 'planning':
+                progressMsg = `${elapsed} 📝 Planning steps...`;
+                break;
+            case 'plan_ready':
+                progressMsg = `${elapsed} 📋 ${content}`;
+                break;
+            case 'plan_step':
+                progressMsg = `${elapsed} ${content}`;
+                break;
+            case 'executing':
+            case 'execution':
+            case 'step_execution':
+                progressMsg = `${elapsed} ⚙️ ${content || 'Executing...'}`;
+                break;
+            case 'step_complete':
+                progressMsg = `${elapsed} ${content}`;
+                break;
+            case 'reflection':
+                progressMsg = `${elapsed} 🔄 Reflecting on results...`;
+                break;
+            case 'verification':
+                progressMsg = `${elapsed} 🔍 Verifying results...`;
+                break;
+            case 'responding':
+                progressMsg = `${elapsed} 💬 Preparing response...`;
+                break;
+            case 'complete':
+                progressMsg = `${elapsed} ✅ ${content}`;
+                break;
+            case 'error':
+                progressMsg = `${elapsed} ❌ ${content}`;
+                break;
+            default:
+                if (content) {
+                    progressMsg = `${elapsed} ${content}`;
+                }
+        }
+
+        this.updateThinking(progressMsg || 'Processing...');
+    }
+
+    addSingleReasoningTrace(trace) {
+        // Add a single trace to the trace panel in real-time
+        const traceContent = document.getElementById('traceContent');
+        if (!traceContent) return;
+
+        // Remove empty message if present
+        const emptyMsg = traceContent.querySelector('.trace-empty');
+        if (emptyMsg) emptyMsg.remove();
+
+        const traceType = trace.type || 'trace';
+        const content = trace.content || '';
+        const elapsed = trace.elapsed ? `${trace.elapsed.toFixed(1)}s` : '';
+
+        // Icon mapping for trace types
+        const icons = {
+            'classification': '📊',
+            'classification_complete': '📊',
+            'graph_start': '🚀',
+            'graph_complete': '🏁',
+            'planning': '📝',
+            'plan_ready': '📋',
+            'plan_step': '📌',
+            'execution': '⚙️',
+            'step_execution': '⚙️',
+            'executing': '⚙️',
+            'step_complete': '✅',
+            'direct_execution': '⚡',
+            'reflection': '🔄',
+            'verification': '🔍',
+            'responding': '💬',
+            'complete': '✅',
+            'timeout': '⏱️',
+            'error': '❌',
+            'bypass': '💬'
+        };
+        const icon = icons[traceType] || '📌';
+
+        const traceEl = document.createElement('div');
+        traceEl.className = `trace-item trace-${traceType}`;
+        traceEl.innerHTML = `
+            <div class="trace-header">
+                <span class="trace-icon">${icon}</span>
+                <span class="trace-type">${traceType}</span>
+                <span class="trace-elapsed">${elapsed}</span>
+            </div>
+            <div class="trace-content">${this.escapeHtml(content.substring(0, 200))}${content.length > 200 ? '...' : ''}</div>
+        `;
+
+        traceContent.appendChild(traceEl);
+
+        // Auto-scroll trace panel to bottom
+        traceContent.scrollTop = traceContent.scrollHeight;
     }
 
     sendMessage() {
@@ -562,9 +701,17 @@ class RAGIXApp {
             text += jsonHtml;
         }
 
-        // Code blocks with language hint
+        // Code blocks with language hint and copy button
+        let codeBlockId = 0;
         text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-            return `<div class="code-block"><div class="code-header">${lang || 'output'}</div><pre><code>${code}</code></pre></div>`;
+            const blockId = `code-block-${Date.now()}-${codeBlockId++}`;
+            return `<div class="code-block">
+                <div class="code-header">
+                    <span class="code-lang">${lang || 'output'}</span>
+                    <button class="code-copy-btn" onclick="copyCodeBlock('${blockId}')" title="Copy code">&#128203;</button>
+                </div>
+                <pre><code id="${blockId}">${code}</code></pre>
+            </div>`;
         });
 
         // Inline code
@@ -602,6 +749,149 @@ class RAGIXApp {
 
     scrollToBottom() {
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+    }
+
+    // =========================================================================
+    // Quick Actions & Demo Prompts
+    // =========================================================================
+
+    /**
+     * Load a quick action prompt by icon name
+     * @param {string} iconName - The icon identifier (folder, chart, clock, bug, link, heart)
+     */
+    async loadQuickAction(iconName) {
+        try {
+            const response = await fetch('/api/prompts/quick-actions');
+            if (!response.ok) {
+                throw new Error('Failed to fetch quick actions');
+            }
+
+            const data = await response.json();
+            const prompts = data.prompts || [];
+
+            // Map icon names to prompt icons
+            const iconMapping = {
+                'folder': 'folder',
+                'chart': 'chart',
+                'clock': 'clock',
+                'bug': 'bug',
+                'link': 'link',
+                'heart': 'heart'
+            };
+
+            // Find matching prompt
+            const targetIcon = iconMapping[iconName];
+            const prompt = prompts.find(p => p.icon === targetIcon);
+
+            if (prompt) {
+                this.setPromptAndSend(prompt.prompt);
+            } else {
+                // Fallback prompts if API doesn't return matching icon
+                const fallbackPrompts = {
+                    'folder': 'Give me an overview of this project: main directories, key files, and purpose.',
+                    'chart': 'Generate code statistics: total files, lines of code, file types distribution.',
+                    'clock': 'What files were modified most recently? Show the last 10 changed files.',
+                    'bug': 'Search for common bug patterns: unhandled exceptions, null checks, resource leaks.',
+                    'link': 'List all external dependencies from requirements.txt or pyproject.toml.',
+                    'heart': 'Perform a project health check: verify all imports work, no syntax errors, tests pass.'
+                };
+
+                if (fallbackPrompts[iconName]) {
+                    this.setPromptAndSend(fallbackPrompts[iconName]);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load quick action:', error);
+            // Use fallback directly on error
+            const fallbackPrompts = {
+                'folder': 'Give me an overview of this project: main directories, key files, and purpose.',
+                'chart': 'Generate code statistics: total files, lines of code, file types distribution.',
+                'clock': 'What files were modified most recently? Show the last 10 changed files.',
+                'bug': 'Search for common bug patterns: unhandled exceptions, null checks, resource leaks.',
+                'link': 'List all external dependencies from requirements.txt or pyproject.toml.',
+                'heart': 'Perform a project health check: verify all imports work, no syntax errors, tests pass.'
+            };
+
+            if (fallbackPrompts[iconName]) {
+                this.setPromptAndSend(fallbackPrompts[iconName]);
+            }
+        }
+    }
+
+    /**
+     * Load prompts by complexity level and display in dropdown list
+     * @param {string} complexity - The complexity level (bypass, simple, moderate, complex)
+     */
+    async loadPromptsByComplexity(complexity) {
+        const promptsList = document.getElementById('promptsList');
+        const select = document.getElementById('promptComplexity');
+
+        if (!complexity) {
+            promptsList.classList.add('hidden');
+            return;
+        }
+
+        promptsList.classList.remove('hidden');
+        promptsList.innerHTML = '<div class="prompt-loading">Loading prompts...</div>';
+
+        try {
+            const response = await fetch(`/api/prompts?complexity=${encodeURIComponent(complexity)}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch prompts');
+            }
+
+            const data = await response.json();
+            const prompts = data.prompts || [];
+
+            if (prompts.length === 0) {
+                promptsList.innerHTML = '<div class="prompt-empty">No prompts found for this complexity level.</div>';
+                return;
+            }
+
+            promptsList.innerHTML = prompts.map(p => `
+                <div class="prompt-item" onclick="app.selectPrompt('${this.escapeHtml(p.prompt.replace(/'/g, "\\'"))}')">
+                    <span class="prompt-item-name">${this.escapeHtml(p.name)}</span>
+                    <span class="prompt-item-category">${this.escapeHtml(p.category || 'general')}</span>
+                </div>
+            `).join('');
+
+        } catch (error) {
+            console.error('Failed to load prompts:', error);
+            promptsList.innerHTML = '<div class="prompt-empty">Failed to load prompts. Check API connection.</div>';
+        }
+    }
+
+    /**
+     * Select a prompt from the list and set it in the input
+     * @param {string} promptText - The prompt text to set
+     */
+    selectPrompt(promptText) {
+        // Hide the prompts list
+        const promptsList = document.getElementById('promptsList');
+        promptsList.classList.add('hidden');
+
+        // Reset the complexity selector
+        const select = document.getElementById('promptComplexity');
+        select.value = '';
+
+        // Set the prompt in the input
+        this.chatInput.value = promptText;
+        this.chatInput.focus();
+    }
+
+    /**
+     * Set prompt text in input and optionally send immediately
+     * @param {string} promptText - The prompt text
+     * @param {boolean} autoSend - Whether to send immediately (default: true)
+     */
+    setPromptAndSend(promptText, autoSend = true) {
+        this.chatInput.value = promptText;
+
+        if (autoSend) {
+            this.sendMessage();
+        } else {
+            this.chatInput.focus();
+        }
     }
 }
 
@@ -649,6 +939,39 @@ function copyToClipboard(id) {
     }).catch(err => {
         console.error('Copy failed:', err);
         // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+    });
+}
+
+function copyCodeBlock(id) {
+    const element = document.getElementById(id);
+    if (!element) return;
+
+    // Get text content, handling HTML entities
+    const text = element.textContent || element.innerText;
+
+    navigator.clipboard.writeText(text).then(() => {
+        // Find the copy button in the same code block
+        const codeBlock = element.closest('.code-block');
+        const btn = codeBlock ? codeBlock.querySelector('.code-copy-btn') : null;
+
+        if (btn) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '&#10003;';
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.remove('copied');
+            }, 2000);
+        }
+    }).catch(err => {
+        console.error('Copy code block failed:', err);
+        // Fallback
         const textarea = document.createElement('textarea');
         textarea.value = text;
         document.body.appendChild(textarea);

@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.23.0
+# RAGIX v0.30.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
@@ -15,8 +15,8 @@
 
 ---
 
-**Version:** 0.23.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Updated:** 2025-12-02
+**Version:** 0.30.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Updated:** 2025-12-03
 
 ---
 
@@ -42,18 +42,36 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 
 ---
 
-## **What's New in v0.23.0**
+## **What's New in v0.30.0**
 
 | Feature | Description |
 |---------|-------------|
-| **Unified Model Hierarchy** | Session → Agent Config → Reasoning with proper inheritance |
-| **Web UI Improvements** | Consistent model display across Chat, Settings, and Reasoning panels |
-| **Agent Config API** | Fixed `/api/agents/config` to respect session model in MINIMAL mode |
-| **Session Management** | Auto-creation of sessions, proper state persistence across server restarts |
-| **Reasoning Panel** | Planner/Worker/Verifier cards correctly inherit from session model |
-| **Settings Modal** | Fixed session ID synchronization between Chat and Settings |
+| **Real-Time Progress Streaming** | Live visibility into plan generation, step execution, and reflection |
+| **Graph Reasoning v30** | Enhanced reasoning graph with detailed progress callbacks at each node |
+| **Robust JSON Parsing** | Handles malformed LLM JSON (unquoted keys, single quotes, trailing commas) |
+| **Improved Step Execution** | Direct command execution from JSON actions, regex fallback extraction |
+| **Enhanced Tool Traces Panel** | Real-time updates with icons for classification, planning, execution steps |
+| **Better Output Formatting** | Filters raw JSON from responses, shows actual command results |
 
-### v0.23.0 Highlights (Latest)
+### v0.30.0 Highlights (Latest)
+
+- **Real-Time Streaming Progress** — No more waiting blindly during complex tasks
+  - Classification result shown immediately: `[0.0s] 📊 Task classified as: complex`
+  - Plan steps listed as they're generated: `📋 Plan: <objective>` then `📌 Step 1: ...`
+  - Execution progress streamed: `⚙️ Executing step 1/N` → `✅ Step 1 complete: <result>`
+- **Progress Callback Pipeline** — End-to-end streaming from graph nodes to WebSocket
+  - `ReasoningGraph._emit_progress()` → `GraphReasoningLoop._add_trace()` → WebSocket
+  - Server sets callback before execution for real-time updates
+- **Robust JSON Action Handling** — LLMs often return malformed JSON; now handled gracefully
+  - Fixes unquoted keys: `{action: "bash"}` → `{"action": "bash"}`
+  - Fixes single quotes: `{'action': 'bash'}` → `{"action": "bash"}`
+  - Regex fallback extracts commands even from broken JSON
+- **Improved `_execute_step_wrapper`** — When LLM returns JSON action, execute it directly
+  - Detects `bash`, `bash_and_respond`, `respond` actions
+  - Executes commands via `shell_executor` and returns actual stdout/stderr
+- **Clean Output** — `RespondNode` filters raw JSON patterns from final response
+
+### v0.23.0 Highlights
 
 - **Model Inheritance Architecture** — Single source of truth for LLM model selection
   - Session model = default (configured in Settings → Session tab)
