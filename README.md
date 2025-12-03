@@ -1090,24 +1090,32 @@ pytest tests/test_caching.py -v
 
 ## **Roadmap**
 
-### v0.24 (Next)
-- **Reflective Reasoning Graph** — Graph-based reasoning with REFLECT node and read-only tool access
-- **Experience Corpus** — Hybrid global (`~/.ragix/`) + project (`.ragix/`) experience learning
-- **Graceful Degradation** — Attempt summaries when max_reflections reached
-- **Evaluation Harness** — Scenario-based testing for reasoning quality
+### v0.30 (Next)
+- **Reflective Reasoning Graph v3** — Complete reasoning rewrite with versioned module `reasoning_v30/`
+- **BYPASS Complexity** — New level for pure conversational answers (no tools, no plan)
+- **Confidence Tracking** — `Plan.confidence` and `State.confidence` for safety/model selection
+- **Unified Tool Protocol** — `ToolCall`/`ToolResult` schema for all Unix tools
+- **Experience Corpus** — Hybrid global (`~/.ragix/`) + project (`.ragix/`) with canonical layout
+- **Evaluation Harness** — Scenario-based testing with success metrics
 
-### v0.25
+### v0.31
+- **Dry-run Preview** — `rt_edit --dry-run` for dev profile
+- **Stabilization** — Bug fixes, performance optimization
+- **MCP Client** — RAGIX as MCP client to control other tools
+
+### v0.32
+- **Default Graph Strategy** — `graph_v30` becomes default, `loop_v1` deprecated
 - **Git integration** — Complexity evolution over commits, hotspot tracking
 - **Trend analysis** — Technical debt timeline, churn analysis
-- **Default Graph Strategy** — `graph_v2` becomes default, `loop_v1` deprecated
 
 ### Future (v1.0+)
 - IDE integrations (VS Code, JetBrains)
 - WASM-compiled tools for browser execution
 - Jupyter notebook integration
 - Distributed execution, real-time collaboration
+- Multi-agent orchestration
 
-See `ACTION_PLAN.md` and `TODO.md` for detailed roadmap.
+See `PLAN_v0.30_REASONING.md` and `TODO.md` for detailed roadmap.
 
 ---
 

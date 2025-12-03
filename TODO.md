@@ -1,7 +1,8 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-12-02 (v0.23.0 Release)
-**Reference:** See `ACTION_PLAN.md` for detailed implementation plan
+**Updated:** 2025-12-03 (v0.30.0 Planning)
+**Reference:** See `PLAN_v0.30_REASONING.md` for full implementation plan
+**Review:** See `REVIEW_current_reasoning_towardsv0.30.md` for colleague feedback
 
 ---
 
@@ -35,84 +36,117 @@ Session (Settings → Session tab)
 
 ---
 
-## Next Steps (v0.24.0) — Reflective Reasoning Graph
+## Next Steps (v0.30.0) — Reflective Reasoning Graph v3
 
-**Reference:** See `PLAN_v0.23_REASONING.md` for full specification
+**Reference:** See `PLAN_v0.30_REASONING.md` for full specification
+**Based on:** Colleague review in `REVIEW_current_reasoning_towardsv0.30.md`
 
-### Phase 1: Foundation (Schema + Hardening)
+### Key Improvements vs v0.23 Plan
 
-| Task | Effort | Status |
-|------|--------|--------|
-| **Create `reasoning_types.py`** - Pydantic schemas for Plan, Step, State | 4h | Pending |
-| **Harden `execute_step`** - returncode/stderr capture, structured results | 3h | Pending |
-| **ReasoningEvent schema** - Unified event for experience corpus | 2h | Pending |
+| Feature | v0.23 | v0.30 |
+|---------|-------|-------|
+| Complexity levels | SIMPLE, MODERATE, COMPLEX | + **BYPASS** (no tools, no plan) |
+| Confidence | Not tracked | **Plan.confidence**, **State.confidence** |
+| Tool schema | Ad-hoc | **ToolCall/ToolResult** unified |
+| Module layout | ragix_core/reasoning*.py | **ragix_core/reasoning_v30/** versioned |
+| Reflection | Limited | Strict budget + **3-bullet max** prompts |
 
-### Phase 2: Reasoning Graph
-
-| Task | Effort | Status |
-|------|--------|--------|
-| **BaseNode class** - Abstract node with `run(state) -> (state, next)` | 2h | Pending |
-| **ReasoningGraph orchestrator** - Graph execution with trace | 3h | Pending |
-| **ClassifyNode** - SIMPLE vs MODERATE vs COMPLEX routing | 2h | Pending |
-| **PlanNode** - Generate plan with reflection context | 3h | Pending |
-| **ExecuteNode** - Step execution with reflection routing | 4h | Pending |
-
-### Phase 3: REFLECT Node with Tool Access
+### Priority 1: Core Reasoning Graph (~20h)
 
 | Task | Effort | Status |
 |------|--------|--------|
-| **ReflectNode** - Read-only tools (`ls`, `find`, `grep`, etc.) | 4h | Pending |
-| **Experience corpus query** - Search past failures | 2h | Pending |
-| **Reflection prompt** - Diagnosis + new plan generation | 2h | Pending |
-| **ReflectionAttempt tracking** - Record each attempt | 1h | Pending |
+| **Create `reasoning_v30/types.py`** - TaskComplexity (BYPASS/SIMPLE/MODERATE/COMPLEX), ToolCall, ToolResult, Plan, ReasoningState | 4h | Pending |
+| **Create `reasoning_v30/graph.py`** - BaseNode, ReasoningGraph orchestrator | 3h | Pending |
+| **Create `reasoning_v30/nodes.py`** - ClassifyNode, DirectExecNode, PlanNode, ExecuteNode, ReflectNode, VerifyNode, RespondNode | 8h | Pending |
+| **Wire confidence** - Track Plan.confidence → State.confidence | 2h | Pending |
+| **Add BYPASS flow** - CLASSIFY → DIRECT_EXEC → RESPOND | 3h | Pending |
 
-### Phase 4: Hybrid Experience Corpus
-
-| Task | Effort | Status |
-|------|--------|--------|
-| **ExperienceCorpus class** - JSONL storage with TTL pruning | 3h | Pending |
-| **HybridExperienceCorpus** - Global (`~/.ragix/`) + Project (`.ragix/`) | 3h | Pending |
-| **Keyword + recency search** - Simple retrieval for LLM context | 2h | Pending |
-| **Success bonus scoring** - Prefer successful recoveries | 1h | Pending |
-
-### Phase 5: Graceful Degradation
+### Priority 2: Unified Tool Protocol (~8h)
 
 | Task | Effort | Status |
 |------|--------|--------|
-| **RespondNode** - Build attempt summary on max_reflections | 2h | Pending |
-| **Recommendation generator** - Pattern-based suggestions | 2h | Pending |
-| **Partial results collector** - Gather successful steps | 1h | Pending |
+| **Standardize tool schema** - All tools (rt-*, edit_file, ragix-ast) use ToolCall/ToolResult | 4h | Pending |
+| **Deterministic output format** - Explicit error codes, max output size | 2h | Pending |
+| **Dry-run preview** - `rt_edit --dry-run` for dev profile | 2h | Pending |
 
-### Phase 6: Evaluation Harness
+### Priority 3: Experience Corpus (~10h)
 
 | Task | Effort | Status |
 |------|--------|--------|
-| **Scenario YAML format** - Test case definition | 2h | Pending |
-| **Harness runner** - Execute scenarios with metrics | 4h | Pending |
+| **Create `reasoning_v30/experience.py`** - ExperienceCorpus, HybridExperienceCorpus | 4h | Pending |
+| **Canonical layout** - `~/.ragix/experience/events.jsonl` + `.ragix/experience/events.jsonl` | 2h | Pending |
+| **Per-session traces** - `{session_id}.jsonl` in traces folder | 2h | Pending |
+| **TTL pruning** - 90 days global, 30 days project | 2h | Pending |
+
+### Priority 4: Test Harness (~12h)
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **Create `tests/reasoning_v30/`** - Folder structure | 1h | Pending |
+| **Scenario YAML format** - id, input, expected_patterns, must_run_commands, complexity | 2h | Pending |
+| **Harness runner** - Execute scenarios, collect metrics | 4h | Pending |
 | **Mock repo fixtures** - Test file structures | 2h | Pending |
-| **Success metrics** - Plan success rate, recovery rate | 2h | Pending |
+| **Test cases** - file_search.yaml, code_analysis.yaml, bypass_question.yaml | 3h | Pending |
 
-**Total Estimated Effort:** ~52 hours
+### Priority 5: Configuration & Profiles (~6h)
 
-**File Structure for v0.24:**
+| Task | Effort | Status |
+|------|--------|--------|
+| **Update ragix.yaml** - `reasoning.strategy: graph_v30` section | 2h | Pending |
+| **Agent profiles matrix** - safe/dev/sovereign with tools/models/reflection/memory | 2h | Pending |
+| **Create `reasoning_v30/config.py`** - Config loader | 2h | Pending |
+
+### Priority 6: LLM Prompts (~8h)
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **CLASSIFY prompt** - Output exactly BYPASS/SIMPLE/MODERATE/COMPLEX | 1h | Pending |
+| **PLAN prompt** - JSON with objective, steps, validation, confidence | 2h | Pending |
+| **REFLECT prompt** - 3-bullet max constraint for stability | 2h | Pending |
+| **VERIFY prompt** - Check correctness, refine answer, output confidence | 1h | Pending |
+| **DIRECT_EXEC prompt** - Conversational answer with confidence | 1h | Pending |
+| **Prompt templates** - Jinja2 or f-string templates | 1h | Pending |
+
+**Total Estimated Effort:** ~64 hours
+
+### File Structure for v0.30
+
 ```
 ragix_core/
-├── reasoning.py              # Existing - hardened
-├── reasoning_types.py        # NEW - Pydantic schemas
-├── reasoning_graph.py        # NEW - Graph + nodes
-├── reasoning_nodes.py        # NEW - Node implementations
-├── experience_corpus.py      # NEW - Hybrid corpus
+├── reasoning.py                  # Legacy loop / adapter
+├── reasoning_v30/
+│   ├── __init__.py
+│   ├── types.py                  # TaskComplexity, ToolCall, ToolResult, Plan, State
+│   ├── graph.py                  # BaseNode, ReasoningGraph
+│   ├── nodes.py                  # All node implementations
+│   ├── experience.py             # ExperienceCorpus, HybridExperienceCorpus
+│   └── config.py                 # Config loader from ragix.yaml
 
-tests/reasoning/
-├── harness.py                # Evaluation runner
-├── scenarios/                # YAML test cases
+tests/reasoning_v30/
+├── __init__.py
+├── harness.py                    # Scenario runner
+├── fixtures/
+│   └── mock_repo/
+├── scenarios/
 │   ├── file_search.yaml
-│   └── code_analysis.yaml
-└── test_reasoning_graph.py
+│   ├── code_analysis.yaml
+│   └── bypass_question.yaml
+└── test_reasoning_graph_v30.py
 
-~/.ragix/experience/          # Global experience corpus
-.ragix/experience/            # Project experience corpus
+~/.ragix/experience/              # Global experience corpus
+.ragix/experience/                # Project experience corpus
+.ragix/reasoning_traces/          # Per-session traces
 ```
+
+### Success Metrics (v0.30)
+
+| Metric | Target |
+|--------|--------|
+| Plan success rate | >80% |
+| Recovery rate (REFLECT) | >60% |
+| Max reflections hit | <10% |
+| BYPASS accuracy | >90% |
+| Avg steps per task | <6 |
 
 ---
 
