@@ -1,8 +1,115 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-12-03 (v0.30.0 Streaming Progress)
+**Updated:** 2025-12-03 (v0.30.0 + Internal Review)
 **Reference:** See `PLAN_v0.30_REASONING.md` for full implementation plan
 **Review:** See `REVIEW_current_reasoning_towardsv0.30.md` for colleague feedback
+
+---
+
+## Internal Review Feedback (2025-12-03) — Roadmap v0.31+
+
+### Priority 1: Enhanced Reasoning Visibility (v0.31)
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **Intermediate Results Display** - Show step outputs in chat with success/warning/error styling | 4h | Pending |
+| **Step Status Indicators** - ✅ success, ⚠️ warning, ❌ error badges in reasoning panel | 2h | Pending |
+| **Interrupt Reasoning** - Stop button to abort before next Ollama call | 3h | Pending |
+| **Cancellation Token** - Thread-safe cancellation in `run_agent_async()` | 2h | Pending |
+
+### Priority 2: Token & Context Management (v0.31)
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **Token Counter Display** - Show input/output/reasoning tokens per request | 4h | Pending |
+| **Context Window Indicator** - Progress bar showing tokens used vs available | 3h | Pending |
+| **Model Context Limits** - Config per model (qwen2.5:7b=32k, mistral=8k, etc.) | 2h | Pending |
+| **Memory Compaction** - Manual/auto summarization when context fills | 6h | Pending |
+| **Compaction Trigger** - Button + auto-trigger at 80% context usage | 2h | Pending |
+
+### Priority 3: File Handling & Conversion (v0.31)
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **File Drop Zone** - Drag & drop files into chat | 4h | Pending |
+| **Text File Detection** - Auto-detect text vs binary | 1h | Pending |
+| **PDF Conversion** - `pdftotext` integration (configurable) | 3h | Pending |
+| **Document Conversion** - `pandoc` for docx/odt/html→markdown | 3h | Pending |
+| **Converter Config** - `ragix.yaml` section for converter paths | 1h | Pending |
+
+### Priority 4: Memory Management UI (v0.32)
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **Memory Explorer Panel** - View/edit episodic memory entries | 6h | Pending |
+| **Memory Usage Visualization** - Show what memories are injected into context | 4h | Pending |
+| **Memory Search** - Search through past episodes | 2h | Pending |
+| **Memory Pruning UI** - Delete old/irrelevant memories | 2h | Pending |
+| **RAG Context Display** - Show which RAG chunks are retrieved and used | 4h | Pending |
+
+### Priority 5: Session Persistence (v0.32)
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **Session Save/Restore** - Persist full session state to disk | 4h | Pending |
+| **Session List UI** - Show previous sessions with timestamps | 3h | Pending |
+| **Resume Session** - Load and continue previous conversation | 2h | Pending |
+| **Session Export** - Export as markdown/JSON | 2h | Pending |
+
+### Priority 6: Git & Diff Integration (v0.32)
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **Git Diff Tool** - Compare current vs committed versions | 4h | Pending |
+| **Diff Visualization** - Side-by-side or unified diff in UI | 4h | Pending |
+| **Commit History Browser** - Select commits to compare | 3h | Pending |
+| **Change Summary** - AI-generated summary of changes | 2h | Pending |
+
+### Priority 7: CLI & IDE Integration (v0.33)
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **`ragix` CLI Command** - Shell interface like Claude/Codex | 8h | Pending |
+| **CLI Parameters** - `--resume`, `-c "prompt"`, `--model`, etc. | 4h | Pending |
+| **Colored Output** - Claude-style blue theme (RAGIX brand colors) | 3h | Pending |
+| **Interactive REPL** - Continuous conversation mode | 4h | Pending |
+| **VS Code Extension** - RAGIX sidebar panel | 16h | Pending |
+| **VS Code Commands** - Ask RAGIX about selection, file, project | 8h | Pending |
+
+### CLI Design Reference
+
+```bash
+# Like Claude Code / Codex
+ragix                           # Start interactive REPL
+ragix -c "find all TODO comments"  # Single prompt
+ragix --resume                  # Resume last session
+ragix --session abc123          # Resume specific session
+ragix --model qwen2.5:7b        # Override model
+ragix --profile safe            # Use safe profile
+
+# Output: Claude-style colored layout (RAGIX blue theme)
+```
+
+### Architecture Notes
+
+**Token Counting:**
+- Ollama API returns `prompt_eval_count` and `eval_count`
+- Store per-request and cumulative in session
+- Display: `📊 Tokens: ↑1.2k ↓0.8k | Context: 4.2k/32k`
+
+**Memory Compaction:**
+- Use LLM to summarize older messages
+- Keep recent N messages verbatim + summary of older
+- Trigger: manual button or auto at 80% context
+
+**File Conversion Pipeline:**
+```
+Drop file → Detect type → Convert if needed → Insert as context
+           ├─ .txt/.md/.py → Direct insert
+           ├─ .pdf → pdftotext → markdown
+           ├─ .docx/.odt → pandoc → markdown
+           └─ binary → Error message
+```
 
 ---
 
