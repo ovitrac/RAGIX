@@ -683,8 +683,80 @@ class RAGIXApp {
                 bar.classList.add('warning');
                 indicator.classList.add('warning');
             }
+
+            // Show/hide compact button based on warning state
+            const compactBtn = document.getElementById('compactBtn');
+            if (compactBtn) {
+                if (data.is_warning || data.is_critical) {
+                    compactBtn.classList.remove('hidden');
+                } else {
+                    compactBtn.classList.add('hidden');
+                }
+            }
+
+            // Auto-compact at critical level (95%+) if not already compacted
+            if (data.is_critical && !this._autoCompactTriggered) {
+                this._autoCompactTriggered = true;
+                this.addSystemMessage('⚠️ Context usage critical. Auto-compacting memory...', 'warning');
+                await this.compactMemory(true);  // Auto mode
+            }
         } catch (error) {
             console.error('Failed to update context window:', error);
+        }
+    }
+
+    async compactMemory(isAuto = false) {
+        const compactBtn = document.getElementById('compactBtn');
+
+        try {
+            // Update button state
+            if (compactBtn) {
+                compactBtn.disabled = true;
+                compactBtn.classList.add('compacting');
+                compactBtn.textContent = '🗜️ Compacting...';
+            }
+
+            const response = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/compact`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Compaction failed');
+            }
+
+            const result = await response.json();
+
+            if (result.compacted) {
+                const savedStr = this.formatTokenCount(result.tokens_saved_estimate);
+                this.addSystemMessage(
+                    `✅ Memory compacted: ${result.messages_compacted} messages summarized, ~${savedStr} tokens freed.`,
+                    'success'
+                );
+
+                // Refresh context window display
+                await this.updateContextWindow();
+
+                // Reset auto-compact trigger for next cycle
+                this._autoCompactTriggered = false;
+            } else {
+                if (!isAuto) {
+                    this.addSystemMessage(`ℹ️ ${result.reason}`, 'info');
+                }
+            }
+        } catch (error) {
+            console.error('Failed to compact memory:', error);
+            if (!isAuto) {
+                this.addSystemMessage(`❌ Compaction failed: ${error.message}`, 'error');
+            }
+        } finally {
+            // Reset button state
+            if (compactBtn) {
+                compactBtn.disabled = false;
+                compactBtn.classList.remove('compacting');
+                compactBtn.textContent = '🗜️ Compact';
+            }
         }
     }
 

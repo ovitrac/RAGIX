@@ -99,11 +99,34 @@ class HardwareConfig:
 
 
 @dataclass
+class ConverterToolConfig:
+    """Configuration for a single converter tool."""
+    enabled: bool = True
+    path: str = ""
+    options: List[str] = field(default_factory=list)
+    output_format: str = ""  # For pandoc: plain, markdown, html
+
+
+@dataclass
+class ConvertersConfig:
+    """File conversion configuration for PDF, DOCX, etc."""
+    pdftotext: ConverterToolConfig = field(default_factory=lambda: ConverterToolConfig(
+        enabled=True, path="pdftotext", options=["-layout"]
+    ))
+    pandoc: ConverterToolConfig = field(default_factory=lambda: ConverterToolConfig(
+        enabled=True, path="pandoc", options=["--wrap=none"], output_format="plain"
+    ))
+    max_file_size_mb: int = 10
+    timeout: int = 30
+
+
+@dataclass
 class RAGIXConfig:
     """Root configuration container."""
     llm: LLMConfig = field(default_factory=LLMConfig)
     mcp: MCPConfig = field(default_factory=MCPConfig)
     safety: SafetyConfig = field(default_factory=SafetyConfig)
+    converters: ConvertersConfig = field(default_factory=ConvertersConfig)
     search: SearchConfig = field(default_factory=SearchConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     webui: WebUIConfig = field(default_factory=WebUIConfig)

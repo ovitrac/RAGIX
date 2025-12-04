@@ -752,16 +752,89 @@ async def get_context_window_status(session_id: str):
     }
 
 
+@app.get("/api/sessions/{session_id}/memory")
+async def get_memory_stats(session_id: str):
+    """Get memory/history statistics for a session."""
+    if session_id not in session_agents:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    agent = session_agents[session_id]
+
+    # Get memory stats from agent
+    if hasattr(agent, 'get_memory_stats'):
+        memory_stats = agent.get_memory_stats()
+    else:
+        memory_stats = {
+            "message_count": len(agent.history) if hasattr(agent, 'history') else 0,
+            "estimated_tokens": 0,
+            "is_compacted": False
+        }
+
+    # Get context limit for compaction recommendation
+    from ragix_core.agent_config import get_model_context_limit
+    model = active_sessions.get(session_id, {}).get("model", "mistral")
+    context_limit = get_model_context_limit(model)
+
+    # Check if compaction is recommended
+    should_compact = False
+    if hasattr(agent, 'should_compact'):
+        should_compact = agent.should_compact(context_limit)
+
+    return {
+        "session_id": session_id,
+        **memory_stats,
+        "context_limit": context_limit,
+        "should_compact": should_compact,
+        "compaction_threshold_percent": 80
+    }
+
+
+@app.post("/api/sessions/{session_id}/compact")
+async def compact_memory(session_id: str, keep_recent: int = 4):
+    """
+    Compact conversation history by summarizing older messages.
+
+    This reduces context usage while preserving key information.
+
+    Args:
+        session_id: Session to compact
+        keep_recent: Number of recent messages to keep (default: 4)
+    """
+    if session_id not in session_agents:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    agent = session_agents[session_id]
+
+    if not hasattr(agent, 'compact_history'):
+        raise HTTPException(
+            status_code=400,
+            detail="Agent does not support memory compaction"
+        )
+
+    # Perform compaction
+    result = agent.compact_history(keep_recent=keep_recent)
+
+    return {
+        "session_id": session_id,
+        **result
+    }
+
+
 @app.post("/api/files/convert")
 async def convert_file(file: UploadFile = File(...)):
     """
     Convert PDF, DOCX, ODT, or RTF files to text.
 
     Uses pdftotext for PDF files and pandoc for other document formats.
+    Configuration is read from ragix.yaml (converters section).
     Returns extracted text content for use in chat context.
     """
     import shutil
     import tempfile
+
+    # Get converter configuration
+    config = get_config()
+    conv_config = config.converters
 
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
@@ -776,10 +849,18 @@ async def convert_file(file: UploadFile = File(...)):
             detail=f"Unsupported file type: .{ext}. Supported: {', '.join(supported_extensions)}"
         )
 
+    # Check file size
+    content = await file.read()
+    file_size_mb = len(content) / (1024 * 1024)
+    if file_size_mb > conv_config.max_file_size_mb:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large: {file_size_mb:.1f}MB (max: {conv_config.max_file_size_mb}MB)"
+        )
+
     # Save uploaded file to temp location
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{ext}') as tmp_file:
-            content = await file.read()
             tmp_file.write(content)
             tmp_path = tmp_file.name
     except Exception as e:
@@ -790,17 +871,25 @@ async def convert_file(file: UploadFile = File(...)):
 
         if ext == 'pdf':
             # Use pdftotext for PDF conversion
-            if not shutil.which('pdftotext'):
+            pdftotext_cfg = conv_config.pdftotext
+            if not pdftotext_cfg.enabled:
+                raise HTTPException(status_code=400, detail="PDF conversion is disabled in configuration")
+
+            pdftotext_path = pdftotext_cfg.path or 'pdftotext'
+            if not shutil.which(pdftotext_path):
                 raise HTTPException(
                     status_code=500,
-                    detail="pdftotext not installed. Install with: sudo apt install poppler-utils"
+                    detail=f"pdftotext not found at '{pdftotext_path}'. Install with: sudo apt install poppler-utils"
                 )
 
+            # Build command with configured options
+            cmd = [pdftotext_path] + pdftotext_cfg.options + [tmp_path, '-']
+
             result = subprocess.run(
-                ['pdftotext', '-layout', tmp_path, '-'],
+                cmd,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=conv_config.timeout
             )
 
             if result.returncode != 0:
@@ -813,17 +902,26 @@ async def convert_file(file: UploadFile = File(...)):
 
         else:
             # Use pandoc for other document formats (docx, doc, odt, rtf)
-            if not shutil.which('pandoc'):
+            pandoc_cfg = conv_config.pandoc
+            if not pandoc_cfg.enabled:
+                raise HTTPException(status_code=400, detail="Document conversion is disabled in configuration")
+
+            pandoc_path = pandoc_cfg.path or 'pandoc'
+            if not shutil.which(pandoc_path):
                 raise HTTPException(
                     status_code=500,
-                    detail="pandoc not installed. Install with: sudo apt install pandoc"
+                    detail=f"pandoc not found at '{pandoc_path}'. Install with: sudo apt install pandoc"
                 )
 
+            # Build command with configured options and output format
+            output_format = pandoc_cfg.output_format or 'plain'
+            cmd = [pandoc_path, '-t', output_format] + pandoc_cfg.options + [tmp_path]
+
             result = subprocess.run(
-                ['pandoc', '-t', 'plain', '--wrap=none', tmp_path],
+                cmd,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=conv_config.timeout
             )
 
             if result.returncode != 0:
@@ -851,7 +949,7 @@ async def convert_file(file: UploadFile = File(...)):
         }
 
     except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=500, detail="Conversion timed out")
+        raise HTTPException(status_code=500, detail=f"Conversion timed out after {conv_config.timeout}s")
     except HTTPException:
         raise
     except Exception as e:

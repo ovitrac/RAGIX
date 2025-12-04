@@ -158,6 +158,34 @@ hardware:
   prefer_cpu: false    # Force CPU inference
   max_concurrent_models: 1  # Number of models loaded simultaneously
 
+# -----------------------------------------------------------------------------
+# File Conversion Configuration
+# -----------------------------------------------------------------------------
+# External tools for converting PDF, DOCX, and other document formats to text.
+# These tools are used by the file drop zone feature in the Web UI.
+converters:
+  # PDF to text converter (poppler-utils)
+  # Install: sudo apt install poppler-utils
+  pdftotext:
+    enabled: true
+    path: pdftotext     # Use 'which pdftotext' to find full path
+    options: ["-layout"]  # Preserve layout
+
+  # Universal document converter (pandoc)
+  # Install: sudo apt install pandoc
+  # Handles: docx, doc, odt, rtf, html, epub, etc.
+  pandoc:
+    enabled: true
+    path: pandoc
+    output_format: plain  # Output format: plain, markdown, html
+    options: ["--wrap=none"]
+
+  # Maximum file size for conversion (in bytes)
+  max_file_size_mb: 10
+
+  # Conversion timeout (in seconds)
+  timeout: 30
+
 # =============================================================================
 # Environment Variable Overrides
 # =============================================================================

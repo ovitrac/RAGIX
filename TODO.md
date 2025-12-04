@@ -19,22 +19,34 @@
 | **PDF Conversion** - `pdftotext` integration for PDF→text | ✅ Done |
 | **Document Conversion** - `pandoc` for docx/odt/rtf→text | ✅ Done |
 | **File Context in Messages** - Prepend attached file contents to user messages | ✅ Done |
+| **Converter Config** - `ragix.yaml` section for pdftotext/pandoc paths & options | ✅ Done |
+| **Token Tracking Fix** - Track tokens for BYPASS/SIMPLE tasks (not just complex) | ✅ Done |
+| **Duplicate Progress Fix** - Remove redundant trace emission causing duplicate cards | ✅ Done |
+| **Memory Compaction** - LLM-based summarization of older messages to free context | ✅ Done |
+| **Compaction Button** - Manual trigger at 80%+, auto-trigger at 95% usage | ✅ Done |
+| **Memory Stats API** - `/api/sessions/{id}/memory` and `/api/sessions/{id}/compact` | ✅ Done |
 
 **Key Files Modified:**
 - `ragix_core/agent_config.py` - `MODEL_CONTEXT_LIMITS`, `get_model_context_limit()`, `get_model_info()`
-- `ragix_web/server.py` - `/api/sessions/{id}/context-window`, `/api/files/convert` endpoints
-- `ragix_web/static/app.js` - `setupFileHandling()`, `handleFiles()`, `convertFile()`, `getFileContextForMessage()`
-- `ragix_web/static/index.html` - Context indicator, file drop zone, file preview UI
-- `ragix_web/static/style.css` - Styles for context bar, file drop zone, preview items
+- `ragix_core/config.py` - `ConvertersConfig`, `ConverterToolConfig` dataclasses
+- `ragix_unix/agent.py` - Token tracking in `step()`, memory compaction methods (`compact_history()`, `should_compact()`, `get_memory_stats()`)
+- `ragix_web/server.py` - `/api/sessions/{id}/context-window`, `/api/files/convert`, `/api/sessions/{id}/memory`, `/api/sessions/{id}/compact` endpoints
+- `ragix_web/static/app.js` - `setupFileHandling()`, `compactMemory()`, auto-compact at 95%, file handling methods
+- `ragix_web/static/index.html` - Context indicator, compact button, file drop zone, file preview UI
+- `ragix_web/static/style.css` - Styles for context bar, compact button, file drop zone, preview items
+- `ragix.yaml` - Added `converters` section for pdftotext/pandoc configuration
 
 **Features:**
 - Context window progress bar in sidebar with warning (≥80%) and critical (≥95%) states
 - Model context limits from configuration (32k-128k depending on model)
+- Memory compaction: LLM summarizes older messages to free context space
+- Compact button appears at ≥80% usage, auto-compacts at ≥95%
 - Drag & drop files onto chat area or use 📎 button
 - Supported text files: py, js, ts, json, yaml, md, txt, html, css, sql, etc.
 - Conversion for: pdf (pdftotext), docx/doc/odt/rtf (pandoc)
 - File preview with icons, sizes, and remove button
 - Truncation for large files (>10k chars) with indication
+- Configurable converters in ragix.yaml (paths, options, timeouts)
 
 ---
 
@@ -88,8 +100,8 @@
 | **Token Counter Display** - Show input/output/reasoning tokens per request | 4h | ✅ Done |
 | **Context Window Indicator** - Progress bar showing tokens used vs available | 3h | ✅ Done |
 | **Model Context Limits** - Config per model (qwen2.5:7b=32k, mistral=128k, etc.) | 2h | ✅ Done |
-| **Memory Compaction** - Manual/auto summarization when context fills | 6h | Pending |
-| **Compaction Trigger** - Button + auto-trigger at 80% context usage | 2h | Pending |
+| **Memory Compaction** - Manual/auto summarization when context fills | 6h | ✅ Done |
+| **Compaction Trigger** - Button + auto-trigger at 80%/95% context usage | 2h | ✅ Done |
 
 ### Priority 3: File Handling & Conversion (v0.31) ✅ COMPLETED
 
@@ -99,7 +111,7 @@
 | **Text File Detection** - Auto-detect text vs binary | 1h | ✅ Done |
 | **PDF Conversion** - `pdftotext` integration (configurable) | 3h | ✅ Done |
 | **Document Conversion** - `pandoc` for docx/odt/rtf→text | 3h | ✅ Done |
-| **Converter Config** - `ragix.yaml` section for converter paths | 1h | Pending |
+| **Converter Config** - `ragix.yaml` section for converter paths | 1h | ✅ Done |
 
 ### Priority 4: Memory Management UI (v0.32)
 
