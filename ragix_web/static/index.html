@@ -901,6 +901,16 @@
                                             <span class="label">Reasoning</span>
                                             <span id="reasoningStrategy" class="value short">-</span>
                                         </div>
+                                        <!-- Context Window Indicator -->
+                                        <div class="context-window-indicator" id="contextWindowIndicator">
+                                            <div class="context-label">
+                                                <span>Context</span>
+                                                <span id="contextUsageText" class="context-usage-text">0 / 32k</span>
+                                            </div>
+                                            <div class="context-bar-container">
+                                                <div id="contextBar" class="context-bar" style="width: 0%"></div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -978,7 +988,23 @@
                             <div id="promptsList" class="prompts-list hidden"></div>
                         </div>
 
+                        <!-- File Drop Zone -->
+                        <div id="fileDropZone" class="file-drop-zone hidden">
+                            <div class="file-drop-content">
+                                <span class="file-drop-icon">📁</span>
+                                <span class="file-drop-text">Drop files here to add to context</span>
+                                <span class="file-drop-hint">Supports: .txt, .md, .py, .js, .json, .yaml, .pdf*, .docx*</span>
+                            </div>
+                        </div>
+                        <div id="filePreview" class="file-preview hidden"></div>
+
                         <div class="chat-input-container">
+                            <div class="input-actions">
+                                <button id="attachFileBtn" class="btn btn-icon" title="Attach file" onclick="document.getElementById('fileInput').click()">
+                                    📎
+                                </button>
+                                <input type="file" id="fileInput" class="hidden" multiple accept=".txt,.md,.py,.js,.ts,.json,.yaml,.yml,.xml,.html,.css,.sh,.sql,.csv,.pdf,.docx,.odt" />
+                            </div>
                             <textarea
                                 id="chatInput"
                                 class="chat-input"

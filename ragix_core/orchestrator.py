@@ -91,6 +91,93 @@ def extract_json_object(text: str) -> Optional[Dict[str, Any]]:
 
         return json.loads(fixed)
     except (json.JSONDecodeError, Exception):
+        pass
+
+    # Fix 4: Invalid escape sequences in shell commands
+    # LLMs often write \( instead of \\( in bash commands
+    # Try to fix unescaped backslashes that aren't valid JSON escapes
+    try:
+        import re
+        fixed = candidate
+
+        # Valid JSON escapes: \", \\, \/, \b, \f, \n, \r, \t, \uXXXX
+        # Replace \X (where X is not a valid JSON escape) with \\X
+        # This handles common shell escapes like \( \) \* \? etc.
+        def fix_invalid_escapes(match):
+            """Fix invalid escape sequences by doubling the backslash."""
+            char_after = match.group(1)
+            # Valid JSON escape chars
+            if char_after in '"\\bfnrt/':
+                return match.group(0)  # Keep as-is
+            if char_after == 'u':
+                # Could be \uXXXX unicode escape, keep as-is
+                return match.group(0)
+            # Invalid escape - double the backslash
+            return '\\\\' + char_after
+
+        # Match backslash followed by any character
+        fixed = re.sub(r'\\(.)', fix_invalid_escapes, fixed)
+
+        return json.loads(fixed)
+    except (json.JSONDecodeError, Exception):
+        pass
+
+    # Fix 5: Unescaped newlines in string values
+    # LLMs often write multiline strings without escaping newlines
+    try:
+        import re
+        fixed = candidate
+
+        # Strategy: Find string values and escape any literal newlines within them
+        # We need to be careful to only escape newlines inside quoted strings
+        result_chars = []
+        i = 0
+        in_string = False
+        escape_next = False
+
+        while i < len(fixed):
+            char = fixed[i]
+
+            if escape_next:
+                result_chars.append(char)
+                escape_next = False
+                i += 1
+                continue
+
+            if char == '\\' and in_string:
+                escape_next = True
+                result_chars.append(char)
+                i += 1
+                continue
+
+            if char == '"':
+                in_string = not in_string
+                result_chars.append(char)
+                i += 1
+                continue
+
+            # If we're in a string and hit a literal newline, escape it
+            if in_string and char == '\n':
+                result_chars.append('\\n')
+                i += 1
+                continue
+
+            if in_string and char == '\r':
+                result_chars.append('\\r')
+                i += 1
+                continue
+
+            if in_string and char == '\t':
+                result_chars.append('\\t')
+                i += 1
+                continue
+
+            result_chars.append(char)
+            i += 1
+
+        fixed = ''.join(result_chars)
+        return json.loads(fixed)
+    except (json.JSONDecodeError, Exception):
         return None
 
 

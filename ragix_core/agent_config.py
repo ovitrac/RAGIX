@@ -78,6 +78,125 @@ MODEL_REGISTRY: Dict[str, Tuple[float, str, str]] = {
 # Default fallback model
 DEFAULT_MODEL = "granite3.1-moe:3b"
 
+
+# =============================================================================
+# Model Context Limits - Maximum context window per model (in tokens)
+# =============================================================================
+
+# Model name/pattern -> context window size in tokens
+# Use patterns for model families (e.g., "qwen2.5" matches "qwen2.5:7b", "qwen2.5:14b")
+MODEL_CONTEXT_LIMITS: Dict[str, int] = {
+    # Granite models - 128k context
+    "granite3.1-moe:3b": 128_000,
+    "granite3.1-moe:1b": 128_000,
+    "granite": 128_000,  # Default for granite family
+
+    # Mistral models - 8k-32k context
+    "mistral:latest": 32_000,
+    "mistral:7b": 32_000,
+    "mistral:instruct": 32_000,
+    "dolphin-mistral": 32_000,
+    "mistral": 32_000,  # Default for mistral family
+
+    # Llama models - 8k-128k context
+    "llama3:latest": 8_000,
+    "llama3:8b": 8_000,
+    "llama3.2:3b": 128_000,
+    "llama3.2:1b": 128_000,
+    "llama3.2": 128_000,
+    "llama3": 8_000,  # Default for llama3 family
+
+    # DeepSeek models - 32k-64k context
+    "deepseek-r1:14b": 64_000,
+    "deepseek-r1:7b": 64_000,
+    "deepseek-coder": 32_000,
+    "deepseek": 64_000,  # Default for deepseek family
+
+    # Qwen models - 32k-128k context
+    "qwen2.5:3b": 32_000,
+    "qwen2.5:7b": 32_000,
+    "qwen2.5:14b": 128_000,
+    "qwen2.5": 32_000,  # Default for qwen2.5 family
+    "qwen": 32_000,
+
+    # Phi models - 4k-128k context
+    "phi3:mini": 128_000,
+    "phi3:medium": 128_000,
+    "phi3": 128_000,
+    "phi": 4_000,
+}
+
+# Default context limit for unknown models (conservative)
+DEFAULT_CONTEXT_LIMIT = 8_000
+
+
+def get_model_context_limit(model_name: str) -> int:
+    """
+    Get the context window limit for a model.
+
+    Args:
+        model_name: Model name (e.g., "qwen2.5:7b", "mistral:latest")
+
+    Returns:
+        Context limit in tokens
+    """
+    # Normalize model name
+    model_lower = model_name.lower().strip()
+
+    # Try exact match first
+    if model_lower in MODEL_CONTEXT_LIMITS:
+        return MODEL_CONTEXT_LIMITS[model_lower]
+
+    # Try prefix match (for model families)
+    for pattern, limit in MODEL_CONTEXT_LIMITS.items():
+        if model_lower.startswith(pattern):
+            return limit
+
+    # Try partial match (model name contains pattern)
+    for pattern, limit in MODEL_CONTEXT_LIMITS.items():
+        if pattern in model_lower:
+            return limit
+
+    logger.warning(f"Unknown model '{model_name}', using default context limit {DEFAULT_CONTEXT_LIMIT}")
+    return DEFAULT_CONTEXT_LIMIT
+
+
+def get_model_info(model_name: str) -> Dict:
+    """
+    Get comprehensive model information including context limits.
+
+    Args:
+        model_name: Model name
+
+    Returns:
+        Dict with size, category, description, context_limit
+    """
+    model_lower = model_name.lower().strip()
+
+    # Get from registry
+    if model_lower in MODEL_REGISTRY:
+        size, category, desc = MODEL_REGISTRY[model_lower]
+    else:
+        # Try to infer from name
+        size = 0.0
+        category = "unknown"
+        desc = f"Model: {model_name}"
+
+        # Extract size from name if possible (e.g., "7b", "14b")
+        import re
+        size_match = re.search(r'(\d+(?:\.\d+)?)\s*b', model_lower)
+        if size_match:
+            size = float(size_match.group(1))
+            category = f"{int(size)}B"
+
+    return {
+        "name": model_name,
+        "size_billions": size,
+        "category": category,
+        "description": desc,
+        "context_limit": get_model_context_limit(model_name),
+    }
+
 # Size requirements by mode
 SIZE_REQUIREMENTS = {
     AgentMode.MINIMAL: {

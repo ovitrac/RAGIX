@@ -30,6 +30,10 @@ class RAGIXApp {
         this.chatInput.addEventListener('keydown', (e) => this.handleInputKeydown(e));
         this.settingsBtn.addEventListener('click', () => this.openSettings());
 
+        // File handling
+        this.pendingFiles = [];
+        this.setupFileHandling();
+
         // Connect WebSocket
         this.connect();
 
@@ -110,6 +114,8 @@ class RAGIXApp {
             case 'agent_message':
                 this.hideThinking();
                 this.addAgentMessage(message, timestamp, data.token_stats);
+                // Update context window after receiving response
+                this.updateContextWindow();
                 break;
 
             case 'tool_call':
@@ -413,10 +419,19 @@ class RAGIXApp {
             return;
         }
 
+        // Get file context if files are attached
+        const fileContext = this.getFileContextForMessage();
+
+        // Build full message with file context
+        let fullMessage = message;
+        if (fileContext) {
+            fullMessage = `[Attached files for context]\n\n${fileContext}\n\n[User question]\n${message}`;
+        }
+
         // Send to server
         this.ws.send(JSON.stringify({
             type: 'chat',
-            message: message
+            message: fullMessage
         }));
 
         // Clear input
@@ -627,9 +642,267 @@ class RAGIXApp {
                     console.error('Failed to load reasoning status:', e);
                 }
             }
+
+            // Also update context window indicator
+            await this.updateContextWindow();
         } catch (error) {
             console.error('Failed to load session info:', error);
         }
+    }
+
+    async updateContextWindow() {
+        try {
+            const response = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/context-window`);
+            if (!response.ok) return;
+
+            const data = await response.json();
+
+            // Update text display
+            const usageText = document.getElementById('contextUsageText');
+            const bar = document.getElementById('contextBar');
+            const indicator = document.getElementById('contextWindowIndicator');
+
+            if (!usageText || !bar || !indicator) return;
+
+            // Format numbers
+            const usedStr = this.formatTokenCount(data.tokens_used);
+            const limitStr = this.formatTokenCount(data.context_limit);
+            usageText.textContent = `${usedStr} / ${limitStr}`;
+
+            // Update progress bar
+            bar.style.width = `${Math.min(100, data.usage_percent)}%`;
+
+            // Update classes based on status
+            bar.classList.remove('warning', 'critical');
+            indicator.classList.remove('warning', 'critical');
+
+            if (data.is_critical) {
+                bar.classList.add('critical');
+                indicator.classList.add('critical');
+            } else if (data.is_warning) {
+                bar.classList.add('warning');
+                indicator.classList.add('warning');
+            }
+        } catch (error) {
+            console.error('Failed to update context window:', error);
+        }
+    }
+
+    // =========================================================================
+    // File Handling
+    // =========================================================================
+
+    setupFileHandling() {
+        const dropZone = document.getElementById('fileDropZone');
+        const fileInput = document.getElementById('fileInput');
+        const chatArea = document.querySelector('.chat-area') || document.querySelector('main');
+
+        if (!dropZone || !fileInput || !chatArea) return;
+
+        // Show drop zone when dragging files over chat area
+        chatArea.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('hidden');
+            dropZone.classList.add('active');
+        });
+
+        chatArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('active');
+        });
+
+        chatArea.addEventListener('dragleave', (e) => {
+            // Only hide if leaving the chat area entirely
+            if (!chatArea.contains(e.relatedTarget)) {
+                dropZone.classList.remove('active');
+                if (this.pendingFiles.length === 0) {
+                    dropZone.classList.add('hidden');
+                }
+            }
+        });
+
+        // Handle drop
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('active');
+            this.handleFiles(e.dataTransfer.files);
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        // Handle file input selection
+        fileInput.addEventListener('change', (e) => {
+            this.handleFiles(e.target.files);
+            fileInput.value = ''; // Reset for next selection
+        });
+    }
+
+    async handleFiles(files) {
+        const dropZone = document.getElementById('fileDropZone');
+        const preview = document.getElementById('filePreview');
+
+        for (const file of files) {
+            // Check if already added
+            if (this.pendingFiles.find(f => f.name === file.name && f.size === file.size)) {
+                continue;
+            }
+
+            // Check file type
+            const fileInfo = this.getFileInfo(file);
+            if (!fileInfo.supported) {
+                this.addSystemMessage(`Unsupported file type: ${file.name}`, 'warning');
+                continue;
+            }
+
+            // Add to pending files
+            const fileData = {
+                file: file,
+                name: file.name,
+                size: file.size,
+                type: fileInfo.type,
+                icon: fileInfo.icon,
+                content: null,
+                error: null,
+                converting: fileInfo.needsConversion
+            };
+
+            this.pendingFiles.push(fileData);
+            this.updateFilePreview();
+
+            // Read file content
+            try {
+                if (fileInfo.needsConversion) {
+                    // Send to server for conversion
+                    fileData.content = await this.convertFile(file);
+                } else {
+                    // Read as text directly
+                    fileData.content = await this.readFileAsText(file);
+                }
+                fileData.converting = false;
+            } catch (error) {
+                fileData.error = error.message;
+                fileData.converting = false;
+            }
+
+            this.updateFilePreview();
+        }
+
+        // Show preview if files are pending
+        if (this.pendingFiles.length > 0) {
+            dropZone.classList.add('hidden');
+            preview.classList.remove('hidden');
+        }
+    }
+
+    getFileInfo(file) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        const textExtensions = ['txt', 'md', 'py', 'js', 'ts', 'jsx', 'tsx', 'json', 'yaml', 'yml',
+                               'xml', 'html', 'css', 'scss', 'sh', 'bash', 'sql', 'csv', 'log',
+                               'ini', 'cfg', 'conf', 'toml', 'env', 'gitignore', 'dockerfile'];
+        const conversionExtensions = ['pdf', 'docx', 'doc', 'odt', 'rtf'];
+
+        const icons = {
+            'py': '🐍', 'js': '📜', 'ts': '📘', 'json': '📋', 'yaml': '📄', 'yml': '📄',
+            'md': '📝', 'txt': '📄', 'html': '🌐', 'css': '🎨', 'sql': '🗃️',
+            'pdf': '📕', 'docx': '📘', 'doc': '📘', 'odt': '📗',
+            'sh': '🖥️', 'bash': '🖥️', 'csv': '📊'
+        };
+
+        if (textExtensions.includes(ext)) {
+            return { supported: true, type: 'text', icon: icons[ext] || '📄', needsConversion: false };
+        } else if (conversionExtensions.includes(ext)) {
+            return { supported: true, type: ext, icon: icons[ext] || '📄', needsConversion: true };
+        }
+
+        return { supported: false, type: 'unknown', icon: '❓', needsConversion: false };
+    }
+
+    readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsText(file);
+        });
+    }
+
+    async convertFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/files/convert', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Conversion failed');
+        }
+
+        const data = await response.json();
+        return data.content;
+    }
+
+    updateFilePreview() {
+        const preview = document.getElementById('filePreview');
+        if (!preview) return;
+
+        if (this.pendingFiles.length === 0) {
+            preview.classList.add('hidden');
+            preview.innerHTML = '';
+            return;
+        }
+
+        preview.innerHTML = this.pendingFiles.map((f, idx) => `
+            <div class="file-preview-item ${f.converting ? 'converting' : ''} ${f.error ? 'error' : ''}">
+                <span class="file-icon">${f.icon}</span>
+                <span class="file-name" title="${f.name}">${f.name}</span>
+                <span class="file-size">${this.formatFileSize(f.size)}</span>
+                ${f.converting ? '<span class="file-status">⏳</span>' : ''}
+                ${f.error ? '<span class="file-status" title="' + f.error + '">⚠️</span>' : ''}
+                <span class="file-remove" onclick="app.removeFile(${idx})">✕</span>
+            </div>
+        `).join('');
+
+        preview.classList.remove('hidden');
+    }
+
+    formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    removeFile(index) {
+        this.pendingFiles.splice(index, 1);
+        this.updateFilePreview();
+
+        if (this.pendingFiles.length === 0) {
+            const dropZone = document.getElementById('fileDropZone');
+            if (dropZone) dropZone.classList.add('hidden');
+        }
+    }
+
+    getFileContextForMessage() {
+        // Get file contents to prepend to message
+        const validFiles = this.pendingFiles.filter(f => f.content && !f.error);
+        if (validFiles.length === 0) return '';
+
+        const fileContext = validFiles.map(f => {
+            const preview = f.content.length > 10000
+                ? f.content.substring(0, 10000) + '\n\n[... truncated, ' + (f.content.length - 10000) + ' more characters ...]'
+                : f.content;
+            return `--- File: ${f.name} ---\n${preview}\n--- End of ${f.name} ---`;
+        }).join('\n\n');
+
+        // Clear pending files after including in message
+        this.pendingFiles = [];
+        this.updateFilePreview();
+
+        return fileContext;
     }
 
     async openSettings() {

@@ -504,6 +504,189 @@ body {
     font-weight: 500;
 }
 
+/* Context Window Indicator */
+.context-window-indicator {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.context-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 12px;
+}
+
+.context-label span:first-child {
+    color: var(--text-secondary);
+}
+
+.context-usage-text {
+    color: var(--text-primary);
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 11px;
+}
+
+.context-bar-container {
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.context-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-green) 0%, var(--accent-green) 100%);
+    border-radius: 3px;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+.context-bar.warning {
+    background: linear-gradient(90deg, var(--accent-green) 0%, var(--accent-yellow) 100%);
+}
+
+.context-bar.critical {
+    background: linear-gradient(90deg, var(--accent-yellow) 0%, var(--accent-red) 100%);
+}
+
+.context-window-indicator.warning .context-usage-text {
+    color: var(--accent-yellow);
+}
+
+.context-window-indicator.critical .context-usage-text {
+    color: var(--accent-red);
+    font-weight: 600;
+}
+
+/* File Drop Zone */
+.file-drop-zone {
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 12px;
+    text-align: center;
+    background: var(--bg-secondary);
+    transition: all 0.2s ease;
+}
+
+.file-drop-zone.active {
+    border-color: var(--accent-blue);
+    background: rgba(79, 195, 247, 0.1);
+}
+
+.file-drop-zone.hidden {
+    display: none;
+}
+
+.file-drop-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.file-drop-icon {
+    font-size: 32px;
+}
+
+.file-drop-text {
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.file-drop-hint {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+/* File Preview */
+.file-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 8px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+}
+
+.file-preview.hidden {
+    display: none;
+}
+
+.file-preview-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.file-preview-item .file-icon {
+    font-size: 14px;
+}
+
+.file-preview-item .file-name {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-preview-item .file-size {
+    color: var(--text-secondary);
+    font-size: 10px;
+}
+
+.file-preview-item .file-remove {
+    cursor: pointer;
+    color: var(--text-secondary);
+    margin-left: 4px;
+}
+
+.file-preview-item .file-remove:hover {
+    color: var(--accent-red);
+}
+
+.file-preview-item.converting {
+    opacity: 0.7;
+}
+
+.file-preview-item.error {
+    border: 1px solid var(--accent-red);
+    background: rgba(239, 83, 80, 0.1);
+}
+
+/* Input actions (attach button) */
+.input-actions {
+    display: flex;
+    align-items: center;
+    padding-right: 8px;
+}
+
+.input-actions .btn-icon {
+    padding: 6px 10px;
+    font-size: 16px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.input-actions .btn-icon:hover {
+    opacity: 1;
+}
+
+.chat-input-container {
+    display: flex;
+    align-items: flex-end;
+}
+
 /* Progress cards (inline step results) */
 .progress-card {
     background: var(--bg-secondary);

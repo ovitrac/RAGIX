@@ -1412,18 +1412,36 @@ class GraphReasoningLoop:
         return final_state.final_answer or "No response generated", self.reasoning_traces
 
     def classify_task(self, user_input: str) -> TaskComplexity:
-        """Classify task (for compatibility, delegates to graph's classifier)."""
+        """
+        Classify task complexity using heuristics.
+
+        TODO (v0.34): Replace keyword matching with semantic classification.
+        Current implementation is English-only and brittle. Future versions
+        should use:
+        1. Embedding similarity to known intent patterns (multilingual)
+        2. Small LLM classifier as fallback
+        3. Keyword heuristics only as last resort
+        See TODO.md "Priority 8: Semantic Task Classification" for details.
+        """
         from .reasoning_types import TaskComplexity as GraphTaskComplexity
 
-        # Use heuristics for task classification
+        # TEMPORARY: Keyword-based heuristics (English only)
+        # This will be replaced by semantic classification in v0.34
         input_lower = user_input.lower()
 
         # BYPASS: Conversational and conceptual questions (no file/code access needed)
-        bypass_patterns = [
-            "who are you", "hello", "help", "thanks", "thank you",
-            "goodbye", "bye", "hi ", "hey ",
-        ]
-        if any(kw in input_lower for kw in bypass_patterns):
+        # Use word-boundary-aware matching to avoid false positives
+        # (e.g., "they are" should not match "hey ")
+        bypass_starters = ["who are you", "hello", "thanks", "thank you", "goodbye"]
+        bypass_words = ["help", "bye"]  # Must be whole words or at word boundary
+
+        # Check starters (can appear anywhere)
+        if any(kw in input_lower for kw in bypass_starters):
+            return TaskComplexity.BYPASS
+
+        # Check word-boundary patterns (start of input only)
+        if any(input_lower.startswith(word + " ") or input_lower.startswith(word + ",") or input_lower == word
+               for word in ["hi", "hey", "bye", "help"]):
             return TaskComplexity.BYPASS
 
         # BYPASS: Pure conceptual/theory questions (no file references)

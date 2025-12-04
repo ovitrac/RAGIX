@@ -18,7 +18,7 @@ from datetime import datetime
 import json
 
 try:
-    from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+    from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import HTMLResponse, JSONResponse
     from fastapi.middleware.cors import CORSMiddleware
@@ -29,7 +29,7 @@ except ImportError:
     print("Install with: pip install 'ragix[web]'", file=sys.stderr)
     sys.exit(1)
 
-from ragix_core import OllamaLLM, ShellSandbox, AgentLogger, LogLevel
+from ragix_core import OllamaLLM, ShellSandbox, AgentLogger, LogLevel, extract_json_object
 from ragix_core.version import __version__ as RAGIX_VERSION
 from ragix_core.log_integrity import ChainedLogHasher, AuditLogManager, LogIntegrityReport
 from ragix_core.agent_config import (
@@ -180,6 +180,48 @@ active_sessions: Dict[str, Dict[str, Any]] = {}
 active_websockets: List[WebSocket] = []
 # Cancellation events per session for interrupting reasoning
 session_cancellation: Dict[str, threading.Event] = {}
+
+
+def _extract_message_from_response(response: str) -> str:
+    """
+    Extract the actual message from a response that may contain raw JSON.
+
+    If the response looks like a JSON action object with a "message" field,
+    extract and return just the message content. This handles cases where
+    the agent returns raw JSON instead of the extracted message.
+
+    Args:
+        response: Raw response string from agent
+
+    Returns:
+        Extracted message or original response
+    """
+    if not response:
+        return response
+
+    # Quick check: does it look like JSON?
+    stripped = response.strip()
+    if not (stripped.startswith('{') and stripped.endswith('}')):
+        return response
+
+    # Try to parse as JSON action
+    try:
+        action = extract_json_object(response)
+        if action and isinstance(action, dict):
+            action_type = action.get("action", "")
+            message = action.get("message", "")
+
+            # If it's a respond action with a message, return the message
+            if action_type == "respond" and message:
+                return message
+
+            # Also handle bash_and_respond
+            if action_type == "bash_and_respond" and message:
+                return message
+    except Exception:
+        pass
+
+    return response
 
 
 # Request models
@@ -654,6 +696,172 @@ async def get_session_status(session_id: str):
         "created_at": session.get("created_at", ""),
         "has_agent_override": session_id in session_agent_configs,
     }
+
+
+@app.get("/api/sessions/{session_id}/context-window")
+async def get_context_window_status(session_id: str):
+    """
+    Get context window usage for a session.
+
+    Returns:
+        - model: Current model name
+        - context_limit: Maximum tokens for this model
+        - tokens_used: Tokens used in current session
+        - tokens_available: Remaining tokens
+        - usage_percent: Percentage of context used
+        - warning_threshold: Percentage at which to warn user (default 80%)
+    """
+    from ragix_core.agent_config import get_model_context_limit, get_model_info
+
+    if session_id not in active_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = active_sessions[session_id]
+    model = session.get("model", "qwen2.5:7b")
+
+    # Get model context limit
+    context_limit = get_model_context_limit(model)
+    model_info = get_model_info(model)
+
+    # Get token stats from agent if available
+    tokens_used = 0
+    if session_id in session_agents:
+        agent = session_agents[session_id]
+        if hasattr(agent, 'get_token_stats'):
+            stats = agent.get_token_stats()
+            tokens_used = stats.get("total_tokens", 0)
+
+    # Calculate usage
+    tokens_available = max(0, context_limit - tokens_used)
+    usage_percent = (tokens_used / context_limit * 100) if context_limit > 0 else 0
+
+    # Warning threshold (configurable, default 80%)
+    warning_threshold = 80
+
+    return {
+        "session_id": session_id,
+        "model": model,
+        "model_info": model_info,
+        "context_limit": context_limit,
+        "tokens_used": tokens_used,
+        "tokens_available": tokens_available,
+        "usage_percent": round(usage_percent, 1),
+        "warning_threshold": warning_threshold,
+        "is_warning": usage_percent >= warning_threshold,
+        "is_critical": usage_percent >= 95,
+    }
+
+
+@app.post("/api/files/convert")
+async def convert_file(file: UploadFile = File(...)):
+    """
+    Convert PDF, DOCX, ODT, or RTF files to text.
+
+    Uses pdftotext for PDF files and pandoc for other document formats.
+    Returns extracted text content for use in chat context.
+    """
+    import shutil
+    import tempfile
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
+    # Get file extension
+    ext = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+    supported_extensions = ['pdf', 'docx', 'doc', 'odt', 'rtf']
+
+    if ext not in supported_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: .{ext}. Supported: {', '.join(supported_extensions)}"
+        )
+
+    # Save uploaded file to temp location
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{ext}') as tmp_file:
+            content = await file.read()
+            tmp_file.write(content)
+            tmp_path = tmp_file.name
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+
+    try:
+        extracted_text = ""
+
+        if ext == 'pdf':
+            # Use pdftotext for PDF conversion
+            if not shutil.which('pdftotext'):
+                raise HTTPException(
+                    status_code=500,
+                    detail="pdftotext not installed. Install with: sudo apt install poppler-utils"
+                )
+
+            result = subprocess.run(
+                ['pdftotext', '-layout', tmp_path, '-'],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if result.returncode != 0:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"PDF conversion failed: {result.stderr}"
+                )
+
+            extracted_text = result.stdout
+
+        else:
+            # Use pandoc for other document formats (docx, doc, odt, rtf)
+            if not shutil.which('pandoc'):
+                raise HTTPException(
+                    status_code=500,
+                    detail="pandoc not installed. Install with: sudo apt install pandoc"
+                )
+
+            result = subprocess.run(
+                ['pandoc', '-t', 'plain', '--wrap=none', tmp_path],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if result.returncode != 0:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Document conversion failed: {result.stderr}"
+                )
+
+            extracted_text = result.stdout
+
+        # Clean up extracted text
+        extracted_text = extracted_text.strip()
+
+        if not extracted_text:
+            raise HTTPException(
+                status_code=400,
+                detail="No text content extracted from document"
+            )
+
+        return {
+            "filename": file.filename,
+            "content": extracted_text,
+            "char_count": len(extracted_text),
+            "word_count": len(extracted_text.split())
+        }
+
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=500, detail="Conversion timed out")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Conversion error: {str(e)}")
+    finally:
+        # Clean up temp file
+        try:
+            os.unlink(tmp_path)
+        except:
+            pass
 
 
 @app.get("/api/sessions/{session_id}/logs")
@@ -3992,18 +4200,18 @@ async def run_agent_async(
             emit_progress("classification", f"Task classified as: {complexity.value}", {"complexity": complexity.value})
 
         # Use reasoning-enabled step
+        # Note: traces are emitted in real-time via trace_callback (set above)
+        # so we don't emit them again here to avoid duplicate progress cards
         cmd_result, response, traces = agent.step_with_reasoning(message)
-
-        # Emit trace events as progress
-        for trace in traces:
-            emit_progress(trace.get("type", "trace"), trace.get("content", ""), trace)
 
         # Build response string
         parts = []
 
         # Check if response is a CommandResult repr (shouldn't be displayed raw)
         if response and not (response.startswith('CommandResult(') and response.endswith(')')):
-            parts.append(response)
+            # Extract message from JSON if response is a raw action object
+            clean_response = _extract_message_from_response(response)
+            parts.append(clean_response)
 
         if cmd_result:
             # Format command output cleanly

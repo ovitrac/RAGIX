@@ -1,40 +1,104 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-12-03 (v0.30.0 + Internal Review)
+**Updated:** 2025-12-04 (v0.31.1 - Context Window, File Drop Zone)
 **Reference:** See `PLAN_v0.30_REASONING.md` for full implementation plan
 **Review:** See `REVIEW_current_reasoning_towardsv0.30.md` for colleague feedback
 
 ---
 
+## Session Completed (2025-12-04 - v0.31.1)
+
+### Context Window Indicator & File Drop Zone
+
+| Task | Status |
+|------|--------|
+| **Context Window Indicator** - Progress bar showing tokens used vs available | ✅ Done |
+| **Model Context Limits** - Config per model (qwen2.5:7b=32k, mistral=128k, etc.) | ✅ Done |
+| **File Drop Zone** - Drag & drop files into chat input area | ✅ Done |
+| **Text File Detection** - Auto-detect text vs binary file types | ✅ Done |
+| **PDF Conversion** - `pdftotext` integration for PDF→text | ✅ Done |
+| **Document Conversion** - `pandoc` for docx/odt/rtf→text | ✅ Done |
+| **File Context in Messages** - Prepend attached file contents to user messages | ✅ Done |
+
+**Key Files Modified:**
+- `ragix_core/agent_config.py` - `MODEL_CONTEXT_LIMITS`, `get_model_context_limit()`, `get_model_info()`
+- `ragix_web/server.py` - `/api/sessions/{id}/context-window`, `/api/files/convert` endpoints
+- `ragix_web/static/app.js` - `setupFileHandling()`, `handleFiles()`, `convertFile()`, `getFileContextForMessage()`
+- `ragix_web/static/index.html` - Context indicator, file drop zone, file preview UI
+- `ragix_web/static/style.css` - Styles for context bar, file drop zone, preview items
+
+**Features:**
+- Context window progress bar in sidebar with warning (≥80%) and critical (≥95%) states
+- Model context limits from configuration (32k-128k depending on model)
+- Drag & drop files onto chat area or use 📎 button
+- Supported text files: py, js, ts, json, yaml, md, txt, html, css, sql, etc.
+- Conversion for: pdf (pdftotext), docx/doc/odt/rtf (pandoc)
+- File preview with icons, sizes, and remove button
+- Truncation for large files (>10k chars) with indication
+
+---
+
+## Session Completed (2025-12-04 - v0.31.0)
+
+### Interrupt Reasoning, Token Counter, Progress Cards & Bug Fixes
+
+| Task | Status |
+|------|--------|
+| **Interrupt Reasoning Button** - Stop button in thinking indicator to abort reasoning | ✅ Done |
+| **Cancellation Token** - Thread-safe `threading.Event` in `run_agent_async()` | ✅ Done |
+| **Token Counter Display** - Show ↑prompt ↓completion Σtotal, requests, tok/s | ✅ Done |
+| **Progress Cards** - Inline cards for classification, steps with status badges | ✅ Done |
+| **JSON Escape Fix** - Handle invalid `\(` escapes in shell commands | ✅ Done |
+| **Multiline JSON Fix** - Handle unescaped newlines in LLM responses | ✅ Done |
+| **Classification Fix** - Fixed "they are" matching "hey " false positive | ✅ Done |
+| **Response Extraction** - Extract message from raw JSON action objects | ✅ Done |
+
+**Key Files Modified:**
+- `ragix_core/llm_backends.py` - `generate_with_stats()` for token tracking
+- `ragix_core/orchestrator.py` - Fix 4 (invalid escapes), Fix 5 (multiline strings)
+- `ragix_core/reasoning.py` - Word-boundary-aware bypass classification
+- `ragix_unix/agent.py` - `_token_stats` tracking, `get_token_stats()`
+- `ragix_web/server.py` - `session_cancellation`, `_extract_message_from_response()`
+- `ragix_web/static/app.js` - Cancel button, token stats display, progress cards
+- `ragix_web/static/style.css` - New styles for cancel, tokens, progress cards
+
+**Bug Fixes:**
+1. **Invalid JSON escapes**: LLMs write `\(` instead of `\\(` in bash commands
+2. **Multiline JSON**: LLMs write literal newlines in strings instead of `\n`
+3. **False BYPASS**: "they are" was matching "hey " pattern
+4. **Raw JSON display**: BYPASS responses showed `{"action": "respond", ...}`
+
+---
+
 ## Internal Review Feedback (2025-12-03) — Roadmap v0.31+
 
-### Priority 1: Enhanced Reasoning Visibility (v0.31)
+### Priority 1: Enhanced Reasoning Visibility (v0.31) ✅ COMPLETED
 
 | Task | Effort | Status |
 |------|--------|--------|
-| **Intermediate Results Display** - Show step outputs in chat with success/warning/error styling | 4h | Pending |
-| **Step Status Indicators** - ✅ success, ⚠️ warning, ❌ error badges in reasoning panel | 2h | Pending |
-| **Interrupt Reasoning** - Stop button to abort before next Ollama call | 3h | Pending |
-| **Cancellation Token** - Thread-safe cancellation in `run_agent_async()` | 2h | Pending |
+| **Intermediate Results Display** - Show step outputs in chat with success/warning/error styling | 4h | ✅ Done |
+| **Step Status Indicators** - ✅ success, ⚠️ warning, ❌ error badges in reasoning panel | 2h | ✅ Done |
+| **Interrupt Reasoning** - Stop button to abort before next Ollama call | 3h | ✅ Done |
+| **Cancellation Token** - Thread-safe cancellation in `run_agent_async()` | 2h | ✅ Done |
 
-### Priority 2: Token & Context Management (v0.31)
+### Priority 2: Token & Context Management (v0.31) ✅ COMPLETED
 
 | Task | Effort | Status |
 |------|--------|--------|
-| **Token Counter Display** - Show input/output/reasoning tokens per request | 4h | Pending |
-| **Context Window Indicator** - Progress bar showing tokens used vs available | 3h | Pending |
-| **Model Context Limits** - Config per model (qwen2.5:7b=32k, mistral=8k, etc.) | 2h | Pending |
+| **Token Counter Display** - Show input/output/reasoning tokens per request | 4h | ✅ Done |
+| **Context Window Indicator** - Progress bar showing tokens used vs available | 3h | ✅ Done |
+| **Model Context Limits** - Config per model (qwen2.5:7b=32k, mistral=128k, etc.) | 2h | ✅ Done |
 | **Memory Compaction** - Manual/auto summarization when context fills | 6h | Pending |
 | **Compaction Trigger** - Button + auto-trigger at 80% context usage | 2h | Pending |
 
-### Priority 3: File Handling & Conversion (v0.31)
+### Priority 3: File Handling & Conversion (v0.31) ✅ COMPLETED
 
 | Task | Effort | Status |
 |------|--------|--------|
-| **File Drop Zone** - Drag & drop files into chat | 4h | Pending |
-| **Text File Detection** - Auto-detect text vs binary | 1h | Pending |
-| **PDF Conversion** - `pdftotext` integration (configurable) | 3h | Pending |
-| **Document Conversion** - `pandoc` for docx/odt/html→markdown | 3h | Pending |
+| **File Drop Zone** - Drag & drop files into chat | 4h | ✅ Done |
+| **Text File Detection** - Auto-detect text vs binary | 1h | ✅ Done |
+| **PDF Conversion** - `pdftotext` integration (configurable) | 3h | ✅ Done |
+| **Document Conversion** - `pandoc` for docx/odt/rtf→text | 3h | ✅ Done |
 | **Converter Config** - `ragix.yaml` section for converter paths | 1h | Pending |
 
 ### Priority 4: Memory Management UI (v0.32)
@@ -75,6 +139,63 @@
 | **Interactive REPL** - Continuous conversation mode | 4h | Pending |
 | **VS Code Extension** - RAGIX sidebar panel | 16h | Pending |
 | **VS Code Commands** - Ask RAGIX about selection, file, project | 8h | Pending |
+
+### Priority 8: Semantic Task Classification (v0.34) — Internationalization
+
+**Problem:** Current task classification uses English keyword matching, which:
+- Fails for non-English queries (French, German, Spanish, etc.)
+- Causes false positives (e.g., "they are" matching "hey " pattern)
+- Is brittle and requires constant pattern maintenance
+- Does not scale to new languages or domains
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **LLM-Based Classification** - Use small/fast model for intent detection | 6h | Pending |
+| **Intent Categories** - Define semantic categories independent of language | 4h | Pending |
+| **Embedding Similarity** - Use sentence embeddings for query similarity | 8h | Pending |
+| **Classification Cache** - Cache common query patterns to reduce latency | 3h | Pending |
+| **Fallback Heuristics** - Keep keyword fallback for offline/fast mode | 2h | Pending |
+| **Multi-Language Testing** - Test suite with FR/DE/ES/PT/IT/NL queries | 4h | Pending |
+
+**Proposed Architecture:**
+
+```
+User Query (any language)
+    │
+    ├─► [FAST] Embedding similarity to known intents
+    │       └─► If confidence > 0.85: return classification
+    │
+    ├─► [MEDIUM] LLM mini-classifier (qwen2.5:0.5b or similar)
+    │       Prompt: "Classify intent: BYPASS | SIMPLE | MODERATE | COMPLEX"
+    │       └─► Return classification with confidence
+    │
+    └─► [FALLBACK] Keyword heuristics (current system)
+            └─► Only if LLM unavailable or timeout
+```
+
+**Intent Categories (Language-Independent):**
+
+| Intent | Description | Examples (EN/FR/DE) |
+|--------|-------------|---------------------|
+| `GREETING` | Conversational opener | "hello" / "bonjour" / "hallo" |
+| `CONCEPTUAL` | Theory/explanation request | "what is X" / "qu'est-ce que" / "was ist" |
+| `FILE_SEARCH` | Find files by pattern | "find files" / "trouver fichiers" / "Dateien finden" |
+| `CODE_SEARCH` | Search code content | "grep for" / "chercher dans" / "suchen nach" |
+| `FILE_READ` | Read file contents | "show me" / "montre-moi" / "zeig mir" |
+| `FILE_EDIT` | Modify file | "change X to Y" / "modifier" / "ändern" |
+| `MULTI_STEP` | Complex operation | "refactor and test" / "refactoriser et tester" |
+
+**Embedding Model Options:**
+- `all-MiniLM-L6-v2` (384d, 22M params, multilingual support)
+- `paraphrase-multilingual-MiniLM-L12-v2` (384d, 118M params, 50+ languages)
+- Local Ollama embedding: `nomic-embed-text` or `mxbai-embed-large`
+
+**Benefits:**
+- Language-agnostic classification
+- Semantic understanding vs brittle keywords
+- Graceful degradation (embedding → LLM → keywords)
+- Caching for common patterns reduces latency
+- Extensible to new languages without code changes
 
 ### CLI Design Reference
 
