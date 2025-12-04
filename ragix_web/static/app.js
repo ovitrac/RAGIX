@@ -34,6 +34,9 @@ class RAGIXApp {
         this.pendingFiles = [];
         this.setupFileHandling();
 
+        // Memory explorer
+        this.setupMemorySearch();
+
         // Connect WebSocket
         this.connect();
 
@@ -133,6 +136,10 @@ class RAGIXApp {
                 // v0.23: Handle reasoning graph state updates
                 if (typeof reasoningGraph !== 'undefined') {
                     reasoningGraph.updateFromWebSocket(data);
+                }
+                // v0.32: Update memory context with reasoning state
+                if (typeof memoryContext !== 'undefined') {
+                    memoryContext.updateFromWebSocket(data);
                 }
                 break;
 
@@ -645,6 +652,9 @@ class RAGIXApp {
 
             // Also update context window indicator
             await this.updateContextWindow();
+
+            // Load memory explorer
+            await this.refreshMemory();
         } catch (error) {
             console.error('Failed to load session info:', error);
         }
@@ -758,6 +768,169 @@ class RAGIXApp {
                 compactBtn.textContent = '🗜️ Compact';
             }
         }
+    }
+
+    // =========================================================================
+    // Memory Explorer
+    // =========================================================================
+
+    async refreshMemory() {
+        try {
+            const response = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/episodic`);
+            if (!response.ok) return;
+
+            const data = await response.json();
+
+            // Update stats
+            const stats = data.stats || {};
+            const episodeCount = document.getElementById('memoryEpisodeCount');
+            const filesCount = document.getElementById('memoryFilesCount');
+            const commandsCount = document.getElementById('memoryCommandsCount');
+
+            if (episodeCount) episodeCount.textContent = stats.total_entries || 0;
+            if (filesCount) filesCount.textContent = stats.total_files_touched || 0;
+            if (commandsCount) commandsCount.textContent = stats.total_commands_run || 0;
+
+            // Update list
+            this.renderMemoryList(data.entries || []);
+        } catch (error) {
+            console.error('Failed to refresh memory:', error);
+        }
+    }
+
+    renderMemoryList(entries) {
+        const container = document.getElementById('memoryList');
+        if (!container) return;
+
+        if (entries.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-secondary); font-size: 12px;">No episodes yet</p>';
+            return;
+        }
+
+        container.innerHTML = entries.map(entry => {
+            const time = new Date(entry.timestamp).toLocaleString('en-US', {
+                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+            const goal = this.escapeHtml(entry.user_goal || 'Unknown goal').substring(0, 60);
+            const filesCount = (entry.files_touched || []).length;
+
+            return `
+                <div class="memory-entry" onclick="app.showMemoryEntry('${entry.task_id}')" title="${this.escapeHtml(entry.user_goal)}">
+                    <button class="memory-entry-delete" onclick="event.stopPropagation(); app.deleteMemoryEntry('${entry.task_id}')" title="Delete">✕</button>
+                    <div class="memory-entry-goal">${goal}</div>
+                    <div class="memory-entry-meta">
+                        <span class="memory-entry-time">${time}</span>
+                        <span class="memory-entry-files">${filesCount} files</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async searchMemory(query) {
+        if (!query || query.length < 2) {
+            await this.refreshMemory();
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/episodic/search?q=${encodeURIComponent(query)}`);
+            if (!response.ok) return;
+
+            const data = await response.json();
+            this.renderMemoryList(data.results || []);
+        } catch (error) {
+            console.error('Failed to search memory:', error);
+        }
+    }
+
+    async showMemoryEntry(taskId) {
+        try {
+            const response = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/episodic/${encodeURIComponent(taskId)}`);
+            if (!response.ok) return;
+
+            const data = await response.json();
+            const entry = data.entry;
+
+            // Format entry details
+            const details = `
+## Episode: ${entry.user_goal}
+
+**Task ID:** ${entry.task_id}
+**Time:** ${new Date(entry.timestamp).toLocaleString()}
+
+### Plan
+${entry.plan_summary || 'No plan recorded'}
+
+### Result
+${entry.result_summary || 'No result recorded'}
+
+### Key Decisions
+${(entry.key_decisions || []).map(d => `- ${d}`).join('\n') || 'None'}
+
+### Files Touched
+${(entry.files_touched || []).map(f => `- \`${f}\``).join('\n') || 'None'}
+
+### Commands Run
+${(entry.commands_run || []).slice(0, 10).map(c => `- \`${c.substring(0, 80)}\``).join('\n') || 'None'}
+
+### Open Questions
+${(entry.open_questions || []).map(q => `- ${q}`).join('\n') || 'None'}
+            `.trim();
+
+            // Show in a system message or modal
+            this.addSystemMessage('📚 Memory Entry Details:\n\n' + details, 'info');
+        } catch (error) {
+            console.error('Failed to show memory entry:', error);
+        }
+    }
+
+    async deleteMemoryEntry(taskId) {
+        if (!confirm('Delete this memory entry?')) return;
+
+        try {
+            const response = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/episodic/${encodeURIComponent(taskId)}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                this.addSystemMessage('🗑️ Memory entry deleted', 'success');
+                await this.refreshMemory();
+            }
+        } catch (error) {
+            console.error('Failed to delete memory entry:', error);
+        }
+    }
+
+    async clearMemory() {
+        if (!confirm('Clear ALL memory entries? This cannot be undone.')) return;
+
+        try {
+            const response = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/episodic`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                this.addSystemMessage(`🗑️ Cleared ${data.deleted} memory entries`, 'success');
+                await this.refreshMemory();
+            }
+        } catch (error) {
+            console.error('Failed to clear memory:', error);
+        }
+    }
+
+    setupMemorySearch() {
+        const searchInput = document.getElementById('memorySearchInput');
+        if (!searchInput) return;
+
+        let debounceTimer;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                this.searchMemory(e.target.value.trim());
+            }, 300);
+        });
     }
 
     // =========================================================================

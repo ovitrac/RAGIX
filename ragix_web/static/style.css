@@ -597,6 +597,143 @@ body {
     50% { opacity: 0.7; }
 }
 
+/* Memory Explorer */
+.memory-explorer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.memory-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+}
+
+.memory-stats .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+}
+
+.memory-stats .stat-label {
+    color: var(--text-secondary);
+}
+
+.memory-stats .stat-value {
+    color: var(--accent-blue);
+    font-weight: 500;
+}
+
+.memory-search {
+    margin-top: 4px;
+}
+
+.memory-search-input {
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+}
+
+.memory-search-input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+.memory-list {
+    max-height: 200px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.memory-entry {
+    padding: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    border-left: 3px solid var(--accent-blue);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.memory-entry:hover {
+    background: var(--bg-secondary);
+    border-left-color: var(--accent-green);
+}
+
+.memory-entry-goal {
+    font-size: 11px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.memory-entry-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+
+.memory-entry-time {
+    color: var(--text-tertiary);
+}
+
+.memory-entry-files {
+    color: var(--accent-green);
+}
+
+.memory-entry-delete {
+    float: right;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.memory-entry:hover .memory-entry-delete {
+    opacity: 1;
+}
+
+.memory-entry-delete:hover {
+    color: var(--accent-red);
+}
+
+.memory-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.memory-actions .btn-small {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 10px;
+}
+
+.btn-danger {
+    background: var(--accent-red) !important;
+    color: white !important;
+}
+
+.btn-danger:hover {
+    background: #d32f2f !important;
+}
+
 /* File Drop Zone */
 .file-drop-zone {
     border: 2px dashed var(--border-color);

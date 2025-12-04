@@ -229,6 +229,161 @@ class EpisodicMemory:
 
         return "\n".join(lines)
 
+    # -------------------------------------------------------------------------
+    # Memory Management API (for UI)
+    # -------------------------------------------------------------------------
+
+    def list_entries(self, limit: int = 50, offset: int = 0) -> List[Dict]:
+        """
+        List episodic memory entries with pagination.
+
+        Args:
+            limit: Maximum entries to return
+            offset: Number of entries to skip
+
+        Returns:
+            List of entry dictionaries (newest first)
+        """
+        # Return entries in reverse chronological order
+        entries = list(reversed(self.entries))
+        paginated = entries[offset:offset + limit]
+        return [e.to_dict() for e in paginated]
+
+    def get_entry(self, task_id: str) -> Optional[Dict]:
+        """Get a specific entry by task_id."""
+        for entry in self.entries:
+            if entry.task_id == task_id:
+                return entry.to_dict()
+        return None
+
+    def search_entries(self, query: str, limit: int = 20) -> List[Dict]:
+        """
+        Search entries by keyword matching.
+
+        Args:
+            query: Search query (matches against goal, plan, result, files, commands)
+            limit: Maximum results to return
+
+        Returns:
+            List of matching entries sorted by relevance
+        """
+        query_lower = query.lower()
+        keywords = query_lower.split()
+
+        def score_entry(entry: EpisodeEntry) -> int:
+            """Score entry based on keyword matches."""
+            text = " ".join([
+                entry.user_goal,
+                entry.plan_summary,
+                entry.result_summary,
+                " ".join(entry.files_touched),
+                " ".join(entry.commands_run),
+                " ".join(entry.key_decisions)
+            ]).lower()
+
+            score = 0
+            for kw in keywords:
+                if kw in text:
+                    score += text.count(kw)
+            return score
+
+        # Score and filter entries
+        scored = [(score_entry(e), e) for e in self.entries]
+        matched = [(s, e) for s, e in scored if s > 0]
+
+        # Sort by score descending
+        matched.sort(key=lambda x: x[0], reverse=True)
+
+        # Return top results
+        return [e.to_dict() for _, e in matched[:limit]]
+
+    def delete_entry(self, task_id: str) -> bool:
+        """
+        Delete an entry by task_id.
+
+        Args:
+            task_id: ID of entry to delete
+
+        Returns:
+            True if entry was found and deleted
+        """
+        for i, entry in enumerate(self.entries):
+            if entry.task_id == task_id:
+                del self.entries[i]
+                self._save_entries()
+                return True
+        return False
+
+    def delete_entries_before(self, timestamp: str) -> int:
+        """
+        Delete all entries before a given timestamp.
+
+        Args:
+            timestamp: ISO format timestamp
+
+        Returns:
+            Number of entries deleted
+        """
+        original_count = len(self.entries)
+        self.entries = [e for e in self.entries if e.timestamp >= timestamp]
+        deleted = original_count - len(self.entries)
+
+        if deleted > 0:
+            self._save_entries()
+
+        return deleted
+
+    def clear_all_entries(self) -> int:
+        """
+        Clear all episodic memory entries.
+
+        Returns:
+            Number of entries deleted
+        """
+        count = len(self.entries)
+        self.entries = []
+        self._save_entries()
+        return count
+
+    def _save_entries(self):
+        """Save all entries to the log file (rewrite)."""
+        try:
+            with open(self.log_file, 'w') as f:
+                for entry in self.entries:
+                    f.write(json.dumps(entry.to_dict()) + '\n')
+        except Exception:
+            pass
+
+    def get_stats(self) -> Dict:
+        """Get memory statistics."""
+        if not self.entries:
+            return {
+                "total_entries": 0,
+                "oldest_entry": None,
+                "newest_entry": None,
+                "total_files_touched": 0,
+                "total_commands_run": 0,
+                "current_session_goals": len(self.current_session.get("user_goals", [])),
+                "current_session_commands": len(self.current_session.get("commands_run", []))
+            }
+
+        all_files = set()
+        all_commands = []
+        for entry in self.entries:
+            all_files.update(entry.files_touched)
+            all_commands.extend(entry.commands_run)
+
+        return {
+            "total_entries": len(self.entries),
+            "oldest_entry": self.entries[0].timestamp if self.entries else None,
+            "newest_entry": self.entries[-1].timestamp if self.entries else None,
+            "total_files_touched": len(all_files),
+            "total_commands_run": len(all_commands),
+            "unique_files": list(all_files)[:20],  # Top 20 files
+            "current_session_goals": len(self.current_session.get("user_goals", [])),
+            "current_session_commands": len(self.current_session.get("commands_run", []))
+        }
+
 
 @dataclass
 class PlanStep:

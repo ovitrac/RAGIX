@@ -681,6 +681,231 @@
             font-size: 14px;
         }
 
+        /* v0.32 Memory Context Section in Reasoning Tab */
+        .memory-context-section {
+            margin: 15px 0;
+            padding: 15px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-purple);
+        }
+        .memory-context-section h3 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: var(--accent-purple);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .memory-context-section h3 .memory-icon {
+            font-size: 16px;
+        }
+        .memory-context-search {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .memory-context-search input {
+            flex: 1;
+            padding: 6px 10px;
+            font-size: 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-primary);
+        }
+        .memory-context-search input:focus {
+            outline: none;
+            border-color: var(--accent-purple);
+        }
+        .memory-context-controls {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .memory-context-controls .btn-sm {
+            padding: 5px 10px;
+            font-size: 11px;
+        }
+        .memory-context-controls .btn-sm.active {
+            background: var(--accent-purple);
+            color: #fff;
+        }
+        .memory-context-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding: 10px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+        .memory-context-stats .stat-item {
+            text-align: center;
+        }
+        .memory-context-stats .stat-label {
+            display: block;
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+        .memory-context-stats .stat-value {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent-purple);
+        }
+        .memory-context-list {
+            max-height: 200px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        .memory-context-entry {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: var(--bg-primary);
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-blue);
+            font-size: 12px;
+        }
+        .memory-context-entry:last-child {
+            margin-bottom: 0;
+        }
+        .memory-context-entry.used-in-reasoning {
+            border-left-color: var(--accent-green);
+            background: rgba(86, 211, 100, 0.05);
+        }
+        .memory-context-entry .memory-goal {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        .memory-context-entry .memory-result {
+            color: var(--text-secondary);
+            font-size: 11px;
+        }
+        .memory-context-entry .memory-meta {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+        .memory-context-entry .memory-files {
+            color: var(--accent-blue);
+        }
+        .memory-context-empty {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+        }
+        .memory-context-empty .empty-icon {
+            font-size: 24px;
+            display: block;
+            margin-bottom: 8px;
+            opacity: 0.5;
+        }
+        .memory-used-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: rgba(86, 211, 100, 0.15);
+            color: var(--accent-green);
+        }
+
+        /* Memory Details Modal (v0.32) */
+        .memory-details {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .memory-details-header {
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .memory-details-header h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            color: var(--accent-purple);
+        }
+        .memory-details-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .memory-details-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .memory-details-section {
+            padding: 12px;
+            background: var(--bg-primary);
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-blue);
+        }
+        .memory-details-section h4 {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+        }
+        .memory-details-section.plan {
+            border-left-color: var(--accent-purple);
+        }
+        .memory-details-section.result {
+            border-left-color: var(--accent-green);
+        }
+        .memory-details-section.decisions {
+            border-left-color: var(--accent-yellow);
+        }
+        .memory-details-section.files {
+            border-left-color: var(--accent-blue);
+        }
+        .memory-details-section.commands {
+            border-left-color: var(--accent-orange, #f0883e);
+        }
+        .memory-details-section p {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .memory-details-section ul {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 12px;
+        }
+        .memory-details-section li {
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+        .memory-details-section code {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 11px;
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 3px;
+            display: inline-block;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+        .memory-details-empty {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
         .reasoning-trace {
             margin-bottom: 15px;
             padding: 12px;
@@ -932,6 +1157,45 @@
 
                             <div class="sidebar-section">
                                 <h3 onclick="toggleSidebarSection(this)">
+                                    Memory Explorer
+                                    <span class="collapse-icon">&#9660;</span>
+                                </h3>
+                                <div class="sidebar-section-content">
+                                    <div class="memory-explorer">
+                                        <!-- Memory Stats -->
+                                        <div class="memory-stats" id="memoryStats">
+                                            <div class="stat-row">
+                                                <span class="stat-label">Episodes</span>
+                                                <span id="memoryEpisodeCount" class="stat-value">0</span>
+                                            </div>
+                                            <div class="stat-row">
+                                                <span class="stat-label">Files Touched</span>
+                                                <span id="memoryFilesCount" class="stat-value">0</span>
+                                            </div>
+                                            <div class="stat-row">
+                                                <span class="stat-label">Commands</span>
+                                                <span id="memoryCommandsCount" class="stat-value">0</span>
+                                            </div>
+                                        </div>
+                                        <!-- Memory Search -->
+                                        <div class="memory-search">
+                                            <input type="text" id="memorySearchInput" placeholder="Search memories..." class="memory-search-input">
+                                        </div>
+                                        <!-- Memory List -->
+                                        <div id="memoryList" class="memory-list">
+                                            <p style="color: var(--text-secondary); font-size: 12px;">No episodes yet</p>
+                                        </div>
+                                        <!-- Memory Actions -->
+                                        <div class="memory-actions">
+                                            <button class="btn btn-small" onclick="app.refreshMemory()">🔄 Refresh</button>
+                                            <button class="btn btn-small btn-danger" onclick="app.clearMemory()">🗑️ Clear All</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="sidebar-section">
+                                <h3 onclick="toggleSidebarSection(this)">
                                     Workflows
                                     <span class="collapse-icon">&#9660;</span>
                                 </h3>
@@ -1125,6 +1389,41 @@
                                     <span class="stat-label">Status</span>
                                     <span class="stat-value" id="graphStopReason">-</span>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Memory Context (v0.32) -->
+                    <div id="memoryContextSection" class="memory-context-section">
+                        <h3><span class="memory-icon">&#129504;</span> Memory Context</h3>
+                        <div class="memory-context-search">
+                            <input type="text" id="memoryContextSearchInput" placeholder="Search memories..."
+                                   onkeyup="memoryContext.handleSearchKeyup(event)">
+                            <button class="btn btn-sm" onclick="memoryContext.search()">Search</button>
+                        </div>
+                        <div class="memory-context-controls">
+                            <button class="btn btn-sm" onclick="memoryContext.refresh()">All</button>
+                            <button class="btn btn-sm" id="memoryShowRelevantBtn" onclick="memoryContext.showRelevant()" title="Search memories matching current goal">Relevant</button>
+                            <button class="btn btn-sm" id="memoryShowUsedBtn" onclick="memoryContext.showUsed()" title="Show memories used in current reasoning">Used (<span id="memoryUsedBtnCount">0</span>)</button>
+                        </div>
+                        <div class="memory-context-stats" id="memoryContextStats">
+                            <div class="stat-item">
+                                <span class="stat-label">Total</span>
+                                <span class="stat-value" id="memoryTotalCount">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Sessions</span>
+                                <span class="stat-value" id="memorySessionCount">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Goal</span>
+                                <span class="stat-value" id="memoryCurrentGoal" title="Current reasoning goal">-</span>
+                            </div>
+                        </div>
+                        <div class="memory-context-list" id="memoryContextList">
+                            <div class="memory-context-empty">
+                                <span class="empty-icon">&#128218;</span>
+                                <p>No episodic memories yet</p>
                             </div>
                         </div>
                     </div>
@@ -1598,6 +1897,23 @@
             <div class="modal-footer">
                 <button onclick="folderBrowser.close()" class="btn">Cancel</button>
                 <button onclick="folderBrowser.selectCurrent()" class="btn btn-primary">Select This Folder</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Memory Details Modal (v0.32) -->
+    <div id="memoryDetailsModal" class="modal hidden">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2><span style="margin-right: 8px;">&#129504;</span> Memory Entry Details</h2>
+                <button onclick="memoryContext.closeDetails()" class="btn btn-icon">&#10005;</button>
+            </div>
+            <div class="modal-body" id="memoryDetailsBody">
+                <!-- Content populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button onclick="memoryContext.closeDetails()" class="btn">Close</button>
+                <button onclick="memoryContext.deleteCurrentEntry()" class="btn btn-danger">Delete Entry</button>
             </div>
         </div>
     </div>
@@ -2762,6 +3078,333 @@
             }
         };
 
+        // v0.32 Memory Context Application for Reasoning Tab
+        const memoryContext = {
+            entries: [],
+            usedMemories: new Set(),  // Track which memories were used in current reasoning
+            currentGoal: null,
+
+            async init() {
+                await this.refresh();
+            },
+
+            async refresh() {
+                try {
+                    const sessionId = (typeof app !== 'undefined' && app.sessionId) ? app.sessionId : 'default';
+                    const resp = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/episodic?limit=50`);
+                    const data = await resp.json();
+
+                    this.entries = data.entries || [];
+                    this.updateStats();
+                    this.renderList(this.entries);
+                } catch (e) {
+                    console.error('Failed to load memory context:', e);
+                    this.renderEmpty('Failed to load memories');
+                }
+            },
+
+            updateStats() {
+                document.getElementById('memoryTotalCount').textContent = this.entries.length;
+
+                // Count unique sessions
+                const sessions = new Set(this.entries.map(e => e.task_id?.split('-').slice(0, 3).join('-')));
+                document.getElementById('memorySessionCount').textContent = sessions.size;
+
+                // Update used count in button
+                const usedCount = this.usedMemories.size;
+                const usedBtnCount = document.getElementById('memoryUsedBtnCount');
+                if (usedBtnCount) {
+                    usedBtnCount.textContent = usedCount;
+                }
+
+                // Update current goal display
+                const goalEl = document.getElementById('memoryCurrentGoal');
+                if (goalEl) {
+                    if (this.currentGoal) {
+                        const shortGoal = this.currentGoal.length > 15
+                            ? this.currentGoal.substring(0, 15) + '...'
+                            : this.currentGoal;
+                        goalEl.textContent = shortGoal;
+                        goalEl.title = this.currentGoal;
+                    } else {
+                        goalEl.textContent = '-';
+                        goalEl.title = 'No active reasoning goal';
+                    }
+                }
+            },
+
+            renderList(entries) {
+                const container = document.getElementById('memoryContextList');
+
+                if (!entries || entries.length === 0) {
+                    this.renderEmpty('No episodic memories yet');
+                    return;
+                }
+
+                container.innerHTML = entries.map(entry => {
+                    const isUsed = this.usedMemories.has(entry.task_id);
+                    const filesCount = entry.files_touched?.length || 0;
+                    const cmdsCount = entry.commands_run?.length || 0;
+                    const timestamp = entry.timestamp ? new Date(entry.timestamp).toLocaleString() : '-';
+
+                    return `
+                        <div class="memory-context-entry ${isUsed ? 'used-in-reasoning' : ''}"
+                             data-task-id="${escapeHtml(entry.task_id)}"
+                             onclick="memoryContext.showDetails('${escapeHtml(entry.task_id)}')">
+                            <div class="memory-goal">
+                                ${isUsed ? '<span class="memory-used-badge">Used</span> ' : ''}
+                                ${escapeHtml(entry.user_goal?.substring(0, 80) || 'Unknown goal')}${(entry.user_goal?.length || 0) > 80 ? '...' : ''}
+                            </div>
+                            <div class="memory-result">${escapeHtml(entry.result_summary?.substring(0, 100) || '')}</div>
+                            <div class="memory-meta">
+                                <span class="memory-files">${filesCount} files, ${cmdsCount} commands</span>
+                                <span>${timestamp}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            renderEmpty(message) {
+                document.getElementById('memoryContextList').innerHTML = `
+                    <div class="memory-context-empty">
+                        <span class="empty-icon">&#128218;</span>
+                        <p>${escapeHtml(message)}</p>
+                    </div>
+                `;
+            },
+
+            handleSearchKeyup(event) {
+                if (event.key === 'Enter') {
+                    this.search();
+                }
+            },
+
+            async search() {
+                const query = document.getElementById('memoryContextSearchInput').value.trim();
+                if (!query) {
+                    this.refresh();
+                    return;
+                }
+
+                try {
+                    const sessionId = (typeof app !== 'undefined' && app.sessionId) ? app.sessionId : 'default';
+                    const resp = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/episodic/search?q=${encodeURIComponent(query)}&limit=20`);
+                    const data = await resp.json();
+
+                    if (data.results && data.results.length > 0) {
+                        this.renderList(data.results);
+                    } else {
+                        this.renderEmpty(`No memories matching "${query}"`);
+                    }
+                } catch (e) {
+                    console.error('Failed to search memories:', e);
+                    this.renderEmpty('Search failed');
+                }
+            },
+
+            async showRelevant() {
+                // Show memories relevant to current reasoning goal
+                let query = this.currentGoal;
+
+                // If no active goal, prompt user or use search input
+                if (!query) {
+                    const searchInput = document.getElementById('memoryContextSearchInput').value.trim();
+                    if (searchInput) {
+                        query = searchInput;
+                    } else {
+                        // Try to get the last user message from chat
+                        if (typeof app !== 'undefined' && app.messageHistory && app.messageHistory.length > 0) {
+                            const lastUserMsg = [...app.messageHistory].reverse().find(m => m.role === 'user');
+                            if (lastUserMsg) {
+                                query = lastUserMsg.content.substring(0, 100);
+                            }
+                        }
+                    }
+                }
+
+                if (!query) {
+                    this.renderEmpty('Enter a search query or start a task');
+                    return;
+                }
+
+                try {
+                    const sessionId = (typeof app !== 'undefined' && app.sessionId) ? app.sessionId : 'default';
+                    const resp = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/episodic/search?q=${encodeURIComponent(query)}&limit=10`);
+                    const data = await resp.json();
+
+                    if (data.results && data.results.length > 0) {
+                        this.renderList(data.results);
+                    } else {
+                        this.renderEmpty('No relevant memories found');
+                    }
+                } catch (e) {
+                    console.error('Failed to search memories:', e);
+                }
+            },
+
+            showUsed() {
+                // Filter to show only memories used in current reasoning
+                if (this.usedMemories.size === 0) {
+                    this.renderEmpty('No memories used in current reasoning session');
+                    return;
+                }
+
+                const usedEntries = this.entries.filter(e => this.usedMemories.has(e.task_id));
+                this.renderList(usedEntries);
+            },
+
+            currentDetailTaskId: null,
+
+            async showDetails(taskId) {
+                try {
+                    const sessionId = (typeof app !== 'undefined' && app.sessionId) ? app.sessionId : 'default';
+                    const resp = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/episodic/${encodeURIComponent(taskId)}`);
+                    const entry = await resp.json();
+
+                    if (!entry) {
+                        alert('Memory entry not found');
+                        return;
+                    }
+
+                    this.currentDetailTaskId = taskId;
+
+                    // Format timestamp
+                    const timestamp = entry.timestamp ? new Date(entry.timestamp).toLocaleString() : '-';
+
+                    // Build formatted HTML content
+                    const filesHtml = (entry.files_touched && entry.files_touched.length > 0)
+                        ? `<ul>${entry.files_touched.map(f => `<li><code>${escapeHtml(f)}</code></li>`).join('')}</ul>`
+                        : '<p class="memory-details-empty">No files touched</p>';
+
+                    const commandsHtml = (entry.commands_run && entry.commands_run.length > 0)
+                        ? `<ul>${entry.commands_run.map(c => `<li><code>$ ${escapeHtml(c.substring(0, 100))}${c.length > 100 ? '...' : ''}</code></li>`).join('')}</ul>`
+                        : '<p class="memory-details-empty">No commands recorded</p>';
+
+                    const decisionsHtml = (entry.key_decisions && entry.key_decisions.length > 0)
+                        ? `<ul>${entry.key_decisions.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>`
+                        : '<p class="memory-details-empty">No decisions recorded</p>';
+
+                    const questionsHtml = (entry.open_questions && entry.open_questions.length > 0)
+                        ? `<ul>${entry.open_questions.map(q => `<li>${escapeHtml(q)}</li>`).join('')}</ul>`
+                        : '<p class="memory-details-empty">No open questions</p>';
+
+                    const html = `
+                        <div class="memory-details">
+                            <div class="memory-details-header">
+                                <h3>${escapeHtml(entry.user_goal || 'Unknown goal')}</h3>
+                                <div class="memory-details-meta">
+                                    <span>&#128197; ${timestamp}</span>
+                                    <span>&#128196; ${entry.files_touched?.length || 0} files</span>
+                                    <span>&#9881; ${entry.commands_run?.length || 0} commands</span>
+                                </div>
+                            </div>
+
+                            <div class="memory-details-section plan">
+                                <h4>&#128203; Plan Summary</h4>
+                                <p>${escapeHtml(entry.plan_summary || 'No plan recorded')}</p>
+                            </div>
+
+                            <div class="memory-details-section result">
+                                <h4>&#9989; Result</h4>
+                                <p>${escapeHtml(entry.result_summary || 'No result recorded')}</p>
+                            </div>
+
+                            <div class="memory-details-section decisions">
+                                <h4>&#128161; Key Decisions</h4>
+                                ${decisionsHtml}
+                            </div>
+
+                            <div class="memory-details-section files">
+                                <h4>&#128193; Files Touched</h4>
+                                ${filesHtml}
+                            </div>
+
+                            <div class="memory-details-section commands">
+                                <h4>&#128187; Commands Run</h4>
+                                ${commandsHtml}
+                            </div>
+
+                            ${(entry.open_questions && entry.open_questions.length > 0) ? `
+                            <div class="memory-details-section">
+                                <h4>&#10067; Open Questions</h4>
+                                ${questionsHtml}
+                            </div>
+                            ` : ''}
+
+                            <div style="font-size: 11px; color: var(--text-muted); text-align: right;">
+                                Task ID: ${escapeHtml(entry.task_id || '-')}
+                            </div>
+                        </div>
+                    `;
+
+                    document.getElementById('memoryDetailsBody').innerHTML = html;
+                    document.getElementById('memoryDetailsModal').classList.remove('hidden');
+                } catch (e) {
+                    console.error('Failed to load memory details:', e);
+                    alert('Failed to load memory details');
+                }
+            },
+
+            closeDetails() {
+                document.getElementById('memoryDetailsModal').classList.add('hidden');
+                this.currentDetailTaskId = null;
+            },
+
+            async deleteCurrentEntry() {
+                if (!this.currentDetailTaskId) return;
+
+                if (!confirm('Delete this memory entry? This cannot be undone.')) {
+                    return;
+                }
+
+                try {
+                    const sessionId = (typeof app !== 'undefined' && app.sessionId) ? app.sessionId : 'default';
+                    const resp = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/episodic/${encodeURIComponent(this.currentDetailTaskId)}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (resp.ok) {
+                        this.closeDetails();
+                        await this.refresh();
+                    } else {
+                        alert('Failed to delete entry');
+                    }
+                } catch (e) {
+                    console.error('Failed to delete entry:', e);
+                    alert('Failed to delete entry');
+                }
+            },
+
+            // Called when reasoning starts to set the current goal
+            setCurrentGoal(goal) {
+                this.currentGoal = goal;
+                this.usedMemories.clear();
+                this.updateStats();
+            },
+
+            // Called when a memory is used during reasoning
+            markAsUsed(taskId) {
+                this.usedMemories.add(taskId);
+                this.updateStats();
+                // Update visual indicator
+                const entryEl = document.querySelector(`.memory-context-entry[data-task-id="${taskId}"]`);
+                if (entryEl) {
+                    entryEl.classList.add('used-in-reasoning');
+                }
+            },
+
+            // Called from WebSocket when reasoning state updates
+            updateFromWebSocket(data) {
+                if (data.goal) {
+                    this.setCurrentGoal(data.goal);
+                }
+                if (data.used_memories && Array.isArray(data.used_memories)) {
+                    data.used_memories.forEach(taskId => this.markAsUsed(taskId));
+                }
+            }
+        };
+
         // Reasoning Settings Application (v0.23)
         // Model inheritance: Reasoning → Agent Config → Session
         const reasoningSettingsApp = {
@@ -3121,6 +3764,7 @@
         agentSettingsApp.init();
         reasoningApp.init();
         reasoningGraph.init();  // Reasoning Graph
+        memoryContext.init();  // Memory Context in Reasoning tab (v0.32)
         reasoningSettingsApp.init();  // Reasoning Settings
 
         // Update app.showTraces to use tracesApp

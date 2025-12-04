@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.30.0
+# RAGIX v0.32.1
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
@@ -15,8 +15,8 @@
 
 ---
 
-**Version:** 0.30.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Updated:** 2025-12-03
+**Version:** 0.32.1 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Updated:** 2025-12-04
 
 ---
 
@@ -42,18 +42,39 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 
 ---
 
-## **What's New in v0.30.0**
+## **What's New in v0.32.1**
 
 | Feature | Description |
 |---------|-------------|
-| **Real-Time Progress Streaming** | Live visibility into plan generation, step execution, and reflection |
-| **Graph Reasoning v30** | Enhanced reasoning graph with detailed progress callbacks at each node |
-| **Robust JSON Parsing** | Handles malformed LLM JSON (unquoted keys, single quotes, trailing commas) |
-| **Improved Step Execution** | Direct command execution from JSON actions, regex fallback extraction |
-| **Enhanced Tool Traces Panel** | Real-time updates with icons for classification, planning, execution steps |
-| **Better Output Formatting** | Filters raw JSON from responses, shows actual command results |
+| **Memory Management UI** | Explore, search, and manage episodic memory entries |
+| **Memory Context in Reasoning** | View episodic memories during reasoning with goal tracking |
+| **Memory Details Modal** | Color-coded sections for plan, result, decisions, files, commands |
+| **Context Window Indicator** | Progress bar showing tokens used vs model context limit |
+| **Memory Compaction** | LLM-based summarization to free context space (auto at 95%) |
+| **File Drop Zone** | Drag & drop files with PDF/DOCX conversion support |
+| **Interrupt Reasoning** | Stop button to abort long-running reasoning sessions |
+| **Token Counter** | Real-time display of prompt/completion tokens and throughput |
 
-### v0.30.0 Highlights (Latest)
+### v0.32.x Highlights (Latest)
+
+- **Memory Explorer Panel** — Sidebar section to browse episodic memory entries
+  - Search with debounce, delete individual entries or clear all
+  - Stats: episode count, files touched, commands run
+- **Memory Context in Reasoning Tab** — Panel showing memories during reasoning
+  - Search input, "All", "Relevant", "Used (N)" filter buttons
+  - Current goal display, WebSocket updates when reasoning starts
+- **Memory Details Modal** — Proper modal instead of alert()
+  - Color-coded sections: Plan (purple), Result (green), Decisions (yellow), Files (blue), Commands (orange)
+  - Delete button, code formatting for files/commands
+- **Context Window Management** — Visual indicator with compaction
+  - Progress bar with warning (80%) and critical (95%) states
+  - Manual compact button, auto-compaction at 95%
+- **File Handling** — Drag & drop with conversion
+  - Text files: py, js, ts, json, yaml, md, txt, html, css, sql, etc.
+  - Conversion: PDF (pdftotext), DOCX/ODT/RTF (pandoc)
+  - Configurable in `ragix.yaml`
+
+### v0.30.0 Highlights
 
 - **Real-Time Streaming Progress** — No more waiting blindly during complex tasks
   - Classification result shown immediately: `[0.0s] 📊 Task classified as: complex`

@@ -1,6 +1,6 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-12-04 (v0.31.1 - Context Window, File Drop Zone)
+**Updated:** 2025-12-04 (v0.32.1 - Memory Management UI & Reasoning Integration)
 **Reference:** See `PLAN_v0.30_REASONING.md` for full implementation plan
 **Review:** See `REVIEW_current_reasoning_towardsv0.30.md` for colleague feedback
 
@@ -47,6 +47,57 @@
 - File preview with icons, sizes, and remove button
 - Truncation for large files (>10k chars) with indication
 - Configurable converters in ragix.yaml (paths, options, timeouts)
+
+---
+
+## Session Completed (2025-12-04 - v0.32.0)
+
+### Memory Management UI & Reasoning Integration
+
+| Task | Status |
+|------|--------|
+| **Memory Explorer Panel** - Sidebar section with episodic memory entries | ✅ Done |
+| **Memory Stats Display** - Episode count, files touched, commands run | ✅ Done |
+| **Memory Search** - Debounced keyword search across all entry fields | ✅ Done |
+| **Memory Entry Details** - Click to view full episode with plan, result, files, commands | ✅ Done |
+| **Memory Pruning** - Delete individual entries or clear all with confirmation | ✅ Done |
+| **Episodic Memory API** - CRUD endpoints for episodic memory management | ✅ Done |
+| **Memory Context in Reasoning Tab** - Panel showing episodic memories during reasoning | ✅ Done |
+| **Memory-Reasoning Integration** - Track which memories used per reasoning session | ✅ Done |
+| **Memory Details Modal** - Proper modal with formatted sections for memory entry details | ✅ Done |
+| **Memory Search in Reasoning** - Search input with Enter key support in Memory Context | ✅ Done |
+
+**Key Files Modified:**
+- `ragix_core/reasoning.py` - `EpisodicMemory` class: `list_entries()`, `search_entries()`, `delete_entry()`, `clear_all_entries()`, `get_stats()`
+- `ragix_web/server.py` - New endpoints: `/api/sessions/{id}/episodic`, `/api/sessions/{id}/episodic/search`, DELETE endpoints; Enhanced reasoning state emission with goal for memory context
+- `ragix_web/static/app.js` - `refreshMemory()`, `searchMemory()`, `showMemoryEntry()`, `deleteMemoryEntry()`, `clearMemory()`; WebSocket handler for memory context
+- `ragix_web/static/index.html` - Memory Explorer sidebar section; Memory Context section in Reasoning tab with stats, controls, entry list; `memoryContext` JavaScript object
+- `ragix_web/static/style.css` - Styles for memory explorer, entries, search input; Memory context section styles
+
+**Features:**
+- Memory Explorer sidebar section between Agents and Workflows
+- Real-time stats: episode count, files touched, commands run
+- Debounced search (300ms) across goals, plans, results, files, commands
+- Entry cards with goal preview, timestamp, file count
+- Hover-to-reveal delete button on entries
+- Click entry to view full details in chat
+- Refresh and Clear All buttons
+- **Reasoning Tab Integration:**
+  - Memory Context panel showing episodic memories
+  - Stats: total memories, sessions, current goal display
+  - Search input with Enter key support
+  - "All" button refreshes full list
+  - "Relevant" button filters by current goal, search input, or last user message
+  - "Used (N)" button shows memories accessed during reasoning with count
+  - Visual "Used" badges on memory entries used in current session
+  - WebSocket updates when reasoning goal changes
+- **Memory Details Modal:**
+  - Proper modal display instead of alert()
+  - Color-coded sections: Plan (purple), Result (green), Decisions (yellow), Files (blue), Commands (orange)
+  - Metadata header with timestamp, file count, command count
+  - Code formatting for files and commands
+  - Delete button to remove entry from modal
+  - Command truncation at 100 chars
 
 ---
 
@@ -113,14 +164,15 @@
 | **Document Conversion** - `pandoc` for docx/odt/rtf→text | 3h | ✅ Done |
 | **Converter Config** - `ragix.yaml` section for converter paths | 1h | ✅ Done |
 
-### Priority 4: Memory Management UI (v0.32)
+### Priority 4: Memory Management UI (v0.32) ✅ COMPLETED
 
 | Task | Effort | Status |
 |------|--------|--------|
-| **Memory Explorer Panel** - View/edit episodic memory entries | 6h | Pending |
-| **Memory Usage Visualization** - Show what memories are injected into context | 4h | Pending |
-| **Memory Search** - Search through past episodes | 2h | Pending |
-| **Memory Pruning UI** - Delete old/irrelevant memories | 2h | Pending |
+| **Memory Explorer Panel** - View/edit episodic memory entries | 6h | ✅ Done |
+| **Memory Usage Visualization** - Stats showing episodes, files, commands | 4h | ✅ Done |
+| **Memory Search** - Search through past episodes with debounce | 2h | ✅ Done |
+| **Memory Pruning UI** - Delete individual entries or clear all | 2h | ✅ Done |
+| **Memory Context in Reasoning** - Show episodic memory in Reasoning tab | 3h | ✅ Done |
 | **RAG Context Display** - Show which RAG chunks are retrieved and used | 4h | Pending |
 
 ### Priority 5: Session Persistence (v0.32)

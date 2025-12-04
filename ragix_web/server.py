@@ -820,6 +820,146 @@ async def compact_memory(session_id: str, keep_recent: int = 4):
     }
 
 
+# =============================================================================
+# Episodic Memory Management API
+# =============================================================================
+
+@app.get("/api/sessions/{session_id}/episodic")
+async def get_episodic_memory(session_id: str, limit: int = 50, offset: int = 0):
+    """
+    Get episodic memory entries for a session.
+
+    Args:
+        session_id: Session ID
+        limit: Max entries to return (default: 50)
+        offset: Skip this many entries (default: 0)
+
+    Returns:
+        List of episodic memory entries (newest first)
+    """
+    if session_id not in session_agents:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    agent = session_agents[session_id]
+
+    if not hasattr(agent, '_episodic_memory') or agent._episodic_memory is None:
+        return {"entries": [], "total": 0, "stats": {}}
+
+    memory = agent._episodic_memory
+    entries = memory.list_entries(limit=limit, offset=offset)
+    stats = memory.get_stats()
+
+    return {
+        "session_id": session_id,
+        "entries": entries,
+        "total": stats.get("total_entries", 0),
+        "offset": offset,
+        "limit": limit,
+        "stats": stats
+    }
+
+
+@app.get("/api/sessions/{session_id}/episodic/search")
+async def search_episodic_memory(session_id: str, q: str, limit: int = 20):
+    """
+    Search episodic memory entries.
+
+    Args:
+        session_id: Session ID
+        q: Search query
+        limit: Max results (default: 20)
+    """
+    if session_id not in session_agents:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    agent = session_agents[session_id]
+
+    if not hasattr(agent, '_episodic_memory') or agent._episodic_memory is None:
+        return {"results": [], "query": q}
+
+    memory = agent._episodic_memory
+    results = memory.search_entries(q, limit=limit)
+
+    return {
+        "session_id": session_id,
+        "query": q,
+        "results": results,
+        "count": len(results)
+    }
+
+
+@app.get("/api/sessions/{session_id}/episodic/{task_id}")
+async def get_episodic_entry(session_id: str, task_id: str):
+    """Get a specific episodic memory entry."""
+    if session_id not in session_agents:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    agent = session_agents[session_id]
+
+    if not hasattr(agent, '_episodic_memory') or agent._episodic_memory is None:
+        raise HTTPException(status_code=404, detail="No episodic memory")
+
+    memory = agent._episodic_memory
+    entry = memory.get_entry(task_id)
+
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Entry not found")
+
+    return {"session_id": session_id, "entry": entry}
+
+
+@app.delete("/api/sessions/{session_id}/episodic/{task_id}")
+async def delete_episodic_entry(session_id: str, task_id: str):
+    """Delete a specific episodic memory entry."""
+    if session_id not in session_agents:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    agent = session_agents[session_id]
+
+    if not hasattr(agent, '_episodic_memory') or agent._episodic_memory is None:
+        raise HTTPException(status_code=404, detail="No episodic memory")
+
+    memory = agent._episodic_memory
+    deleted = memory.delete_entry(task_id)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Entry not found")
+
+    return {"session_id": session_id, "deleted": task_id}
+
+
+@app.delete("/api/sessions/{session_id}/episodic")
+async def clear_episodic_memory(session_id: str, before: str = None):
+    """
+    Clear episodic memory entries.
+
+    Args:
+        session_id: Session ID
+        before: If provided, delete entries before this ISO timestamp.
+                If not provided, delete ALL entries.
+    """
+    if session_id not in session_agents:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    agent = session_agents[session_id]
+
+    if not hasattr(agent, '_episodic_memory') or agent._episodic_memory is None:
+        return {"deleted": 0}
+
+    memory = agent._episodic_memory
+
+    if before:
+        deleted = memory.delete_entries_before(before)
+    else:
+        deleted = memory.clear_all_entries()
+
+    return {
+        "session_id": session_id,
+        "deleted": deleted,
+        "before": before
+    }
+
+
 @app.post("/api/files/convert")
 async def convert_file(file: UploadFile = File(...)):
     """
@@ -4577,12 +4717,16 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                         graph_state = session_reasoning_states[session_id]
                         state = graph_state.get("state")
                         if state and hasattr(state, 'to_dict'):
-                            await websocket.send_json({
+                            state_msg = {
                                 "type": "reasoning_graph_state",
                                 "state": state.to_dict(),
                                 "current_node": graph_state.get("current_node"),
                                 "timestamp": datetime.now().isoformat()
-                            })
+                            }
+                            # v0.32: Include goal for memory context
+                            if hasattr(state, 'goal'):
+                                state_msg["goal"] = state.goal
+                            await websocket.send_json(state_msg)
 
                     # Get token statistics if available
                     token_stats = None
