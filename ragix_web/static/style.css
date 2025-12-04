@@ -420,6 +420,13 @@ body {
     gap: 10px;
 }
 
+.message-system.message-thinking .message-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
 .thinking-spinner {
     display: inline-block;
     width: 16px;
@@ -430,6 +437,33 @@ body {
     animation: spin 1s linear infinite;
 }
 
+/* Cancel/Stop button */
+.cancel-btn {
+    background: var(--accent-red);
+    color: white;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 500;
+    margin-left: auto;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cancel-btn:hover:not(:disabled) {
+    background: #d32f2f;
+    transform: scale(1.05);
+}
+
+.cancel-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
@@ -437,6 +471,9 @@ body {
 .message-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
     margin-bottom: 8px;
     font-size: 12px;
 }
@@ -444,6 +481,141 @@ body {
 .message-sender {
     font-weight: 600;
     color: var(--accent-blue);
+}
+
+/* Token statistics display */
+.token-stats {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.token-stat {
+    background: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: help;
+}
+
+.token-stat.token-total {
+    color: var(--accent-green);
+    font-weight: 500;
+}
+
+/* Progress cards (inline step results) */
+.progress-card {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 8px 0;
+    border-left: 3px solid var(--accent-blue);
+    font-size: 13px;
+}
+
+.progress-card-classification {
+    border-left-color: var(--accent-yellow);
+    background: rgba(255, 202, 40, 0.1);
+}
+
+.progress-card-plan {
+    border-left-color: var(--accent-blue);
+    background: rgba(79, 195, 247, 0.1);
+}
+
+.progress-card-step {
+    border-left-color: var(--accent-green);
+    background: rgba(102, 187, 106, 0.08);
+}
+
+.progress-card-error {
+    border-left-color: var(--accent-red);
+    background: rgba(239, 83, 80, 0.1);
+}
+
+.progress-card-cancelled {
+    border-left-color: var(--accent-yellow);
+    background: rgba(255, 202, 40, 0.1);
+}
+
+.progress-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.progress-card-icon {
+    font-size: 16px;
+}
+
+.progress-card-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: capitalize;
+}
+
+.progress-card-elapsed {
+    color: var(--text-secondary);
+    font-size: 11px;
+    margin-left: auto;
+}
+
+.progress-card-content {
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* Status badges */
+.status-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+.status-badge.status-success {
+    background: rgba(102, 187, 106, 0.2);
+    color: var(--accent-green);
+}
+
+.status-badge.status-error {
+    background: rgba(239, 83, 80, 0.2);
+    color: var(--accent-red);
+}
+
+.status-badge.status-warning {
+    background: rgba(255, 202, 40, 0.2);
+    color: var(--accent-yellow);
+}
+
+/* Result preview in progress cards */
+.result-details {
+    margin-top: 8px;
+}
+
+.result-details summary {
+    cursor: pointer;
+    color: var(--accent-blue);
+    font-size: 12px;
+}
+
+.result-details summary:hover {
+    text-decoration: underline;
+}
+
+.result-preview {
+    background: var(--bg-primary);
+    padding: 8px;
+    border-radius: 4px;
+    margin-top: 6px;
+    font-size: 11px;
+    overflow-x: auto;
+    max-height: 150px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 .message-time {

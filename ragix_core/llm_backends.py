@@ -17,7 +17,7 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 import os
 import logging
 import requests
@@ -139,6 +139,17 @@ class OllamaLLM(BaseLLM):
 
         🟢 SOVEREIGN: All processing happens locally.
         """
+        response, _ = self.generate_with_stats(system_prompt, history)
+        return response
+
+    def generate_with_stats(self, system_prompt: str, history: List[Dict[str, str]]) -> Tuple[str, Dict]:
+        """
+        Generate response with token statistics.
+
+        Returns:
+            Tuple of (response_text, stats_dict)
+            Stats include: prompt_eval_count, eval_count, total_duration, etc.
+        """
         messages = [{"role": "system", "content": system_prompt}]
         messages.extend(history)
 
@@ -151,7 +162,28 @@ class OllamaLLM(BaseLLM):
         r = requests.post(f"{self.base_url}/api/chat", json=payload)
         r.raise_for_status()
         data = r.json()
-        return data["message"]["content"].strip()
+
+        # Extract token statistics from Ollama response
+        stats = {
+            "prompt_tokens": data.get("prompt_eval_count", 0),
+            "completion_tokens": data.get("eval_count", 0),
+            "total_duration_ns": data.get("total_duration", 0),
+            "load_duration_ns": data.get("load_duration", 0),
+            "prompt_eval_duration_ns": data.get("prompt_eval_duration", 0),
+            "eval_duration_ns": data.get("eval_duration", 0),
+        }
+        stats["total_tokens"] = stats["prompt_tokens"] + stats["completion_tokens"]
+
+        # Calculate tokens per second if we have duration
+        if stats["eval_duration_ns"] > 0:
+            stats["tokens_per_second"] = stats["completion_tokens"] / (stats["eval_duration_ns"] / 1e9)
+        else:
+            stats["tokens_per_second"] = 0
+
+        return data["message"]["content"].strip(), stats
+
+    # Store last request stats for easy access
+    _last_stats: Dict = {}
 
     def is_available(self) -> bool:
         """Check if Ollama is running and model is available."""

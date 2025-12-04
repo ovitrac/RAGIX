@@ -100,12 +100,16 @@ class RAGIXApp {
                 break;
 
             case 'thinking':
-                this.showThinking(message);
+                this.showThinking(message, data.cancellable !== false);
+                break;
+
+            case 'cancel_ack':
+                this.updateThinking('⛔ Cancellation requested...');
                 break;
 
             case 'agent_message':
                 this.hideThinking();
-                this.addAgentMessage(message, timestamp);
+                this.addAgentMessage(message, timestamp, data.token_stats);
                 break;
 
             case 'tool_call':
@@ -154,21 +158,42 @@ class RAGIXApp {
         }
     }
 
-    showThinking(message = 'Agent is processing...') {
+    showThinking(message = 'Agent is processing...', cancellable = true) {
         // Remove any existing thinking indicator
         this.hideThinking();
 
         const thinkingEl = document.createElement('div');
         thinkingEl.id = 'thinking-indicator';
         thinkingEl.className = 'message message-system message-thinking';
+
+        const cancelButton = cancellable ? `
+            <button class="cancel-btn" onclick="app.cancelRequest()" title="Stop reasoning">
+                ⛔ Stop
+            </button>
+        ` : '';
+
         thinkingEl.innerHTML = `
             <div class="message-content">
                 <span class="thinking-dots">${this.escapeHtml(message)}</span>
                 <span class="thinking-spinner"></span>
+                ${cancelButton}
             </div>
         `;
         this.chatMessages.appendChild(thinkingEl);
         this.scrollToBottom();
+    }
+
+    cancelRequest() {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: 'cancel' }));
+            this.updateThinking('⛔ Cancelling...');
+            // Disable the cancel button
+            const cancelBtn = document.querySelector('.cancel-btn');
+            if (cancelBtn) {
+                cancelBtn.disabled = true;
+                cancelBtn.textContent = 'Cancelling...';
+            }
+        }
     }
 
     hideThinking() {
@@ -196,6 +221,7 @@ class RAGIXApp {
         const eventType = event.type || 'processing';
         const content = event.content || '';
         const elapsed = event.elapsed ? `[${event.elapsed.toFixed(1)}s]` : '';
+        const metadata = event.metadata || event;
 
         // Format progress message based on event type
         let progressMsg = `${elapsed} ${content}`.trim();
@@ -204,6 +230,8 @@ class RAGIXApp {
             case 'classification':
             case 'classification_complete':
                 progressMsg = `${elapsed} 📊 ${content}`;
+                // Show classification as inline card
+                this.addProgressCard('classification', content, elapsed, metadata);
                 break;
             case 'graph_start':
                 progressMsg = `${elapsed} 🚀 Starting reasoning...`;
@@ -213,6 +241,8 @@ class RAGIXApp {
                 break;
             case 'plan_ready':
                 progressMsg = `${elapsed} 📋 ${content}`;
+                // Show plan as inline card
+                this.addProgressCard('plan', content, elapsed, metadata);
                 break;
             case 'plan_step':
                 progressMsg = `${elapsed} ${content}`;
@@ -224,6 +254,8 @@ class RAGIXApp {
                 break;
             case 'step_complete':
                 progressMsg = `${elapsed} ${content}`;
+                // Show step result as inline card
+                this.addProgressCard('step', content, elapsed, metadata);
                 break;
             case 'reflection':
                 progressMsg = `${elapsed} 🔄 Reflecting on results...`;
@@ -239,6 +271,11 @@ class RAGIXApp {
                 break;
             case 'error':
                 progressMsg = `${elapsed} ❌ ${content}`;
+                this.addProgressCard('error', content, elapsed, metadata);
+                break;
+            case 'cancelled':
+                progressMsg = `${elapsed} ⛔ ${content}`;
+                this.addProgressCard('cancelled', content, elapsed, metadata);
                 break;
             default:
                 if (content) {
@@ -247,6 +284,69 @@ class RAGIXApp {
         }
 
         this.updateThinking(progressMsg || 'Processing...');
+    }
+
+    addProgressCard(type, content, elapsed, metadata = {}) {
+        // Add an inline progress card to the chat area
+        const cardEl = document.createElement('div');
+        cardEl.className = `progress-card progress-card-${type}`;
+
+        // Determine icon and status class
+        const icons = {
+            'classification': '📊',
+            'plan': '📋',
+            'step': '⚙️',
+            'error': '❌',
+            'cancelled': '⛔'
+        };
+        const icon = icons[type] || '📌';
+
+        // Determine status badge
+        let statusBadge = '';
+        const status = metadata.status || (type === 'error' ? 'failed' : 'success');
+        if (status === 'success') {
+            statusBadge = '<span class="status-badge status-success">✅ Success</span>';
+        } else if (status === 'failed') {
+            statusBadge = '<span class="status-badge status-error">❌ Failed</span>';
+        } else if (status === 'cancelled') {
+            statusBadge = '<span class="status-badge status-warning">⛔ Cancelled</span>';
+        }
+
+        // Build result preview if available
+        let resultPreview = '';
+        if (metadata.result && metadata.result.trim()) {
+            const preview = metadata.result.substring(0, 200);
+            const truncated = metadata.result.length > 200 ? '...' : '';
+            resultPreview = `
+                <details class="result-details">
+                    <summary>View output</summary>
+                    <pre class="result-preview">${this.escapeHtml(preview)}${truncated}</pre>
+                </details>
+            `;
+        }
+
+        // Build step number if available
+        const stepNum = metadata.step_num ? `Step ${metadata.step_num}` : '';
+
+        cardEl.innerHTML = `
+            <div class="progress-card-header">
+                <span class="progress-card-icon">${icon}</span>
+                <span class="progress-card-title">${stepNum || type}</span>
+                <span class="progress-card-elapsed">${elapsed}</span>
+                ${statusBadge}
+            </div>
+            <div class="progress-card-content">${this.escapeHtml(content.substring(0, 150))}</div>
+            ${resultPreview}
+        `;
+
+        // Insert before the thinking indicator
+        const thinkingEl = document.getElementById('thinking-indicator');
+        if (thinkingEl) {
+            this.chatMessages.insertBefore(cardEl, thinkingEl);
+        } else {
+            this.chatMessages.appendChild(cardEl);
+        }
+        this.scrollToBottom();
     }
 
     addSingleReasoningTrace(trace) {
@@ -280,6 +380,7 @@ class RAGIXApp {
             'verification': '🔍',
             'responding': '💬',
             'complete': '✅',
+            'cancelled': '⛔',
             'timeout': '⏱️',
             'error': '❌',
             'bypass': '💬'
@@ -344,18 +445,52 @@ class RAGIXApp {
         this.scrollToBottom();
     }
 
-    addAgentMessage(message, timestamp) {
+    addAgentMessage(message, timestamp, tokenStats = null) {
         const messageEl = document.createElement('div');
         messageEl.className = 'message message-agent';
+
+        // Format token stats if available
+        let tokenStatsHtml = '';
+        if (tokenStats && tokenStats.total_tokens > 0) {
+            const promptTok = this.formatTokenCount(tokenStats.total_prompt_tokens);
+            const completionTok = this.formatTokenCount(tokenStats.total_completion_tokens);
+            const totalTok = this.formatTokenCount(tokenStats.total_tokens);
+            const reqCount = tokenStats.request_count || 1;
+
+            // Last request stats
+            const lastReq = tokenStats.last_request || {};
+            const tps = lastReq.tokens_per_second ? lastReq.tokens_per_second.toFixed(1) : '?';
+
+            tokenStatsHtml = `
+                <div class="token-stats">
+                    <span class="token-stat" title="Prompt tokens (input)">↑${promptTok}</span>
+                    <span class="token-stat" title="Completion tokens (output)">↓${completionTok}</span>
+                    <span class="token-stat token-total" title="Total tokens this session">Σ${totalTok}</span>
+                    <span class="token-stat" title="LLM requests">${reqCount} req</span>
+                    <span class="token-stat" title="Tokens per second">${tps} tok/s</span>
+                </div>
+            `;
+        }
+
         messageEl.innerHTML = `
             <div class="message-header">
                 <span class="message-sender">RAGIX Agent</span>
                 <span class="message-time">${this.formatTime(timestamp)}</span>
+                ${tokenStatsHtml}
             </div>
             <div class="message-content">${this.formatMessage(message)}</div>
         `;
         this.chatMessages.appendChild(messageEl);
         this.scrollToBottom();
+    }
+
+    formatTokenCount(count) {
+        if (count >= 1000000) {
+            return (count / 1000000).toFixed(1) + 'M';
+        } else if (count >= 1000) {
+            return (count / 1000).toFixed(1) + 'k';
+        }
+        return count.toString();
     }
 
     addSystemMessage(message, level = 'info') {

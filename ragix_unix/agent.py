@@ -171,6 +171,14 @@ class UnixRAGAgent:
     # Internal: initialized in __post_init__
     _episodic_memory: Optional[EpisodicMemory] = field(default=None, init=False)
     _reasoning_loop: Optional[ReasoningLoop] = field(default=None, init=False)
+    # Token statistics tracking
+    _token_stats: Dict = field(default_factory=lambda: {
+        "total_prompt_tokens": 0,
+        "total_completion_tokens": 0,
+        "total_tokens": 0,
+        "request_count": 0,
+        "last_request": {}
+    })
 
     def __post_init__(self):
         """
@@ -216,7 +224,34 @@ class UnixRAGAgent:
 
     def _llm_generate_for_reasoning(self, system_prompt: str, messages: List[Dict]) -> str:
         """Wrapper for LLM generation used by reasoning loop."""
+        # Use generate_with_stats if available to track token usage
+        if hasattr(self.llm, 'generate_with_stats'):
+            response, stats = self.llm.generate_with_stats(system_prompt, messages)
+            self._update_token_stats(stats)
+            return response
         return self.llm.generate(system_prompt, messages)
+
+    def _update_token_stats(self, stats: Dict):
+        """Update cumulative token statistics."""
+        self._token_stats["total_prompt_tokens"] += stats.get("prompt_tokens", 0)
+        self._token_stats["total_completion_tokens"] += stats.get("completion_tokens", 0)
+        self._token_stats["total_tokens"] += stats.get("total_tokens", 0)
+        self._token_stats["request_count"] += 1
+        self._token_stats["last_request"] = stats
+
+    def get_token_stats(self) -> Dict:
+        """Get current token usage statistics."""
+        return self._token_stats.copy()
+
+    def reset_token_stats(self):
+        """Reset token statistics (e.g., for new session)."""
+        self._token_stats = {
+            "total_prompt_tokens": 0,
+            "total_completion_tokens": 0,
+            "total_tokens": 0,
+            "request_count": 0,
+            "last_request": {}
+        }
 
     # -------------------------- Core methods --------------------------
 

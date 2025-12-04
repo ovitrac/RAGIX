@@ -11,6 +11,7 @@ import sys
 import asyncio
 import argparse
 import subprocess
+import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple, Callable, Awaitable
 from datetime import datetime
@@ -177,6 +178,8 @@ LAUNCH_DIRECTORY = os.getcwd()
 # Global state (in production, use proper session management)
 active_sessions: Dict[str, Dict[str, Any]] = {}
 active_websockets: List[WebSocket] = []
+# Cancellation events per session for interrupting reasoning
+session_cancellation: Dict[str, threading.Event] = {}
 
 
 # Request models
@@ -3927,7 +3930,8 @@ async def run_agent_async(
     message: str,
     session_id: str = "default",
     timeout_seconds: int = 180,
-    progress_callback: Optional[Callable[[Dict], Awaitable[None]]] = None
+    progress_callback: Optional[Callable[[Dict], Awaitable[None]]] = None,
+    cancel_event: Optional[threading.Event] = None
 ) -> Tuple[str, List[Dict]]:
     """
     Run agent in a thread pool to avoid blocking.
@@ -3940,6 +3944,7 @@ async def run_agent_async(
         session_id: Session identifier
         timeout_seconds: Maximum time to wait for response (default: 180s)
         progress_callback: Optional async callback for streaming progress updates
+        cancel_event: Optional threading.Event to signal cancellation
 
     Returns:
         Tuple of (response_text, reasoning_traces)
@@ -3947,11 +3952,11 @@ async def run_agent_async(
     import concurrent.futures
     import time
     import queue
-    import threading
 
     start_time = time.time()
     progress_queue: queue.Queue = queue.Queue()
     accumulated_traces: List[Dict] = []
+    was_cancelled = False
 
     def emit_progress(event_type: str, content: str, metadata: Optional[Dict] = None):
         """Emit a progress event to the queue."""
@@ -4063,6 +4068,14 @@ async def run_agent_async(
                 except queue.Empty:
                     pass
 
+                # Check for cancellation
+                if cancel_event and cancel_event.is_set():
+                    was_cancelled = True
+                    emit_progress("cancelled", "⛔ Reasoning interrupted by user", {"cancelled": True})
+                    # Cancel the future if possible
+                    future.cancel()
+                    raise asyncio.CancelledError("User cancelled the request")
+
                 # Check if we've exceeded timeout
                 if time.time() - start_time > timeout_seconds:
                     # Try to get partial results
@@ -4082,6 +4095,22 @@ async def run_agent_async(
                         await progress_callback(event)
             except queue.Empty:
                 pass
+
+    except asyncio.CancelledError:
+        elapsed = time.time() - start_time
+
+        # Build partial results message for cancellation
+        partial_info = ""
+        if accumulated_traces:
+            partial_info = "\n\n**Progress before interruption:**\n"
+            for trace in accumulated_traces[-5:]:  # Show last 5 events
+                trace_type = trace.get("type", "unknown")
+                content = trace.get("content", "")[:100]
+                trace_elapsed = trace.get("elapsed", 0)
+                partial_info += f"- [{trace_elapsed:.1f}s] {trace_type}: {content}\n"
+
+        result_text = f"⛔ **Reasoning interrupted** after {elapsed:.1f}s\n\nThe request was cancelled by user.{partial_info}"
+        traces = accumulated_traces + [{"type": "cancelled", "content": f"Request cancelled after {elapsed:.1f}s", "timestamp": datetime.now().isoformat()}]
 
     except asyncio.TimeoutError:
         elapsed = time.time() - start_time
@@ -4151,13 +4180,32 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
             "message": f"Connected to session {session_id} (model: {actual_model}, mode: {agent_mode}, reasoning: {reasoning_strategy})"
         })
 
+        # Create cancellation event for this session
+        if session_id not in session_cancellation:
+            session_cancellation[session_id] = threading.Event()
+
         while True:
             # Receive message from client
             data = await websocket.receive_json()
             message_type = data.get("type")
 
+            # Handle cancel request
+            if message_type == "cancel":
+                if session_id in session_cancellation:
+                    session_cancellation[session_id].set()
+                    await websocket.send_json({
+                        "type": "cancel_ack",
+                        "message": "Cancellation requested...",
+                        "timestamp": datetime.now().isoformat()
+                    })
+                continue
+
             if message_type == "chat":
                 user_message = data.get("message", "")
+
+                # Reset cancellation event for new request
+                if session_id in session_cancellation:
+                    session_cancellation[session_id].clear()
 
                 # Echo user message
                 await websocket.send_json({
@@ -4173,10 +4221,11 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                     "timestamp": datetime.now().isoformat()
                 })
 
-                # Send thinking indicator
+                # Send thinking indicator with cancel hint
                 await websocket.send_json({
                     "type": "thinking",
                     "message": "Agent is processing...",
+                    "cancellable": True,
                     "timestamp": datetime.now().isoformat()
                 })
 
@@ -4199,8 +4248,15 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                         pass  # Ignore errors sending progress
 
                 try:
+                    # Get cancellation event for this session
+                    cancel_event = session_cancellation.get(session_id)
+
                     # Run the agent with reasoning (Planner/Worker/Verifier)
-                    response, traces = await run_agent_async(agent, user_message, session_id, progress_callback=send_progress)
+                    response, traces = await run_agent_async(
+                        agent, user_message, session_id,
+                        progress_callback=send_progress,
+                        cancel_event=cancel_event
+                    )
 
                     # Send reasoning traces if any (for Reasoning tab visualization)
                     if traces:
@@ -4222,10 +4278,16 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                                 "timestamp": datetime.now().isoformat()
                             })
 
-                    # Send agent response
+                    # Get token statistics if available
+                    token_stats = None
+                    if hasattr(agent, 'get_token_stats'):
+                        token_stats = agent.get_token_stats()
+
+                    # Send agent response with token stats
                     await websocket.send_json({
                         "type": "agent_message",
                         "message": response,
+                        "token_stats": token_stats,
                         "timestamp": datetime.now().isoformat()
                     })
 
