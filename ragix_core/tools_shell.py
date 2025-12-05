@@ -93,12 +93,15 @@ class ShellSandbox:
             (is_blocked, reason)
         """
         if self._matches_any(cmd, DANGEROUS_PATTERNS):
-            return True, "Blocked by hard safety policy."
+            # Show what was blocked (truncate long commands)
+            cmd_preview = cmd[:80] + "..." if len(cmd) > 80 else cmd
+            return True, f"Blocked by hard safety policy: `{cmd_preview}`"
 
         # Git destructive commands: only allowed if explicitly confirmed at startup
         if self._matches_any(cmd, GIT_DESTRUCTIVE_PATTERNS):
             if not self.allow_git_destructive:
-                return True, "Blocked by git-destructive policy."
+                cmd_preview = cmd[:80] + "..." if len(cmd) > 80 else cmd
+                return True, f"Blocked by git-destructive policy: `{cmd_preview}`"
 
         return False, ""
 

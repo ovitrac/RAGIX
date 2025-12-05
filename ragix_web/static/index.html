@@ -968,7 +968,7 @@
         <header class="header">
             <div class="header-left">
                 <h1>RAGIX</h1>
-                <span class="version">v0.23.0</span>
+                <span class="version" id="app-version">v...</span>
             </div>
             <div class="header-right">
                 <span id="status" class="status status-disconnected">Disconnected</span>
@@ -1125,6 +1125,21 @@
                                         <div class="info-row">
                                             <span class="label">Reasoning</span>
                                             <span id="reasoningStrategy" class="value short">-</span>
+                                        </div>
+                                        <!-- Model Info (v0.32.1 - dynamic from Ollama API) -->
+                                        <div class="model-info-row" id="modelInfoRow">
+                                            <div class="model-info-item" title="Model quantization level">
+                                                <span class="model-info-label">Quant</span>
+                                                <span id="modelQuantization" class="model-info-value">-</span>
+                                            </div>
+                                            <div class="model-info-item" title="VRAM usage">
+                                                <span class="model-info-label">VRAM</span>
+                                                <span id="modelVram" class="model-info-value">-</span>
+                                            </div>
+                                            <div class="model-info-item" title="Parameter count">
+                                                <span class="model-info-label">Size</span>
+                                                <span id="modelParamSize" class="model-info-value">-</span>
+                                            </div>
                                         </div>
                                         <!-- Context Window Indicator -->
                                         <div class="context-window-indicator" id="contextWindowIndicator">

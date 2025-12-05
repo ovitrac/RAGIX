@@ -220,6 +220,12 @@ from .agent_config import (
     get_model_context_limit,
     get_model_info,
 )
+from .ollama_client import (
+    OllamaClient,
+    ModelInfo,
+    get_ollama_client,
+    get_dynamic_context_limit,
+)
 from .reasoning import (
     TaskComplexity,
     EpisodeEntry,

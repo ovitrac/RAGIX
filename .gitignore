@@ -178,8 +178,11 @@ QUICKSTART_CLAUDE_CODE.md
 FORREVIEW_*
 REVIEW_*
 .session*
+SESSION_SUMMARY.md
+import_statements.txt
 
 # RAGIX runtime data (caches, logs, indexes)
 .ragix/
 .ragix_cache/
 .agent_logs/
+.trash/

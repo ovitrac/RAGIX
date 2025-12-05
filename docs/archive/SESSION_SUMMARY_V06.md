@@ -443,7 +443,6 @@ Implemented 8 major features (~6,800 lines):
 New CLI tools: ragix-web, ragix-index, ragix-batch, ragix-vault
 Optional dependencies: web, retrieval, vault, ci
 
-🤖 Generated with Claude Code
 "
 ```
 

@@ -244,9 +244,7 @@ chmod +x test_swe_tools.sh
    - Add automated test suite (9 tests)
    - Maintain 100% backward compatibility
 
-   🤖 Generated with Claude Code (https://claude.com/claude-code)
-
-   Co-Authored-By: Claude <noreply@anthropic.com>"
+"
    ```
 
 4. **Optional: Tag Release**

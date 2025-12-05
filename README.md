@@ -16,7 +16,7 @@
 ---
 
 **Version:** 0.32.1 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Updated:** 2025-12-04
+**Updated:** 2025-12-05
 
 ---
 
@@ -54,6 +54,10 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 | **File Drop Zone** | Drag & drop files with PDF/DOCX conversion support |
 | **Interrupt Reasoning** | Stop button to abort long-running reasoning sessions |
 | **Token Counter** | Real-time display of prompt/completion tokens and throughput |
+| **Dynamic Version Display** | Version loaded from server API instead of hardcoded |
+| **VRAM Display** | Shows actual VRAM when model is loaded, estimated (`~`) otherwise |
+| **Model Info Panel** | Quantization, VRAM, and parameter size in sidebar |
+| **Fixed Context Tracking** | Context counter now updates correctly after model changes |
 
 ### v0.32.x Highlights (Latest)
 

@@ -155,19 +155,20 @@ class ReasoningGraph:
             node = self.nodes[current]
             logger.debug(f"Executing node: {current}")
 
-            # Emit progress BEFORE node runs
-            desc = node_descriptions.get(current, f"Processing: {current}")
-            self._emit_progress(current, desc, {"iteration": iterations, "node": current})
+            # Emit progress BEFORE node runs (skip CLASSIFY - will emit after with result)
+            if current != "CLASSIFY":
+                desc = node_descriptions.get(current, f"Processing: {current}")
+                self._emit_progress(current, desc, {"iteration": iterations, "node": current})
 
             try:
                 state, next_node = node.run(state)
 
-                # Emit progress AFTER node completes with results
+                # Emit single classification progress AFTER completion (no success badge)
                 if current == "CLASSIFY" and state.complexity:
                     self._emit_progress(
-                        "classification_complete",
+                        "classification",
                         f"📊 Task classified as: {state.complexity.value}",
-                        {"complexity": state.complexity.value}
+                        {"complexity": state.complexity.value, "status": "info"}
                     )
 
                 # Emit plan details after PLAN node generates the plan
@@ -202,16 +203,42 @@ class ReasoningGraph:
                                 last_step = s
                         if last_step:
                             status_icon = "✅" if last_step.status.value == "success" else "❌"
-                            result_preview = ""
-                            if last_step.result:
-                                result_preview = last_step.result[:100].replace('\n', ' ')
-                                if len(last_step.result) > 100:
-                                    result_preview += "..."
-                            self._emit_progress(
-                                "step_complete",
-                                f"  {status_icon} Step {last_step.num} complete{': ' + result_preview if result_preview else ''}",
-                                {"step_num": last_step.num, "status": last_step.status.value, "result": last_step.result[:500] if last_step.result else ""}
-                            )
+                            # For failed steps, show error info; for success, show result preview
+                            if last_step.status.value == "failed":
+                                error_msg = last_step.error or last_step.stderr or "Unknown error"
+                                error_preview = error_msg[:150].replace('\n', ' ')
+                                if len(error_msg) > 150:
+                                    error_preview += "..."
+                                msg = f"  ❌ Step {last_step.num} failed: {error_preview}"
+                                metadata = {
+                                    "step_num": last_step.num,
+                                    "status": "failed",
+                                    "error": error_msg[:500],
+                                    "returncode": last_step.returncode
+                                }
+                            else:
+                                result_preview = ""
+                                if last_step.result:
+                                    result_preview = last_step.result[:100].replace('\n', ' ')
+                                    if len(last_step.result) > 100:
+                                        result_preview += "..."
+                                # If no result, show step description or command
+                                if not result_preview:
+                                    # Try to show what was done
+                                    if hasattr(last_step, 'command') and last_step.command:
+                                        cmd_preview = last_step.command[:60] + "..." if len(last_step.command) > 60 else last_step.command
+                                        result_preview = f"[{cmd_preview}]"
+                                    elif hasattr(last_step, 'description') and last_step.description:
+                                        result_preview = last_step.description[:80]
+                                msg = f"  ✅ Step {last_step.num} complete{': ' + result_preview if result_preview else ''}"
+                                metadata = {
+                                    "step_num": last_step.num,
+                                    "status": "success",
+                                    "result": last_step.result[:500] if last_step.result else "",
+                                    "command": getattr(last_step, 'command', None),
+                                    "description": getattr(last_step, 'description', None)
+                                }
+                            self._emit_progress("step_complete", msg, metadata)
 
                     # If there's a next step pending
                     if completed + failed < total:
@@ -283,16 +310,19 @@ class ClassifyNode(BaseNode):
         if any(kw in goal_lower for kw in conversational):
             return TaskComplexity.SIMPLE
 
-        # Complex indicators
+        # Complex indicators (v0.32.1 - added audit, quality, analyze, etc.)
         complex_keywords = [
             "and then", "after that", "multiple", "several",
             "refactor", "implement", "create", "fix bug",
             "largest", "smallest", "find and", "search and",
+            # v0.32.1: Multi-step analysis patterns
+            "audit", "quality", "analyze", "code smell", "potential",
+            "complex", " and ", "summarize",
         ]
         if any(kw in goal_lower for kw in complex_keywords):
             return TaskComplexity.COMPLEX
 
-        # Simple indicators
+        # Simple indicators (only if no complex indicators)
         simple_keywords = [
             "what is", "where is", "show me", "display",
             "read", "cat", "grep", "pwd", "ls",

@@ -43,8 +43,26 @@ class RAGIXApp {
         // Load session info
         this.loadSessionInfo();
 
+        // Load app version from server
+        this.loadAppVersion();
+
         // Show welcome message
         this.addSystemMessage('Welcome to RAGIX Web UI! Type a message to start.');
+    }
+
+    async loadAppVersion() {
+        try {
+            const response = await fetch('/api/health');
+            if (response.ok) {
+                const data = await response.json();
+                const versionEl = document.getElementById('app-version');
+                if (versionEl && data.version) {
+                    versionEl.textContent = `v${data.version}`;
+                }
+            }
+        } catch (error) {
+            console.log('Could not load app version:', error);
+        }
     }
 
     connect() {
@@ -117,7 +135,10 @@ class RAGIXApp {
             case 'agent_message':
                 this.hideThinking();
                 this.addAgentMessage(message, timestamp, data.token_stats);
-                // Update context window after receiving response
+                // Force refresh model info to get actual VRAM (model is now loaded)
+                // Clear cache to force re-fetch with ?refresh=true
+                this._modelInfoCache = null;
+                // Update context window after receiving response (also refreshes model info)
                 this.updateContextWindow();
                 break;
 
@@ -147,6 +168,13 @@ class RAGIXApp {
                 // Handle streaming progress updates
                 if (data.event) {
                     this.handleProgressUpdate(data.event);
+                    // Update context window periodically during reasoning
+                    // Throttle to avoid excessive API calls (every 5 seconds)
+                    const now = Date.now();
+                    if (!this._lastContextUpdate || now - this._lastContextUpdate > 5000) {
+                        this._lastContextUpdate = now;
+                        this.updateContextWindow();
+                    }
                 }
                 break;
 
@@ -314,7 +342,7 @@ class RAGIXApp {
         };
         const icon = icons[type] || '📌';
 
-        // Determine status badge
+        // Determine status badge (info = no badge, just informational)
         let statusBadge = '';
         const status = metadata.status || (type === 'error' ? 'failed' : 'success');
         if (status === 'success') {
@@ -324,6 +352,7 @@ class RAGIXApp {
         } else if (status === 'cancelled') {
             statusBadge = '<span class="status-badge status-warning">⛔ Cancelled</span>';
         }
+        // status === 'info' → no badge (informational only)
 
         // Build result preview if available
         let resultPreview = '';
@@ -663,9 +692,15 @@ class RAGIXApp {
     async updateContextWindow() {
         try {
             const response = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/context-window`);
-            if (!response.ok) return;
+            if (!response.ok) {
+                console.log(`[Context] Failed to fetch: ${response.status} for session ${this.sessionId}`);
+                return;
+            }
 
             const data = await response.json();
+
+            // Update model info (VRAM, quantization, size) - v0.32.1
+            await this.updateModelInfo(data.model);
 
             // Update text display
             const usageText = document.getElementById('contextUsageText');
@@ -712,6 +747,78 @@ class RAGIXApp {
             }
         } catch (error) {
             console.error('Failed to update context window:', error);
+        }
+    }
+
+    // v0.32.1: Update model info display (VRAM, quantization, size)
+    async updateModelInfo(modelName) {
+        if (!modelName) return;
+
+        // Cache key to avoid redundant API calls
+        // BUT: if cache shows estimated VRAM (vram_gb=0), re-fetch to check if model is now loaded
+        const cacheValid = this._lastModelInfoName === modelName &&
+                          this._modelInfoCache &&
+                          this._modelInfoCache.vram_gb > 0;  // Only use cache if we have actual VRAM
+
+        if (cacheValid) {
+            this._displayModelInfo(this._modelInfoCache);
+            return;
+        }
+
+        try {
+            // Force refresh in two cases:
+            // 1. Cache was cleared (null) - likely after agent response to get actual VRAM
+            // 2. Previous cache had estimated VRAM (vram_gb === 0)
+            const cacheWasCleared = !this._modelInfoCache;
+            const hadEstimatedVram = this._modelInfoCache &&
+                                     this._modelInfoCache.vram_gb !== undefined &&
+                                     this._modelInfoCache.vram_gb === 0;
+            const forceRefresh = cacheWasCleared || hadEstimatedVram;
+            const url = `/api/ollama/model/${encodeURIComponent(modelName)}${forceRefresh ? '?refresh=true' : ''}`;
+            const response = await fetch(url);
+            if (!response.ok) return;
+
+            const data = await response.json();
+            if (!data.available || !data.model) return;
+
+            // Cache the result
+            this._lastModelInfoName = modelName;
+            this._modelInfoCache = data.model;
+
+            this._displayModelInfo(data.model);
+        } catch (error) {
+            console.error('Failed to fetch model info:', error);
+        }
+    }
+
+    _displayModelInfo(info) {
+        const quantEl = document.getElementById('modelQuantization');
+        const vramEl = document.getElementById('modelVram');
+        const sizeEl = document.getElementById('modelParamSize');
+
+        if (quantEl) {
+            quantEl.textContent = info.quantization || '-';
+            quantEl.title = `Quantization: ${info.quantization || 'Unknown'}`;
+        }
+
+        if (vramEl) {
+            if (info.vram_gb > 0) {
+                // Model is loaded - show actual VRAM
+                vramEl.textContent = `${info.vram_gb.toFixed(1)}G`;
+                vramEl.title = `VRAM usage: ${info.vram_gb.toFixed(2)} GB (loaded)`;
+            } else if (info.size_gb > 0) {
+                // Model not loaded - estimate from disk size (close approximation for quantized)
+                vramEl.textContent = `~${info.size_gb.toFixed(1)}G`;
+                vramEl.title = `VRAM estimate: ~${info.size_gb.toFixed(1)} GB (model not loaded yet)`;
+            } else {
+                vramEl.textContent = '-';
+                vramEl.title = 'VRAM: Not available';
+            }
+        }
+
+        if (sizeEl) {
+            sizeEl.textContent = info.parameter_size || '-';
+            sizeEl.title = `Parameters: ${info.parameter_size || 'Unknown'}`;
         }
     }
 
@@ -803,7 +910,7 @@ class RAGIXApp {
         if (!container) return;
 
         if (entries.length === 0) {
-            container.innerHTML = '<p style="color: var(--text-secondary); font-size: 12px;">No episodes yet</p>';
+            container.innerHTML = '<p style="color: var(--text-secondary); font-size: 12px;">No memories yet. Send a message to start building memory.</p>';
             return;
         }
 
@@ -1240,15 +1347,28 @@ ${(entry.open_questions || []).map(q => `- ${q}`).join('\n') || 'None'}
     }
 
     async saveSettings() {
-        const sessionId = document.getElementById('sessionIdInput').value;
+        // Prevent double-clicks / concurrent calls
+        if (this._savingSettings) {
+            console.log('saveSettings: already in progress, ignoring');
+            return;
+        }
+        this._savingSettings = true;
+
+        const sessionId = document.getElementById('sessionIdInput').value || this.sessionId;
         const sandbox = document.getElementById('sandboxInput').value;
         const model = document.getElementById('modelInput').value;
         const profile = document.getElementById('profileInput').value;
 
         try {
-            // Create new session
-            const response = await fetch('/api/sessions', {
-                method: 'POST',
+            // Update existing session (PUT) or create new one (POST)
+            const isNewSession = sessionId !== this.sessionId;
+            const method = isNewSession ? 'POST' : 'PUT';
+            const url = isNewSession ? '/api/sessions' : `/api/sessions/${encodeURIComponent(this.sessionId)}`;
+
+            console.log(`saveSettings: ${method} ${url} (isNew=${isNewSession}, input=${sessionId}, current=${this.sessionId})`);
+
+            const response = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     sandbox_root: sandbox,
@@ -1257,21 +1377,35 @@ ${(entry.open_questions || []).map(q => `- ${q}`).join('\n') || 'None'}
                 })
             });
 
-            const data = await response.json();
-            this.sessionId = data.session_id;
-
-            // Reconnect
-            if (this.ws) {
-                this.ws.close();
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
-            this.connect();
+
+            const data = await response.json();
+
+            // Clear model info cache so VRAM updates
+            this._lastModelInfoName = null;
+            this._modelInfoCache = null;
+
+            if (isNewSession) {
+                this.sessionId = data.session_id;
+                // Reconnect only if new session
+                if (this.ws) {
+                    this.ws.close();
+                }
+                this.connect();
+            }
+
             this.loadSessionInfo();
             this.closeSettings();
 
-            this.addSystemMessage('Settings updated. Reconnected.');
+            this.addSystemMessage(`Settings ${isNewSession ? 'saved' : 'updated'}. Model: ${model}`);
         } catch (error) {
             console.error('Failed to save settings:', error);
-            this.addSystemMessage('Failed to update settings.', 'error');
+            this.addSystemMessage(`Failed to update settings: ${error.message}`, 'error');
+        } finally {
+            this._savingSettings = false;
         }
     }
 

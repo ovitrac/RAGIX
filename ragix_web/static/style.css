@@ -504,10 +504,38 @@ body {
     font-weight: 500;
 }
 
+/* Model Info Row (v0.32.1 - VRAM/Quantization) */
+.model-info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    padding: 8px 0;
+    border-top: 1px solid var(--border-color);
+}
+.model-info-item {
+    text-align: center;
+    flex: 1;
+}
+.model-info-label {
+    display: block;
+    font-size: 9px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+.model-info-value {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-blue);
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
 /* Context Window Indicator */
 .context-window-indicator {
-    margin-top: 12px;
-    padding-top: 12px;
+    margin-top: 8px;
+    padding-top: 8px;
     border-top: 1px solid var(--border-color);
 }
 

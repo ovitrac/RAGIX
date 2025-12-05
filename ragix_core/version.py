@@ -20,7 +20,7 @@ VERSION_PATCH = 1
 VERSION_SUFFIX = ""  # e.g., "alpha", "beta", "rc1", ""
 
 # Build metadata
-BUILD_DATE = "2025-12-04"
+BUILD_DATE = "2025-12-05"
 BUILD_AUTHOR = "Olivier Vitrac, PhD, HDR"
 BUILD_EMAIL = "olivier.vitrac@adservio.fr"
 BUILD_ORG = "Adservio"

@@ -23,6 +23,7 @@ class Profile(str, Enum):
 
 # Hard safety denylist (never allowed in any profile)
 DANGEROUS_PATTERNS: List[str] = [
+    # System destruction
     r"rm\s+-rf\s+/",
     r"rm\s+-rf\s+\.\s*$",
     r"mkfs\.",
@@ -30,6 +31,31 @@ DANGEROUS_PATTERNS: List[str] = [
     r"shutdown\b",
     r"reboot\b",
     r":\s*(){",  # fork-bomb style
+
+    # Package managers (v0.32.1: prevent unauthorized installs)
+    r"\bpip\s+install\b",
+    r"\bpip3\s+install\b",
+    r"\bconda\s+install\b",
+    r"\bnpm\s+install\b",
+    r"\byarn\s+add\b",
+    r"\bapt\s+install\b",
+    r"\bapt-get\s+install\b",
+    r"\byum\s+install\b",
+    r"\bdnf\s+install\b",
+    r"\bbrew\s+install\b",
+    r"\bcargo\s+install\b",
+    r"\bgem\s+install\b",
+
+    # Sudo/privilege escalation
+    r"\bsudo\b",
+    r"\bsu\s+-\b",
+    r"\bsu\s+root\b",
+
+    # Network exfiltration
+    r"\bcurl\b.*\|\s*sh",
+    r"\bwget\b.*\|\s*sh",
+    r"\bcurl\b.*\|\s*bash",
+    r"\bwget\b.*\|\s*bash",
 ]
 
 # Git-destructive commands: blocked unless explicitly allowed

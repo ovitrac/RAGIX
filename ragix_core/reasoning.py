@@ -522,6 +522,7 @@ class ReasoningLoop:
             "find and", "search and", "list and",
             " and find", " and search", " and list",
             "largest", "smallest", "biggest", "most", "least",
+            "audit", "quality", "analyze", "code smell", "potential",
         ]
 
         # Check for explicit multi-step indicators
@@ -545,9 +546,11 @@ class ReasoningLoop:
                 return TaskComplexity.COMPLEX
             return TaskComplexity.SIMPLE
 
-        # "find" alone is simple
+        # "find" alone is simple, but "find X and Y" or "find" with complex modifiers is complex
         if "find" in input_lower:
-            if " and " in input_lower:
+            # Check for complex modifiers that indicate multi-step analysis
+            complex_modifiers = [" and ", "audit", "analyze", "complex", "potential", "quality", "smell", "refactor", "summarize"]
+            if any(mod in input_lower for mod in complex_modifiers):
                 return TaskComplexity.COMPLEX
             return TaskComplexity.SIMPLE
 
@@ -1282,9 +1285,12 @@ class GraphReasoningLoop:
                     step.stdout = getattr(result, 'stdout', '')
                     step.stderr = getattr(result, 'stderr', '')
                     step.result = step.stdout
+                    step.command = cmd  # Store command for error reporting
                     step.status = self._StepStatus.SUCCESS if result.returncode == 0 else self._StepStatus.FAILED
                     if step.status == self._StepStatus.FAILED:
-                        step.error = step.stderr or f"Command failed with code {result.returncode}"
+                        # Include command in error for transparency
+                        cmd_preview = cmd[:60] + "..." if len(cmd) > 60 else cmd
+                        step.error = f"`{cmd_preview}` → {step.stderr or f'exit code {result.returncode}'}"
                     return step
 
             # Fallback: Execute via the provided function (agent step)
@@ -1298,7 +1304,17 @@ class GraphReasoningLoop:
                     step.stdout = cmd_result.stdout
                     step.stderr = getattr(cmd_result, 'stderr', '')
                     step.returncode = cmd_result.returncode
+                    # Store command if available for error reporting
+                    cmd = getattr(cmd_result, 'command', None)
+                    if cmd:
+                        step.command = cmd
                     step.status = self._StepStatus.SUCCESS if cmd_result.returncode == 0 else self._StepStatus.FAILED
+                    if step.status == self._StepStatus.FAILED:
+                        if cmd:
+                            cmd_preview = cmd[:60] + "..." if len(cmd) > 60 else cmd
+                            step.error = f"`{cmd_preview}` → {step.stderr or f'exit code {cmd_result.returncode}'}"
+                        else:
+                            step.error = step.stderr or f"Command failed with code {cmd_result.returncode}"
                 elif cmd_result is None:
                     # No command result, check if message is a JSON action we should execute
                     msg_stripped = (message or "").strip()
@@ -1321,31 +1337,49 @@ class GraphReasoningLoop:
 
                             if action.get("action") == "bash" and action.get("command"):
                                 # Execute the bash command directly
+                                cmd = action["command"]
+                                step.command = cmd  # Store for error reporting
                                 if self.shell_executor:
-                                    shell_result = self.shell_executor.run(action["command"])
+                                    shell_result = self.shell_executor.run(cmd)
                                     step.result = shell_result.stdout
                                     step.stdout = shell_result.stdout
                                     step.stderr = shell_result.stderr
                                     step.returncode = shell_result.returncode
                                     step.status = self._StepStatus.SUCCESS if shell_result.returncode == 0 else self._StepStatus.FAILED
+                                    if step.status == self._StepStatus.FAILED:
+                                        cmd_preview = cmd[:60] + "..." if len(cmd) > 60 else cmd
+                                        step.error = f"`{cmd_preview}` → {step.stderr or f'exit code {shell_result.returncode}'}"
                                 else:
-                                    step.result = f"Command: {action['command']} (shell not available)"
+                                    step.result = f"Command: {cmd} (shell not available)"
                                     step.status = self._StepStatus.SUCCESS
                             elif action.get("action") == "bash_and_respond":
                                 # Execute command and use message
                                 if self.shell_executor and action.get("command"):
-                                    shell_result = self.shell_executor.run(action["command"])
+                                    cmd = action["command"]
+                                    step.command = cmd  # Store for error reporting
+                                    shell_result = self.shell_executor.run(cmd)
                                     step.result = shell_result.stdout or action.get("message", "")
                                     step.stdout = shell_result.stdout
                                     step.stderr = shell_result.stderr
                                     step.returncode = shell_result.returncode
                                     step.status = self._StepStatus.SUCCESS if shell_result.returncode == 0 else self._StepStatus.FAILED
+                                    if step.status == self._StepStatus.FAILED:
+                                        cmd_preview = cmd[:60] + "..." if len(cmd) > 60 else cmd
+                                        step.error = f"`{cmd_preview}` → {step.stderr or f'exit code {shell_result.returncode}'}"
                                 else:
                                     step.result = action.get("message", "")
                                     step.status = self._StepStatus.SUCCESS
                             elif action.get("action") == "respond":
-                                step.result = action.get("message", "")
-                                step.status = self._StepStatus.SUCCESS
+                                # LLM responded with text instead of executing - mark as incomplete
+                                msg_text = action.get("message", "")
+                                # Check if this is just explanation (no actual execution)
+                                if any(kw in msg_text.lower() for kw in ["let's", "we need to", "the objective", "here are the steps", "to do this"]):
+                                    step.result = f"[LLM explanation - no command executed]: {msg_text[:200]}"
+                                    step.error = "LLM provided explanation instead of executing command"
+                                    step.status = self._StepStatus.FAILED
+                                else:
+                                    step.result = msg_text
+                                    step.status = self._StepStatus.SUCCESS
                             else:
                                 step.result = message or ""
                                 step.status = self._StepStatus.SUCCESS
@@ -1354,24 +1388,37 @@ class GraphReasoningLoop:
                             import re
                             cmd_match = re.search(r'["\']command["\']\s*:\s*["\']([^"\']+)["\']', msg_stripped)
                             if cmd_match and self.shell_executor:
+                                cmd = cmd_match.group(1)
+                                step.command = cmd  # Store for error reporting
                                 try:
-                                    shell_result = self.shell_executor.run(cmd_match.group(1))
+                                    shell_result = self.shell_executor.run(cmd)
                                     step.result = shell_result.stdout
                                     step.stdout = shell_result.stdout
                                     step.stderr = shell_result.stderr
                                     step.returncode = shell_result.returncode
                                     step.status = self._StepStatus.SUCCESS if shell_result.returncode == 0 else self._StepStatus.FAILED
-                                except Exception:
+                                    if step.status == self._StepStatus.FAILED:
+                                        cmd_preview = cmd[:60] + "..." if len(cmd) > 60 else cmd
+                                        step.error = f"`{cmd_preview}` → {step.stderr or f'exit code {shell_result.returncode}'}"
+                                except Exception as e:
                                     step.result = message or ""
-                                    step.status = self._StepStatus.SUCCESS
+                                    step.status = self._StepStatus.FAILED
+                                    cmd_preview = cmd[:60] + "..." if len(cmd) > 60 else cmd
+                                    step.error = f"`{cmd_preview}` → {str(e)}"
                             else:
                                 step.result = message or ""
                                 step.status = self._StepStatus.SUCCESS
                     else:
-                        step.result = message or ""
-                        step.status = self._StepStatus.SUCCESS
+                        # No JSON action - check if this is explanation text
+                        if message and any(kw in message.lower() for kw in ["let's", "we need to", "the objective", "here are the steps", "to do this"]):
+                            step.result = f"[LLM explanation - no command executed]: {message[:200]}"
+                            step.error = "LLM provided explanation instead of executing command"
+                            step.status = self._StepStatus.FAILED
+                        else:
+                            step.result = message or ""
+                            step.status = self._StepStatus.SUCCESS
                     step.stdout = step.result
-                    step.returncode = 0
+                    step.returncode = 0 if step.status == self._StepStatus.SUCCESS else 1
                 else:
                     # cmd_result is some other object - try to get stdout or use message
                     step.result = message or getattr(cmd_result, 'stdout', '') or ""
@@ -1384,9 +1431,17 @@ class GraphReasoningLoop:
                 step.stdout = getattr(result, 'stdout', '')
                 step.stderr = getattr(result, 'stderr', '')
                 step.result = step.stdout
+                # Store command if available for error reporting
+                cmd = getattr(result, 'command', None)
+                if cmd:
+                    step.command = cmd
                 step.status = self._StepStatus.SUCCESS if result.returncode == 0 else self._StepStatus.FAILED
                 if step.status == self._StepStatus.FAILED:
-                    step.error = step.stderr or f"Command failed with code {result.returncode}"
+                    if cmd:
+                        cmd_preview = cmd[:60] + "..." if len(cmd) > 60 else cmd
+                        step.error = f"`{cmd_preview}` → {step.stderr or f'exit code {result.returncode}'}"
+                    else:
+                        step.error = step.stderr or f"Command failed with code {result.returncode}"
             elif hasattr(result, 'stdout'):
                 # Object with stdout attribute
                 step.result = result.stdout
@@ -1504,6 +1559,7 @@ class GraphReasoningLoop:
             # Map node names to trace types
             trace_type_map = {
                 "CLASSIFY": "classification",
+                "classification": "classification",  # Already lowercase from graph
                 "PLAN": "planning",
                 "plan_ready": "plan_ready",
                 "EXECUTE": "execution",
@@ -1617,7 +1673,12 @@ class GraphReasoningLoop:
                 return TaskComplexity.BYPASS
 
         # COMPLEX: Multi-step operations
-        if any(kw in input_lower for kw in ["and then", "refactor", "implement", "largest", "analyze"]):
+        complex_indicators = [
+            "and then", "refactor", "implement", "largest", "analyze",
+            "audit", "quality", "code smell", "potential", "complex",
+            " and ", "multiple", "several",
+        ]
+        if any(kw in input_lower for kw in complex_indicators):
             return TaskComplexity.COMPLEX
 
         # SIMPLE: Direct queries, single commands

@@ -1,8 +1,46 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-12-04 (v0.32.1 - Memory Management UI & Reasoning Integration)
+**Updated:** 2025-12-05 (v0.32.1 - Dynamic Model Info & Context Fixes)
 **Reference:** See `PLAN_v0.30_REASONING.md` for full implementation plan
 **Review:** See `REVIEW_current_reasoning_towardsv0.30.md` for colleague feedback
+
+---
+
+## Session Completed (2025-12-05 - v0.32.1)
+
+### Dynamic Model Info & Context Counter Fix
+
+| Task | Status |
+|------|--------|
+| **Ollama API Client** - New `ragix_core/ollama_client.py` with caching | ✅ Done |
+| **Dynamic Context Limits** - Fetch from Ollama `/api/show` instead of hardcoded | ✅ Done |
+| **VRAM Display** - Show VRAM usage from `/api/ps` in sidebar | ✅ Done |
+| **Quantization Display** - Show model quantization (Q4_K_M, etc.) in sidebar | ✅ Done |
+| **Parameter Size Display** - Show model size (7B, 14B, etc.) in sidebar | ✅ Done |
+| **Context Counter Fix** - Now shows current context size, not cumulative tokens | ✅ Done |
+| **API Caching** - 5min TTL for model details, 30s for running models | ✅ Done |
+| **Classification Bug Fix** - Tasks with "audit", "quality", "analyze" now properly classified as COMPLEX | ✅ Fixed |
+
+**Key Files Created/Modified:**
+- `ragix_core/ollama_client.py` - NEW: `OllamaClient` class with `get_model_info()`, `get_running_models()`, caching
+- `ragix_core/__init__.py` - Export `OllamaClient`, `ModelInfo`, `get_ollama_client`, `get_dynamic_context_limit`
+- `ragix_web/server.py` - NEW endpoints: `/api/ollama/running`, `/api/ollama/model/{name}`; Fixed `/api/sessions/{id}/context-window` to use history estimate
+- `ragix_web/static/app.js` - `updateModelInfo()`, `_displayModelInfo()` methods with caching
+- `ragix_web/static/index.html` - Model info row with Quant/VRAM/Size display
+- `ragix_web/static/style.css` - `.model-info-row`, `.model-info-item`, `.model-info-value` styles
+
+**Features:**
+- Sidebar now shows: Quant (e.g., Q4_K_M), VRAM (e.g., 4.2G), Size (e.g., 7B)
+- Context indicator shows **current** context size (what would be sent to LLM)
+- After compaction, context counter properly resets to reflect reduced history
+- API caching reduces Ollama API calls
+- Graceful fallback to hardcoded limits if Ollama API unavailable
+
+**API Endpoints:**
+```
+GET /api/ollama/running     # Running models with VRAM usage
+GET /api/ollama/model/{name}  # Detailed model info (quantization, context, etc.)
+```
 
 ---
 
@@ -175,16 +213,53 @@
 | **Memory Context in Reasoning** - Show episodic memory in Reasoning tab | 3h | ✅ Done |
 | **RAG Context Display** - Show which RAG chunks are retrieved and used | 4h | Pending |
 
-### Priority 5: Session Persistence (v0.32)
+### Priority 5: Dynamic Model Info & Context Fixes (v0.32.1) — ✅ COMPLETED
+
+**Problem:** Model context limits are hardcoded. Context counter doesn't reset after compaction. No VRAM/quantization info.
 
 | Task | Effort | Status |
 |------|--------|--------|
-| **Session Save/Restore** - Persist full session state to disk | 4h | Pending |
-| **Session List UI** - Show previous sessions with timestamps | 3h | Pending |
-| **Resume Session** - Load and continue previous conversation | 2h | Pending |
-| **Session Export** - Export as markdown/JSON | 2h | Pending |
+| **Ollama API Integration** - Fetch model info from `/api/ps` and `/api/show` | 3h | ✅ Done |
+| **Dynamic Context Limits** - Cache and use actual model context size | 2h | ✅ Done |
+| **VRAM Usage Display** - Show memory usage in sidebar/settings | 2h | ✅ Done |
+| **Quantization Info** - Display model quantization (Q4_K_M, Q8, F16, etc.) | 1h | ✅ Done |
+| **Fix Context Reset** - Context shows current size, not cumulative | 1h | ✅ Fixed |
+| **Fix SIMPLE Classification** - "audit", "quality", "analyze" now trigger COMPLEX | 0.5h | ✅ Fixed |
+| **File Context Management** - UI to summarize or remove files from context | 4h | Pending |
 
-### Priority 6: Git & Diff Integration (v0.32)
+**Ollama API Reference:**
+```bash
+curl http://localhost:11434/api/ps          # Running models, VRAM usage
+curl http://localhost:11434/api/show -d '{"name":"mistral"}'  # Model details, quantization
+```
+
+### Priority 6: Session & Thread Management (v0.33) — FROM REVIEW 2025-12-05
+
+**Problem:** RAGIX feels stateless. Can't create threads. Unclear memory lifecycle between sessions.
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **Thread Creation UI** - Create new conversation threads | 4h | Pending |
+| **Thread Switching** - Switch between active threads in sidebar | 3h | Pending |
+| **Thread Persistence** - Save/restore thread state to disk | 4h | Pending |
+| **Session Export** - Export conversation as markdown/JSON | 2h | Pending |
+| **Global Context Editor** - Edit user profile, project context ("who I am") | 4h | Pending |
+| **Episodic Memory Clarity** - UI to show active vs archived, session binding | 3h | Pending |
+
+### Priority 7: RAG System Management (v0.33) — FROM REVIEW 2025-12-05
+
+**Problem:** RAG activation unclear. No way to manage, feed, or sanitize the index independently.
+
+| Task | Effort | Status |
+|------|--------|--------|
+| **RAG Activation UI** - Toggle switch and status indicator | 3h | Pending |
+| **RAG Index Browser** - View indexed documents and chunks | 4h | Pending |
+| **RAG Feed Interface** - Add documents to index (independent of LLM) | 4h | Pending |
+| **RAG Sanitize/Rebuild** - Remove/update documents, rebuild index | 3h | Pending |
+| **RAG Context Display** - Show retrieved chunks during reasoning | 4h | Pending |
+| **RAG Documentation** - How it works, when activated, how to configure | 2h | Pending |
+
+### Priority 8: Git & Diff Integration (v0.34)
 
 | Task | Effort | Status |
 |------|--------|--------|
@@ -193,7 +268,7 @@
 | **Commit History Browser** - Select commits to compare | 3h | Pending |
 | **Change Summary** - AI-generated summary of changes | 2h | Pending |
 
-### Priority 7: CLI & IDE Integration (v0.33)
+### Priority 9: CLI & IDE Integration (v0.35)
 
 | Task | Effort | Status |
 |------|--------|--------|
@@ -204,7 +279,7 @@
 | **VS Code Extension** - RAGIX sidebar panel | 16h | Pending |
 | **VS Code Commands** - Ask RAGIX about selection, file, project | 8h | Pending |
 
-### Priority 8: Semantic Task Classification (v0.34) — Internationalization
+### Priority 10: Semantic Task Classification (v0.36) — Internationalization
 
 **Problem:** Current task classification uses English keyword matching, which:
 - Fails for non-English queries (French, German, Spanish, etc.)

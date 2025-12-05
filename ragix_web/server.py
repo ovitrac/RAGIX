@@ -12,10 +12,14 @@ import asyncio
 import argparse
 import subprocess
 import threading
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple, Callable, Awaitable
 from datetime import datetime
 import json
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 try:
     from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File
@@ -432,6 +436,92 @@ async def get_ollama_models():
         }
 
 
+@app.get("/api/ollama/running")
+async def get_ollama_running():
+    """
+    Get currently running/loaded models with VRAM usage from Ollama API.
+
+    Uses /api/ps endpoint with caching (30s TTL).
+    """
+    try:
+        from ragix_core import get_ollama_client
+        client = get_ollama_client()
+
+        if not client.is_available():
+            return {
+                "available": False,
+                "error": "Ollama server not available",
+                "models": []
+            }
+
+        models = client.get_running_models()
+        return {
+            "available": True,
+            "models": models,
+            "count": len(models),
+            "cache_stats": client.get_cache_stats()
+        }
+    except Exception as e:
+        logger.error(f"Error getting running models: {e}")
+        return {
+            "available": False,
+            "error": str(e),
+            "models": []
+        }
+
+
+@app.get("/api/ollama/model/{model_name:path}")
+async def get_ollama_model_info(model_name: str, refresh: bool = False):
+    """
+    Get detailed model information including VRAM, quantization, context size.
+
+    Uses /api/show and /api/ps with caching (5min TTL for details, 30s for VRAM).
+
+    Args:
+        model_name: Model name (e.g., "mistral:latest")
+        refresh: Force refresh from API
+    """
+    try:
+        from ragix_core import get_ollama_client, get_model_context_limit
+        client = get_ollama_client()
+
+        if not client.is_available():
+            return {
+                "available": False,
+                "error": "Ollama server not available",
+                "model": None
+            }
+
+        info = client.get_model_info(model_name, force_refresh=refresh)
+
+        # Include fallback context limit if not from API
+        fallback_context = get_model_context_limit(model_name)
+
+        return {
+            "available": True,
+            "model": {
+                "name": info.name,
+                "family": info.family,
+                "parameter_size": info.parameter_size,
+                "quantization": info.quantization,
+                "context_length": info.context_length if info.context_length > 0 else fallback_context,
+                "context_source": "ollama_api" if info.context_length > 0 else "hardcoded",
+                "size_gb": round(info.size_gb, 2),
+                "vram_gb": round(info.vram_gb, 2),
+                "vram_bytes": info.vram_bytes,
+                "expires_at": info.expires_at,
+            },
+            "cache_stats": client.get_cache_stats()
+        }
+    except Exception as e:
+        logger.error(f"Error getting model info for {model_name}: {e}")
+        return {
+            "available": False,
+            "error": str(e),
+            "model": None
+        }
+
+
 @app.get("/api/sessions")
 async def list_sessions():
     """List all active sessions."""
@@ -490,6 +580,51 @@ async def create_session(request: SessionCreateRequest):
         "sandbox_root": sandbox_root,
         "model": model,
         "profile": profile
+    }
+
+
+@app.put("/api/sessions/{session_id}")
+async def update_session(session_id: str, request: SessionCreateRequest):
+    """Update session configuration (model, profile, etc.)."""
+    logger.info(f"PUT /api/sessions/{session_id}: model={request.model}, profile={request.profile}")
+    if session_id not in active_sessions:
+        # Create session if it doesn't exist (e.g., "default")
+        active_sessions[session_id] = {
+            "id": session_id,
+            "sandbox_root": LAUNCH_DIRECTORY,
+            "model": "qwen2.5:7b",
+            "profile": "dev",
+            "created_at": datetime.now().isoformat(),
+            "message_history": []
+        }
+
+    session = active_sessions[session_id]
+
+    # Update fields if provided
+    if request.model:
+        old_model = session.get("model", "")
+        session["model"] = request.model
+        # Clear cached agent if model changed (force recreation)
+        if old_model != request.model and session_id in session_agents:
+            del session_agents[session_id]
+            logger.info(f"Session {session_id}: Model changed from {old_model} to {request.model}, agent cleared")
+
+    if request.profile:
+        session["profile"] = request.profile
+
+    if request.sandbox_root:
+        # Validate sandbox
+        sandbox = os.path.expanduser(request.sandbox_root)
+        sandbox = os.path.abspath(sandbox)
+        if sandbox.startswith(LAUNCH_DIRECTORY):
+            session["sandbox_root"] = sandbox
+
+    return {
+        "status": "updated",
+        "session_id": session_id,
+        "model": session.get("model"),
+        "profile": session.get("profile"),
+        "sandbox_root": session.get("sandbox_root")
     }
 
 
@@ -723,13 +858,25 @@ async def get_context_window_status(session_id: str):
     context_limit = get_model_context_limit(model)
     model_info = get_model_info(model)
 
-    # Get token stats from agent if available
+    # Get token usage from agent
+    # Use cumulative tokens since reasoning loop tracks tokens via _update_token_stats
+    # but doesn't update the agent's history directly
     tokens_used = 0
-    if session_id in session_agents:
+    cumulative_tokens = 0
+    history_estimate = 0
+    agent_found = session_id in session_agents
+    if agent_found:
         agent = session_agents[session_id]
+        # Get cumulative token stats (primary metric for reasoning)
         if hasattr(agent, 'get_token_stats'):
             stats = agent.get_token_stats()
-            tokens_used = stats.get("total_tokens", 0)
+            cumulative_tokens = stats.get("total_tokens", 0)
+        # Get history-based estimate as fallback
+        if hasattr(agent, 'get_history_token_estimate'):
+            history_estimate = agent.get_history_token_estimate()
+        # Use the higher of cumulative tokens or history estimate
+        # This covers both reasoning mode (cumulative) and simple mode (history)
+        tokens_used = max(cumulative_tokens, history_estimate + 500)
 
     # Calculate usage
     tokens_available = max(0, context_limit - tokens_used)
@@ -743,7 +890,8 @@ async def get_context_window_status(session_id: str):
         "model": model,
         "model_info": model_info,
         "context_limit": context_limit,
-        "tokens_used": tokens_used,
+        "tokens_used": tokens_used,  # Current context size
+        "tokens_cumulative": cumulative_tokens,  # Total tokens sent this session
         "tokens_available": tokens_available,
         "usage_percent": round(usage_percent, 1),
         "warning_threshold": warning_threshold,
@@ -837,8 +985,9 @@ async def get_episodic_memory(session_id: str, limit: int = 50, offset: int = 0)
     Returns:
         List of episodic memory entries (newest first)
     """
+    # Return empty list if agent not initialized yet (no messages sent)
     if session_id not in session_agents:
-        raise HTTPException(status_code=404, detail="Session not found")
+        return {"entries": [], "total": 0, "stats": {}, "message": "No memories yet - send a message first"}
 
     agent = session_agents[session_id]
 
@@ -869,13 +1018,14 @@ async def search_episodic_memory(session_id: str, q: str, limit: int = 20):
         q: Search query
         limit: Max results (default: 20)
     """
+    # Return empty results if agent not initialized yet (no messages sent)
     if session_id not in session_agents:
-        raise HTTPException(status_code=404, detail="Session not found")
+        return {"results": [], "query": q, "count": 0, "message": "No memories yet - send a message first"}
 
     agent = session_agents[session_id]
 
     if not hasattr(agent, '_episodic_memory') or agent._episodic_memory is None:
-        return {"results": [], "query": q}
+        return {"results": [], "query": q, "count": 0}
 
     memory = agent._episodic_memory
     results = memory.search_entries(q, limit=limit)
@@ -4355,6 +4505,7 @@ def get_or_create_agent(session: Dict[str, Any]) -> UnixRAGAgent:
         agent._resolved_model = model_to_use  # Actually used model
 
         session_agents[session_id] = agent
+        logger.debug(f"Created agent for session={session_id}, model={model_to_use}")
 
         # Determine mode for logging
         agent_mode = agent_config.mode.value if agent_config else "minimal"
@@ -4369,6 +4520,76 @@ def get_or_create_agent(session: Dict[str, Any]) -> UnixRAGAgent:
         })
 
     return session_agents[session_id]
+
+
+def _build_timeout_summary(accumulated_traces: List[Dict]) -> str:
+    """Build a useful summary from accumulated traces on timeout/interruption."""
+    if not accumulated_traces:
+        return ""
+
+    parts = ["\n\n**What was accomplished:**\n"]
+
+    # Extract successful steps with their results
+    successful_steps = []
+    failed_steps = []
+
+    for trace in accumulated_traces:
+        trace_type = trace.get("type", "")
+        metadata = trace.get("metadata", {})
+        content = trace.get("content", "")
+
+        if trace_type == "step_complete":
+            step_num = metadata.get("step_num", "?")
+            status = metadata.get("status", "")
+
+            if status == "success":
+                result = metadata.get("result", "")[:200]
+                successful_steps.append((step_num, result))
+            elif status == "failed":
+                error = metadata.get("error", "Unknown error")[:100]
+                failed_steps.append((step_num, error))
+
+    # Show successful steps (filter out LLM explanations)
+    if successful_steps:
+        real_results = []
+        llm_chatter = []
+        for step_num, result in successful_steps:
+            # Detect LLM explanation vs actual output
+            is_chatter = result and any(kw in result.lower() for kw in [
+                "the objective", "let's", "we need to", "here are the steps",
+                "to do this", "assuming", "we will use", "let me"
+            ])
+            if is_chatter:
+                llm_chatter.append(step_num)
+            elif result:
+                real_results.append((step_num, result))
+            else:
+                real_results.append((step_num, "(no output)"))
+
+        if real_results:
+            parts.append("✅ **Completed steps with output:**\n")
+            for step_num, result in real_results:
+                parts.append(f"- Step {step_num}: {result[:100]}{'...' if len(result) > 100 else ''}\n")
+
+        if llm_chatter:
+            parts.append(f"\n⚠️ **Steps with LLM explanation only (no execution):** {', '.join(map(str, llm_chatter))}\n")
+
+    # Show failed steps with reasons
+    if failed_steps:
+        parts.append("\n❌ **Failed steps:**\n")
+        for step_num, error in failed_steps:
+            parts.append(f"- Step {step_num}: {error}\n")
+
+    # If no step info, fall back to last few traces
+    if not successful_steps and not failed_steps:
+        parts = ["\n\n**Progress before timeout:**\n"]
+        for trace in accumulated_traces[-5:]:
+            trace_type = trace.get("type", "unknown")
+            content = trace.get("content", "")[:100]
+            trace_elapsed = trace.get("elapsed", 0)
+            parts.append(f"- [{trace_elapsed:.1f}s] {trace_type}: {content}\n")
+
+    return "".join(parts)
 
 
 async def run_agent_async(
@@ -4433,9 +4654,8 @@ async def run_agent_async(
             if hasattr(agent._reasoning_loop, 'set_progress_callback'):
                 agent._reasoning_loop.set_progress_callback(trace_callback)
 
-            # Also classify task and emit initial progress
-            complexity = agent._reasoning_loop.classify_task(message)
-            emit_progress("classification", f"Task classified as: {complexity.value}", {"complexity": complexity.value})
+            # Note: Classification progress is emitted by the reasoning graph itself
+            # Don't emit here to avoid duplicates
 
         # Use reasoning-enabled step
         # Note: traces are emitted in real-time via trace_callback (set above)
@@ -4545,15 +4765,8 @@ async def run_agent_async(
     except asyncio.CancelledError:
         elapsed = time.time() - start_time
 
-        # Build partial results message for cancellation
-        partial_info = ""
-        if accumulated_traces:
-            partial_info = "\n\n**Progress before interruption:**\n"
-            for trace in accumulated_traces[-5:]:  # Show last 5 events
-                trace_type = trace.get("type", "unknown")
-                content = trace.get("content", "")[:100]
-                trace_elapsed = trace.get("elapsed", 0)
-                partial_info += f"- [{trace_elapsed:.1f}s] {trace_type}: {content}\n"
+        # Build detailed partial results from accumulated traces
+        partial_info = _build_timeout_summary(accumulated_traces)
 
         result_text = f"⛔ **Reasoning interrupted** after {elapsed:.1f}s\n\nThe request was cancelled by user.{partial_info}"
         traces = accumulated_traces + [{"type": "cancelled", "content": f"Request cancelled after {elapsed:.1f}s", "timestamp": datetime.now().isoformat()}]
@@ -4561,15 +4774,8 @@ async def run_agent_async(
     except asyncio.TimeoutError:
         elapsed = time.time() - start_time
 
-        # Build partial results message
-        partial_info = ""
-        if accumulated_traces:
-            partial_info = "\n\n**Partial progress before timeout:**\n"
-            for trace in accumulated_traces[-5:]:  # Show last 5 events
-                trace_type = trace.get("type", "unknown")
-                content = trace.get("content", "")[:100]
-                trace_elapsed = trace.get("elapsed", 0)
-                partial_info += f"- [{trace_elapsed:.1f}s] {trace_type}: {content}\n"
+        # Build detailed partial results from accumulated traces
+        partial_info = _build_timeout_summary(accumulated_traces)
 
         result_text = f"⏱️ **Request timed out** after {elapsed:.1f}s\n\nThe LLM took too long to respond. This can happen with complex queries. Try:\n- Simplifying your question\n- Breaking it into smaller steps\n- Checking if Ollama is responsive (`ollama list`){partial_info}"
         traces = accumulated_traces + [{"type": "timeout", "content": f"Request timed out after {elapsed:.1f}s", "timestamp": datetime.now().isoformat()}]
@@ -4648,6 +4854,9 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
 
             if message_type == "chat":
                 user_message = data.get("message", "")
+
+                # Re-fetch agent in case model changed (agent may have been invalidated)
+                agent = get_or_create_agent(session)
 
                 # Reset cancellation event for new request
                 if session_id in session_cancellation:
