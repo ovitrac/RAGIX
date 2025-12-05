@@ -236,6 +236,9 @@ class ReasoningState:
     # Trace for debugging
     node_trace: List[str] = field(default_factory=list)
 
+    # v0.33: Conversation context for continuity
+    conversation_context: str = ""
+
     def record_node_visit(self, node_name: str):
         """Record visiting a node for trace."""
         self.node_trace.append(f"{datetime.utcnow().isoformat()}:{node_name}")

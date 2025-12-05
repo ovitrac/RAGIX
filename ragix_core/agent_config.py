@@ -338,6 +338,9 @@ class AgentConfig:
         verifier_model: LLM model for Verifier agent
         strict_enforcement: If True, validate models meet size requirements
         fallback_model: Model to use if assigned model unavailable
+        context_max_turns: Max conversation turns to include in context (v0.33)
+        context_user_limit: Max chars per user message in context (v0.33)
+        context_assistant_limit: Max chars per assistant message in context (v0.33)
     """
     mode: AgentMode = AgentMode.MINIMAL
     planner_model: str = DEFAULT_MODEL
@@ -345,6 +348,10 @@ class AgentConfig:
     verifier_model: str = DEFAULT_MODEL
     strict_enforcement: bool = False
     fallback_model: str = DEFAULT_MODEL
+    # v0.33: Context limits for conversation history
+    context_max_turns: int = 5
+    context_user_limit: int = 500
+    context_assistant_limit: int = 2000
 
     def get_model(self, role: AgentRole) -> str:
         """

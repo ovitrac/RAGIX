@@ -27,6 +27,11 @@ Your job: Decide if the user's request requires running shell commands or file o
 
 ## Decision Rules (CRITICAL - follow exactly)
 
+0. **RAG CONTEXT RULE (HIGHEST PRIORITY)**:
+   If the goal contains "📚 DOCUMENT CONTEXT" or "from RAG Index":
+   → Use BYPASS. The document content is ALREADY PROVIDED. No shell commands needed.
+   → The user is asking about pre-indexed documents, not files on disk.
+
 1. Does the request require READING or INSPECTING actual files on disk?
    → If YES: Use SIMPLE, MODERATE, or COMPLEX (NOT BYPASS)
    → If NO (pure explanation/concept): Use BYPASS
@@ -42,9 +47,10 @@ Your job: Decide if the user's request requires running shell commands or file o
 
 ## Complexity Levels
 
-- **BYPASS**: Pure conceptual questions. NO file/directory references.
+- **BYPASS**: Pure conceptual questions OR questions with RAG context already provided.
   YES: "What is cyclomatic complexity?", "Explain dependency injection"
-  NO: "How many files..." or "Find..." or any path reference
+  YES: Any question that includes "📚 DOCUMENT CONTEXT" (answer from the provided content!)
+  NO: "How many files..." or "Find..." without RAG context
 
 - **SIMPLE**: 1-2 shell commands. Single directory or file operation.
   Examples: "List Python files in src/", "Show first 20 lines of main.py"
@@ -62,7 +68,8 @@ Your job: Decide if the user's request requires running shell commands or file o
 ## Your Answer
 
 Reply with exactly ONE word: BYPASS, SIMPLE, MODERATE, or COMPLEX.
-If unsure between BYPASS and SIMPLE, choose SIMPLE (safer to use tools)."""
+If the goal contains "📚 DOCUMENT CONTEXT", ALWAYS answer BYPASS.
+If unsure between BYPASS and SIMPLE (without RAG context), choose SIMPLE."""
 
 
 # =============================================================================
@@ -239,10 +246,19 @@ The user is asking a question that does NOT require running tools or editing fil
 
 ## Your Task
 
-Provide a clear, concise answer. Use:
-- 1-2 paragraphs for explanations
-- Bullet points for lists
-- Code blocks for examples
+Provide a clear, concise answer based on the information available:
+
+1. **If "📚 DOCUMENT CONTEXT" is provided above:**
+   - Answer ONLY based on the document content provided
+   - Summarize key points from the documents
+   - Reference specific sections when relevant
+   - Do NOT try to access files or use shell commands
+
+2. **If no document context is provided:**
+   - Answer based on your knowledge
+   - Use 1-2 paragraphs for explanations
+   - Use bullet points for lists
+   - Use code blocks for examples
 
 ## Output Format
 
@@ -255,7 +271,7 @@ Return valid JSON:
 ```
 
 Estimate confidence (0.0-1.0):
-- High (0.8-1.0): Standard, well-documented topics
+- High (0.8-1.0): Standard topics or questions with RAG context provided
 - Medium (0.5-0.8): Topics with some ambiguity
 - Low (0.0-0.5): Uncertain or speculative answers"""
 

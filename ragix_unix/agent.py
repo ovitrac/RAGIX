@@ -574,6 +574,10 @@ CONVERSATION TO SUMMARIZE:
             result, msg = self.step(user_text)
             return result, msg, []
 
+        # v0.33: Pass conversation history to reasoning loop for context continuity
+        if hasattr(self._reasoning_loop, 'set_conversation_history'):
+            self._reasoning_loop.set_conversation_history(self.history)
+
         # Record the goal in episodic memory
         self._episodic_memory.record_goal(user_text)
 

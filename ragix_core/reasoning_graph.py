@@ -396,7 +396,14 @@ class PlanNode(BaseNode):
 
     def _build_planning_prompt(self, state: ReasoningState) -> str:
         """Build the planning prompt with reflection context if available."""
-        prompt_parts = [f"USER REQUEST:\n{state.goal}"]
+        prompt_parts = []
+
+        # v0.33: Add conversation context for continuity
+        if state.conversation_context:
+            prompt_parts.append(state.conversation_context)
+            prompt_parts.append("")  # Empty line separator
+
+        prompt_parts.append(f"USER REQUEST:\n{state.goal}")
 
         # Add reflection context if replanning
         if state.reflection_attempts:

@@ -108,6 +108,7 @@ body {
 .main-layout {
     display: flex;
     flex: 1;
+    min-height: 0;  /* Critical: allows flex child to shrink */
     overflow: hidden;
     position: relative;
 }
@@ -115,15 +116,39 @@ body {
 /* Sidebar */
 .sidebar {
     width: 280px;
-    min-width: 280px;
-    max-width: 280px;
+    min-width: 200px;
+    max-width: 600px;
+    height: 100%;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    transition: width 0.3s ease, min-width 0.3s ease, max-width 0.3s ease;
+    transition: none;
     overflow: hidden;
     position: relative;
+}
+
+/* v0.33: Resizable sidebar */
+.sidebar.resizing {
+    transition: none !important;
+    user-select: none;
+}
+
+.sidebar-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 6px;
+    height: 100%;
+    cursor: ew-resize;
+    background: transparent;
+    z-index: 101;
+    transition: background 0.2s;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle.active {
+    background: var(--accent-blue);
 }
 
 .sidebar.collapsed {
@@ -132,6 +157,10 @@ body {
     max-width: 0 !important;
     padding: 0;
     border-right: none;
+}
+
+.sidebar.collapsed .sidebar-resize-handle {
+    display: none;
 }
 
 .sidebar-toggle {
@@ -158,6 +187,7 @@ body {
 
 .sidebar-inner {
     flex: 1;
+    min-height: 0;  /* Critical: allows flex child to shrink and scroll */
     overflow-y: auto;
     overflow-x: hidden;
     padding: 16px;
@@ -3145,4 +3175,405 @@ body {
     padding: 20px;
     color: var(--text-secondary);
     font-size: 13px;
+}
+
+/* Thread Explorer (v0.33) */
+.threads-explorer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.thread-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.thread-actions .btn-primary {
+    flex: 1;
+    font-size: 11px;
+    padding: 6px 10px;
+}
+
+.thread-list {
+    max-height: 180px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.thread-item {
+    padding: 8px 10px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.thread-item:hover {
+    background: var(--bg-secondary);
+}
+
+.thread-item.active {
+    border-left-color: var(--accent-blue);
+    background: rgba(79, 195, 247, 0.15);
+}
+
+.thread-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.thread-item-name {
+    font-size: 12px;
+    color: var(--text-primary);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+.thread-item-count {
+    font-size: 10px;
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 20px;
+    text-align: center;
+}
+
+.thread-item-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.thread-item-time {
+    color: var(--text-secondary);
+}
+
+.thread-item-actions {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
+    gap: 2px;
+}
+
+.thread-item:hover .thread-item-actions {
+    display: flex;
+}
+
+.thread-item-btn {
+    padding: 2px 6px;
+    border: none;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    transition: all 0.2s;
+}
+
+.thread-item-btn:hover {
+    background: var(--accent-red);
+    color: white;
+}
+
+.thread-item-btn.export:hover {
+    background: var(--accent-green);
+}
+
+.thread-empty {
+    text-align: center;
+    padding: 15px 10px;
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+
+/* RAG Explorer (v0.33) */
+.rag-explorer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.rag-status {
+    padding: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+}
+
+.rag-toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.rag-toggle-label {
+    font-size: 12px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    width: 36px;
+    height: 20px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    transition: 0.3s;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 2px;
+    bottom: 2px;
+    background-color: var(--text-secondary);
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+input:checked + .toggle-slider {
+    background-color: rgba(102, 187, 106, 0.3);
+    border-color: var(--accent-green);
+}
+
+input:checked + .toggle-slider:before {
+    background-color: var(--accent-green);
+    transform: translateX(16px);
+}
+
+.rag-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rag-stats .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+}
+
+.rag-stats .stat-label {
+    color: var(--text-secondary);
+}
+
+.rag-stats .stat-value {
+    color: var(--accent-blue);
+    font-weight: 500;
+    font-size: 10px;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.rag-stats .stat-value.loaded {
+    color: var(--accent-green);
+}
+
+.rag-stats .stat-value.not-loaded {
+    color: var(--text-secondary);
+}
+
+.rag-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.rag-actions .btn {
+    font-size: 11px;
+    padding: 6px 8px;
+}
+
+.rag-actions .btn-primary {
+    background: var(--accent-blue);
+    color: white;
+    flex-basis: 100%;
+    margin-bottom: 2px;
+}
+
+.rag-actions .btn-primary:hover {
+    background: var(--accent-blue-dark, #1a73c7);
+}
+
+/* v0.33: RAG Config */
+.rag-config {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 6px;
+    background: var(--bg-primary);
+    border-radius: 4px;
+}
+
+.rag-config .config-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+}
+
+.rag-config label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.config-input-small {
+    width: 60px;
+    padding: 3px 5px;
+    font-size: 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    color: var(--text-primary);
+}
+
+.config-input-small:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+/* v0.33: Converter options row */
+.rag-config {
+    flex-wrap: wrap;
+}
+
+.converter-row {
+    flex-basis: 100%;
+    margin-top: 4px;
+}
+
+.converter-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 10px;
+    cursor: pointer;
+    margin-left: 4px;
+}
+
+.converter-option input[type="checkbox"] {
+    width: 12px;
+    height: 12px;
+    cursor: pointer;
+    accent-color: var(--accent-blue);
+}
+
+.rag-hint {
+    margin-top: 6px;
+    text-align: center;
+}
+
+.rag-hint small {
+    font-size: 9px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* v0.33: Global Context Editor */
+.context-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.context-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.context-hint {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.context-textarea {
+    width: 100%;
+    min-height: 60px;
+    max-height: 150px;
+    padding: 8px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.context-textarea:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+.context-textarea::placeholder {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.context-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.context-char-count {
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+
+.context-char-count.warning {
+    color: var(--accent-yellow);
+}
+
+.context-char-count.error {
+    color: var(--accent-red);
+}
+
+.context-actions .btn {
+    font-size: 10px;
+    padding: 4px 10px;
 }

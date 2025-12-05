@@ -22,6 +22,38 @@ from .agent_config import AgentConfig, AgentMode, AgentRole, get_agent_persona
 from .knowledge_base import get_knowledge_base, KnowledgeBase
 
 
+def _compress_repeated_chars(text: str, min_repeat: int = 10) -> str:
+    """
+    Compress repeated character sequences to reduce token usage.
+
+    v0.33: Efficiency improvement for light LLMs.
+
+    Examples:
+        "===========" -> "=[x11]"
+        "------------" -> "-[x12]"
+        "aaaaaaaaaaaaa" -> "a[x13]"
+
+    Args:
+        text: Input text to compress
+        min_repeat: Minimum repetition length to compress (default 10)
+
+    Returns:
+        Text with repeated sequences compressed
+    """
+    if not text:
+        return text
+
+    # Pattern to find repeated characters (at least min_repeat times)
+    pattern = re.compile(r'(.)\1{' + str(min_repeat - 1) + r',}')
+
+    def replace_repeated(match):
+        char = match.group(1)
+        length = len(match.group(0))
+        return f"{char}[x{length}]"
+
+    return pattern.sub(replace_repeated, text)
+
+
 class TaskComplexity(Enum):
     """Task complexity levels."""
     BYPASS = "bypass"      # Pure conceptual/conversational, no tools needed
@@ -451,6 +483,69 @@ class ReasoningLoop:
     reasoning_traces: List[Dict[str, Any]] = field(default_factory=list)
     current_plan: Optional[Plan] = None
     knowledge_base: KnowledgeBase = field(default_factory=get_knowledge_base)
+    # v0.33: Conversation history reference for context
+    _conversation_history: List[Dict[str, str]] = field(default_factory=list)
+
+    def set_conversation_history(self, history: List[Dict[str, str]]):
+        """Set the conversation history reference for context."""
+        self._conversation_history = history
+
+    def _format_conversation_context(self, max_turns: int = None) -> str:
+        """
+        Format recent conversation history as context for planning.
+
+        v0.33: Includes compression to reduce token usage:
+        - Removes duplicate lines
+        - Compresses repeated character sequences (>10 chars)
+        - Truncates long messages (configurable via agent_config)
+
+        Args:
+            max_turns: Override for max turns (uses agent_config if None)
+        """
+        if not self._conversation_history:
+            return ""
+
+        # Get limits from config (with defaults)
+        if max_turns is None:
+            max_turns = getattr(self.agent_config, 'context_max_turns', 5)
+        user_limit = getattr(self.agent_config, 'context_user_limit', 500)
+        assistant_limit = getattr(self.agent_config, 'context_assistant_limit', 2000)
+
+        # Get last N turns (user + assistant pairs)
+        recent = self._conversation_history[-(max_turns * 2):]
+        if not recent:
+            return ""
+
+        lines = ["[RECENT CONVERSATION]"]
+        seen_lines = set()  # For deduplication
+
+        for msg in recent:
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")
+
+            # Compress repeated character sequences (>10 chars)
+            content = _compress_repeated_chars(content)
+
+            # Truncate long messages (configurable limits)
+            max_len = assistant_limit if role == "assistant" else user_limit
+            if len(content) > max_len:
+                content = content[:max_len] + "..."
+
+            # Deduplicate lines within the message
+            msg_lines = content.split('\n')
+            unique_lines = []
+            for line in msg_lines:
+                line_stripped = line.strip()
+                if line_stripped and line_stripped not in seen_lines:
+                    seen_lines.add(line_stripped)
+                    unique_lines.append(line)
+                elif not line_stripped:
+                    unique_lines.append(line)  # Keep empty lines for structure
+
+            content = '\n'.join(unique_lines)
+            lines.append(f"{role.upper()}: {content}")
+
+        return "\n".join(lines)
 
     def _add_trace(self, trace_type: str, content: str, metadata: Optional[Dict] = None):
         """Add a reasoning trace for visualization (internal)."""
@@ -893,7 +988,10 @@ Output ONLY the [VERIFY] block.
             keywords=user_input.split()[:5]
         )
 
-        context = f"{session_context}\n{historical_context}".strip()
+        # v0.33: Include conversation history for context continuity
+        conversation_context = self._format_conversation_context(max_turns=5)
+
+        context = f"{conversation_context}\n{session_context}\n{historical_context}".strip()
 
         if complexity == TaskComplexity.SIMPLE:
             # Check for conversational queries that don't need agent execution
@@ -1259,9 +1357,73 @@ class GraphReasoningLoop:
         # Progress callback for streaming updates (set externally)
         self._progress_callback: Optional[callable] = None
 
+        # v0.33: Conversation history reference for context continuity
+        self._conversation_history: List[Dict[str, str]] = []
+
         # Create graph lazily
         self._graph: Optional[ReasoningGraph] = None
         self._create_graph = create_reasoning_graph
+
+    def set_conversation_history(self, history: List[Dict[str, str]]):
+        """Set the conversation history reference for context."""
+        self._conversation_history = history
+
+    def _format_conversation_context(self, max_turns: int = None) -> str:
+        """
+        Format recent conversation history as context for planning.
+
+        v0.33: Includes compression to reduce token usage:
+        - Removes duplicate lines
+        - Compresses repeated character sequences (>10 chars)
+        - Truncates long messages (configurable via agent_config)
+
+        Args:
+            max_turns: Override for max turns (uses agent_config if None)
+        """
+        if not self._conversation_history:
+            return ""
+
+        # Get limits from config (with defaults)
+        if max_turns is None:
+            max_turns = getattr(self.agent_config, 'context_max_turns', 5)
+        user_limit = getattr(self.agent_config, 'context_user_limit', 500)
+        assistant_limit = getattr(self.agent_config, 'context_assistant_limit', 2000)
+
+        # Get last N turns (user + assistant pairs)
+        recent = self._conversation_history[-(max_turns * 2):]
+        if not recent:
+            return ""
+
+        lines = ["[RECENT CONVERSATION]"]
+        seen_lines = set()  # For deduplication
+
+        for msg in recent:
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")
+
+            # Compress repeated character sequences (>10 chars)
+            content = _compress_repeated_chars(content)
+
+            # Truncate long messages (configurable limits)
+            max_len = assistant_limit if role == "assistant" else user_limit
+            if len(content) > max_len:
+                content = content[:max_len] + "..."
+
+            # Deduplicate lines within the message
+            msg_lines = content.split('\n')
+            unique_lines = []
+            for line in msg_lines:
+                line_stripped = line.strip()
+                if line_stripped and line_stripped not in seen_lines:
+                    seen_lines.add(line_stripped)
+                    unique_lines.append(line)
+                elif not line_stripped:
+                    unique_lines.append(line)  # Keep empty lines for structure
+
+            content = '\n'.join(unique_lines)
+            lines.append(f"{role.upper()}: {content}")
+
+        return "\n".join(lines)
 
     def _emit_event(self, event) -> None:
         """Emit event to experience corpus."""
@@ -1539,10 +1701,14 @@ class GraphReasoningLoop:
         # Create session ID
         session_id = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{os.getpid()}"
 
+        # v0.33: Include conversation history for context continuity
+        conversation_context = self._format_conversation_context(max_turns=5)
+
         # Create initial state
         state = ReasoningState(
             goal=user_input,
             session_id=session_id,
+            conversation_context=conversation_context,
         )
 
         # Create step executor that captures execute_fn

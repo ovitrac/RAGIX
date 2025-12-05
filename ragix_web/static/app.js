@@ -46,6 +46,15 @@ class RAGIXApp {
         // Load app version from server
         this.loadAppVersion();
 
+        // Load threads (v0.33)
+        this.loadThreads();
+
+        // Load RAG status (v0.33)
+        this.loadRagStatus();
+
+        // Initialize global context editor (v0.33)
+        this.initGlobalContext();
+
         // Show welcome message
         this.addSystemMessage('Welcome to RAGIX Web UI! Type a message to start.');
     }
@@ -126,6 +135,11 @@ class RAGIXApp {
 
             case 'thinking':
                 this.showThinking(message, data.cancellable !== false);
+                break;
+
+            case 'rag_context':
+                // v0.33: Show RAG retrieval notification
+                this.addSystemMessage(message, 'info');
                 break;
 
             case 'cancel_ack':
@@ -458,10 +472,24 @@ class RAGIXApp {
         // Get file context if files are attached
         const fileContext = this.getFileContextForMessage();
 
-        // Build full message with file context
+        // v0.33: Get global context
+        const globalContext = this.getGlobalContext();
+
+        // Build full message with context
         let fullMessage = message;
+
+        // Add global context if present
+        if (globalContext) {
+            fullMessage = `[USER INSTRUCTIONS]\n${globalContext}\n\n[REQUEST]\n${message}`;
+        }
+
+        // Add file context if present
         if (fileContext) {
-            fullMessage = `[Attached files for context]\n\n${fileContext}\n\n[User question]\n${message}`;
+            if (globalContext) {
+                fullMessage = `[USER INSTRUCTIONS]\n${globalContext}\n\n[ATTACHED FILES]\n${fileContext}\n\n[REQUEST]\n${message}`;
+            } else {
+                fullMessage = `[ATTACHED FILES]\n${fileContext}\n\n[REQUEST]\n${message}`;
+            }
         }
 
         // Send to server
@@ -1108,6 +1136,12 @@ ${(entry.open_questions || []).map(q => `- ${q}`).join('\n') || 'None'}
                 continue;
             }
 
+            // v0.33: Handle archives separately - offer to index to RAG
+            if (fileInfo.isArchive) {
+                this.handleArchiveFile(file, fileInfo);
+                continue;
+            }
+
             // Add to pending files
             const fileData = {
                 file: file,
@@ -1148,27 +1182,115 @@ ${(entry.open_questions || []).map(q => `- ${q}`).join('\n') || 'None'}
         }
     }
 
+    /**
+     * v0.33: Handle archive files (ZIP, TAR) - upload to RAG indexer
+     */
+    async handleArchiveFile(file, fileInfo) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        this.addSystemMessage(`📦 Archive detected: ${file.name} (${sizeMB} MB). Uploading to RAG index...`, 'info');
+
+        // Get chunk parameters from UI
+        const chunkSize = parseInt(document.getElementById('ragChunkSize')?.value || '1000', 10);
+        const chunkOverlap = parseInt(document.getElementById('ragChunkOverlap')?.value || '200', 10);
+
+        // Get converter settings from UI
+        const pdfEnabled = document.getElementById('ragPdfEnabled')?.checked ?? true;
+        const pandocEnabled = document.getElementById('ragPandocEnabled')?.checked ?? true;
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('session_id', this.sessionId);
+            formData.append('chunk_size', chunkSize.toString());
+            formData.append('chunk_overlap', chunkOverlap.toString());
+            formData.append('pdf_enabled', pdfEnabled.toString());
+            formData.append('pandoc_enabled', pandocEnabled.toString());
+
+            const response = await fetch('/api/rag/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Upload failed');
+            }
+
+            const result = await response.json();
+            const converted = result.files_converted || 0;
+            const convertedInfo = converted > 0 ? ` | Converted: ${converted}` : '';
+            this.addSystemMessage(
+                `✅ Indexed ${result.files_indexed || 0} files from ${file.name}\n` +
+                `   Chunks: ${result.chunks_created || 0} | Skipped: ${result.files_skipped || 0}${convertedInfo}`,
+                'success'
+            );
+
+            // Refresh RAG status
+            await this.loadRagStatus();
+
+        } catch (error) {
+            this.addSystemMessage(`❌ Failed to index ${file.name}: ${error.message}`, 'error');
+        }
+    }
+
     getFileInfo(file) {
         const ext = file.name.split('.').pop().toLowerCase();
-        const textExtensions = ['txt', 'md', 'py', 'js', 'ts', 'jsx', 'tsx', 'json', 'yaml', 'yml',
-                               'xml', 'html', 'css', 'scss', 'sh', 'bash', 'sql', 'csv', 'log',
-                               'ini', 'cfg', 'conf', 'toml', 'env', 'gitignore', 'dockerfile'];
+
+        // v0.33: Extended file type support including code files and archives
+        const textExtensions = [
+            // General text
+            'txt', 'md', 'rst', 'log', 'csv',
+            // Config files
+            'json', 'yaml', 'yml', 'xml', 'toml', 'ini', 'cfg', 'conf', 'env', 'properties',
+            // Web
+            'html', 'htm', 'css', 'scss', 'less',
+            // JavaScript/TypeScript
+            'js', 'ts', 'jsx', 'tsx', 'mjs', 'cjs', 'vue', 'svelte',
+            // Python
+            'py', 'pyw', 'pyx', 'pxd', 'pyi',
+            // Java/JVM
+            'java', 'kt', 'kts', 'groovy', 'gradle', 'scala',
+            // C/C++
+            'c', 'h', 'cpp', 'hpp', 'cc', 'hh', 'cxx', 'hxx',
+            // Shell/Scripts
+            'sh', 'bash', 'zsh', 'fish', 'ps1', 'bat', 'cmd',
+            // MATLAB/Octave
+            'm', 'mat',
+            // Build/Project files
+            'pom', 'makefile', 'cmake', 'dockerfile', 'vagrantfile',
+            // SQL
+            'sql', 'ddl', 'dml',
+            // Other languages
+            'rb', 'php', 'go', 'rs', 'swift', 'r', 'jl', 'lua', 'pl', 'pm',
+            // Git
+            'gitignore', 'gitattributes', 'gitmodules',
+        ];
+
         const conversionExtensions = ['pdf', 'docx', 'doc', 'odt', 'rtf'];
+
+        // v0.33: Archive extensions for RAG indexing
+        const archiveExtensions = ['zip', 'tar', 'gz', 'tgz'];
 
         const icons = {
             'py': '🐍', 'js': '📜', 'ts': '📘', 'json': '📋', 'yaml': '📄', 'yml': '📄',
             'md': '📝', 'txt': '📄', 'html': '🌐', 'css': '🎨', 'sql': '🗃️',
             'pdf': '📕', 'docx': '📘', 'doc': '📘', 'odt': '📗',
-            'sh': '🖥️', 'bash': '🖥️', 'csv': '📊'
+            'sh': '🖥️', 'bash': '🖥️', 'csv': '📊',
+            'java': '☕', 'kt': '🟣', 'xml': '📰', 'pom': '📦',
+            'm': '📐', 'c': '⚙️', 'cpp': '⚙️', 'h': '⚙️',
+            'go': '🐹', 'rs': '🦀', 'rb': '💎', 'php': '🐘',
+            'zip': '📦', 'tar': '📦', 'gz': '📦', 'tgz': '📦',
         };
 
         if (textExtensions.includes(ext)) {
-            return { supported: true, type: 'text', icon: icons[ext] || '📄', needsConversion: false };
+            return { supported: true, type: 'text', icon: icons[ext] || '📄', needsConversion: false, isArchive: false };
         } else if (conversionExtensions.includes(ext)) {
-            return { supported: true, type: ext, icon: icons[ext] || '📄', needsConversion: true };
+            return { supported: true, type: ext, icon: icons[ext] || '📄', needsConversion: true, isArchive: false };
+        } else if (archiveExtensions.includes(ext)) {
+            return { supported: true, type: 'archive', icon: icons[ext] || '📦', needsConversion: false, isArchive: true };
         }
 
-        return { supported: false, type: 'unknown', icon: '❓', needsConversion: false };
+        return { supported: false, type: 'unknown', icon: '❓', needsConversion: false, isArchive: false };
     }
 
     readFileAsText(file) {
@@ -1679,6 +1801,618 @@ ${(entry.open_questions || []).map(q => `- ${q}`).join('\n') || 'None'}
         } else {
             this.chatInput.focus();
         }
+    }
+
+    // ============================
+    // Thread Management (v0.33)
+    // ============================
+
+    /**
+     * Load and display threads in the sidebar
+     */
+    async loadThreads() {
+        const threadList = document.getElementById('threadList');
+        if (!threadList) return;
+
+        try {
+            const resp = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/threads`);
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
+
+            const data = await resp.json();
+            const threads = data.threads || [];
+
+            if (threads.length === 0) {
+                threadList.innerHTML = `
+                    <div class="thread-empty">
+                        No threads yet.<br>Click "New Thread" to start.
+                    </div>
+                `;
+                return;
+            }
+
+            threadList.innerHTML = threads.map(t => `
+                <div class="thread-item ${t.is_active ? 'active' : ''}"
+                     onclick="app.switchThread('${t.id}')"
+                     data-thread-id="${t.id}">
+                    <div class="thread-item-header">
+                        <span class="thread-item-name" title="${this.escapeHtml(t.name)}">${this.escapeHtml(t.name)}</span>
+                        <span class="thread-item-count">${t.message_count}</span>
+                    </div>
+                    <div class="thread-item-meta">
+                        <span class="thread-item-time">${this.formatThreadTime(t.updated_at)}</span>
+                    </div>
+                    <div class="thread-item-actions">
+                        <button class="thread-item-btn export" onclick="event.stopPropagation(); app.exportThread('${t.id}')" title="Export">📥</button>
+                        <button class="thread-item-btn" onclick="event.stopPropagation(); app.deleteThread('${t.id}')" title="Delete">🗑</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Failed to load threads:', error);
+            threadList.innerHTML = `
+                <p style="color: var(--text-secondary); font-size: 12px;">
+                    Failed to load threads
+                </p>
+            `;
+        }
+    }
+
+    /**
+     * Format timestamp for thread display
+     */
+    formatThreadTime(isoString) {
+        if (!isoString) return '';
+        try {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diff = now - date;
+
+            // Less than 1 hour ago
+            if (diff < 3600000) {
+                const mins = Math.floor(diff / 60000);
+                return mins <= 1 ? 'Just now' : `${mins}m ago`;
+            }
+            // Less than 24 hours
+            if (diff < 86400000) {
+                const hours = Math.floor(diff / 3600000);
+                return `${hours}h ago`;
+            }
+            // Same year
+            if (date.getFullYear() === now.getFullYear()) {
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }
+            // Different year
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+        } catch (e) {
+            return '';
+        }
+    }
+
+    /**
+     * Create a new thread
+     */
+    async createThread() {
+        const name = prompt('Enter thread name (optional):');
+        // If user cancels, don't create
+        if (name === null) return;
+
+        try {
+            const resp = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/threads`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name || null })
+            });
+
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
+
+            const data = await resp.json();
+            console.log('Created thread:', data);
+
+            // Clear chat and reload threads
+            this.clearChat();
+            await this.loadThreads();
+
+            this.addSystemMessage(`Created new thread: ${data.name}`);
+        } catch (error) {
+            console.error('Failed to create thread:', error);
+            this.addSystemMessage('Failed to create thread', 'error');
+        }
+    }
+
+    /**
+     * Switch to a different thread
+     */
+    async switchThread(threadId) {
+        try {
+            const resp = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/threads/active/${threadId}`, {
+                method: 'PUT'
+            });
+
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
+
+            const data = await resp.json();
+            console.log('Switched to thread:', data);
+
+            // Clear current chat and load thread messages
+            this.clearChat();
+            await this.loadThreadMessages(threadId);
+            await this.loadThreads();  // Refresh to show active state
+
+        } catch (error) {
+            console.error('Failed to switch thread:', error);
+            this.addSystemMessage('Failed to switch thread', 'error');
+        }
+    }
+
+    /**
+     * Load messages from a thread into the chat
+     */
+    async loadThreadMessages(threadId) {
+        try {
+            const resp = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/threads/${threadId}/messages?limit=100`);
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
+
+            const data = await resp.json();
+            const messages = data.messages || [];
+
+            // Display messages in chat
+            for (const msg of messages) {
+                if (msg.role === 'user') {
+                    this.addUserMessage(msg.content, msg.timestamp);
+                } else if (msg.role === 'assistant') {
+                    this.addAgentMessage(msg.content, msg.timestamp);
+                } else if (msg.role === 'system') {
+                    this.addSystemMessage(msg.content);
+                }
+            }
+
+            if (messages.length > 0) {
+                this.scrollToBottom();
+            }
+        } catch (error) {
+            console.error('Failed to load thread messages:', error);
+        }
+    }
+
+    /**
+     * Delete a thread
+     */
+    async deleteThread(threadId) {
+        if (!confirm('Delete this thread? This cannot be undone.')) return;
+
+        try {
+            const resp = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/threads/${threadId}`, {
+                method: 'DELETE'
+            });
+
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
+
+            console.log('Deleted thread:', threadId);
+            await this.loadThreads();
+            this.addSystemMessage('Thread deleted');
+        } catch (error) {
+            console.error('Failed to delete thread:', error);
+            this.addSystemMessage('Failed to delete thread', 'error');
+        }
+    }
+
+    /**
+     * Export a thread as markdown
+     */
+    async exportThread(threadId) {
+        try {
+            const resp = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/threads/${threadId}/export?format=markdown`);
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
+
+            const text = await resp.text();
+
+            // Create download link
+            const blob = new Blob([text], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `thread-${threadId}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            this.addSystemMessage('Thread exported to markdown');
+        } catch (error) {
+            console.error('Failed to export thread:', error);
+            this.addSystemMessage('Failed to export thread', 'error');
+        }
+    }
+
+    /**
+     * Helper to escape HTML entities
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ============================
+    // RAG Management (v0.33)
+    // ============================
+
+    /**
+     * Load and display RAG status
+     */
+    async loadRagStatus() {
+        try {
+            const resp = await fetch(`/api/rag/status?session_id=${encodeURIComponent(this.sessionId)}`);
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
+
+            const data = await resp.json();
+
+            // Update toggle
+            const toggle = document.getElementById('ragEnabledToggle');
+            if (toggle) {
+                toggle.checked = data.enabled;
+            }
+
+            // Update stats
+            const indexStatus = document.getElementById('ragIndexStatus');
+            if (indexStatus) {
+                if (data.index_exists) {
+                    indexStatus.textContent = data.index_loaded ? 'Loaded' : 'Ready';
+                    indexStatus.className = 'stat-value ' + (data.index_loaded ? 'loaded' : '');
+                } else {
+                    indexStatus.textContent = 'None';
+                    indexStatus.className = 'stat-value not-loaded';
+                }
+            }
+
+            const docCount = document.getElementById('ragDocCount');
+            if (docCount) {
+                docCount.textContent = data.document_count || '0';
+            }
+
+            const chunkCount = document.getElementById('ragChunkCount');
+            if (chunkCount) {
+                chunkCount.textContent = data.chunk_count || '0';
+            }
+
+        } catch (error) {
+            console.error('Failed to load RAG status:', error);
+        }
+    }
+
+    /**
+     * Toggle RAG enabled state
+     */
+    async toggleRag(enabled) {
+        try {
+            const resp = await fetch(`/api/rag/enable?session_id=${encodeURIComponent(this.sessionId)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled })
+            });
+
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
+
+            const data = await resp.json();
+            console.log('RAG toggle:', data);
+
+            // Refresh status
+            await this.loadRagStatus();
+
+            this.addSystemMessage(`RAG ${enabled ? 'enabled' : 'disabled'}`);
+        } catch (error) {
+            console.error('Failed to toggle RAG:', error);
+            this.addSystemMessage('Failed to toggle RAG', 'error');
+
+            // Revert toggle
+            const toggle = document.getElementById('ragEnabledToggle');
+            if (toggle) {
+                toggle.checked = !enabled;
+            }
+        }
+    }
+
+    /**
+     * v0.33: Index chat history to RAG
+     */
+    async indexChatToRag() {
+        const chunkSize = parseInt(document.getElementById('ragChunkSize')?.value || '1000', 10);
+
+        try {
+            this.addSystemMessage('💬→📚 Indexing chat history to RAG...', 'info');
+
+            const response = await fetch(`/api/rag/index-chat?session_id=${encodeURIComponent(this.sessionId)}&chunk_size=${chunkSize}`, {
+                method: 'POST'
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Indexing failed');
+            }
+
+            const result = await response.json();
+            this.addSystemMessage(
+                `✅ Chat indexed: ${result.chunks_created || 0} chunks from ${result.messages_processed || 0} messages`,
+                'success'
+            );
+
+            // Refresh RAG status
+            await this.loadRagStatus();
+
+        } catch (error) {
+            this.addSystemMessage(`❌ Failed to index chat: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * v0.33: Clear RAG index
+     */
+    async clearRagIndex() {
+        if (!confirm('Clear the entire RAG index? This cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/rag/index?session_id=${encodeURIComponent(this.sessionId)}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Clear failed');
+            }
+
+            this.addSystemMessage('🗑️ RAG index cleared', 'success');
+
+            // Refresh RAG status
+            await this.loadRagStatus();
+
+        } catch (error) {
+            this.addSystemMessage(`❌ Failed to clear index: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * v0.33: Handle RAG file upload from file input
+     */
+    async handleRagFileUpload(event) {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        // Get chunk parameters from UI
+        const chunkSize = parseInt(document.getElementById('ragChunkSize')?.value || '1000', 10);
+        const chunkOverlap = parseInt(document.getElementById('ragChunkOverlap')?.value || '200', 10);
+        const pdfEnabled = document.getElementById('ragPdfEnabled')?.checked ?? true;
+        const pandocEnabled = document.getElementById('ragPandocEnabled')?.checked ?? true;
+
+        let totalIndexed = 0;
+        let totalChunks = 0;
+        let totalConverted = 0;
+        let totalSkipped = 0;
+
+        this.addSystemMessage(`📤 Uploading ${files.length} file(s) to RAG index...`, 'info');
+
+        for (const file of files) {
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('session_id', this.sessionId);
+                formData.append('chunk_size', chunkSize.toString());
+                formData.append('chunk_overlap', chunkOverlap.toString());
+                formData.append('pdf_enabled', pdfEnabled.toString());
+                formData.append('pandoc_enabled', pandocEnabled.toString());
+
+                const response = await fetch('/api/rag/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    this.addSystemMessage(`⚠️ Failed to index ${file.name}: ${error.detail}`, 'warning');
+                    continue;
+                }
+
+                const result = await response.json();
+                totalIndexed += result.files_indexed || 0;
+                totalChunks += result.chunks_created || 0;
+                totalConverted += result.files_converted || 0;
+                totalSkipped += result.files_skipped || 0;
+
+            } catch (error) {
+                this.addSystemMessage(`⚠️ Error uploading ${file.name}: ${error.message}`, 'warning');
+            }
+        }
+
+        // Summary message
+        const convertedInfo = totalConverted > 0 ? ` | Converted: ${totalConverted}` : '';
+        this.addSystemMessage(
+            `✅ RAG indexing complete\n` +
+            `   Files: ${totalIndexed} | Chunks: ${totalChunks} | Skipped: ${totalSkipped}${convertedInfo}`,
+            'success'
+        );
+
+        // Refresh RAG status
+        await this.loadRagStatus();
+
+        // Clear the file input for re-use
+        event.target.value = '';
+    }
+
+    /**
+     * Show RAG browser (documents and chunks)
+     */
+    async showRagBrowser() {
+        try {
+            // First get stats
+            const statsResp = await fetch(`/api/rag/stats?session_id=${encodeURIComponent(this.sessionId)}`);
+            const stats = await statsResp.json();
+
+            // Get documents list
+            const docsResp = await fetch(`/api/rag/documents?session_id=${encodeURIComponent(this.sessionId)}&limit=20`);
+            const docs = await docsResp.json();
+
+            // Build display message
+            let message = '## RAG Index Browser\n\n';
+
+            if (!stats.exists) {
+                message += '**No index found.**\n\n';
+                message += 'Create an index by adding documents or running `ragix-ast scan`.';
+            } else {
+                message += `**Index Path:** \`${stats.index_path}\`\n\n`;
+                message += `**Total Size:** ${stats.total_size_kb || 0} KB\n\n`;
+
+                if (stats.files && Object.keys(stats.files).length > 0) {
+                    message += '### Index Files\n\n';
+                    for (const [name, info] of Object.entries(stats.files)) {
+                        message += `- \`${name}\`: ${info.size_kb} KB\n`;
+                    }
+                }
+
+                if (docs.documents && docs.documents.length > 0) {
+                    message += '\n### Indexed Documents\n\n';
+                    message += `Showing ${docs.documents.length} of ${docs.total} documents.\n\n`;
+                    for (const doc of docs.documents.slice(0, 10)) {
+                        message += `- ${doc.path || doc.file_path || doc.name || 'Unknown'}\n`;
+                    }
+                    if (docs.total > 10) {
+                        message += `\n... and ${docs.total - 10} more`;
+                    }
+                } else {
+                    message += '\n### No Documents Indexed\n\n';
+                    message += 'Use `ragix-ast scan <path>` to index files.';
+                }
+            }
+
+            // Display in chat
+            this.addAgentMessage(message);
+
+        } catch (error) {
+            console.error('Failed to show RAG browser:', error);
+            this.addSystemMessage('Failed to load RAG index', 'error');
+        }
+    }
+
+    // ==================== v0.33: Global Context Methods ====================
+
+    /**
+     * Initialize the global context editor
+     */
+    initGlobalContext() {
+        const textarea = document.getElementById('globalContextInput');
+        const charCount = document.getElementById('contextCharCount');
+
+        if (textarea && charCount) {
+            // Update char count on input
+            textarea.addEventListener('input', () => {
+                const len = textarea.value.length;
+                charCount.textContent = `${len} chars`;
+
+                // Color coding for length
+                charCount.className = 'context-char-count';
+                if (len > 1000) {
+                    charCount.classList.add('error');
+                } else if (len > 500) {
+                    charCount.classList.add('warning');
+                }
+            });
+
+            // Load saved context
+            this.loadGlobalContext();
+        }
+    }
+
+    /**
+     * Load global context from server or localStorage
+     */
+    async loadGlobalContext() {
+        const textarea = document.getElementById('globalContextInput');
+        const charCount = document.getElementById('contextCharCount');
+
+        if (!textarea) return;
+
+        try {
+            // Try to load from server API
+            const response = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/context`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.system_instructions) {
+                    textarea.value = data.system_instructions;
+                    if (charCount) {
+                        charCount.textContent = `${data.system_instructions.length} chars`;
+                    }
+                    return;
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to load context from server:', error);
+        }
+
+        // Fallback to localStorage
+        const saved = localStorage.getItem('ragix_global_context');
+        if (saved) {
+            textarea.value = saved;
+            if (charCount) {
+                charCount.textContent = `${saved.length} chars`;
+            }
+        }
+    }
+
+    /**
+     * Save global context to server and localStorage
+     */
+    async saveGlobalContext() {
+        const textarea = document.getElementById('globalContextInput');
+        if (!textarea) return;
+
+        const context = textarea.value.trim();
+
+        // Save to localStorage as backup
+        localStorage.setItem('ragix_global_context', context);
+
+        try {
+            // Save to server
+            const response = await fetch(`/api/sessions/${encodeURIComponent(this.sessionId)}/context`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    system_instructions: context
+                })
+            });
+
+            if (response.ok) {
+                this.addSystemMessage('Global context saved', 'success');
+            } else {
+                throw new Error('Server returned error');
+            }
+        } catch (error) {
+            console.error('Failed to save context to server:', error);
+            this.addSystemMessage('Context saved locally (server unavailable)', 'warning');
+        }
+    }
+
+    /**
+     * Get current global context
+     */
+    getGlobalContext() {
+        const textarea = document.getElementById('globalContextInput');
+        return textarea ? textarea.value.trim() : '';
     }
 }
 

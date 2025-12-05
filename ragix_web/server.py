@@ -148,15 +148,106 @@ try:
         agents_router,
         logs_router,
         reasoning_router,
+        threads_router,
+        rag_router,
     )
     from ragix_web.routers.sessions import set_sessions_store
     from ragix_web.routers.context import set_context_store
     from ragix_web.routers.agents import set_stores as set_agent_stores
     from ragix_web.routers.logs import set_sessions_store as set_logs_sessions
     from ragix_web.routers.reasoning import set_stores as set_reasoning_stores
+    from ragix_web.routers.threads import set_threads_store
+    from ragix_web.routers.rag import set_rag_store, _get_rag_state, _get_index_path
     ROUTERS_AVAILABLE = True
 except ImportError:
     ROUTERS_AVAILABLE = False
+
+
+def retrieve_rag_context(session_id: str, query: str, top_k: int = 5, max_chars_per_chunk: int = 1500) -> Optional[str]:
+    """
+    Retrieve relevant context from RAG index for a query.
+
+    Args:
+        session_id: Session ID to check RAG state
+        query: User query to search for
+        top_k: Number of results to return
+        max_chars_per_chunk: Maximum characters per chunk to include
+
+    Returns:
+        Formatted context string or None if RAG not enabled/available
+    """
+    if not ROUTERS_AVAILABLE:
+        return None
+
+    try:
+        # Check if RAG is enabled for this session
+        rag_state = _get_rag_state(session_id)
+        if not rag_state.get("enabled"):
+            return None
+
+        index_path = _get_index_path()
+        chunks_path = index_path / "chunks.json"
+
+        if not chunks_path.exists():
+            return None
+
+        # Load chunks
+        with open(chunks_path, 'r') as f:
+            all_chunks = json.load(f)
+
+        if not all_chunks:
+            return None
+
+        # Simple BM25-like search: score chunks by query term overlap
+        query_terms = set(query.lower().split())
+        # Also include common summarization terms
+        summary_terms = {'summary', 'summarize', 'overview', 'describe', 'explain', 'what', 'about', 'content', 'file', 'document'}
+
+        scored_chunks = []
+        for chunk in all_chunks:
+            content = chunk.get("content", "").lower()
+            # Count matching terms
+            matches = sum(1 for term in query_terms if term in content)
+            # Boost score if this is a general query (summarize, etc.)
+            if query_terms & summary_terms:
+                matches += 1  # Give all chunks a base score for summary queries
+            if matches > 0:
+                scored_chunks.append((matches, chunk))
+
+        # Sort by score descending
+        scored_chunks.sort(key=lambda x: -x[0])
+
+        # Take top_k results
+        top_chunks = scored_chunks[:top_k]
+
+        if not top_chunks:
+            # For summary queries with no matches, return first chunks
+            if query_terms & summary_terms and all_chunks:
+                top_chunks = [(1, chunk) for chunk in all_chunks[:top_k]]
+            else:
+                return None
+
+        # Format context with clear instructions
+        context_parts = [
+            "## 📚 DOCUMENT CONTEXT (from RAG Index)\n",
+            "**IMPORTANT:** The following content has been retrieved from indexed documents.",
+            "Use this content directly to answer the user's question. Do NOT search for files with shell commands.\n"
+        ]
+
+        total_chars = 0
+        for i, (score, chunk) in enumerate(top_chunks, 1):
+            file_path = chunk.get("file_path", "unknown")
+            content = chunk.get("content", "")[:max_chars_per_chunk]
+            total_chars += len(content)
+            context_parts.append(f"### Document {i}: {file_path}\n{content}\n")
+
+        context_parts.append(f"\n---\n*Retrieved {len(top_chunks)} relevant sections ({total_chars} chars) from indexed documents.*\n")
+
+        return "\n".join(context_parts)
+
+    except Exception as e:
+        logger.warning(f"RAG retrieval failed: {e}")
+        return None
 
 
 # FastAPI app
@@ -263,6 +354,8 @@ if ROUTERS_AVAILABLE:
     set_agent_stores(active_sessions, session_agent_configs, session_reasoning_traces)
     set_logs_sessions(active_sessions)
     set_reasoning_stores(active_sessions, session_reasoning_states, session_experience_corpora)
+    set_threads_store(active_sessions, LAUNCH_DIRECTORY)
+    set_rag_store(LAUNCH_DIRECTORY)
 
     # Include routers with their prefixes
     # Note: These provide modular, organized endpoints
@@ -274,6 +367,8 @@ if ROUTERS_AVAILABLE:
     app.include_router(agents_router, tags=["Agents (v2)"])
     app.include_router(logs_router, tags=["Logs (v2)"])
     app.include_router(reasoning_router, tags=["Reasoning Graph (v0.23)"])
+    app.include_router(threads_router, tags=["Threads (v0.33)"])
+    app.include_router(rag_router, tags=["RAG System (v0.33)"])
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -4906,9 +5001,30 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                     # Get cancellation event for this session
                     cancel_event = session_cancellation.get(session_id)
 
+                    # v0.33: Retrieve RAG context if enabled
+                    rag_context = retrieve_rag_context(session_id, user_message, top_k=8, max_chars_per_chunk=2000)
+                    if rag_context:
+                        # Prepend RAG context to user message with clear instructions
+                        augmented_message = (
+                            f"{rag_context}\n\n"
+                            f"---\n\n"
+                            f"## User Question\n"
+                            f"{user_message}\n\n"
+                            f"**Instructions:** Answer the question using ONLY the document context provided above. "
+                            f"Do not use shell commands to search for files. The relevant content is already provided."
+                        )
+                        num_chunks = len(rag_context.split('### Document')) - 1
+                        await websocket.send_json({
+                            "type": "rag_context",
+                            "message": f"📚 Retrieved {num_chunks} relevant sections from RAG index",
+                            "timestamp": datetime.now().isoformat()
+                        })
+                    else:
+                        augmented_message = user_message
+
                     # Run the agent with reasoning (Planner/Worker/Verifier)
                     response, traces = await run_agent_async(
-                        agent, user_message, session_id,
+                        agent, augmented_message, session_id,
                         progress_callback=send_progress,
                         cancel_event=cancel_event
                     )

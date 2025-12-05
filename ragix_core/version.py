@@ -11,12 +11,12 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-
 # RAGIX Version - Single Source of Truth
 # =============================================================================
 
-__version__ = "0.32.1"
+__version__ = "0.33.0"
 
 # Semantic versioning components
 VERSION_MAJOR = 0
-VERSION_MINOR = 32
-VERSION_PATCH = 1
+VERSION_MINOR = 33
+VERSION_PATCH = 0
 VERSION_SUFFIX = ""  # e.g., "alpha", "beta", "rc1", ""
 
 # Build metadata

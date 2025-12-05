@@ -156,3 +156,64 @@ async def get_session_events(session_id: str, limit: int = 50):
             continue
 
     return {"events": events}
+
+
+# v0.33: Agent config storage for context limits
+_agent_configs: Dict[str, Dict[str, Any]] = {}
+
+
+class AgentConfigRequest(BaseModel):
+    """Request body for agent configuration update."""
+    context_max_turns: Optional[int] = None
+    context_user_limit: Optional[int] = None
+    context_assistant_limit: Optional[int] = None
+
+
+def get_agent_config_store() -> Dict[str, Dict[str, Any]]:
+    """Get the agent config store."""
+    return _agent_configs
+
+
+@router.get("/{session_id}/agent-config")
+async def get_agent_config(session_id: str):
+    """Get agent configuration for a session."""
+    if session_id not in _active_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    config = _agent_configs.get(session_id, {})
+    return {
+        "session_id": session_id,
+        "context_max_turns": config.get("context_max_turns", 5),
+        "context_user_limit": config.get("context_user_limit", 500),
+        "context_assistant_limit": config.get("context_assistant_limit", 2000),
+    }
+
+
+@router.post("/{session_id}/agent-config")
+async def update_agent_config(session_id: str, request: AgentConfigRequest):
+    """Update agent configuration for a session (context limits)."""
+    if session_id not in _active_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if session_id not in _agent_configs:
+        _agent_configs[session_id] = {}
+
+    config = _agent_configs[session_id]
+
+    # Update fields if provided
+    if request.context_max_turns is not None:
+        config["context_max_turns"] = max(1, min(20, request.context_max_turns))
+
+    if request.context_user_limit is not None:
+        config["context_user_limit"] = max(100, min(5000, request.context_user_limit))
+
+    if request.context_assistant_limit is not None:
+        config["context_assistant_limit"] = max(100, min(10000, request.context_assistant_limit))
+
+    config["updated_at"] = datetime.now().isoformat()
+
+    return {
+        "status": "updated",
+        "session_id": session_id,
+        **config
+    }

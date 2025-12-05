@@ -469,6 +469,14 @@ from .sonar_cache import (
     get_sonar_cache,
     DEFAULT_TTL_SECONDS,
 )
+# Thread Management (v0.33)
+from .threads import (
+    Message,
+    Thread,
+    ThreadManager,
+    get_thread_manager,
+    clear_thread_managers,
+)
 
 __all__ = [
     # LLM Backends
@@ -846,4 +854,10 @@ __all__ = [
     "SonarCache",
     "get_sonar_cache",
     "DEFAULT_TTL_SECONDS",
+    # Thread Management (v0.33)
+    "Message",
+    "Thread",
+    "ThreadManager",
+    "get_thread_manager",
+    "clear_thread_managers",
 ]

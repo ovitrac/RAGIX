@@ -32,9 +32,19 @@
             color: var(--accent-color);
             border-bottom-color: var(--accent-color);
         }
+        /* v0.33: Fixed height chain for scrollable sidebar */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
         .tab-content {
             display: none;
-            height: 100%;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
         }
         .tab-content.active {
             display: flex;
@@ -1102,7 +1112,31 @@
                 <div class="main-layout">
                     <!-- Sidebar -->
                     <aside class="sidebar" id="chatSidebar">
+                        <!-- v0.33: Resize handle for draggable sidebar width -->
+                        <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
                         <div class="sidebar-inner">
+                            <!-- Threads Section (v0.33) -->
+                            <div class="sidebar-section">
+                                <h3 onclick="toggleSidebarSection(this)">
+                                    Threads
+                                    <span class="collapse-icon">&#9660;</span>
+                                </h3>
+                                <div class="sidebar-section-content">
+                                    <div class="threads-explorer">
+                                        <!-- Thread Actions -->
+                                        <div class="thread-actions">
+                                            <button class="btn btn-small btn-primary" onclick="app.createThread()" title="Create new thread">
+                                                + New Thread
+                                            </button>
+                                        </div>
+                                        <!-- Thread List -->
+                                        <div id="threadList" class="thread-list">
+                                            <p style="color: var(--text-secondary); font-size: 12px;">Loading threads...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="sidebar-section">
                                 <h3 onclick="toggleSidebarSection(this)">
                                     Session
@@ -1153,6 +1187,31 @@
                                             <button id="compactBtn" class="compact-btn hidden" onclick="app.compactMemory()" title="Compact memory to free context space">
                                                 🗜️ Compact
                                             </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Global Context Section (v0.33) -->
+                            <div class="sidebar-section">
+                                <h3 onclick="toggleSidebarSection(this)">
+                                    Global Context
+                                    <span class="collapse-icon">&#9660;</span>
+                                </h3>
+                                <div class="sidebar-section-content">
+                                    <div class="context-editor">
+                                        <div class="context-info">
+                                            <span class="context-hint">Instructions included in all messages</span>
+                                        </div>
+                                        <textarea
+                                            id="globalContextInput"
+                                            class="context-textarea"
+                                            placeholder="Add custom instructions here (e.g., coding style, project rules)..."
+                                            rows="3"
+                                        ></textarea>
+                                        <div class="context-actions">
+                                            <span id="contextCharCount" class="context-char-count">0 chars</span>
+                                            <button class="btn btn-small" onclick="app.saveGlobalContext()" title="Save context">Save</button>
                                         </div>
                                     </div>
                                 </div>
@@ -1217,6 +1276,74 @@
                                 <div class="sidebar-section-content">
                                     <div id="workflowList" class="workflow-list">
                                         <p style="color: var(--text-secondary); font-size: 12px;">Loading workflows...</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- RAG Section (v0.33) -->
+                            <div class="sidebar-section">
+                                <h3 onclick="toggleSidebarSection(this)">
+                                    RAG
+                                    <span class="collapse-icon">&#9660;</span>
+                                </h3>
+                                <div class="sidebar-section-content">
+                                    <div class="rag-explorer">
+                                        <!-- RAG Status -->
+                                        <div class="rag-status" id="ragStatus">
+                                            <div class="rag-toggle-row">
+                                                <span class="rag-toggle-label">RAG Enabled</span>
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" id="ragEnabledToggle" onchange="app.toggleRag(this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </div>
+                                            <div class="rag-stats" id="ragStats">
+                                                <div class="stat-row">
+                                                    <span class="stat-label">Index</span>
+                                                    <span id="ragIndexStatus" class="stat-value">Not loaded</span>
+                                                </div>
+                                                <div class="stat-row">
+                                                    <span class="stat-label">Documents</span>
+                                                    <span id="ragDocCount" class="stat-value">0</span>
+                                                </div>
+                                                <div class="stat-row">
+                                                    <span class="stat-label">Chunks</span>
+                                                    <span id="ragChunkCount" class="stat-value">0</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- v0.33: RAG Indexing Options -->
+                                        <div class="rag-config" id="ragConfig">
+                                            <div class="config-row">
+                                                <label title="Characters per chunk">Chunk:</label>
+                                                <input type="number" id="ragChunkSize" value="1000" min="200" max="5000" step="100" class="config-input-small">
+                                            </div>
+                                            <div class="config-row">
+                                                <label title="Overlap between chunks">Overlap:</label>
+                                                <input type="number" id="ragChunkOverlap" value="200" min="0" max="1000" step="50" class="config-input-small">
+                                            </div>
+                                            <div class="config-row converter-row">
+                                                <label title="Document converters">Conv:</label>
+                                                <label class="converter-option" title="PDF conversion via pdftotext">
+                                                    <input type="checkbox" id="ragPdfEnabled" checked> PDF
+                                                </label>
+                                                <label class="converter-option" title="Office docs via pandoc (docx, pptx, xlsx)">
+                                                    <input type="checkbox" id="ragPandocEnabled" checked> Office
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <!-- RAG Actions -->
+                                        <div class="rag-actions">
+                                            <button class="btn btn-small btn-primary" onclick="document.getElementById('ragFileInput').click()" title="Upload files to RAG index">📤 Upload</button>
+                                            <input type="file" id="ragFileInput" class="hidden" multiple accept=".zip,.txt,.md,.py,.js,.ts,.json,.yaml,.yml,.xml,.html,.css,.sh,.sql,.csv,.pdf,.docx,.pptx,.xlsx,.odt,.java,.kt,.c,.cpp,.h,.go,.rs,.rb" onchange="app.handleRagFileUpload(event)" />
+                                            <button class="btn btn-small" onclick="app.loadRagStatus()" title="Refresh RAG status">🔄</button>
+                                            <button class="btn btn-small" onclick="app.showRagBrowser()" title="Browse indexed documents">📁</button>
+                                            <button class="btn btn-small" onclick="app.indexChatToRag()" title="Index chat history to RAG">💬→📚</button>
+                                            <button class="btn btn-small btn-danger" onclick="app.clearRagIndex()" title="Clear RAG index">🗑️</button>
+                                        </div>
+                                        <div class="rag-hint">
+                                            <small>📤 Upload files/ZIP | 💬→📚 saves chat</small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1793,6 +1920,32 @@
                     <div class="memory-header">
                         <h3>Session Memory</h3>
                         <p class="settings-desc">View and manage conversation history for this session. Delete specific messages or clear all history.</p>
+                    </div>
+
+                    <!-- v0.33: Context Limits Section -->
+                    <div class="context-limits-section" style="margin-bottom: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 8px;">
+                        <h4 style="margin: 0 0 12px 0; font-size: 14px; color: var(--accent-blue);">Context Limits</h4>
+                        <p class="settings-desc" style="margin-bottom: 12px;">Control how much conversation history is included in the context sent to the LLM.</p>
+
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label style="font-size: 12px;">Max Conversation Turns:</label>
+                            <input type="number" id="contextMaxTurns" value="5" min="1" max="20" style="width: 80px;">
+                            <small style="display: block; margin-top: 4px; color: var(--text-secondary);">Number of user+assistant pairs to include (default: 5)</small>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label style="font-size: 12px;">User Message Limit (chars):</label>
+                            <input type="number" id="contextUserLimit" value="500" min="100" max="5000" step="100" style="width: 100px;">
+                            <small style="display: block; margin-top: 4px; color: var(--text-secondary);">Max characters per user message (default: 500)</small>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label style="font-size: 12px;">Assistant Message Limit (chars):</label>
+                            <input type="number" id="contextAssistantLimit" value="2000" min="100" max="10000" step="100" style="width: 100px;">
+                            <small style="display: block; margin-top: 4px; color: var(--text-secondary);">Max characters per assistant message (default: 2000)</small>
+                        </div>
+
+                        <button onclick="memoryApp.saveContextLimits()" class="btn btn-small btn-primary">Save Context Limits</button>
                     </div>
 
                     <!-- Memory Stats -->
@@ -3663,6 +3816,56 @@
                 } catch (e) {
                     alert('Error: ' + e.message);
                 }
+            },
+
+            // v0.33: Load context limits from server/localStorage
+            loadContextLimits() {
+                const saved = localStorage.getItem('ragix_context_limits');
+                if (saved) {
+                    try {
+                        const limits = JSON.parse(saved);
+                        document.getElementById('contextMaxTurns').value = limits.max_turns || 5;
+                        document.getElementById('contextUserLimit').value = limits.user_limit || 500;
+                        document.getElementById('contextAssistantLimit').value = limits.assistant_limit || 2000;
+                    } catch (e) {
+                        console.warn('Failed to load context limits:', e);
+                    }
+                }
+            },
+
+            // v0.33: Save context limits to server and localStorage
+            async saveContextLimits() {
+                const sessionId = document.getElementById('sessionIdInput')?.value || 'default';
+                const limits = {
+                    max_turns: parseInt(document.getElementById('contextMaxTurns').value) || 5,
+                    user_limit: parseInt(document.getElementById('contextUserLimit').value) || 500,
+                    assistant_limit: parseInt(document.getElementById('contextAssistantLimit').value) || 2000
+                };
+
+                // Save to localStorage
+                localStorage.setItem('ragix_context_limits', JSON.stringify(limits));
+
+                // Save to server via agent config API
+                try {
+                    const resp = await fetch(`/api/sessions/${sessionId}/agent-config`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            context_max_turns: limits.max_turns,
+                            context_user_limit: limits.user_limit,
+                            context_assistant_limit: limits.assistant_limit
+                        })
+                    });
+
+                    if (resp.ok) {
+                        alert('Context limits saved successfully');
+                    } else {
+                        alert('Saved locally (server update pending on reconnect)');
+                    }
+                } catch (e) {
+                    console.warn('Server save failed, using localStorage:', e);
+                    alert('Saved locally (will apply on next session)');
+                }
             }
         };
 
@@ -4085,16 +4288,26 @@
                 // Load agent and reasoning configs after session info is loaded
                 await agentSettingsApp.loadConfig();
                 await reasoningSettingsApp.loadConfig();
+                // v0.33: Load context limits
+                memoryApp.loadContextLimits();
             };
         }
 
         // Sidebar toggle functions
+        // v0.33: Sidebar state management
+        const sidebarState = {
+            width: 280,
+            minWidth: 200,
+            maxWidth: 600,
+            collapsed: false
+        };
+
         function toggleSidebar() {
             const sidebar = document.getElementById('chatSidebar');
             const toggle = document.getElementById('sidebarToggle');
-            const isCollapsed = sidebar.classList.toggle('collapsed');
-            toggle.innerHTML = isCollapsed ? '&#9654;' : '&#9664;';
-            toggle.style.left = isCollapsed ? '0px' : '280px';
+            sidebarState.collapsed = sidebar.classList.toggle('collapsed');
+            toggle.innerHTML = sidebarState.collapsed ? '&#9654;' : '&#9664;';
+            toggle.style.left = sidebarState.collapsed ? '0px' : sidebarState.width + 'px';
         }
 
         function toggleSidebarSection(headerEl) {
@@ -4104,12 +4317,82 @@
             }
         }
 
-        // Initialize sidebar toggle position
+        // v0.33: Sidebar resize functionality
+        function initSidebarResize() {
+            const sidebar = document.getElementById('chatSidebar');
+            const handle = document.getElementById('sidebarResizeHandle');
+            const toggle = document.getElementById('sidebarToggle');
+
+            if (!sidebar || !handle) return;
+
+            let isResizing = false;
+            let startX = 0;
+            let startWidth = 0;
+
+            handle.addEventListener('mousedown', (e) => {
+                if (sidebarState.collapsed) return;
+                isResizing = true;
+                startX = e.clientX;
+                startWidth = sidebar.offsetWidth;
+                sidebar.classList.add('resizing');
+                handle.classList.add('active');
+                document.body.style.cursor = 'ew-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+
+                const diff = e.clientX - startX;
+                let newWidth = startWidth + diff;
+
+                // Clamp to min/max
+                newWidth = Math.max(sidebarState.minWidth, Math.min(sidebarState.maxWidth, newWidth));
+
+                sidebar.style.width = newWidth + 'px';
+                sidebarState.width = newWidth;
+
+                // Update toggle position
+                if (toggle) {
+                    toggle.style.left = newWidth + 'px';
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isResizing) {
+                    isResizing = false;
+                    sidebar.classList.remove('resizing');
+                    handle.classList.remove('active');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+
+                    // Save to localStorage
+                    localStorage.setItem('ragix_sidebar_width', sidebarState.width);
+                }
+            });
+
+            // Restore saved width
+            const savedWidth = localStorage.getItem('ragix_sidebar_width');
+            if (savedWidth) {
+                const width = parseInt(savedWidth, 10);
+                if (width >= sidebarState.minWidth && width <= sidebarState.maxWidth) {
+                    sidebarState.width = width;
+                    sidebar.style.width = width + 'px';
+                    if (toggle) {
+                        toggle.style.left = width + 'px';
+                    }
+                }
+            }
+        }
+
+        // Initialize sidebar toggle position and resize
         document.addEventListener('DOMContentLoaded', function() {
             const toggle = document.getElementById('sidebarToggle');
             if (toggle) {
-                toggle.style.left = '280px';
+                toggle.style.left = sidebarState.width + 'px';
             }
+            initSidebarResize();
         });
     </script>
 

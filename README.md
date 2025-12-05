@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.32.1
+# RAGIX v0.33.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
@@ -15,7 +15,7 @@
 
 ---
 
-**Version:** 0.32.1 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Version:** 0.33.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 **Updated:** 2025-12-05
 
 ---
@@ -42,24 +42,35 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 
 ---
 
-## **What's New in v0.32.1**
+## **What's New in v0.33.0**
 
 | Feature | Description |
 |---------|-------------|
-| **Memory Management UI** | Explore, search, and manage episodic memory entries |
-| **Memory Context in Reasoning** | View episodic memories during reasoning with goal tracking |
-| **Memory Details Modal** | Color-coded sections for plan, result, decisions, files, commands |
-| **Context Window Indicator** | Progress bar showing tokens used vs model context limit |
-| **Memory Compaction** | LLM-based summarization to free context space (auto at 95%) |
-| **File Drop Zone** | Drag & drop files with PDF/DOCX conversion support |
-| **Interrupt Reasoning** | Stop button to abort long-running reasoning sessions |
-| **Token Counter** | Real-time display of prompt/completion tokens and throughput |
-| **Dynamic Version Display** | Version loaded from server API instead of hardcoded |
-| **VRAM Display** | Shows actual VRAM when model is loaded, estimated (`~`) otherwise |
-| **Model Info Panel** | Quantization, VRAM, and parameter size in sidebar |
-| **Fixed Context Tracking** | Context counter now updates correctly after model changes |
+| **RAG Feed Interface** | Upload files directly to RAG index with chunking parameters |
+| **Document Conversion** | PDF (pdftotext), DOCX (pandoc), PPTX (python-pptx), XLSX (openpyxl) |
+| **ZIP Archive Support** | Drop ZIP files to index entire archives at once |
+| **RAG-Aware Reasoning** | Classifier detects RAG context and uses BYPASS mode (no shell commands) |
+| **Chat-to-RAG Export** | Index conversation history to RAG for later retrieval |
+| **Configurable Chunking** | Set chunk size and overlap in sidebar UI |
+| **Converter Toggles** | Enable/disable PDF and Office document converters |
+| **Context Limits Config** | Configure conversation context limits in Settings |
 
-### v0.32.x Highlights (Latest)
+### v0.33.0 Highlights (Latest)
+
+- **RAG Upload Button** — Upload files directly to RAG index from sidebar
+  - Supports: txt, md, py, js, json, yaml, xml, pdf, docx, pptx, xlsx, zip
+  - Configurable chunk size (200-5000) and overlap (0-1000)
+  - Converter toggles for PDF (pdftotext) and Office (pandoc/python-pptx/openpyxl)
+- **RAG Context Retrieval** — Automatic context injection when RAG is enabled
+  - Retrieves relevant chunks based on query terms
+  - Classifier recognizes "📚 DOCUMENT CONTEXT" and uses BYPASS mode
+  - Agent answers directly from indexed content without shell commands
+- **Chat History Indexing** — Export conversation to RAG with 💬→📚 button
+  - Converts chat history to text chunks for later retrieval
+- **BM25 Index Building** — Proper search index created on upload
+  - Keyword-based retrieval with term frequency scoring
+
+### v0.32.x Highlights
 
 - **Memory Explorer Panel** — Sidebar section to browse episodic memory entries
   - Search with debounce, delete individual entries or clear all

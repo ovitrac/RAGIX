@@ -1,8 +1,99 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-12-05 (v0.32.1 - Dynamic Model Info & Context Fixes)
+**Updated:** 2025-12-05 (v0.33.0 - RAG Feed Interface)
 **Reference:** See `PLAN_v0.30_REASONING.md` for full implementation plan
 **Review:** See `REVIEW_current_reasoning_towardsv0.30.md` for colleague feedback
+
+---
+
+## Session Completed (2025-12-05 - v0.33.0)
+
+### RAG Feed Interface & Document Conversion
+
+| Task | Status |
+|------|--------|
+| **RAG Upload Button** - Upload files directly to RAG index from sidebar | ✅ Done |
+| **Document Conversion** - PDF (pdftotext), DOCX (pandoc), PPTX (python-pptx), XLSX (openpyxl) | ✅ Done |
+| **ZIP Archive Support** - Extract and index entire ZIP archives | ✅ Done |
+| **Configurable Chunking** - Chunk size (200-5000) and overlap (0-1000) UI inputs | ✅ Done |
+| **Converter Toggles** - Enable/disable PDF and Office converters | ✅ Done |
+| **Chat-to-RAG Export** - 💬→📚 button indexes conversation history | ✅ Done |
+| **BM25 Index Building** - Proper search index created on upload | ✅ Done |
+| **RAG Context Retrieval** - Automatic context injection when RAG enabled | ✅ Done |
+| **RAG-Aware Classification** - Classifier detects "📚 DOCUMENT CONTEXT" → BYPASS mode | ✅ Done |
+| **Direct RAG Responses** - Agent answers from indexed content without shell commands | ✅ Done |
+
+**Key Files Created/Modified:**
+- `ragix_web/routers/rag.py` - Upload endpoint with conversion, BM25 index building, chat indexing
+- `ragix_web/server.py` - `retrieve_rag_context()` function, RAG context injection in WebSocket handler
+- `ragix_core/reasoning_v30/prompts.py` - RAG-aware CLASSIFY_PROMPT and DIRECT_EXEC_PROMPT
+- `ragix_web/static/index.html` - RAG config UI (chunk size, overlap, converter toggles), upload button
+- `ragix_web/static/app.js` - `handleRagFileUpload()`, `indexChatToRag()`, `clearRagIndex()` methods
+- `ragix_web/static/style.css` - RAG config and converter toggle styles
+
+**Dependencies Added:**
+- `python-pptx` - PowerPoint text extraction
+- `openpyxl` - Excel text extraction
+
+**Features:**
+- 📤 Upload button in RAG section for direct file upload to index
+- Supports 50+ text file extensions (py, js, json, yaml, xml, etc.)
+- Converts PDF, DOCX, PPTX, XLSX to text before indexing
+- ZIP archives extracted and all supported files indexed
+- Configurable chunk size and overlap for semantic retrieval
+- Converter toggles to enable/disable PDF and Office conversion
+- 💬→📚 button indexes chat history to RAG
+- 🗑️ button clears entire RAG index
+- When RAG is enabled, relevant chunks automatically retrieved and prepended to queries
+- Classifier recognizes RAG context and uses BYPASS mode (no shell commands needed)
+- Agent answers directly from indexed document content
+
+---
+
+## Session Completed (2025-12-05 - v0.33 Thread & Context)
+
+### Thread & RAG Management + Context Improvements
+
+| Task | Status |
+|------|--------|
+| **Thread Data Model** - `ragix_core/threads.py` with Message, Thread, ThreadManager | ✅ Done |
+| **Threads Router** - `ragix_web/routers/threads.py` with full CRUD API | ✅ Done |
+| **Thread UI** - Sidebar section with create, switch, delete, export | ✅ Done |
+| **Thread Persistence** - JSON files in `.ragix/threads/{session}/{thread}.json` | ✅ Done |
+| **Session Export** - Export threads as markdown or JSON | ✅ Done |
+| **RAG Router** - `ragix_web/routers/rag.py` with status, enable, browse APIs | ✅ Done |
+| **RAG UI** - Sidebar section with toggle switch, stats, browse button | ✅ Done |
+| **Conversation Context Fix** - Pass conversation history to reasoning loops | ✅ Done |
+| **Context Compression** - Compress repeated chars, deduplicate lines | ✅ Done |
+| **Scrollable Sidebar** - Fixed flex height chain, added resize handle | ✅ Done |
+| **Global Context Editor** - Sidebar textarea for custom instructions | ✅ Done |
+| **Context Limits Config** - Configurable max_turns, user/assistant char limits | ✅ Done |
+| **Context Limits UI** - Settings → Memory with input controls | ✅ Done |
+| **Context Limits API** - GET/POST /api/sessions/{id}/agent-config | ✅ Done |
+
+**Key Files Created/Modified:**
+- `ragix_core/threads.py` - Thread management with disk persistence
+- `ragix_web/routers/threads.py` - Thread CRUD API (10 endpoints)
+- `ragix_web/routers/rag.py` - RAG management API (9 endpoints)
+- `ragix_core/reasoning.py` - `_compress_repeated_chars()`, `_format_conversation_context()` with config, `set_conversation_history()` for both loops
+- `ragix_core/reasoning_types.py` - Added `conversation_context` field to `ReasoningState`
+- `ragix_core/reasoning_graph.py` - `_build_planning_prompt()` includes conversation context
+- `ragix_core/agent_config.py` - Added `context_max_turns`, `context_user_limit`, `context_assistant_limit`
+- `ragix_web/routers/sessions.py` - Added `/agent-config` GET/POST endpoints
+- `ragix_web/static/index.html` - Resizable sidebar, Global Context section, Context Limits UI
+- `ragix_web/static/style.css` - Sidebar resize handle, context editor styles
+- `ragix_web/static/app.js` - `initGlobalContext()`, `saveGlobalContext()`, `getGlobalContext()`, message context injection
+
+**Features:**
+- Conversation history now flows into reasoning loops for follow-up questions
+- Repeated character sequences (>10 chars) compressed: `"=========="` → `"=[x10]"`
+- Duplicate lines removed from context to save tokens
+- Sidebar vertically scrollable and horizontally resizable (200-600px, saved to localStorage)
+- Global Context textarea in sidebar - instructions prepended to all messages
+- Configurable context limits in Settings → Memory:
+  - Max conversation turns (1-20, default 5)
+  - User message limit (100-5000 chars, default 500)
+  - Assistant message limit (100-10000 chars, default 2000)
 
 ---
 
@@ -233,31 +324,90 @@ curl http://localhost:11434/api/ps          # Running models, VRAM usage
 curl http://localhost:11434/api/show -d '{"name":"mistral"}'  # Model details, quantization
 ```
 
-### Priority 6: Session & Thread Management (v0.33) — FROM REVIEW 2025-12-05
+### Priority 6: Session & Thread Management (v0.33) — ✅ CORE COMPLETE
 
 **Problem:** RAGIX feels stateless. Can't create threads. Unclear memory lifecycle between sessions.
 
 | Task | Effort | Status |
 |------|--------|--------|
-| **Thread Creation UI** - Create new conversation threads | 4h | Pending |
-| **Thread Switching** - Switch between active threads in sidebar | 3h | Pending |
-| **Thread Persistence** - Save/restore thread state to disk | 4h | Pending |
-| **Session Export** - Export conversation as markdown/JSON | 2h | Pending |
+| **Thread Creation UI** - Create new conversation threads | 4h | ✅ Done |
+| **Thread Switching** - Switch between active threads in sidebar | 3h | ✅ Done |
+| **Thread Persistence** - Save/restore thread state to disk | 4h | ✅ Done |
+| **Session Export** - Export conversation as markdown/JSON | 2h | ✅ Done |
 | **Global Context Editor** - Edit user profile, project context ("who I am") | 4h | Pending |
 | **Episodic Memory Clarity** - UI to show active vs archived, session binding | 3h | Pending |
 
-### Priority 7: RAG System Management (v0.33) — FROM REVIEW 2025-12-05
+**Key Files Created/Modified:**
+- `ragix_core/threads.py` - NEW: `Message`, `Thread`, `ThreadManager` with persistence
+- `ragix_web/routers/threads.py` - NEW: CRUD API for threads
+- `ragix_web/routers/__init__.py` - Export threads_router
+- `ragix_web/server.py` - Register threads router
+- `ragix_web/static/index.html` - Threads section in sidebar
+- `ragix_web/static/style.css` - Thread explorer styles
+- `ragix_web/static/app.js` - Thread management methods
+
+**Features:**
+- Threads section at top of sidebar with "New Thread" button
+- Thread list shows name, message count, last updated time
+- Click to switch threads (loads thread's message history)
+- Export button downloads thread as markdown
+- Delete button removes thread with confirmation
+- Persistence in `.ragix/threads/{session_id}/{thread_id}.json`
+
+**API Endpoints:**
+```
+GET    /api/sessions/{id}/threads                 # List threads
+POST   /api/sessions/{id}/threads                 # Create thread
+GET    /api/sessions/{id}/threads/{tid}           # Get thread details
+DELETE /api/sessions/{id}/threads/{tid}           # Delete thread
+PATCH  /api/sessions/{id}/threads/{tid}/rename    # Rename thread
+PUT    /api/sessions/{id}/threads/active/{tid}    # Set active thread
+GET    /api/sessions/{id}/threads/{tid}/messages  # Get messages
+POST   /api/sessions/{id}/threads/{tid}/messages  # Add message
+DELETE /api/sessions/{id}/threads/{tid}/messages  # Clear messages
+GET    /api/sessions/{id}/threads/{tid}/export    # Export as markdown/JSON
+```
+
+### Priority 7: RAG System Management (v0.33) — ✅ COMPLETE
 
 **Problem:** RAG activation unclear. No way to manage, feed, or sanitize the index independently.
 
 | Task | Effort | Status |
 |------|--------|--------|
-| **RAG Activation UI** - Toggle switch and status indicator | 3h | Pending |
-| **RAG Index Browser** - View indexed documents and chunks | 4h | Pending |
-| **RAG Feed Interface** - Add documents to index (independent of LLM) | 4h | Pending |
-| **RAG Sanitize/Rebuild** - Remove/update documents, rebuild index | 3h | Pending |
-| **RAG Context Display** - Show retrieved chunks during reasoning | 4h | Pending |
-| **RAG Documentation** - How it works, when activated, how to configure | 2h | Pending |
+| **RAG Activation UI** - Toggle switch and status indicator | 3h | ✅ Done |
+| **RAG Index Browser** - View indexed documents and chunks | 4h | ✅ Done |
+| **RAG Feed Interface** - Upload files with conversion (PDF/DOCX/PPTX/XLSX) | 4h | ✅ Done |
+| **RAG Sanitize/Rebuild** - Clear index button, chat-to-RAG export | 3h | ✅ Done |
+| **RAG Context Display** - Retrieves chunks, shows "📚 Retrieved N sections" | 4h | ✅ Done |
+| **RAG-Aware Reasoning** - Classifier uses BYPASS for RAG queries | 2h | ✅ Done |
+
+**Key Files Created/Modified:**
+- `ragix_web/routers/rag.py` - NEW: RAG management API
+- `ragix_web/routers/__init__.py` - Export rag_router
+- `ragix_web/server.py` - Register RAG router
+- `ragix_web/static/index.html` - RAG section in sidebar with toggle
+- `ragix_web/static/style.css` - RAG explorer and toggle switch styles
+- `ragix_web/static/app.js` - RAG management methods
+
+**Features:**
+- RAG section in sidebar with toggle switch
+- Enable/disable RAG per session
+- Stats display: index status, document count, chunk count
+- Browse button shows index files and documents in chat
+- Clear index functionality
+
+**API Endpoints:**
+```
+GET    /api/rag/status           # RAG status (enabled, index info)
+POST   /api/rag/enable           # Enable/disable RAG
+GET    /api/rag/config           # RAG configuration
+POST   /api/rag/config           # Update config (session-level)
+GET    /api/rag/documents        # List indexed documents
+GET    /api/rag/chunks           # List indexed chunks
+POST   /api/rag/search           # Search the index
+DELETE /api/rag/index            # Clear the index
+GET    /api/rag/stats            # Index statistics
+```
 
 ### Priority 8: Git & Diff Integration (v0.34)
 
