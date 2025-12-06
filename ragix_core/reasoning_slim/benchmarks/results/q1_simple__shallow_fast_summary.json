@@ -1,0 +1,61 @@
+{
+  "question_id": "q1_simple",
+  "scenario_id": "shallow_fast",
+  "question": "What is the primary function of a food contact material barrier layer?",
+  "params": {
+    "base_url": "http://localhost:11434",
+    "timeout_sec": 180,
+    "max_global_tokens": 32000,
+    "max_branch_tokens": 8000,
+    "max_concurrent_branches": 2,
+    "model": "granite3.1-moe:3b",
+    "max_depth": 1,
+    "max_loops": 2,
+    "entropy_samples": 2,
+    "entropy_decompose_threshold": 0.95
+  },
+  "success": true,
+  "error": null,
+  "duration_sec": 3.3881642818450928,
+  "final_answer": "The primary function of a food contact material (FCM) barrier layer is to prevent direct contact between the FCM and the food product, thereby ensuring compliance with regulatory standards for food safety. This layer typically consists of materials that are chemically inert, non-toxic, and have low permeability to liquids and gases. It acts as a physical barrier, preventing migration of chemicals from the FCM into the food. The effectiveness of this barrier is crucial for maintaining the integrity of both the product and the consumer's health.\n\nUncertainties: The specific material used in the barrier layer can vary based on factors like the type of food being processed, intended use of the FCM, and regulatory requirements. The exact mechanism by which it prevents migration also depends on its chemical structure and properties. These aspects may not be fully known without detailed knowledge of the specific application and relevant standards.",
+  "summary": {
+    "total_nodes": 1,
+    "states": {
+      "solved": 1
+    },
+    "depth": {
+      "max": 0,
+      "breadth": {
+        "0": 1
+      }
+    },
+    "steps": 1,
+    "tokens": {
+      "prompt": 582,
+      "completion": 307
+    },
+    "entropies": {
+      "model": {
+        "min": 1.0,
+        "max": 1.0,
+        "mean": 1.0
+      },
+      "struct": {
+        "min": 0.42626798770413155,
+        "max": 0.42626798770413155,
+        "mean": 0.42626798770413155
+      },
+      "consistency": {
+        "min": 1.0,
+        "max": 1.0,
+        "mean": 1.0
+      }
+    },
+    "relevance_root": {
+      "min": 19.693635663241714,
+      "max": 19.693635663241714,
+      "mean": 19.693635663241714
+    },
+    "ctx_window": 131072
+  }
+}

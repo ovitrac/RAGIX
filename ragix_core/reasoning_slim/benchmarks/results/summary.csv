@@ -1,0 +1,5 @@
+question_id,scenario_id,success,duration_sec,model,max_depth,max_loops,entropy_samples,entropy_decompose_threshold,total_nodes,nodes_solved,nodes_failed,nodes_partial,tree_depth,steps,prompt_tokens,completion_tokens,total_tokens,entropy_model_min,entropy_model_mean,entropy_model_max,entropy_struct_mean,entropy_consist_mean,relevance_mean,ctx_window,error
+q1_simple,deep_thorough,True,76.54,granite3.1-moe:3b,2,4,3,0.7,12,12,0,0,2,15,17108,7566,24674,0.18,0.836,1.0,0.324,0.8,11.294,131072,
+q1_simple,shallow_fast,True,3.39,granite3.1-moe:3b,1,2,2,0.95,1,1,0,0,0,1,582,307,889,1.0,1.0,1.0,0.426,1.0,19.694,131072,
+q2_reasoning,deep_thorough,True,131.73,granite3.1-moe:3b,2,4,3,0.7,16,16,0,0,2,20,23980,12539,36519,0.09,0.818,1.0,0.373,0.8,9.316,131072,
+q2_reasoning,shallow_fast,True,5.11,granite3.1-moe:3b,1,2,2,0.95,1,1,0,0,0,1,594,374,968,1.0,1.0,1.0,0.555,1.0,20.382,131072,

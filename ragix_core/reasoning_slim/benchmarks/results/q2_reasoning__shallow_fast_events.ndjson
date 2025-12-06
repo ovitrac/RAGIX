@@ -1,0 +1,1 @@
+{"step": 1, "node_id": "ad4de44e-7e5e-4e52-9643-448d055ba5fa", "parent_id": null, "role": "root", "state": "solved", "depth": 0, "entropy_model": 1.0, "entropy_struct": 0.5553876891600541, "entropy_consistency": 1.0, "relevance_root": 20.38191678661409, "prompt_tokens": 594, "completion_tokens": 374, "timestamp": 1765029111.1612816}

@@ -1,0 +1,138 @@
+# Calibration Evaluation Set for ContractiveReasoner
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio Innovation Lab
+#
+# Purpose: Calibrate entropy and relevance thresholds using questions with known properties:
+# - factual: Should solve directly (low decomposition)
+# - complex: Should decompose into subproblems
+# - scope_test: Contains potential off-topic drift (tests pruning)
+
+questions:
+  # ===== FACTUAL QUESTIONS (expect direct solving, low entropy) =====
+  - id: factual_1
+    text: "What is the melting point of polyethylene?"
+    category: factual
+    expected_behavior:
+      decomposition: false
+      max_nodes: 2
+      notes: "Simple fact retrieval, should solve directly"
+
+  - id: factual_2
+    text: "What does FDA stand for in food regulation?"
+    category: factual
+    expected_behavior:
+      decomposition: false
+      max_nodes: 2
+      notes: "Acronym expansion, trivial"
+
+  # ===== COMPLEX QUESTIONS (expect decomposition) =====
+  - id: complex_1
+    text: "Design a comprehensive testing protocol for evaluating the migration of phthalates from PVC food packaging into fatty food simulants."
+    category: complex
+    expected_behavior:
+      decomposition: true
+      min_nodes: 4
+      expected_subtopics:
+        - "sample preparation"
+        - "analytical methods"
+        - "regulatory compliance"
+        - "data interpretation"
+      notes: "Multi-step protocol design, requires decomposition"
+
+  - id: complex_2
+    text: "Compare and contrast the barrier properties of EVOH, aluminum, and metallized PET for modified atmosphere packaging of fresh produce."
+    category: complex
+    expected_behavior:
+      decomposition: true
+      min_nodes: 3
+      expected_subtopics:
+        - "oxygen barrier"
+        - "moisture barrier"
+        - "cost considerations"
+      notes: "Comparative analysis requires structured breakdown"
+
+  # ===== SCOPE TEST QUESTIONS (test pruning of irrelevant branches) =====
+  - id: scope_1
+    text: "Explain how diffusion coefficients are measured in polymer films and discuss the impact of crystallinity."
+    category: scope_test
+    expected_behavior:
+      decomposition: true
+      pruning_expected: true
+      relevant_subtopics:
+        - "diffusion measurement methods"
+        - "crystallinity effects"
+      irrelevant_subtopics:
+        - "marketing strategies"
+        - "company history"
+        - "unrelated chemistry"
+      notes: "Any decomposition into business/marketing topics should be pruned"
+
+  - id: scope_2
+    text: "What are the key factors affecting the shelf life of packaged orange juice?"
+    category: scope_test
+    expected_behavior:
+      decomposition: true
+      pruning_expected: true
+      relevant_subtopics:
+        - "oxygen permeation"
+        - "light exposure"
+        - "temperature"
+        - "microbial growth"
+      irrelevant_subtopics:
+        - "brand positioning"
+        - "supply chain logistics"
+      notes: "Should stay focused on scientific factors"
+
+# Scenario configurations for calibration
+scenarios:
+  - id: baseline
+    description: "Default thresholds"
+    params:
+      model: granite3.1-moe:3b
+      max_depth: 2
+      max_loops: 4
+      entropy_samples: 3
+      entropy_decompose_threshold: 0.8
+      min_relevance_threshold: 0.15
+
+  - id: aggressive_pruning
+    description: "Higher relevance threshold for stricter pruning"
+    params:
+      model: granite3.1-moe:3b
+      max_depth: 2
+      max_loops: 4
+      entropy_samples: 3
+      entropy_decompose_threshold: 0.8
+      min_relevance_threshold: 0.25
+
+  - id: conservative_decomp
+    description: "Higher entropy threshold, less decomposition"
+    params:
+      model: granite3.1-moe:3b
+      max_depth: 2
+      max_loops: 4
+      entropy_samples: 3
+      entropy_decompose_threshold: 0.95
+      min_relevance_threshold: 0.15
+
+# Global defaults
+defaults:
+  base_url: http://localhost:11434
+  timeout_sec: 180
+  max_global_tokens: 32000
+  max_branch_tokens: 8000
+  max_concurrent_branches: 2
+
+# Evaluation criteria
+evaluation_criteria:
+  factual:
+    - "Should solve with minimal or no decomposition"
+    - "Final answer should be factually correct"
+    - "Low token usage"
+  complex:
+    - "Should decompose into relevant subproblems"
+    - "Subproblems should cover expected subtopics"
+    - "Collapsed answer should integrate all parts"
+  scope_test:
+    - "Irrelevant branches should be pruned"
+    - "pruned_count > 0 for most scope_test questions"
+    - "Remaining branches should stay on topic"

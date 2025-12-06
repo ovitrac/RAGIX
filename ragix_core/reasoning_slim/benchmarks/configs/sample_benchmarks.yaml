@@ -1,0 +1,43 @@
+# Sample benchmark configuration for ContractiveReasoner
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio Innovation Lab
+#
+# Defines a matrix of questions × scenarios for systematic evaluation.
+# Run with: python benchmarks/run_benchmarks.py --config benchmarks/configs/sample_benchmarks.yaml
+
+# Questions to evaluate
+questions:
+  - id: q1_simple
+    text: "What is the primary function of a food contact material barrier layer?"
+    category: factual
+
+  - id: q2_reasoning
+    text: "Explain the relationship between polymer crystallinity and gas permeability in food packaging."
+    category: reasoning
+
+# Scenario configurations (parameter sets)
+scenarios:
+  - id: shallow_fast
+    description: "Shallow tree, fast execution"
+    params:
+      model: granite3.1-moe:3b
+      max_depth: 1
+      max_loops: 2
+      entropy_samples: 2
+      entropy_decompose_threshold: 0.95
+
+  - id: deep_thorough
+    description: "Deeper tree, more thorough"
+    params:
+      model: granite3.1-moe:3b
+      max_depth: 2
+      max_loops: 4
+      entropy_samples: 3
+      entropy_decompose_threshold: 0.7
+
+# Global defaults (can be overridden per scenario)
+defaults:
+  base_url: http://localhost:11434
+  timeout_sec: 180
+  max_global_tokens: 32000
+  max_branch_tokens: 8000
+  max_concurrent_branches: 2

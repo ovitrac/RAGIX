@@ -1,0 +1,128 @@
+# ContractiveReasoner Configuration File
+# =======================================
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio Innovation Lab
+#
+# This file defines all parameters for the ContractiveReasoner engine.
+# CLI arguments override values specified here.
+#
+# Duration values (timeout_sec, peer.timeout_sec) accept:
+#   - Integer seconds: 180
+#   - Duration strings: "3m", "2m30s", "1h", "1h30m"
+
+# =============================================================================
+# OLLAMA SETTINGS
+# =============================================================================
+model: granite3.1-moe:3b
+base_url: http://localhost:11434
+
+# =============================================================================
+# TREE EXPLORATION LIMITS
+# =============================================================================
+max_depth: 3                    # Maximum depth of reasoning tree
+max_loops: 6                    # Maximum iterations in main loop
+max_global_tokens: 64000        # Global token budget
+max_branch_tokens: 16000        # Per-branch token limit (triggers summarization)
+max_concurrent_branches: 4      # Parallelism for branch exploration
+
+# =============================================================================
+# ENTROPY THRESHOLDS
+# =============================================================================
+# These control when the engine decides to decompose vs. solve directly.
+#
+# entropy_decompose_threshold: High entropy (uncertainty) triggers decomposition
+#   - Lower value = more aggressive decomposition (more branches)
+#   - Higher value = less decomposition (faster, shallower trees)
+#
+# entropy_collapse_threshold: Controls when branches can collapse
+#   - Lower = stricter collapse criteria
+#   - Higher = more lenient (faster convergence, possibly less accurate)
+
+entropy_decompose_threshold: 0.85
+entropy_collapse_threshold: 0.4
+entropy_gamma_min_reduction: 0.05
+entropy_samples: 3              # Number of samples for entropy estimation
+
+# =============================================================================
+# SEMANTIC PRUNING
+# =============================================================================
+# Branches with relevance below this threshold are pruned (killed).
+# Lower = more permissive (keep branches even if somewhat off-topic)
+# Higher = stricter (prune branches that drift from root question)
+
+min_relevance_threshold: 0.15
+
+# =============================================================================
+# AUTO-REBRANCH
+# =============================================================================
+# When decomposition increases entropy (bad decomposition), the engine can
+# retry with different parameters. This limits those retries.
+
+max_rebranch_attempts: 2
+
+# =============================================================================
+# TIMEOUTS
+# =============================================================================
+# Supports duration strings: "3m", "2m30s", "180", "180s"
+
+timeout_sec: 2m                 # Per-call timeout for main model
+
+# =============================================================================
+# OUTPUT SETTINGS
+# =============================================================================
+print_events: true              # Show per-step entropy/relevance during execution
+width: 90                       # Text wrap width for answers
+no_mermaid: false               # Set to true to suppress Mermaid diagram
+summary_only: false             # Set to true to skip printing full answer
+
+# =============================================================================
+# PEER REVIEW CONFIGURATION
+# =============================================================================
+# Peer review uses a secondary LLM to validate answers before collapse.
+# This helps catch errors that the main model might reinforce.
+#
+# To enable: set peer.model to a valid Ollama model name
+# To disable: comment out peer section or set peer.model to null
+
+peer:
+  # Model settings
+  model: null                   # e.g., "mistral:7b-instruct", "qwen2.5:7b", "deepseek-r1:14b"
+  base_url: null                # Defaults to main base_url if not set
+  timeout_sec: 3m               # Timeout for peer calls (duration string OK)
+
+  # Timing: when to trigger peer review
+  # Options: "before_collapse", "end_of_reasoning", "on_demand"
+  timing: before_collapse
+
+  # Eligibility criteria (branch must meet ALL to be reviewed)
+  min_depth: 2                  # Minimum branch depth
+  min_nodes: 3                  # Minimum nodes in branch path
+  max_per_branch: 1             # Max peer calls per branch (prevents spam)
+
+  # Budget controls
+  max_calls: 10                 # Maximum total peer calls per solve
+  token_budget: 50000           # Token budget for all peer calls
+
+  # Score thresholds
+  approval_threshold: 0.6       # Score >= this is APPROVED
+  rejection_threshold: 0.3      # Score <= this is REJECTED
+
+  # Behavior
+  kill_rejected: true           # Kill rejected branches (vs. just penalize)
+  force_root: false             # Always peer-review root answer at end
+  as_tiebreaker: false          # Only call peer on high-entropy nodes
+  log_prompts: false            # Log full peer prompts for analysis
+
+  # Predefined experiment (overrides above settings if set)
+  # Options: "no_peer", "peer_before_collapse", "peer_final_only",
+  #          "peer_aggressive", "peer_conservative", "peer_budget_limited",
+  #          "peer_large_model"
+  experiment: null
+
+# =============================================================================
+# EXPORT SETTINGS (optional)
+# =============================================================================
+# Uncomment to enable automatic export after each solve
+
+# export_trace: ./traces/trace.json     # Full reasoning trace
+# export_mermaid: ./traces/tree.md      # Mermaid diagram
+# log_events: ./traces/events.ndjson    # Per-step NDJSON metrics

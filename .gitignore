@@ -172,17 +172,27 @@ inject_global_menu.py
 CLAUDE.md
 GEMINI.md
 AGENTS.md
+CODEX.md
 QUICKSTART_CLAUDE_CODE.md
 
 # Agent-generated artifacts (Claude/Gemini/Codex)
 FORREVIEW_*
 REVIEW_*
 .session*
+.claude*
+.claude/
 SESSION_SUMMARY.md
 import_statements.txt
+codex_*
 
 # RAGIX runtime data (caches, logs, indexes)
 .ragix/
 .ragix_cache/
 .agent_logs/
 .trash/
+
+# Publication paper
+WIP.md
+run_production.py
+diagnose_branching.py
+calibrate.py

@@ -1,0 +1,262 @@
+# Paper Experiment Scenarios
+# ==========================
+# Systematic evaluation of contractive reasoning with peer review
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio Innovation Lab
+#
+# Model roles:
+#   f (primary): Main reasoning model
+#   g (peer): External validation model
+#
+# Peer options by purpose:
+#   - Light checker: llama3.2:3b, phi3:latest (fast, cheap dissent)
+#   - Symmetric peer: mistral:7b-instruct (higher agreement, deeper critique)
+#   - Diversity peer: qwen2.5:7b (different training stack)
+#   - Control peer: same as f (for ablation)
+
+scenarios:
+  # =========================================================================
+  # BASELINE SCENARIOS (no peer review)
+  # =========================================================================
+
+  S0_brute_force:
+    description: "Direct LLM call - no contractive reasoning (baseline)"
+    brute_force: true
+    model: granite3.1-moe:3b
+    timeout_sec: 60
+
+  S1_baseline_fast:
+    description: "Minimal contractive reasoning (f only, shallow)"
+    model: granite3.1-moe:3b
+    peer_enabled: false
+    entropy_samples: 1
+    max_depth: 2
+    max_loops: 3
+    entropy_decompose_threshold: 0.9
+    min_relevance_threshold: 0.1
+    timeout_sec: 60
+
+  S2_self_consistency:
+    description: "Self-consistency with multiple samples (no peer)"
+    model: granite3.1-moe:3b
+    peer_enabled: false
+    entropy_samples: 3
+    max_depth: 3
+    max_loops: 6
+    entropy_decompose_threshold: 0.7
+    min_relevance_threshold: 0.15
+    timeout_sec: 90
+
+  S2b_deep_reasoning:
+    description: "Deep contractive reasoning without peer"
+    model: granite3.1-moe:3b
+    peer_enabled: false
+    entropy_samples: 4
+    max_depth: 4
+    max_loops: 10
+    entropy_decompose_threshold: 0.5
+    min_relevance_threshold: 0.1
+    timeout_sec: 180
+
+  # =========================================================================
+  # PEER REVIEW SCENARIOS
+  # =========================================================================
+
+  S3_peer_light:
+    description: "Light peer checker (fast, cheap, diverse dissent)"
+    model: granite3.1-moe:3b
+    entropy_samples: 2
+    max_depth: 3
+    max_loops: 6
+    entropy_decompose_threshold: 0.7
+    min_relevance_threshold: 0.15
+    timeout_sec: 90
+    peer:
+      model: llama3.2:3b
+      timing: before_collapse
+      min_depth: 1
+      min_nodes: 2
+      max_calls: 5
+      token_budget: 2000
+      approval_threshold: 0.6
+      rejection_threshold: 0.3
+      kill_rejected: true
+      timeout_sec: 60
+
+  S4_peer_diverse:
+    description: "Diverse peer (different training stack - Qwen)"
+    model: granite3.1-moe:3b
+    entropy_samples: 3
+    max_depth: 3
+    max_loops: 6
+    entropy_decompose_threshold: 0.6
+    min_relevance_threshold: 0.15
+    timeout_sec: 120
+    peer:
+      model: qwen2.5:7b
+      timing: before_collapse
+      min_depth: 2
+      min_nodes: 3
+      max_calls: 8
+      token_budget: 4000
+      approval_threshold: 0.6
+      rejection_threshold: 0.3
+      kill_rejected: true
+      force_root: true
+      timeout_sec: 90
+
+  S5_peer_strong:
+    description: "Symmetric peer (same model family - Mistral)"
+    model: mistral:7b-instruct
+    entropy_samples: 3
+    max_depth: 3
+    max_loops: 6
+    entropy_decompose_threshold: 0.6
+    min_relevance_threshold: 0.15
+    timeout_sec: 120
+    peer:
+      model: mistral:7b-instruct
+      timing: end_of_reasoning
+      min_depth: 2
+      min_nodes: 3
+      max_calls: 5
+      token_budget: 3000
+      approval_threshold: 0.6
+      rejection_threshold: 0.3
+      kill_rejected: false
+      force_root: true
+      timeout_sec: 90
+
+  S6_safety_focus:
+    description: "Control peer (same model as f for ablation)"
+    model: granite3.1-moe:3b
+    entropy_samples: 3
+    max_depth: 3
+    max_loops: 6
+    entropy_decompose_threshold: 0.6
+    min_relevance_threshold: 0.15
+    timeout_sec: 120
+    peer:
+      model: granite3.1-moe:3b
+      timing: before_collapse
+      min_depth: 1
+      min_nodes: 2
+      max_calls: 10
+      token_budget: 5000
+      approval_threshold: 0.5
+      rejection_threshold: 0.25
+      kill_rejected: true
+      log_prompts: true
+      timeout_sec: 60
+
+  # =========================================================================
+  # ABLATION SCENARIOS (peer frequency/timing)
+  # =========================================================================
+
+  S7_peer_final_only:
+    description: "Peer review only at final answer"
+    model: granite3.1-moe:3b
+    entropy_samples: 3
+    max_depth: 3
+    max_loops: 6
+    entropy_decompose_threshold: 0.6
+    min_relevance_threshold: 0.15
+    timeout_sec: 120
+    peer:
+      model: mistral:7b-instruct
+      timing: end_of_reasoning
+      min_depth: 0
+      min_nodes: 1
+      max_calls: 1
+      token_budget: 2000
+      force_root: true
+      kill_rejected: false
+      timeout_sec: 90
+
+  S8_peer_aggressive:
+    description: "Aggressive peer review (low thresholds, many calls)"
+    model: granite3.1-moe:3b
+    entropy_samples: 4
+    max_depth: 4
+    max_loops: 8
+    entropy_decompose_threshold: 0.5
+    min_relevance_threshold: 0.1
+    timeout_sec: 180
+    peer:
+      model: qwen2.5:7b
+      timing: before_collapse
+      min_depth: 1
+      min_nodes: 2
+      max_calls: 15
+      token_budget: 8000
+      approval_threshold: 0.7
+      rejection_threshold: 0.4
+      kill_rejected: true
+      force_root: true
+      as_tiebreaker: true
+      timeout_sec: 90
+
+  S9_peer_conservative:
+    description: "Conservative peer review (high thresholds, few calls)"
+    model: granite3.1-moe:3b
+    entropy_samples: 3
+    max_depth: 3
+    max_loops: 6
+    entropy_decompose_threshold: 0.6
+    min_relevance_threshold: 0.15
+    timeout_sec: 120
+    peer:
+      model: mistral:7b-instruct
+      timing: before_collapse
+      min_depth: 3
+      min_nodes: 5
+      max_calls: 3
+      token_budget: 2000
+      approval_threshold: 0.5
+      rejection_threshold: 0.2
+      kill_rejected: false
+      timeout_sec: 90
+
+  # =========================================================================
+  # STRONGER PRIMARY MODEL
+  # =========================================================================
+
+  S10_mistral_baseline:
+    description: "Mistral as primary (no peer) - stronger baseline"
+    model: mistral:7b-instruct
+    peer_enabled: false
+    entropy_samples: 3
+    max_depth: 3
+    max_loops: 6
+    entropy_decompose_threshold: 0.6
+    min_relevance_threshold: 0.15
+    timeout_sec: 120
+
+  S11_mistral_with_granite_peer:
+    description: "Mistral primary with Granite peer (reverse of S6)"
+    model: mistral:7b-instruct
+    entropy_samples: 3
+    max_depth: 3
+    max_loops: 6
+    entropy_decompose_threshold: 0.6
+    min_relevance_threshold: 0.15
+    timeout_sec: 120
+    peer:
+      model: granite3.1-moe:3b
+      timing: before_collapse
+      min_depth: 2
+      min_nodes: 3
+      max_calls: 8
+      token_budget: 4000
+      kill_rejected: true
+      timeout_sec: 60
+
+# Default settings applied to all scenarios if not overridden
+defaults:
+  base_url: http://localhost:11434
+  max_concurrent_branches: 4
+  max_global_tokens: 64000
+  max_branch_tokens: 16000
+  entropy_collapse_threshold: 0.4
+  entropy_gamma_min_reduction: 0.05
+  max_rebranch_attempts: 2

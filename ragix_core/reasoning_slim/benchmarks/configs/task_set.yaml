@@ -1,0 +1,278 @@
+# Curated Task Set for Paper Evaluation
+# ======================================
+# 30 tasks across 6 categories for systematic benchmarking
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio Innovation Lab
+#
+# Categories:
+#   - math: Mathematical reasoning and logic
+#   - coding: Programming tasks and bug analysis
+#   - reasoning: Causal chains and logical deduction
+#   - food_engineering: Migration, diffusion, safety protocols
+#   - regulation: EU FCM compliance, EFSA guidance
+#   - general: General knowledge and synthesis
+
+tasks:
+  # ===========================================================================
+  # MATH / LOGIC (5 tasks)
+  # ===========================================================================
+
+  - id: math_1
+    category: math
+    difficulty: easy
+    question: "What is 15 + 27?"
+    keywords: ["42"]
+    expected_decomposition: false
+
+  - id: math_2
+    category: math
+    difficulty: medium
+    question: "How many ways can you arrange 4 distinct books on a shelf?"
+    keywords: ["24", "4!", "factorial"]
+    expected_decomposition: false
+
+  - id: math_3
+    category: math
+    difficulty: medium
+    question: "A bag contains 3 red balls and 5 blue balls. If you draw 2 balls without replacement, what is the probability that both are red?"
+    keywords: ["3/28", "0.107", "3/8", "2/7", "probability"]
+    expected_decomposition: true
+
+  - id: math_4
+    category: math
+    difficulty: hard
+    question: "How many paths are there from (0,0) to (4,3) on a grid if you can only move right or up?"
+    keywords: ["35", "7 choose 3", "binomial", "C(7,3)"]
+    expected_decomposition: true
+
+  - id: math_5
+    category: math
+    difficulty: hard
+    question: "Prove or disprove: For any graph G with n vertices, if every vertex has degree at least n/2, then G is connected."
+    keywords: ["connected", "degree", "path", "Dirac", "theorem"]
+    expected_decomposition: true
+
+  # ===========================================================================
+  # CODING (5 tasks)
+  # ===========================================================================
+
+  - id: code_1
+    category: coding
+    difficulty: easy
+    question: "Write a Python one-liner to check if a string is a palindrome."
+    keywords: ["[::-1]", "reverse", "==", "palindrome"]
+    expected_decomposition: false
+
+  - id: code_2
+    category: coding
+    difficulty: medium
+    question: "Write a Python regex pattern to match valid email addresses (basic format: user@domain.tld)."
+    keywords: ["re.", "@", "\\w", "pattern", "\\."]
+    expected_decomposition: false
+
+  - id: code_3
+    category: coding
+    difficulty: medium
+    question: "Given a CSV file with columns 'name' and 'score', write Python code to read it and print the average score."
+    keywords: ["csv", "reader", "mean", "average", "sum", "len"]
+    expected_decomposition: true
+
+  - id: code_4
+    category: coding
+    difficulty: hard
+    question: |
+      Find the bug in this Python code:
+      ```python
+      def merge_sorted(a, b):
+          result = []
+          i = j = 0
+          while i < len(a) and j < len(b):
+              if a[i] < b[j]:
+                  result.append(a[i])
+                  i += 1
+              else:
+                  result.append(b[j])
+                  j += 1
+          return result
+      ```
+    keywords: ["remaining", "extend", "append", "tail", "a[i:]", "b[j:]"]
+    expected_decomposition: true
+
+  - id: code_5
+    category: coding
+    difficulty: hard
+    question: "Write a bash one-liner to find all Python files modified in the last 7 days and count their total lines of code."
+    keywords: ["find", "mtime", "-7", "wc", "xargs", ".py"]
+    expected_decomposition: true
+
+  # ===========================================================================
+  # REASONING (5 tasks)
+  # ===========================================================================
+
+  - id: reason_1
+    category: reasoning
+    difficulty: medium
+    question: "If all cats are mammals, and some mammals are pets, can we conclude that some cats are pets?"
+    keywords: ["cannot conclude", "invalid", "some", "may", "possible"]
+    expected_decomposition: true
+
+  - id: reason_2
+    category: reasoning
+    difficulty: medium
+    question: "Alice is taller than Bob. Bob is taller than Carol. David is shorter than Carol. Rank all four from tallest to shortest."
+    keywords: ["Alice", "Bob", "Carol", "David", "order"]
+    expected_decomposition: true
+
+  - id: reason_3
+    category: reasoning
+    difficulty: hard
+    question: "A factory can produce either Product A or Product B. Product A takes 2 hours and yields $100 profit. Product B takes 3 hours and yields $180 profit. With 12 hours available, what is the optimal production mix?"
+    keywords: ["4 units", "profit", "maximize", "linear", "optimization"]
+    expected_decomposition: true
+
+  - id: reason_4
+    category: reasoning
+    difficulty: hard
+    question: "Three people (X, Y, Z) make statements. X says 'Y is lying.' Y says 'Z is lying.' Z says 'Both X and Y are lying.' If exactly one person is telling the truth, who is it?"
+    keywords: ["Y", "truth", "liar", "contradiction", "exactly one"]
+    expected_decomposition: true
+
+  - id: reason_5
+    category: reasoning
+    difficulty: hard
+    question: "Explain the trade-offs between centralized and decentralized decision-making in organizations."
+    keywords: ["speed", "consistency", "flexibility", "accountability", "coordination"]
+    expected_decomposition: true
+
+  # ===========================================================================
+  # FOOD ENGINEERING / CHEMICAL SAFETY (5 tasks)
+  # ===========================================================================
+
+  - id: food_1
+    category: food_engineering
+    difficulty: hard
+    question: "Design a migration test protocol for a multilayer PET/PE food packaging film intended for fatty food contact at room temperature."
+    keywords: ["migration", "simulant", "olive oil", "isooctane", "temperature", "10 days", "contact", "specific migration limit"]
+    expected_decomposition: true
+
+  - id: food_2
+    category: food_engineering
+    difficulty: hard
+    question: "Explain how to estimate the diffusion coefficient (D) and partition coefficient (K) from migration kinetic data."
+    keywords: ["diffusion", "partition", "Fick", "kinetic", "fitting", "inverse problem", "least squares"]
+    expected_decomposition: true
+
+  - id: food_3
+    category: food_engineering
+    difficulty: hard
+    question: "What are the key steps for NIAS (Non-Intentionally Added Substances) risk screening in food contact materials?"
+    keywords: ["NIAS", "screening", "GC-MS", "LC-MS", "threshold", "TTC", "identification", "toxicology"]
+    expected_decomposition: true
+
+  - id: food_4
+    category: food_engineering
+    difficulty: hard
+    question: "Describe a cleaning validation protocol for food processing equipment to ensure no cross-contamination."
+    keywords: ["cleaning", "validation", "residue", "swab", "rinse", "acceptance criteria", "LOD", "visual"]
+    expected_decomposition: true
+
+  - id: food_5
+    category: food_engineering
+    difficulty: hard
+    question: "For a HACCP plan of a ready-to-eat salad production line, identify three Critical Control Points (CCPs) and their monitoring procedures."
+    keywords: ["HACCP", "CCP", "critical limit", "monitoring", "temperature", "washing", "chlorine", "metal detection"]
+    expected_decomposition: true
+
+  # ===========================================================================
+  # REGULATION (5 tasks)
+  # ===========================================================================
+
+  - id: reg_1
+    category: regulation
+    difficulty: hard
+    question: "What are the key requirements for EU FCM compliance for plastic materials under Regulation (EU) No 10/2011?"
+    keywords: ["10/2011", "SML", "OML", "Union list", "migration", "testing", "declaration of compliance"]
+    expected_decomposition: true
+
+  - id: reg_2
+    category: regulation
+    difficulty: hard
+    question: "How should exposure to a food contact chemical be estimated according to EFSA guidance?"
+    keywords: ["exposure", "EFSA", "consumption", "migration", "body weight", "TDI", "scenario"]
+    expected_decomposition: true
+
+  - id: reg_3
+    category: regulation
+    difficulty: hard
+    question: "Draft an outline for a test plan to demonstrate compliance of a new bio-based plastic with EU FCM regulations."
+    keywords: ["test plan", "migration", "overall", "specific", "simulant", "conditions", "verification"]
+    expected_decomposition: true
+
+  - id: reg_4
+    category: regulation
+    difficulty: hard
+    question: "What labeling claims can be made for a 'BPA-free' food container under EU regulations, and what must be verified?"
+    keywords: ["BPA", "bisphenol", "claim", "verification", "testing", "limit of detection", "regulation"]
+    expected_decomposition: true
+
+  - id: reg_5
+    category: regulation
+    difficulty: hard
+    question: "Explain the difference between Specific Migration Limit (SML) and Overall Migration Limit (OML) in food contact materials regulation."
+    keywords: ["SML", "OML", "specific", "overall", "60 mg/kg", "10 mg/dm2", "substance", "total"]
+    expected_decomposition: true
+
+  # ===========================================================================
+  # GENERAL KNOWLEDGE / SYNTHESIS (5 tasks)
+  # ===========================================================================
+
+  - id: general_1
+    category: general
+    difficulty: easy
+    question: "What are the three primary colors in the RGB color model?"
+    keywords: ["red", "green", "blue", "RGB"]
+    expected_decomposition: false
+
+  - id: general_2
+    category: general
+    difficulty: medium
+    question: "Explain the process of photosynthesis and its importance for life on Earth."
+    keywords: ["photosynthesis", "chlorophyll", "carbon dioxide", "oxygen", "glucose", "light", "energy"]
+    expected_decomposition: true
+
+  - id: general_3
+    category: general
+    difficulty: medium
+    question: "What causes ocean tides, and why do they vary in strength?"
+    keywords: ["moon", "sun", "gravitational", "spring", "neap", "tide"]
+    expected_decomposition: true
+
+  - id: general_4
+    category: general
+    difficulty: hard
+    question: "Compare and contrast machine learning and traditional programming approaches to solving problems."
+    keywords: ["data", "rules", "learning", "explicit", "patterns", "training", "generalization"]
+    expected_decomposition: true
+
+  - id: general_5
+    category: general
+    difficulty: hard
+    question: "What are the key factors that led to the Industrial Revolution, and what were its major consequences?"
+    keywords: ["industrial", "revolution", "steam", "factory", "urbanization", "labor", "technology", "coal"]
+    expected_decomposition: true
+
+# Metadata
+metadata:
+  total_tasks: 30
+  categories:
+    math: 5
+    coding: 5
+    reasoning: 5
+    food_engineering: 5
+    regulation: 5
+    general: 5
+  difficulty_distribution:
+    easy: 3
+    medium: 9
+    hard: 18
+  expected_decomposition_ratio: 0.80

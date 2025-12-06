@@ -1,0 +1,63 @@
+{
+  "question_id": "q1_simple",
+  "scenario_id": "deep_thorough",
+  "question": "What is the primary function of a food contact material barrier layer?",
+  "params": {
+    "base_url": "http://localhost:11434",
+    "timeout_sec": 180,
+    "max_global_tokens": 32000,
+    "max_branch_tokens": 8000,
+    "max_concurrent_branches": 2,
+    "model": "granite3.1-moe:3b",
+    "max_depth": 2,
+    "max_loops": 4,
+    "entropy_samples": 3,
+    "entropy_decompose_threshold": 0.7
+  },
+  "success": true,
+  "error": null,
+  "duration_sec": 76.5364260673523,
+  "final_answer": "The primary function of a food contact material barrier layer is to prevent or slow down the diffusion of substances through a material, such as water vapor or gases. This is achieved by creating a physical and chemical boundary that maintains the integrity of the system's components. The effectiveness of this barrier layer can be influenced by factors like thickness, material composition, and environmental conditions. In applications like drug delivery systems, it ensures controlled release of active ingredients.\n\nUncertainties: To provide an even more precise understanding, specific details about the application (e.g., type of food product, storage conditions) and environmental factors would be beneficial.\n\nCLARIFICATION: For a comprehensive grasp, please specify if this barrier layer is used in applications involving water vapor or gases, and under what specific temperature and humidity conditions it operates. This information will help determine the optimal performance of the barrier layer.",
+  "summary": {
+    "total_nodes": 12,
+    "states": {
+      "solved": 12
+    },
+    "depth": {
+      "max": 2,
+      "breadth": {
+        "0": 1,
+        "1": 3,
+        "2": 8
+      }
+    },
+    "steps": 15,
+    "tokens": {
+      "prompt": 17108,
+      "completion": 7566
+    },
+    "entropies": {
+      "model": {
+        "min": 0.18,
+        "max": 0.9999999999999998,
+        "mean": 0.8359999999999999
+      },
+      "struct": {
+        "min": 0.0,
+        "max": 0.5394449154672439,
+        "mean": 0.324379272585247
+      },
+      "consistency": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.8
+      }
+    },
+    "relevance_root": {
+      "min": 4.095236932303047,
+      "max": 19.259705442587304,
+      "mean": 11.29363568278671
+    },
+    "ctx_window": 131072
+  }
+}
