@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RAGIX Web UI</title>
     <link rel="stylesheet" href="/static/style.css">
+    <!-- D3.js for graph visualization (v0.33.1) -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         /* Navigation Tabs */
         .nav-tabs {
@@ -992,6 +994,7 @@
             <button class="nav-tab" data-tab="chat">Chat</button>
             <button class="nav-tab" data-tab="reasoning">Reasoning</button>
             <button class="nav-tab" data-tab="ast">AST Analysis</button>
+            <button class="nav-tab" data-tab="rag">Project RAG</button>
             <button class="nav-tab" data-tab="logs">Logs</button>
         </nav>
 
@@ -1052,6 +1055,68 @@
                                     <span class="dash-stat-label">Tech Debt (hours)</span>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Project RAG Indexing -->
+                    <div class="dashboard-section">
+                        <h3>Project RAG Index</h3>
+                        <div id="projectRagStatus" class="rag-status-panel">
+                            <div class="rag-status-row">
+                                <span class="status-dot" id="ragStatusDot"></span>
+                                <span class="status-text" id="ragStatusText">Select a project to enable RAG indexing</span>
+                            </div>
+                            <!-- GPU indicator -->
+                            <div id="ragGpuStatus" class="rag-gpu-status" style="display: none;">
+                                <span id="ragGpuIcon" class="rag-gpu-icon">&#9889;</span>
+                                <span id="ragGpuText">GPU: Checking...</span>
+                            </div>
+                            <div id="ragIndexStats" class="rag-index-stats" style="display: none;">
+                                <div class="rag-stat">
+                                    <span class="rag-stat-value" id="ragStatFiles">0</span>
+                                    <span class="rag-stat-label">Files</span>
+                                </div>
+                                <div class="rag-stat">
+                                    <span class="rag-stat-value" id="ragStatChunks">0</span>
+                                    <span class="rag-stat-label">Chunks</span>
+                                </div>
+                                <div class="rag-stat">
+                                    <span class="rag-stat-value" id="ragStatProgress">0%</span>
+                                    <span class="rag-stat-label">Progress</span>
+                                </div>
+                                <div class="rag-stat">
+                                    <span class="rag-stat-value" id="ragStatTime">-</span>
+                                    <span class="rag-stat-label">Elapsed</span>
+                                </div>
+                                <div class="rag-stat">
+                                    <span class="rag-stat-value" id="ragStatEta">-</span>
+                                    <span class="rag-stat-label">ETA</span>
+                                </div>
+                                <div class="rag-stat">
+                                    <span class="rag-stat-value" id="ragStatSize">-</span>
+                                    <span class="rag-stat-label">Size</span>
+                                </div>
+                            </div>
+                            <div id="ragProgressBar" class="rag-progress-bar" style="display: none;">
+                                <div class="rag-progress-fill" id="ragProgressFill"></div>
+                            </div>
+                            <div class="rag-actions">
+                                <select id="ragProfileSelect" class="rag-profile-select">
+                                    <option value="mixed_docs_code">Mixed (Docs + Code)</option>
+                                    <option value="docs_only">Documentation Only</option>
+                                    <option value="code_only">Code Only</option>
+                                </select>
+                                <button class="btn btn-primary" id="ragIndexBtn" onclick="projectRagApp.startIndexing()">
+                                    Index Project
+                                </button>
+                                <button class="btn" id="ragStopBtn" onclick="projectRagApp.stopIndexing()" style="display: none;">
+                                    Stop
+                                </button>
+                                <button class="btn btn-danger" id="ragDeleteBtn" onclick="projectRagApp.deleteIndex()" style="display: none;">
+                                    Delete Index
+                                </button>
+                            </div>
+                            <p class="rag-hint">RAG indexing enables intelligent project-wide search in chat. Supports code, docs, PDF, PPTX, XLSX.</p>
                         </div>
                     </div>
 
@@ -1290,16 +1355,37 @@
                                     <div class="rag-explorer">
                                         <!-- RAG Status -->
                                         <div class="rag-status" id="ragStatus">
-                                            <div class="rag-toggle-row">
-                                                <span class="rag-toggle-label">RAG Enabled</span>
+                                            <!-- Project RAG Toggle (v0.33) -->
+                                            <div class="rag-toggle-row rag-toggle-project">
+                                                <span class="rag-toggle-label" title="Project-wide RAG from .RAG/ index (ChromaDB)">
+                                                    <span class="rag-type-icon">🌐</span> Project RAG
+                                                </span>
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" id="projectRagToggle" checked onchange="app.toggleProjectRag(this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </div>
+                                            <div class="rag-toggle-hint" id="projectRagHint">
+                                                <small>Injects context from indexed project (.RAG/)</small>
+                                            </div>
+
+                                            <!-- Chat RAG Toggle -->
+                                            <div class="rag-toggle-row rag-toggle-chat">
+                                                <span class="rag-toggle-label" title="Session-scoped RAG from uploaded files (.ragix/)">
+                                                    <span class="rag-type-icon">💬</span> Chat RAG
+                                                </span>
                                                 <label class="toggle-switch">
                                                     <input type="checkbox" id="ragEnabledToggle" onchange="app.toggleRag(this.checked)">
                                                     <span class="toggle-slider"></span>
                                                 </label>
                                             </div>
+                                            <div class="rag-toggle-hint">
+                                                <small>Session files uploaded below (.ragix/)</small>
+                                            </div>
+
                                             <div class="rag-stats" id="ragStats">
                                                 <div class="stat-row">
-                                                    <span class="stat-label">Index</span>
+                                                    <span class="stat-label">Chat Index</span>
                                                     <span id="ragIndexStatus" class="stat-value">Not loaded</span>
                                                 </div>
                                                 <div class="stat-row">
@@ -1719,6 +1805,192 @@
 
                     <div id="logsContent" class="logs-content">
                         <p style="color: var(--text-secondary);">Select a session to view logs...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Project RAG Tab -->
+            <div id="ragTab" class="tab-content">
+                <div class="rag-panel">
+                    <div class="ast-header">
+                        <h2>Project Knowledge Base</h2>
+                        <div id="ragTabStatus" class="ast-status available">
+                            Checking Project RAG status...
+                        </div>
+                    </div>
+
+                    <!-- Change Detection Notification -->
+                    <div id="ragChangeNotification" class="rag-change-notification hidden">
+                        <div class="rag-notification-icon">⚠️</div>
+                        <div class="rag-notification-content">
+                            <strong>Changes detected in project</strong>
+                            <span id="ragChangeSummary">Loading...</span>
+                        </div>
+                        <div class="rag-notification-actions">
+                            <button class="btn btn-primary btn-sm" onclick="projectRagApp.updateIndex()">Update Now</button>
+                            <button class="btn btn-secondary btn-sm" onclick="projectRagApp.reindexProject()">Full Reindex</button>
+                            <button class="btn btn-icon btn-sm" onclick="projectRagApp.dismissNotification()" title="Dismiss">✕</button>
+                        </div>
+                    </div>
+
+                    <!-- 1. Discovered Concepts (Position 1 - Click to explore) -->
+                    <div class="rag-section" id="ragConceptsWrapper">
+                        <div class="rag-section-header" onclick="projectRagApp.toggleSection('concepts')">
+                            <span class="rag-section-toggle" id="ragConceptsToggle">▼</span>
+                            <h3>Discovered Concepts</h3>
+                            <span id="ragConceptsCount" class="rag-section-badge"></span>
+                            <button class="btn btn-sm btn-icon" onclick="event.stopPropagation(); projectRagApp.toggleSectionFullscreen('concepts')" title="Toggle Fullscreen">
+                                <span id="conceptsFullscreenIcon">⛶</span>
+                            </button>
+                        </div>
+                        <div class="rag-section-content" id="ragConceptsSection">
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                                Concepts extracted from indexed files. Click to explore in Concept Explorer below.
+                            </p>
+                            <!-- Pagination controls -->
+                            <div class="rag-concepts-pagination">
+                                <button class="btn btn-sm" id="conceptsPrevBtn" onclick="projectRagApp.changeConceptsPage(-1)" disabled title="Show fewer concepts">
+                                    ◀ Less
+                                </button>
+                                <span id="conceptsPageInfo" style="font-size: 12px; color: var(--text-secondary);">
+                                    Showing 1-20
+                                </span>
+                                <button class="btn btn-sm" id="conceptsNextBtn" onclick="projectRagApp.changeConceptsPage(1)" title="Show more concepts">
+                                    More ▶
+                                </button>
+                            </div>
+                            <div id="ragConceptsList" class="rag-concepts-list">
+                                <span style="color: var(--text-secondary);">No concepts indexed yet.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Search Project -->
+                    <div class="rag-section" id="ragSearchWrapper">
+                        <div class="rag-section-header" onclick="projectRagApp.toggleSection('search')">
+                            <span class="rag-section-toggle" id="ragSearchToggle">▼</span>
+                            <h3>Search Project</h3>
+                            <button class="btn btn-sm btn-icon" onclick="event.stopPropagation(); projectRagApp.toggleSectionFullscreen('search')" title="Toggle Fullscreen">
+                                <span id="searchFullscreenIcon">⛶</span>
+                            </button>
+                        </div>
+                        <div class="rag-section-content" id="ragSearchSection">
+                            <div class="rag-query-input-group">
+                                <input type="text" id="ragQueryInput" class="rag-query-input"
+                                       placeholder="Search for code, concepts, or documentation..."
+                                       onkeypress="if(event.key==='Enter') projectRagApp.search()" />
+                                <select id="ragCollectionSelect" class="rag-profile-select">
+                                    <option value="mixed">All (Mixed)</option>
+                                    <option value="code">Code Only</option>
+                                    <option value="docs">Docs Only</option>
+                                </select>
+                                <button class="btn btn-primary" onclick="projectRagApp.search()">Search</button>
+                            </div>
+                            <!-- Results Section -->
+                            <div id="ragResults" class="rag-results">
+                                <p style="color: var(--text-secondary);">Enter a search query above to find relevant content in your project.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Concept Explorer (v0.33.1) - with fullscreen support -->
+                    <div class="rag-section" id="ragExplorerWrapper">
+                        <div class="rag-section-header" onclick="projectRagApp.toggleSection('explorer')">
+                            <span class="rag-section-toggle" id="ragExplorerToggle">▼</span>
+                            <h3>Concept Explorer</h3>
+                            <button class="btn btn-sm btn-icon" onclick="event.stopPropagation(); projectRagApp.toggleExplorerFullscreen()" title="Toggle Fullscreen">
+                                <span id="explorerFullscreenIcon">⛶</span>
+                            </button>
+                        </div>
+                        <div class="rag-section-content" id="ragExplorerSection">
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                                Explore concepts with file-centric and graph views. Click on discovered concepts above or search directly.
+                            </p>
+                            <div class="rag-query-input-group">
+                                <input type="text" id="ragExploreInput" class="rag-query-input"
+                                       placeholder="Explore a concept (e.g., 'SK02', 'authentication')..."
+                                       onkeypress="if(event.key==='Enter') projectRagApp.exploreConcept()" />
+                                <button class="btn btn-primary" onclick="projectRagApp.exploreConcept()">Explore</button>
+                                <button class="btn btn-secondary" onclick="projectRagApp.toggleExplorerView()" title="Toggle Files/Graph View">
+                                    <span id="explorerViewIcon">📊</span>
+                                </button>
+                            </div>
+
+                            <!-- Recurring Tags (auto-discovered) -->
+                            <div id="ragExplorerTags" class="rag-explorer-tags" style="display: none;">
+                                <span style="font-size: 11px; color: var(--text-secondary);">Related tags:</span>
+                                <div id="ragExplorerTagsList" class="rag-tags-list"></div>
+                            </div>
+
+                            <!-- Dual View Container -->
+                            <div id="ragExplorerResults" class="rag-explorer-results">
+                                <!-- File-Centric View (default) -->
+                                <div id="ragExplorerFiles" class="rag-explorer-files">
+                                    <p style="color: var(--text-secondary);">Enter a concept to explore files and chunks.</p>
+                                </div>
+
+                                <!-- Graph View (toggle) -->
+                                <div id="ragExplorerGraph" class="rag-explorer-graph" style="display: none;">
+                                    <div id="ragGraphContainer" class="rag-graph-container">
+                                        <svg id="ragGraphSvg" width="100%" height="400"></svg>
+                                    </div>
+                                    <div id="ragGraphControls" class="rag-graph-controls">
+                                        <button class="btn btn-sm" onclick="projectRagApp.zoomGraph(1.2)" title="Zoom In">+</button>
+                                        <button class="btn btn-sm" onclick="projectRagApp.zoomGraph(0.8)" title="Zoom Out">−</button>
+                                        <button class="btn btn-sm" onclick="projectRagApp.resetGraph()" title="Reset">⟲</button>
+                                    </div>
+                                    <div id="ragGraphLegend" class="rag-graph-legend">
+                                        <span class="legend-item"><span class="legend-dot concept"></span> Concept</span>
+                                        <span class="legend-item"><span class="legend-dot chunk"></span> Chunk</span>
+                                        <span class="legend-item"><span class="legend-dot file"></span> File</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Related Concepts -->
+                            <div id="ragRelatedConcepts" class="rag-related-concepts" style="display: none;">
+                                <span style="font-size: 11px; color: var(--text-secondary);">Related concepts:</span>
+                                <div id="ragRelatedConceptsList"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stats Section (Collapsible) -->
+                    <div class="rag-section">
+                        <div class="rag-section-header" onclick="projectRagApp.toggleSection('stats')">
+                            <span class="rag-section-toggle" id="ragStatsToggle">▼</span>
+                            <h3>Index Statistics</h3>
+                        </div>
+                        <div class="rag-section-content" id="ragStatsSection">
+                            <div id="ragStatsDetail" style="font-size: 13px; color: var(--text-secondary);">
+                                No index statistics available.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summarize Section (Collapsible) -->
+                    <div class="rag-section" id="ragSummarizeWrapper">
+                        <div class="rag-section-header" onclick="projectRagApp.toggleSection('summarize')">
+                            <span class="rag-section-toggle" id="ragSummarizeToggle">▶</span>
+                            <h3>Knowledge Summary</h3>
+                            <button class="btn btn-sm btn-icon" onclick="event.stopPropagation(); projectRagApp.toggleSectionFullscreen('summarize')" title="Toggle Fullscreen">
+                                <span id="summarizeFullscreenIcon">⛶</span>
+                            </button>
+                        </div>
+                        <div class="rag-section-content hidden" id="ragSummarizeSection">
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                                Use the LLM to summarize knowledge about a concept with citations.
+                            </p>
+                            <div class="rag-query-input-group">
+                                <input type="text" id="ragSummarizeInput" class="rag-query-input"
+                                       placeholder="Enter concept to summarize (e.g., 'authentication', 'SK02')..."
+                                       onkeypress="if(event.key==='Enter') projectRagApp.summarizeConcept()" />
+                                <button class="btn btn-primary" onclick="projectRagApp.summarizeConcept()">Summarize</button>
+                            </div>
+                            <div id="ragSummarizeResults" class="rag-summarize-results">
+                                <p style="color: var(--text-secondary);">Enter a concept to get an LLM-generated summary with source citations.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -4085,6 +4357,21 @@
                     this.recentProjects.splice(existing, 1);
                 }
 
+                // v0.33: Set Project RAG path (the .RAG/ will be created inside this project)
+                try {
+                    const ragResp = await fetch(`/api/rag/project/set-project?project_path=${encodeURIComponent(path)}`, {
+                        method: 'POST'
+                    });
+                    if (ragResp.ok) {
+                        const ragData = await ragResp.json();
+                        console.log('Project RAG set to:', path, ragData);
+                        // Update RAG status display
+                        projectRagApp.checkStatus();
+                    }
+                } catch (e) {
+                    console.warn('Failed to set Project RAG path:', e);
+                }
+
                 // Fetch quick metrics
                 try {
                     const resp = await fetch(`/api/ast/metrics?path=${encodeURIComponent(path)}`);
@@ -4231,6 +4518,1115 @@
 
         // Initialize dashboard
         dashboardApp.init();
+
+        // =============================================================================
+        // Project RAG Application (v0.33)
+        // =============================================================================
+        const projectRagApp = {
+            isIndexing: false,
+            progressInterval: null,
+            currentProject: null,
+
+            async init() {
+                await this.checkStatus();
+            },
+
+            async checkStatus() {
+                try {
+                    // v0.33: Pass project_path to get status for the selected project
+                    const projectPath = dashboardApp.currentProject || document.getElementById('dashboardProjectPath')?.value || '';
+                    let url = '/api/rag/project/status';
+                    if (projectPath) {
+                        url += `?project_path=${encodeURIComponent(projectPath)}`;
+                    }
+                    const resp = await fetch(url);
+                    const data = await resp.json();
+
+                    const dot = document.getElementById('ragStatusDot');
+                    const text = document.getElementById('ragStatusText');
+                    const statsDiv = document.getElementById('ragIndexStats');
+                    const progressBar = document.getElementById('ragProgressBar');
+                    const indexBtn = document.getElementById('ragIndexBtn');
+                    const stopBtn = document.getElementById('ragStopBtn');
+                    const deleteBtn = document.getElementById('ragDeleteBtn');
+                    const gpuStatus = document.getElementById('ragGpuStatus');
+
+                    if (!data.available) {
+                        dot.className = 'status-dot status-error';
+                        text.textContent = 'Project RAG not available (install chromadb)';
+                        indexBtn.disabled = true;
+                        return;
+                    }
+
+                    // Update GPU status
+                    if (data.vector_store) {
+                        gpuStatus.style.display = 'block';
+                        const gpuIcon = document.getElementById('ragGpuIcon');
+                        const gpuText = document.getElementById('ragGpuText');
+                        if (data.vector_store.gpu_available) {
+                            gpuIcon.style.color = 'var(--accent-green)';
+                            gpuText.textContent = 'GPU: CUDA Enabled';
+                            gpuText.style.color = 'var(--accent-green)';
+                        } else {
+                            gpuIcon.style.color = 'var(--text-secondary)';
+                            gpuText.textContent = 'GPU: CPU Mode';
+                            gpuText.style.color = 'var(--text-secondary)';
+                        }
+                    }
+
+                    // Update index size
+                    if (data.vector_store?.disk_size_mb !== undefined) {
+                        document.getElementById('ragStatSize').textContent = data.vector_store.disk_size_mb + ' MB';
+                    }
+
+                    if (data.is_indexing) {
+                        this.isIndexing = true;
+                        dot.className = 'status-dot status-warn';
+                        text.textContent = 'Indexing in progress...';
+                        indexBtn.style.display = 'none';
+                        stopBtn.style.display = 'inline-block';
+                        deleteBtn.style.display = 'none';
+                        progressBar.style.display = 'block';
+                        statsDiv.style.display = 'flex';
+                        this.startProgressPolling();
+                    } else if (data.initialized) {
+                        dot.className = 'status-dot status-ok';
+                        const state = data.state || {};
+                        const projectName = data.current_project ? data.current_project.split('/').pop() : '';
+                        text.textContent = `Index ready (${projectName}): ${state.files_indexed || 0} files, ${state.chunks_indexed || 0} chunks`;
+                        indexBtn.style.display = 'inline-block';
+                        indexBtn.textContent = 'Re-index';
+                        stopBtn.style.display = 'none';
+                        deleteBtn.style.display = 'inline-block';
+                        progressBar.style.display = 'none';
+                        statsDiv.style.display = 'flex';
+                        document.getElementById('ragStatFiles').textContent = state.files_indexed || 0;
+                        document.getElementById('ragStatChunks').textContent = state.chunks_indexed || 0;
+                        document.getElementById('ragStatProgress').textContent = '100%';
+                        document.getElementById('ragStatEta').textContent = '-';
+                        document.getElementById('ragStatTime').textContent = '-';
+                        // Size is already set above from vector_store.disk_size_mb
+                    } else if (data.exists) {
+                        dot.className = 'status-dot status-warn';
+                        const projectName = data.current_project ? data.current_project.split('/').pop() : '';
+                        text.textContent = projectName ? `RAG initialized (${projectName}) but not indexed` : 'RAG initialized but not indexed';
+                        indexBtn.style.display = 'inline-block';
+                        indexBtn.textContent = 'Index Project';
+                        stopBtn.style.display = 'none';
+                        deleteBtn.style.display = 'inline-block';
+                    } else if (data.project_path) {
+                        // Project selected but no RAG exists
+                        dot.className = 'status-dot';
+                        const projectName = data.project_path.split('/').pop();
+                        text.textContent = `Project selected (${projectName}) - click Index to create .RAG/`;
+                        indexBtn.style.display = 'inline-block';
+                        indexBtn.textContent = 'Index Project';
+                        stopBtn.style.display = 'none';
+                        deleteBtn.style.display = 'none';
+                        statsDiv.style.display = 'none';
+                        gpuStatus.style.display = 'none';
+                    } else {
+                        dot.className = 'status-dot';
+                        text.textContent = 'Load a project in Project Selection above';
+                        indexBtn.style.display = 'inline-block';
+                        indexBtn.textContent = 'Index Project';
+                        stopBtn.style.display = 'none';
+                        deleteBtn.style.display = 'none';
+                        statsDiv.style.display = 'none';
+                        gpuStatus.style.display = 'none';
+                    }
+
+                    // Update RAG tab status if exists
+                    const tabStatus = document.getElementById('ragTabStatus');
+                    if (tabStatus) {
+                        if (data.initialized) {
+                            tabStatus.className = 'ast-status available';
+                            tabStatus.textContent = `Project RAG active: ${data.state?.files_indexed || 0} files indexed`;
+                        } else {
+                            tabStatus.className = 'ast-status unavailable';
+                            tabStatus.textContent = 'Project RAG not indexed. Go to Dashboard to start indexing.';
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to check RAG status:', e);
+                    document.getElementById('ragStatusDot').className = 'status-dot status-error';
+                    document.getElementById('ragStatusText').textContent = 'Error checking RAG status';
+                }
+            },
+
+            async startIndexing() {
+                const profile = document.getElementById('ragProfileSelect').value;
+                const projectPath = dashboardApp.currentProject || document.getElementById('dashboardProjectPath').value;
+
+                if (!projectPath) {
+                    alert('Please select a project first');
+                    return;
+                }
+
+                try {
+                    // v0.33: First ensure the project path is set (in case user didn't click Load Project)
+                    await fetch(`/api/rag/project/set-project?project_path=${encodeURIComponent(projectPath)}`, {
+                        method: 'POST'
+                    });
+
+                    // First initialize if needed (pass project_path explicitly)
+                    await fetch('/api/rag/project/init', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            project_path: projectPath,
+                            profile,
+                            project_name: projectPath.split('/').pop()
+                        })
+                    });
+
+                    // Start indexing (pass project_path explicitly)
+                    const resp = await fetch('/api/rag/project/index', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            project_path: projectPath,
+                            full_reindex: true
+                        })
+                    });
+
+                    const data = await resp.json();
+
+                    if (data.status === 'started' || data.status === 'already_running') {
+                        this.isIndexing = true;
+                        this.startProgressPolling();
+                        this.checkStatus();
+                    } else {
+                        alert('Failed to start indexing: ' + (data.message || 'Unknown error'));
+                    }
+                } catch (e) {
+                    console.error('Failed to start indexing:', e);
+                    alert('Failed to start indexing: ' + e.message);
+                }
+            },
+
+            async stopIndexing() {
+                try {
+                    await fetch('/api/rag/project/stop', { method: 'POST' });
+                    this.isIndexing = false;
+                    this.stopProgressPolling();
+                    this.checkStatus();
+                } catch (e) {
+                    console.error('Failed to stop indexing:', e);
+                }
+            },
+
+            async deleteIndex() {
+                const projectPath = dashboardApp.currentProject || document.getElementById('dashboardProjectPath').value;
+                if (!projectPath) {
+                    alert('No project selected');
+                    return;
+                }
+
+                const projectName = projectPath.split('/').pop();
+                if (!confirm(`Delete the RAG index for "${projectName}"?\n\nThis will remove the .RAG/ folder and all indexed data.`)) {
+                    return;
+                }
+
+                try {
+                    const resp = await fetch('/api/rag/project/clear', { method: 'DELETE' });
+                    const data = await resp.json();
+
+                    if (data.status === 'cleared') {
+                        alert('Index deleted successfully');
+                        this.checkStatus();
+                    } else {
+                        alert('Failed to delete index: ' + (data.message || 'Unknown error'));
+                    }
+                } catch (e) {
+                    console.error('Failed to delete index:', e);
+                    alert('Failed to delete index: ' + e.message);
+                }
+            },
+
+            startProgressPolling() {
+                if (this.progressInterval) return;
+                this.progressInterval = setInterval(() => this.pollProgress(), 2000);
+                this.pollProgress(); // Immediate first poll
+            },
+
+            stopProgressPolling() {
+                if (this.progressInterval) {
+                    clearInterval(this.progressInterval);
+                    this.progressInterval = null;
+                }
+            },
+
+            async pollProgress() {
+                try {
+                    const resp = await fetch('/api/rag/project/progress');
+                    const data = await resp.json();
+
+                    if (!data.is_indexing) {
+                        this.isIndexing = false;
+                        this.stopProgressPolling();
+                        this.checkStatus();
+                        return;
+                    }
+
+                    // Update progress display
+                    document.getElementById('ragStatFiles').textContent = `${data.files_processed || 0}/${data.files_total || 0}`;
+                    document.getElementById('ragStatChunks').textContent = data.chunks_indexed || 0;
+                    const percent = data.progress_percent?.toFixed(0) || 0;
+                    document.getElementById('ragStatProgress').textContent = percent + '%';
+                    document.getElementById('ragProgressFill').style.width = percent + '%';
+
+                    // Elapsed time
+                    const elapsed = data.elapsed_seconds || 0;
+                    document.getElementById('ragStatTime').textContent = this.formatTime(elapsed);
+
+                    // Estimated time remaining
+                    let eta = '-';
+                    if (percent > 0 && percent < 100) {
+                        const remaining = (elapsed / percent) * (100 - percent);
+                        eta = this.formatTime(remaining);
+                    }
+                    document.getElementById('ragStatEta').textContent = eta;
+
+                    const statusText = document.getElementById('ragStatusText');
+                    if (data.current_file) {
+                        // Truncate filename to max 40 chars to prevent UI resizing
+                        let shortFile = data.current_file.split('/').pop();
+                        if (shortFile.length > 40) {
+                            shortFile = shortFile.substring(0, 37) + '...';
+                        }
+                        statusText.textContent = `Indexing: ${shortFile}`;
+                    }
+                } catch (e) {
+                    console.error('Failed to poll progress:', e);
+                }
+            },
+
+            formatTime(seconds) {
+                if (seconds < 60) return `${Math.round(seconds)}s`;
+                if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+                return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+            },
+
+            async search() {
+                const query = document.getElementById('ragQueryInput').value.trim();
+                const collection = document.getElementById('ragCollectionSelect').value;
+
+                if (!query) {
+                    alert('Please enter a search query');
+                    return;
+                }
+
+                const resultsDiv = document.getElementById('ragResults');
+                resultsDiv.innerHTML = '<p style="color: var(--text-secondary);">Searching...</p>';
+
+                try {
+                    const resp = await fetch('/api/rag/project/query', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query, top_k: 10, collection })
+                    });
+
+                    const data = await resp.json();
+
+                    if (data.error) {
+                        resultsDiv.innerHTML = `<p style="color: var(--accent-red);">${data.error}</p>`;
+                        return;
+                    }
+
+                    if (!data.results || data.results.length === 0) {
+                        resultsDiv.innerHTML = '<p style="color: var(--text-secondary);">No results found.</p>';
+                        return;
+                    }
+
+                    resultsDiv.innerHTML = data.results.map((r, idx) => `
+                        <div class="rag-result-card">
+                            <div class="rag-result-header">
+                                <span class="rag-result-file">${r.file_path}</span>
+                                <span class="rag-result-score">Score: ${(r.score * 100).toFixed(1)}%</span>
+                            </div>
+                            <div class="rag-result-content">${escapeHtml(r.content)}</div>
+                            <div class="rag-result-lines">Lines ${r.line_start}-${r.line_end}</div>
+                        </div>
+                    `).join('');
+                } catch (e) {
+                    console.error('Search failed:', e);
+                    resultsDiv.innerHTML = `<p style="color: var(--accent-red);">Search failed: ${e.message}</p>`;
+                }
+            },
+
+            async loadStats() {
+                try {
+                    const projectPath = dashboardApp.currentProject || '';
+                    let url = '/api/rag/project/stats';
+                    if (projectPath) {
+                        url += `?project_path=${encodeURIComponent(projectPath)}`;
+                    }
+                    const resp = await fetch(url);
+                    const data = await resp.json();
+
+                    const statsDiv = document.getElementById('ragStatsDetail');
+                    if (!data.initialized) {
+                        statsDiv.textContent = 'Project RAG not initialized.';
+                        return;
+                    }
+
+                    const metadata = data.metadata || {};
+                    const vectorStore = data.vector_store || {};
+                    const graph = data.graph || {};
+
+                    statsDiv.innerHTML = `
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                            <div>
+                                <strong>Files</strong><br>
+                                Total: ${metadata.total_files || 0}<br>
+                                ${Object.entries(metadata.files_by_kind || {}).map(([k, v]) => `${k}: ${v}`).join('<br>')}
+                            </div>
+                            <div>
+                                <strong>Chunks</strong><br>
+                                Total: ${metadata.total_chunks || 0}<br>
+                                Metadata: ${((metadata.metadata_size_bytes || 0) / 1024).toFixed(1)} KB
+                            </div>
+                            <div>
+                                <strong>Vector Store</strong><br>
+                                Mixed: ${vectorStore.collections?.mixed?.count || 0}<br>
+                                Code: ${vectorStore.collections?.code?.count || 0}<br>
+                                Docs: ${vectorStore.collections?.docs?.count || 0}<br>
+                                Size: ${vectorStore.disk_size_mb || 0} MB
+                            </div>
+                        </div>
+                    `;
+
+                    // Also load popular concepts
+                    this.loadPopularConcepts();
+                } catch (e) {
+                    console.error('Failed to load stats:', e);
+                }
+            },
+
+            // Pagination state for concepts
+            conceptsPage: 0,
+            conceptsPerPage: 20,
+            allConcepts: [],
+            totalConcepts: 0,
+
+            async loadPopularConcepts() {
+                try {
+                    const projectPath = dashboardApp.currentProject || '';
+                    // Load more concepts for pagination (up to 200)
+                    let url = '/api/rag/project/popular-concepts?top_k=200';
+                    if (projectPath) {
+                        url += `&project_path=${encodeURIComponent(projectPath)}`;
+                    }
+                    const resp = await fetch(url);
+                    const data = await resp.json();
+
+                    console.debug('Popular concepts response:', data);
+
+                    const conceptsDiv = document.getElementById('ragConceptsList');
+                    const paginationDiv = document.querySelector('.rag-concepts-pagination');
+                    if (!conceptsDiv) return;
+
+                    // Handle errors from API
+                    if (data.error) {
+                        console.error('API error:', data.error);
+                        conceptsDiv.innerHTML = `<p style="color: var(--accent-orange);">Error: ${escapeHtml(data.error)}</p>`;
+                        if (paginationDiv) paginationDiv.style.display = 'none';
+                        return;
+                    }
+
+                    if (!data.concepts || data.concepts.length === 0) {
+                        conceptsDiv.innerHTML = '<p style="color: var(--text-secondary);">No concepts indexed yet.</p>';
+                        if (paginationDiv) paginationDiv.style.display = 'none';
+                        return;
+                    }
+
+                    // Store all concepts for pagination
+                    this.allConcepts = data.concepts;
+                    this.totalConcepts = data.total_concepts || data.concepts.length;
+                    this.conceptsPage = 0;
+
+                    // Update concepts count badge
+                    const countBadge = document.getElementById('ragConceptsCount');
+                    if (countBadge) {
+                        countBadge.textContent = this.totalConcepts;
+                    }
+
+                    // Show pagination controls
+                    if (paginationDiv) paginationDiv.style.display = 'flex';
+
+                    // Render first page
+                    this.renderConceptsPage();
+                } catch (e) {
+                    console.error('Failed to load popular concepts:', e);
+                }
+            },
+
+            renderConceptsPage() {
+                const conceptsDiv = document.getElementById('ragConceptsList');
+                if (!conceptsDiv || this.allConcepts.length === 0) return;
+
+                const start = this.conceptsPage * this.conceptsPerPage;
+                const end = Math.min(start + this.conceptsPerPage, this.allConcepts.length);
+                const pageConcepts = this.allConcepts.slice(start, end);
+
+                // Update pagination info
+                const pageInfo = document.getElementById('conceptsPageInfo');
+                if (pageInfo) {
+                    pageInfo.textContent = `Showing ${start + 1}-${end} of ${this.allConcepts.length}`;
+                }
+
+                // Update button states
+                const prevBtn = document.getElementById('conceptsPrevBtn');
+                const nextBtn = document.getElementById('conceptsNextBtn');
+                if (prevBtn) prevBtn.disabled = this.conceptsPage === 0;
+                if (nextBtn) nextBtn.disabled = end >= this.allConcepts.length;
+
+                conceptsDiv.innerHTML = `
+                    <div class="rag-concepts-grid">
+                        ${pageConcepts.map(c => {
+                            const safeConcept = c.concept.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            return `
+                            <button class="rag-concept-btn" onclick="projectRagApp.exploreConcept('${safeConcept}')"
+                                    title="${c.mentions} mentions">
+                                ${escapeHtml(c.concept)}
+                                <span class="rag-concept-count">${c.mentions}</span>
+                            </button>
+                        `}).join('')}
+                    </div>
+                `;
+            },
+
+            changeConceptsPage(delta) {
+                const maxPage = Math.ceil(this.allConcepts.length / this.conceptsPerPage) - 1;
+                const newPage = this.conceptsPage + delta;
+
+                if (newPage >= 0 && newPage <= maxPage) {
+                    this.conceptsPage = newPage;
+                    this.renderConceptsPage();
+                }
+            },
+
+            searchConcept(concept) {
+                document.getElementById('ragQueryInput').value = concept;
+                this.search();
+            },
+
+            // Refresh project cache to get fresh ChromaDB connections
+            async refreshCache() {
+                try {
+                    const projectPath = dashboardApp.currentProject || '';
+                    let url = '/api/rag/project/refresh';
+                    if (projectPath) {
+                        url += `?project_path=${encodeURIComponent(projectPath)}`;
+                    }
+                    await fetch(url, { method: 'POST' });
+                } catch (e) {
+                    console.debug('Cache refresh failed (non-critical):', e);
+                }
+            },
+
+            // Change detection notification
+            async checkForChanges() {
+                try {
+                    const projectPath = dashboardApp.currentProject || '';
+                    let url = '/api/rag/project/detect-changes';
+                    if (projectPath) {
+                        url += `?project_path=${encodeURIComponent(projectPath)}`;
+                    }
+                    const resp = await fetch(url);
+                    const data = await resp.json();
+
+                    const notification = document.getElementById('ragChangeNotification');
+                    const summary = document.getElementById('ragChangeSummary');
+
+                    if (data.has_changes && data.initialized) {
+                        notification.classList.remove('hidden');
+                        summary.textContent = data.summary;
+                    } else {
+                        notification.classList.add('hidden');
+                    }
+                } catch (e) {
+                    console.error('Failed to check for changes:', e);
+                }
+            },
+
+            dismissNotification() {
+                document.getElementById('ragChangeNotification').classList.add('hidden');
+            },
+
+            updateIndex() {
+                // Start incremental update (not full reindex)
+                this.startIndexing(false);
+                this.dismissNotification();
+            },
+
+            reindexProject() {
+                // Full reindex
+                this.startIndexing(true);
+                this.dismissNotification();
+            },
+
+            // Collapsible sections
+            toggleSection(sectionName) {
+                const sectionMap = {
+                    'search': { content: 'ragSearchSection', toggle: 'ragSearchToggle' },
+                    'explorer': { content: 'ragExplorerSection', toggle: 'ragExplorerToggle' },
+                    'concepts': { content: 'ragConceptsSection', toggle: 'ragConceptsToggle' },
+                    'stats': { content: 'ragStatsSection', toggle: 'ragStatsToggle' },
+                    'summarize': { content: 'ragSummarizeSection', toggle: 'ragSummarizeToggle' },
+                };
+
+                const section = sectionMap[sectionName];
+                if (!section) return;
+
+                const content = document.getElementById(section.content);
+                const toggle = document.getElementById(section.toggle);
+
+                if (content.classList.contains('hidden')) {
+                    content.classList.remove('hidden');
+                    toggle.textContent = '▼';
+                } else {
+                    content.classList.add('hidden');
+                    toggle.textContent = '▶';
+                }
+            },
+
+            // =================================================================
+            // Concept Explorer (v0.33.1)
+            // =================================================================
+            explorerView: 'files',  // 'files' or 'graph'
+            explorerData: null,     // Current exploration data
+            graphSimulation: null,  // D3 force simulation
+            graphZoom: null,        // D3 zoom behavior
+
+            async exploreConcept(concept = null) {
+                const input = document.getElementById('ragExploreInput');
+                const query = concept || input.value.trim();
+
+                if (!query) {
+                    document.getElementById('ragExplorerFiles').innerHTML = '<p style="color: var(--accent-orange);">Please enter a concept to explore.</p>';
+                    return;
+                }
+
+                input.value = query;
+
+                // Show loading state
+                document.getElementById('ragExplorerFiles').innerHTML = `<p style="color: var(--text-secondary);"><span class="spinner"></span> Exploring "${escapeHtml(query)}"...</p>`;
+
+                try {
+                    const projectPath = dashboardApp.currentProject || '';
+                    let url = '/api/rag/project/concept-explore';
+                    if (projectPath) {
+                        url += `?project_path=${encodeURIComponent(projectPath)}`;
+                    }
+
+                    const resp = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query, top_k: 30, collection: 'mixed' })
+                    });
+                    const data = await resp.json();
+
+                    if (data.error) {
+                        document.getElementById('ragExplorerFiles').innerHTML = `<p style="color: var(--accent-red);">Error: ${escapeHtml(data.error)}</p>`;
+                        return;
+                    }
+
+                    this.explorerData = data;
+
+                    // Show recurring tags
+                    if (data.recurring_tags && data.recurring_tags.length > 0) {
+                        document.getElementById('ragExplorerTags').style.display = 'block';
+                        document.getElementById('ragExplorerTagsList').innerHTML = data.recurring_tags.map(t => `
+                            <button class="rag-tag-btn" onclick="projectRagApp.exploreConcept('${escapeHtml(t.tag)}')">
+                                ${escapeHtml(t.tag)}
+                                <span class="rag-tag-count">${t.count}</span>
+                            </button>
+                        `).join('');
+                    } else {
+                        document.getElementById('ragExplorerTags').style.display = 'none';
+                    }
+
+                    // Render current view
+                    if (this.explorerView === 'files') {
+                        this.renderFilesView(data);
+                    } else {
+                        await this.renderGraphView(query);
+                    }
+
+                } catch (e) {
+                    console.error('Failed to explore concept:', e);
+                    document.getElementById('ragExplorerFiles').innerHTML = `<p style="color: var(--accent-red);">Failed to explore: ${e.message}</p>`;
+                }
+            },
+
+            renderFilesView(data) {
+                const container = document.getElementById('ragExplorerFiles');
+
+                if (!data.files || data.files.length === 0) {
+                    container.innerHTML = `<p style="color: var(--text-secondary);">No results found for "${escapeHtml(data.query)}".</p>`;
+                    return;
+                }
+
+                const getFileIcon = (path) => {
+                    if (path.endsWith('.java')) return '☕';
+                    if (path.endsWith('.py')) return '🐍';
+                    if (path.endsWith('.js') || path.endsWith('.ts')) return '📜';
+                    if (path.endsWith('.md') || path.endsWith('.txt')) return '📄';
+                    if (path.endsWith('.xml') || path.endsWith('.json')) return '⚙️';
+                    if (path.endsWith('.docx') || path.endsWith('.doc')) return '📝';
+                    return '📁';
+                };
+
+                container.innerHTML = `
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                        Found ${data.total_chunks} chunks in ${data.files.length} files
+                    </p>
+                    ${data.files.map((f, idx) => `
+                        <div class="rag-file-group">
+                            <div class="rag-file-header" onclick="projectRagApp.toggleFileChunks(${idx})">
+                                <span class="rag-file-icon">${getFileIcon(f.path)}</span>
+                                <span class="rag-file-name" title="${escapeHtml(f.path)}">${escapeHtml(f.path.split('/').pop())}</span>
+                                <span class="rag-file-score">★${f.max_score.toFixed(2)}</span>
+                                <span class="rag-file-badge">${f.chunk_count}</span>
+                            </div>
+                            <div class="rag-file-chunks" id="fileChunks${idx}">
+                                ${f.chunks.map(c => `
+                                    <div class="rag-chunk-item" onclick="projectRagApp.showChunkDetail('${escapeHtml(c.chunk_id)}', '${escapeHtml(f.path)}', ${c.line_start}, ${c.line_end})"
+                                         title="${escapeHtml(f.path)}:${c.line_start}-${c.line_end}">
+                                        <span class="rag-chunk-lines">L${c.line_start}-${c.line_end}</span>
+                                        <span class="rag-chunk-preview">${escapeHtml(c.preview)}</span>
+                                        <span class="rag-chunk-score">${c.score.toFixed(2)}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                `;
+
+                // Auto-expand first file
+                if (data.files.length > 0) {
+                    this.toggleFileChunks(0);
+                }
+            },
+
+            toggleFileChunks(idx) {
+                const chunks = document.getElementById(`fileChunks${idx}`);
+                if (chunks) {
+                    chunks.classList.toggle('expanded');
+                }
+            },
+
+            showChunkDetail(chunkId, filePath, lineStart, lineEnd) {
+                // For now, copy the location to clipboard and show a tooltip
+                const location = `${filePath}:${lineStart}-${lineEnd}`;
+                navigator.clipboard.writeText(location).then(() => {
+                    this.showToast(`Copied: ${location}`);
+                }).catch(() => {
+                    console.log('Location:', location);
+                });
+            },
+
+            showToast(message) {
+                // Simple toast notification
+                const toast = document.createElement('div');
+                toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; z-index: 1000; font-size: 13px;';
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+            },
+
+            toggleExplorerView() {
+                const filesView = document.getElementById('ragExplorerFiles');
+                const graphView = document.getElementById('ragExplorerGraph');
+                const icon = document.getElementById('explorerViewIcon');
+
+                if (this.explorerView === 'files') {
+                    this.explorerView = 'graph';
+                    filesView.style.display = 'none';
+                    graphView.style.display = 'block';
+                    icon.textContent = '📋';
+
+                    // Render graph if we have data
+                    if (this.explorerData) {
+                        const query = document.getElementById('ragExploreInput').value.trim();
+                        this.renderGraphView(query);
+                    }
+                } else {
+                    this.explorerView = 'files';
+                    filesView.style.display = 'block';
+                    graphView.style.display = 'none';
+                    icon.textContent = '📊';
+                }
+            },
+
+            async renderGraphView(concept) {
+                const container = document.getElementById('ragGraphContainer');
+                const svg = document.getElementById('ragGraphSvg');
+
+                // Clear previous graph
+                svg.innerHTML = '';
+
+                try {
+                    const projectPath = dashboardApp.currentProject || '';
+                    let url = '/api/rag/project/concept-graph';
+                    if (projectPath) {
+                        url += `?project_path=${encodeURIComponent(projectPath)}`;
+                    }
+
+                    const resp = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ concept, depth: 2, max_nodes: 40 })
+                    });
+                    const data = await resp.json();
+
+                    if (data.error || !data.nodes || data.nodes.length === 0) {
+                        svg.innerHTML = `<text x="50%" y="50%" text-anchor="middle" fill="var(--text-secondary)">No graph data available</text>`;
+                        return;
+                    }
+
+                    // Show related concepts
+                    if (data.related_concepts && data.related_concepts.length > 0) {
+                        document.getElementById('ragRelatedConcepts').style.display = 'block';
+                        document.getElementById('ragRelatedConceptsList').innerHTML = data.related_concepts.map(c => `
+                            <button class="rag-related-btn" onclick="projectRagApp.exploreConcept('${escapeHtml(c.label)}')">
+                                ${escapeHtml(c.label)}
+                                <span style="font-size: 10px; opacity: 0.7;">(${c.co_occurrences})</span>
+                            </button>
+                        `).join('');
+                    } else {
+                        document.getElementById('ragRelatedConcepts').style.display = 'none';
+                    }
+
+                    this.renderD3Graph(data, svg, container);
+
+                } catch (e) {
+                    console.error('Failed to render graph:', e);
+                    svg.innerHTML = `<text x="50%" y="50%" text-anchor="middle" fill="var(--accent-red)">Failed to load graph</text>`;
+                }
+            },
+
+            renderD3Graph(data, svgElement, container) {
+                // Use D3.js for force-directed layout
+                if (typeof d3 === 'undefined') {
+                    svgElement.innerHTML = `<text x="50%" y="50%" text-anchor="middle" fill="var(--text-secondary)">D3.js not loaded</text>`;
+                    return;
+                }
+
+                const width = container.clientWidth || 600;
+                const height = 400;
+
+                const svg = d3.select(svgElement)
+                    .attr('width', width)
+                    .attr('height', height);
+
+                // Create zoom behavior
+                const g = svg.append('g');
+
+                const zoom = d3.zoom()
+                    .scaleExtent([0.3, 3])
+                    .on('zoom', (event) => {
+                        g.attr('transform', event.transform);
+                    });
+
+                svg.call(zoom);
+                this.graphZoom = zoom;
+
+                // Node colors and sizes by type
+                const nodeConfig = {
+                    concept: { color: '#9c27b0', radius: 20 },
+                    chunk: { color: '#2196f3', radius: 8 },
+                    file: { color: '#4caf50', radius: 12 }
+                };
+
+                // Create force simulation
+                const simulation = d3.forceSimulation(data.nodes)
+                    .force('link', d3.forceLink(data.edges).id(d => d.id).distance(d => d.type === 'mentions' ? 80 : 50))
+                    .force('charge', d3.forceManyBody().strength(-200))
+                    .force('center', d3.forceCenter(width / 2, height / 2))
+                    .force('collision', d3.forceCollide().radius(d => nodeConfig[d.type]?.radius + 5 || 15));
+
+                this.graphSimulation = simulation;
+
+                // Draw edges
+                const link = g.append('g')
+                    .selectAll('line')
+                    .data(data.edges)
+                    .join('line')
+                    .attr('class', d => `rag-graph-edge ${d.type}`)
+                    .attr('stroke-width', d => Math.max(1, d.value * 2));
+
+                // Draw nodes
+                const node = g.append('g')
+                    .selectAll('circle')
+                    .data(data.nodes)
+                    .join('circle')
+                    .attr('class', d => `rag-graph-node ${d.type}`)
+                    .attr('r', d => nodeConfig[d.type]?.radius || 10)
+                    .attr('fill', d => nodeConfig[d.type]?.color || '#999')
+                    .call(d3.drag()
+                        .on('start', (event, d) => {
+                            if (!event.active) simulation.alphaTarget(0.3).restart();
+                            d.fx = d.x;
+                            d.fy = d.y;
+                        })
+                        .on('drag', (event, d) => {
+                            d.fx = event.x;
+                            d.fy = event.y;
+                        })
+                        .on('end', (event, d) => {
+                            if (!event.active) simulation.alphaTarget(0);
+                            d.fx = null;
+                            d.fy = null;
+                        }))
+                    .on('click', (event, d) => {
+                        if (d.type === 'concept') {
+                            // Already exploring this concept
+                        } else if (d.type === 'file') {
+                            this.showToast(`File: ${d.path || d.label}`);
+                        } else if (d.type === 'chunk') {
+                            this.showToast(`${d.file}:${d.line_start}-${d.line_end}`);
+                        }
+                    });
+
+                // Add labels
+                const label = g.append('g')
+                    .selectAll('text')
+                    .data(data.nodes)
+                    .join('text')
+                    .attr('class', 'rag-graph-label')
+                    .attr('dy', d => d.type === 'concept' ? 30 : (d.type === 'file' ? 20 : 15))
+                    .text(d => d.label.length > 15 ? d.label.substring(0, 15) + '...' : d.label);
+
+                // Update positions on tick
+                simulation.on('tick', () => {
+                    link
+                        .attr('x1', d => d.source.x)
+                        .attr('y1', d => d.source.y)
+                        .attr('x2', d => d.target.x)
+                        .attr('y2', d => d.target.y);
+
+                    node
+                        .attr('cx', d => d.x)
+                        .attr('cy', d => d.y);
+
+                    label
+                        .attr('x', d => d.x)
+                        .attr('y', d => d.y);
+                });
+
+                // Center the view after simulation stabilizes
+                simulation.on('end', () => {
+                    const bounds = g.node().getBBox();
+                    const fullWidth = bounds.width;
+                    const fullHeight = bounds.height;
+                    const scale = Math.min(0.9 * width / fullWidth, 0.9 * height / fullHeight, 1);
+                    const tx = (width - fullWidth * scale) / 2 - bounds.x * scale;
+                    const ty = (height - fullHeight * scale) / 2 - bounds.y * scale;
+
+                    svg.transition().duration(500).call(
+                        zoom.transform,
+                        d3.zoomIdentity.translate(tx, ty).scale(scale)
+                    );
+                });
+            },
+
+            zoomGraph(factor) {
+                if (this.graphZoom) {
+                    const svg = d3.select('#ragGraphSvg');
+                    svg.transition().duration(300).call(
+                        this.graphZoom.scaleBy, factor
+                    );
+                }
+            },
+
+            resetGraph() {
+                if (this.graphZoom) {
+                    const svg = d3.select('#ragGraphSvg');
+                    svg.transition().duration(300).call(
+                        this.graphZoom.transform,
+                        d3.zoomIdentity
+                    );
+                }
+                // Re-render if we have data
+                if (this.explorerData) {
+                    const query = document.getElementById('ragExploreInput').value.trim();
+                    this.renderGraphView(query);
+                }
+            },
+
+            // Fullscreen state for sections
+            fullscreenSections: {},
+            _escHandlers: {},
+
+            // Generic fullscreen toggle for any section
+            toggleSectionFullscreen(sectionName) {
+                const wrapperIds = {
+                    'concepts': 'ragConceptsWrapper',
+                    'search': 'ragSearchWrapper',
+                    'explorer': 'ragExplorerWrapper',
+                    'summarize': 'ragSummarizeWrapper'
+                };
+                const iconIds = {
+                    'concepts': 'conceptsFullscreenIcon',
+                    'search': 'searchFullscreenIcon',
+                    'explorer': 'explorerFullscreenIcon',
+                    'summarize': 'summarizeFullscreenIcon'
+                };
+
+                const wrapper = document.getElementById(wrapperIds[sectionName]);
+                const icon = document.getElementById(iconIds[sectionName]);
+                if (!wrapper) return;
+
+                // Close any other fullscreen section first
+                Object.keys(this.fullscreenSections).forEach(name => {
+                    if (name !== sectionName && this.fullscreenSections[name]) {
+                        this.fullscreenSections[name] = false;
+                        const otherWrapper = document.getElementById(wrapperIds[name]);
+                        if (otherWrapper) otherWrapper.classList.remove('fullscreen');
+                        if (this._escHandlers[name]) {
+                            document.removeEventListener('keydown', this._escHandlers[name]);
+                        }
+                    }
+                });
+
+                this.fullscreenSections[sectionName] = !this.fullscreenSections[sectionName];
+
+                if (this.fullscreenSections[sectionName]) {
+                    wrapper.classList.add('fullscreen');
+                    document.body.style.overflow = 'hidden';
+
+                    // Expand the section if collapsed
+                    const sectionContent = wrapper.querySelector('.rag-section-content');
+                    if (sectionContent && sectionContent.classList.contains('hidden')) {
+                        sectionContent.classList.remove('hidden');
+                        const toggle = wrapper.querySelector('.rag-section-toggle');
+                        if (toggle) toggle.textContent = '▼';
+                    }
+
+                    // Re-render graph if explorer section in graph view
+                    if (sectionName === 'explorer' && this.explorerView === 'graph' && this.explorerData) {
+                        setTimeout(() => {
+                            const query = document.getElementById('ragExploreInput').value.trim();
+                            this.renderGraphView(query);
+                        }, 100);
+                    }
+
+                    // Add ESC key listener
+                    this._escHandlers[sectionName] = (e) => {
+                        if (e.key === 'Escape') this.toggleSectionFullscreen(sectionName);
+                    };
+                    document.addEventListener('keydown', this._escHandlers[sectionName]);
+                } else {
+                    wrapper.classList.remove('fullscreen');
+                    document.body.style.overflow = '';
+
+                    // Remove ESC key listener
+                    if (this._escHandlers[sectionName]) {
+                        document.removeEventListener('keydown', this._escHandlers[sectionName]);
+                    }
+
+                    // Re-render graph to fit normal size
+                    if (sectionName === 'explorer' && this.explorerView === 'graph' && this.explorerData) {
+                        setTimeout(() => {
+                            const query = document.getElementById('ragExploreInput').value.trim();
+                            this.renderGraphView(query);
+                        }, 100);
+                    }
+                }
+            },
+
+            // Legacy wrapper for backwards compatibility
+            toggleExplorerFullscreen() {
+                this.toggleSectionFullscreen('explorer');
+            },
+
+            // LLM-powered concept summarization
+            async summarizeConcept() {
+                const input = document.getElementById('ragSummarizeInput');
+                const resultsDiv = document.getElementById('ragSummarizeResults');
+                const concept = input.value.trim();
+
+                if (!concept) {
+                    resultsDiv.innerHTML = '<p style="color: var(--accent-orange);">Please enter a concept to summarize.</p>';
+                    return;
+                }
+
+                // Get the model from settings (same as chat tab)
+                const modelSelect = document.getElementById('modelInput');
+                const model = modelSelect ? modelSelect.value : 'mistral';
+
+                resultsDiv.innerHTML = `<p style="color: var(--text-secondary);"><span class="spinner"></span> Generating summary for "${escapeHtml(concept)}" using ${model}...</p>`;
+
+                try {
+                    const projectPath = dashboardApp.currentProject || '';
+                    let url = `/api/rag/project/summarize?concept=${encodeURIComponent(concept)}&model=${encodeURIComponent(model)}`;
+                    if (projectPath) {
+                        url += `&project_path=${encodeURIComponent(projectPath)}`;
+                    }
+                    const resp = await fetch(url, { method: 'POST' });
+                    const data = await resp.json();
+
+                    if (data.error) {
+                        resultsDiv.innerHTML = `<p style="color: var(--accent-red);">Error: ${escapeHtml(data.error)}</p>`;
+                        return;
+                    }
+
+                    // Display summary with citations
+                    let html = `<div class="rag-summary-text">${this.formatSummaryText(data.summary || 'No summary generated.')}</div>`;
+
+                    // Show model used
+                    if (data.model) {
+                        html += `<p style="font-size: 11px; color: var(--text-secondary); margin-top: 8px;">Generated by: ${escapeHtml(data.model)}</p>`;
+                    }
+
+                    if (data.citations && data.citations.length > 0) {
+                        html += `
+                            <div class="rag-summary-citations">
+                                <h4>Sources (${data.citations.length})</h4>
+                                ${data.citations.map((c, i) => `
+                                    <div class="rag-citation-item" onclick="projectRagApp.searchConcept('${escapeHtml(c.file_path || '')}')">
+                                        <span class="rag-citation-num">[${i + 1}]</span>
+                                        <span>${escapeHtml(c.file_path || 'Unknown')}:${c.line_start || '?'}-${c.line_end || '?'}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    }
+
+                    resultsDiv.innerHTML = html;
+                } catch (e) {
+                    console.error('Failed to summarize concept:', e);
+                    resultsDiv.innerHTML = `<p style="color: var(--accent-red);">Failed to generate summary: ${e.message}</p>`;
+                }
+            },
+
+            // Format summary text with paragraph breaks
+            formatSummaryText(text) {
+                // Convert newlines to <br> and escape HTML
+                return escapeHtml(text).replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>');
+            },
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        };
+
+        // Initialize Project RAG app
+        projectRagApp.init();
+
+        // Auto-refresh RAG status when switching to RAG tab
+        document.querySelector('.nav-tab[data-tab="rag"]').addEventListener('click', async () => {
+            // Refresh cache first to get fresh ChromaDB connections
+            await projectRagApp.refreshCache();
+            projectRagApp.checkStatus();
+            projectRagApp.loadStats();
+            projectRagApp.checkForChanges();
+        });
 
         // Auto-refresh logs when switching to logs tab
         document.querySelector('.nav-tab[data-tab="logs"]').addEventListener('click', () => {

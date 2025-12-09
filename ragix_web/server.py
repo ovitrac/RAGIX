@@ -150,6 +150,7 @@ try:
         reasoning_router,
         threads_router,
         rag_router,
+        rag_project_router,
     )
     from ragix_web.routers.sessions import set_sessions_store
     from ragix_web.routers.context import set_context_store
@@ -158,6 +159,13 @@ try:
     from ragix_web.routers.reasoning import set_stores as set_reasoning_stores
     from ragix_web.routers.threads import set_threads_store
     from ragix_web.routers.rag import set_rag_store, _get_rag_state, _get_index_path
+    from ragix_web.routers.rag_project import (
+        set_project_rag_store,
+        retrieve_project_rag_context,
+        check_project_rag_available,
+        is_project_rag_enabled,
+        get_current_project,
+    )
     ROUTERS_AVAILABLE = True
 except ImportError:
     ROUTERS_AVAILABLE = False
@@ -356,6 +364,7 @@ if ROUTERS_AVAILABLE:
     set_reasoning_stores(active_sessions, session_reasoning_states, session_experience_corpora)
     set_threads_store(active_sessions, LAUNCH_DIRECTORY)
     set_rag_store(LAUNCH_DIRECTORY)
+    set_project_rag_store(LAUNCH_DIRECTORY)  # v0.33: Project RAG
 
     # Include routers with their prefixes
     # Note: These provide modular, organized endpoints
@@ -368,7 +377,8 @@ if ROUTERS_AVAILABLE:
     app.include_router(logs_router, tags=["Logs (v2)"])
     app.include_router(reasoning_router, tags=["Reasoning Graph (v0.23)"])
     app.include_router(threads_router, tags=["Threads (v0.33)"])
-    app.include_router(rag_router, tags=["RAG System (v0.33)"])
+    app.include_router(rag_router, tags=["Chat RAG (v0.33)"])
+    app.include_router(rag_project_router, tags=["Project RAG (v0.33)"])
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -5001,22 +5011,56 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                     # Get cancellation event for this session
                     cancel_event = session_cancellation.get(session_id)
 
-                    # v0.33: Retrieve RAG context if enabled
-                    rag_context = retrieve_rag_context(session_id, user_message, top_k=8, max_chars_per_chunk=2000)
-                    if rag_context:
+                    # v0.33: Retrieve RAG context from both Chat RAG and Project RAG
+                    # Chat RAG: session-scoped, BM25-based (.ragix/)
+                    chat_rag_context = retrieve_rag_context(session_id, user_message, top_k=5, max_chars_per_chunk=1500)
+
+                    # Project RAG: project-wide, ChromaDB-based (.RAG/)
+                    # Only retrieve if enabled for this session (default: enabled)
+                    project_rag_context = None
+                    if ROUTERS_AVAILABLE and is_project_rag_enabled(session_id):
+                        try:
+                            project_rag_context = retrieve_project_rag_context(
+                                user_message, top_k=5, max_chars_per_chunk=1500
+                            )
+                        except Exception as e:
+                            logger.debug(f"Project RAG retrieval failed: {e}")
+
+                    # Merge contexts (Project RAG first, then Chat RAG)
+                    combined_context_parts = []
+                    context_sources = []
+
+                    if project_rag_context:
+                        combined_context_parts.append(project_rag_context)
+                        # Count chunks from Project RAG
+                        proj_chunks = len(project_rag_context.split('### [')) - 1
+                        context_sources.append(f"{proj_chunks} from Project RAG")
+
+                    if chat_rag_context:
+                        combined_context_parts.append(chat_rag_context)
+                        # Count chunks from Chat RAG
+                        chat_chunks = len(chat_rag_context.split('### Document')) - 1
+                        context_sources.append(f"{chat_chunks} from Chat RAG")
+
+                    if combined_context_parts:
+                        combined_context = "\n\n---\n\n".join(combined_context_parts)
+                        # Get current project path for context
+                        current_project = get_current_project() if ROUTERS_AVAILABLE else None
+                        project_info = f"\n**Current Project:** {current_project}\n" if current_project else ""
                         # Prepend RAG context to user message with clear instructions
                         augmented_message = (
-                            f"{rag_context}\n\n"
+                            f"{combined_context}\n\n"
                             f"---\n\n"
-                            f"## User Question\n"
+                            f"## User Question{project_info}"
                             f"{user_message}\n\n"
-                            f"**Instructions:** Answer the question using ONLY the document context provided above. "
-                            f"Do not use shell commands to search for files. The relevant content is already provided."
+                            f"**Instructions:** Answer the question using ONLY the context provided above. "
+                            f"Cite sources when referencing specific files. "
+                            f"Do NOT suggest files outside the current project context. "
+                            f"Do not use shell commands to search for files unless needed for additional details."
                         )
-                        num_chunks = len(rag_context.split('### Document')) - 1
                         await websocket.send_json({
                             "type": "rag_context",
-                            "message": f"📚 Retrieved {num_chunks} relevant sections from RAG index",
+                            "message": f"📚 Retrieved context: {', '.join(context_sources)}",
                             "timestamp": datetime.now().isoformat()
                         })
                     else:

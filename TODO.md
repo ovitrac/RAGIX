@@ -1,8 +1,83 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-12-05 (v0.33.0 - RAG Feed Interface)
+**Updated:** 2025-12-09 (v0.35.0 - Project RAG & Concept Explorer)
 **Reference:** See `PLAN_v0.30_REASONING.md` for full implementation plan
 **Review:** See `REVIEW_current_reasoning_towardsv0.30.md` for colleague feedback
+**Next Major:** v0.4 - Code Audit Capabilities (see `FORREVIEW_AUDIT.md`)
+
+---
+
+## Session Completed (2025-12-09 - v0.35.0)
+
+### Project RAG & Concept Explorer
+
+| Task | Status |
+|------|--------|
+| **Two-Level RAG Architecture** - Project RAG (ChromaDB) + Chat RAG (BM25) | ✅ Done |
+| **Concept Explorer** - Dual-view (files + D3.js force-directed graph) | ✅ Done |
+| **Discovered Concepts Pagination** - ◀ Less / More ▶ navigation (20 per page) | ✅ Done |
+| **Section Fullscreen** - All RAG sections support fullscreen mode (⛶ button) | ✅ Done |
+| **Task Classification Fix** - RAG-augmented queries auto-downgrade to BYPASS | ✅ Done |
+| **Knowledge Summary** - LLM-powered concept summarization with citations | ✅ Done |
+| **Stale RAG Folder Fix** - Added `.RAG/` to `.gitignore` | ✅ Done |
+
+**Key Files Created/Modified:**
+- `ragix_web/routers/rag_project.py` - Concept exploration endpoints (`/concept-explore`, `/concept-graph`)
+- `ragix_web/static/index.html` - Concept Explorer UI, pagination, fullscreen support
+- `ragix_web/static/style.css` - Explorer styles, fullscreen CSS, pagination controls
+- `ragix_unix/agent.py` - Classification fix for RAG-augmented messages
+- `ragix_web/server.py` - Improved chat prompt with project context
+- `.gitignore` - Added `.RAG/`
+
+**Features:**
+- Project RAG: ChromaDB vector store per project (`.RAG/` folder)
+- Chat RAG: BM25 index for uploaded documents (`.ragix/` folder)
+- Concept Explorer: File-centric view with chunk previews + D3.js graph view
+- Graph visualization: Force-directed layout with zoom/pan, node type legend
+- Fullscreen mode for all RAG sections (ESC to exit)
+- Concept pagination: Browse up to 200 concepts, 20 per page
+- Task classification: Extracts user question from RAG context, auto-bypasses
+
+---
+
+## Roadmap: v0.4 - Code Audit Capabilities
+
+**Reference:** See `FORREVIEW_AUDIT.md` for detailed specifications
+
+### 🧩 Maintainability & Tech Debt Analysis
+
+| Task | Priority | Status |
+|------|----------|--------|
+| **Maintainability Index++ (MI++)** - Multi-factor maintainability scoring | High | Pending |
+| **Cyclomatic Complexity Density** - CC/LOC, CC/methods, distribution entropy | High | Pending |
+| **Coupling Metrics** - Ca (afferent), Ce (efferent), Instability (I = Ce/(Ca+Ce)) | High | Pending |
+| **Abstractness & Distance** - A = #interfaces/#classes, D = |A+I-1| | High | Pending |
+| **Propagation Impact Analysis (PIA)** - Downstream/upstream reachability | High | Pending |
+
+### 🧩 Architecture & Rule Engines
+
+| Task | Priority | Status |
+|------|----------|--------|
+| **Architecture Layer Violation Detection** - Rules from YAML config | High | Pending |
+| **RIE Compliance Engine** - Enterprise rules checking | High | Pending |
+| **Tech Debt Rule Engine** - Parameterized rules with remediation costs | Medium | Pending |
+| **Dead Code Detection** - Static reachability analysis | Medium | Pending |
+
+### 🧩 Performance & MCO Estimation
+
+| Task | Priority | Status |
+|------|----------|--------|
+| **Performance Anti-Pattern Detection** - N² loops, blocking IO, chatty calls | Medium | Pending |
+| **MCO Cost Estimator** - Maintenance effort from metrics | Medium | Pending |
+| **Refactoring Planner** - Automated suggestions (split, merge, extract) | Low | Pending |
+
+### 🧩 Report Generation
+
+| Task | Priority | Status |
+|------|----------|--------|
+| **Enhanced Executive Summary** - Top risky packages, MI++, PF, D | High | Pending |
+| **Architecture Metrics Report** - Instability map, off-main-sequence packages | High | Pending |
+| **MCO Effort Report** - Per-domain bar chart, prioritization matrix | Medium | Pending |
 
 ---
 

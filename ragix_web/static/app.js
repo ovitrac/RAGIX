@@ -2095,7 +2095,7 @@ ${(entry.open_questions || []).map(q => `- ${q}`).join('\n') || 'None'}
     }
 
     /**
-     * Toggle RAG enabled state
+     * Toggle Chat RAG enabled state (session-scoped, .ragix/)
      */
     async toggleRag(enabled) {
         try {
@@ -2110,18 +2110,60 @@ ${(entry.open_questions || []).map(q => `- ${q}`).join('\n') || 'None'}
             }
 
             const data = await resp.json();
-            console.log('RAG toggle:', data);
+            console.log('Chat RAG toggle:', data);
 
             // Refresh status
             await this.loadRagStatus();
 
-            this.addSystemMessage(`RAG ${enabled ? 'enabled' : 'disabled'}`);
+            this.addSystemMessage(`💬 Chat RAG ${enabled ? 'enabled' : 'disabled'}`);
         } catch (error) {
-            console.error('Failed to toggle RAG:', error);
-            this.addSystemMessage('Failed to toggle RAG', 'error');
+            console.error('Failed to toggle Chat RAG:', error);
+            this.addSystemMessage('Failed to toggle Chat RAG', 'error');
 
             // Revert toggle
             const toggle = document.getElementById('ragEnabledToggle');
+            if (toggle) {
+                toggle.checked = !enabled;
+            }
+        }
+    }
+
+    /**
+     * Toggle Project RAG enabled state (project-wide, .RAG/)
+     * v0.33: Controls whether Project RAG context is injected into chat
+     */
+    async toggleProjectRag(enabled) {
+        try {
+            const resp = await fetch(`/api/rag/project/toggle?session_id=${encodeURIComponent(this.sessionId)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled })
+            });
+
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
+
+            const data = await resp.json();
+            console.log('Project RAG toggle:', data);
+
+            // Update hint text
+            const hint = document.getElementById('projectRagHint');
+            if (hint) {
+                if (enabled) {
+                    hint.innerHTML = '<small>✓ Project context will be injected into chat</small>';
+                } else {
+                    hint.innerHTML = '<small>✗ Project context disabled</small>';
+                }
+            }
+
+            this.addSystemMessage(`🌐 Project RAG ${enabled ? 'enabled' : 'disabled'}`);
+        } catch (error) {
+            console.error('Failed to toggle Project RAG:', error);
+            this.addSystemMessage('Failed to toggle Project RAG', 'error');
+
+            // Revert toggle
+            const toggle = document.getElementById('projectRagToggle');
             if (toggle) {
                 toggle.checked = !enabled;
             }

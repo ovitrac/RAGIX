@@ -1,8 +1,8 @@
 # =============================================================================
-# RAGIX v0.20.0 Requirements
+# RAGIX v0.33.0 Requirements
 # =============================================================================
 #
-# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-28
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-09
 #
 # Install:
 #   pip install -r requirements.txt
@@ -27,14 +27,28 @@ mcp[cli]>=0.1.0
 pyyaml>=6.0
 
 # -----------------------------------------------------------------------------
-# Semantic Search (Recommended)
+# Project RAG - ChromaDB Vector Store (v0.33+)
 # -----------------------------------------------------------------------------
 
-# Sentence embeddings for vector search
-sentence-transformers>=2.2.0
+# ChromaDB vector database (GPU-accelerated when CUDA available)
+chromadb>=1.0.0
 
-# Vector similarity search
+# Sentence embeddings for vector search
+# Note: sentence-transformers 5.x has HuggingFace API issues, use 4.x
+sentence-transformers>=3.0.0,<5.0.0
+
+# HuggingFace Hub - pin to stable version (5.x breaks sentence-transformers)
+huggingface-hub>=0.26.0,<1.0
+
+# ONNX runtime for ChromaDB embeddings
+onnxruntime>=1.14.1
+
+# Vector similarity search (for Chat RAG / BM25 fallback)
 faiss-cpu>=1.7.4
+
+# Office document support (PPTX, XLSX, DOCX)
+python-pptx>=0.6.21
+openpyxl>=3.1.0
 
 # -----------------------------------------------------------------------------
 # Web UI (Optional - for ragix_app.py)

@@ -190,9 +190,12 @@ codex_*
 .ragix_cache/
 .agent_logs/
 .trash/
+.RAG/
 
 # Publication paper
+intern*.md
 WIP.md
 run_production.py
 diagnose_branching.py
 calibrate.py
+

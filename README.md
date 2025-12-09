@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.33.0
+# RAGIX v0.35.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
@@ -15,8 +15,8 @@
 
 ---
 
-**Version:** 0.33.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Updated:** 2025-12-05
+**Version:** 0.35.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Updated:** 2025-12-09
 
 ---
 
@@ -42,20 +42,40 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 
 ---
 
-## **What's New in v0.33.0**
+## **What's New in v0.35.0**
 
 | Feature | Description |
 |---------|-------------|
-| **RAG Feed Interface** | Upload files directly to RAG index with chunking parameters |
-| **Document Conversion** | PDF (pdftotext), DOCX (pandoc), PPTX (python-pptx), XLSX (openpyxl) |
-| **ZIP Archive Support** | Drop ZIP files to index entire archives at once |
-| **RAG-Aware Reasoning** | Classifier detects RAG context and uses BYPASS mode (no shell commands) |
-| **Chat-to-RAG Export** | Index conversation history to RAG for later retrieval |
-| **Configurable Chunking** | Set chunk size and overlap in sidebar UI |
-| **Converter Toggles** | Enable/disable PDF and Office document converters |
-| **Context Limits Config** | Configure conversation context limits in Settings |
+| **Project RAG** | Two-level RAG: Project-level ChromaDB + Chat-level BM25 |
+| **Concept Explorer** | Dual-view concept exploration with D3.js force-directed graph |
+| **Fullscreen Sections** | All RAG sections support fullscreen mode (⛶ button) |
+| **Concept Pagination** | Browse discovered concepts with ◀ Less / More ▶ navigation |
+| **Task Classification Fix** | RAG-augmented queries auto-downgrade to BYPASS (14s vs 140s) |
+| **Knowledge Summary** | LLM-powered concept summarization with citations |
 
-### v0.33.0 Highlights (Latest)
+### v0.35.0 Highlights (Latest)
+
+- **Project RAG Integration** — Two-level retrieval architecture
+  - Project-level: ChromaDB vector store in `.RAG/` folder per project
+  - Chat-level: BM25 index in `.ragix/` for uploaded documents
+  - Automatic context injection from both sources
+- **Concept Explorer** — Interactive concept visualization
+  - File-centric view: Files grouped by relevance with chunk previews
+  - Graph view: D3.js force-directed visualization with zoom/pan
+  - Related tags and concepts discovery
+  - Fullscreen mode for better visibility
+- **Discovered Concepts** — Browse indexed concepts
+  - Pagination with ◀ Less / More ▶ buttons (20 per page, up to 200)
+  - Click concept to explore in Concept Explorer
+  - Count badge showing total concepts
+- **Section Fullscreen** — All RAG sections support fullscreen (ESC to exit)
+  - Discovered Concepts, Search Project, Concept Explorer, Knowledge Summary
+- **Task Classification Optimization** — Faster RAG-augmented responses
+  - Extracts user question from augmented message for classification
+  - Auto-downgrades COMPLEX/MODERATE to BYPASS when RAG context available
+  - Result: ~14s responses instead of ~140s
+
+### v0.33.0 Highlights
 
 - **RAG Upload Button** — Upload files directly to RAG index from sidebar
   - Supports: txt, md, py, js, json, yaml, xml, pdf, docx, pptx, xlsx, zip

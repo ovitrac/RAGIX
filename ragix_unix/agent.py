@@ -578,21 +578,51 @@ CONVERSATION TO SUMMARIZE:
         if hasattr(self._reasoning_loop, 'set_conversation_history'):
             self._reasoning_loop.set_conversation_history(self.history)
 
-        # Record the goal in episodic memory
-        self._episodic_memory.record_goal(user_text)
+        # v0.33.1: Extract user question for classification (don't classify RAG context)
+        # The augmented message contains RAG context + user question
+        # We need to classify ONLY the user question to avoid false positives
+        user_question = user_text
+        has_rag_context = False
+        if "## User Question" in user_text:
+            # Extract just the user question portion for classification
+            parts = user_text.split("## User Question")
+            if len(parts) >= 2:
+                question_part = parts[-1].strip()
+                # Remove any trailing instructions
+                if "**Instructions:**" in question_part:
+                    question_part = question_part.split("**Instructions:**")[0].strip()
+                # Remove project info line if present
+                if question_part.startswith("**Current Project:**"):
+                    lines = question_part.split("\n")
+                    question_part = "\n".join(lines[1:]).strip()
+                user_question = question_part
+                has_rag_context = True
 
-        # Classify task complexity
-        complexity = self._reasoning_loop.classify_task(user_text)
+        # Record the goal in episodic memory (use original user question)
+        self._episodic_memory.record_goal(user_question)
+
+        # Classify task complexity (use extracted question, not full RAG context)
+        complexity = self._reasoning_loop.classify_task(user_question)
+
+        # v0.33.1: If RAG context is present and task would be COMPLEX/MODERATE,
+        # downgrade to BYPASS since we already have the answer in context
+        if has_rag_context and complexity in (TaskComplexity.COMPLEX, TaskComplexity.MODERATE):
+            # Check if this is a knowledge question (not a file operation request)
+            question_lower = user_question.lower()
+            file_operation_keywords = ["find", "search", "list", "count", "show file", "read", "grep", "create", "delete", "modify"]
+            if not any(kw in question_lower for kw in file_operation_keywords):
+                complexity = TaskComplexity.BYPASS
 
         if complexity == TaskComplexity.BYPASS:
             # For BYPASS tasks (conceptual questions), generate direct LLM response
             # without any tool execution
             result, msg = self.step(user_text)
 
+            trace_note = " [RAG context available]" if has_rag_context else ""
             traces = [{
                 "type": "bypass",
                 "timestamp": "",
-                "content": f"Bypass (conceptual): {user_text[:100]}",
+                "content": f"Bypass (conceptual{trace_note}): {user_question[:100]}",
             }]
             return None, msg, traces
 

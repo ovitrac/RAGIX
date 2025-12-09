@@ -3318,15 +3318,43 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 4px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    background: var(--bg-secondary);
+}
+
+.rag-toggle-row.rag-toggle-project {
+    background: linear-gradient(135deg, rgba(79, 195, 247, 0.1), rgba(33, 150, 243, 0.05));
+    border: 1px solid rgba(79, 195, 247, 0.2);
+}
+
+.rag-toggle-row.rag-toggle-chat {
+    background: linear-gradient(135deg, rgba(156, 39, 176, 0.1), rgba(103, 58, 183, 0.05));
+    border: 1px solid rgba(156, 39, 176, 0.2);
 }
 
 .rag-toggle-label {
     font-size: 12px;
     color: var(--text-primary);
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.rag-type-icon {
+    font-size: 14px;
+}
+
+.rag-toggle-hint {
+    margin-bottom: 8px;
+    padding-left: 4px;
+}
+
+.rag-toggle-hint small {
+    font-size: 10px;
+    color: var(--text-secondary);
 }
 
 /* Toggle Switch */
@@ -3576,4 +3604,841 @@ input:checked + .toggle-slider:before {
 .context-actions .btn {
     font-size: 10px;
     padding: 4px 10px;
+}
+
+/* =============================================================================
+ * Project RAG Styles (v0.33)
+ * ============================================================================= */
+
+.rag-status-panel {
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+}
+
+.rag-status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.rag-status-row .status-text {
+    max-width: 400px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rag-gpu-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    margin-bottom: 10px;
+    padding: 4px 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    width: fit-content;
+}
+
+.rag-gpu-icon {
+    font-size: 14px;
+}
+
+.rag-index-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    flex-wrap: wrap;
+}
+
+.rag-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 50px;
+}
+
+.rag-stat-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--accent-blue);
+    white-space: nowrap;
+}
+
+.rag-stat-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.rag-progress-bar {
+    height: 6px;
+    background: var(--bg-secondary);
+    border-radius: 3px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.rag-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+    border-radius: 3px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.rag-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.rag-profile-select {
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.rag-profile-select:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+.rag-hint {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Project RAG Tab */
+.rag-panel {
+    padding: 20px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.rag-query-section {
+    margin-bottom: 24px;
+}
+
+.rag-query-input-group {
+    display: flex;
+    gap: 10px;
+}
+
+.rag-query-input {
+    flex: 1;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.rag-query-input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+.rag-results {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.rag-result-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+    transition: all 0.2s;
+}
+
+.rag-result-card:hover {
+    border-color: var(--accent-blue);
+}
+
+.rag-result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.rag-result-file {
+    font-size: 13px;
+    color: var(--accent-blue);
+    font-family: monospace;
+}
+
+.rag-result-score {
+    font-size: 11px;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.rag-result-content {
+    font-size: 13px;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    padding: 12px;
+    border-radius: 6px;
+    font-family: monospace;
+    white-space: pre-wrap;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.rag-result-lines {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 8px;
+}
+
+/* Knowledge Graph Section */
+.rag-graph-container {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 20px;
+}
+
+.rag-concepts-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.rag-concept-tag {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rag-concept-tag:hover {
+    border-color: var(--accent-blue);
+    background: rgba(79, 195, 247, 0.1);
+}
+
+.rag-concepts-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.rag-concept-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rag-concept-btn:hover {
+    border-color: var(--accent-blue);
+    background: rgba(79, 195, 247, 0.15);
+}
+
+.rag-concept-count {
+    font-size: 10px;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
+/* RAG Change Detection Notification */
+.rag-change-notification {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(255, 183, 77, 0.15), rgba(255, 152, 0, 0.1));
+    border: 1px solid rgba(255, 183, 77, 0.4);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.rag-change-notification.hidden {
+    display: none;
+}
+
+.rag-notification-icon {
+    font-size: 20px;
+}
+
+.rag-notification-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.rag-notification-content strong {
+    color: var(--accent-orange);
+    font-size: 13px;
+}
+
+.rag-notification-content span {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.rag-notification-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.btn-sm {
+    padding: 4px 12px;
+    font-size: 12px;
+}
+
+/* RAG Collapsible Sections */
+.rag-section {
+    margin-bottom: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.rag-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.rag-section-header:hover {
+    background: var(--bg-tertiary);
+}
+
+.rag-section-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    flex: 0 0 auto;
+}
+
+/* Dash separator line after section title */
+.rag-section-header::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, var(--border-color) 0%, transparent 100%);
+    margin-left: 12px;
+}
+
+.rag-section-toggle {
+    font-size: 10px;
+    color: var(--text-secondary);
+    transition: transform 0.2s;
+}
+
+.rag-section-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--accent-blue);
+    color: white;
+}
+
+.rag-badge-beta {
+    background: var(--accent-purple);
+}
+
+.rag-section-content {
+    padding: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+.rag-section-content.hidden {
+    display: none;
+}
+
+/* Concepts Pagination Controls */
+.rag-concepts-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+}
+
+.rag-concepts-pagination .btn {
+    padding: 4px 12px;
+    font-size: 12px;
+}
+
+.rag-concepts-pagination .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* RAG Summarize Results */
+.rag-summarize-results {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.rag-summary-citations {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.rag-summary-citations h4 {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0 0 8px 0;
+}
+
+.rag-citation-item {
+    display: flex;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.rag-citation-item:hover {
+    color: var(--accent-blue);
+    cursor: pointer;
+}
+
+.rag-citation-num {
+    font-weight: 600;
+    color: var(--accent-blue);
+}
+
+/* =============================================================================
+   Concept Explorer (v0.33.1)
+   ============================================================================= */
+
+.rag-explorer-tags {
+    margin: 12px 0;
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+}
+
+.rag-tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.rag-tag-btn {
+    padding: 3px 10px;
+    font-size: 11px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rag-tag-btn:hover {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: white;
+}
+
+.rag-tag-count {
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-left: 4px;
+}
+
+/* Explorer Results Container */
+.rag-explorer-results {
+    margin-top: 12px;
+    min-height: 200px;
+}
+
+/* File-Centric View */
+.rag-explorer-files {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.rag-file-group {
+    margin-bottom: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.rag-file-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.rag-file-header:hover {
+    background: var(--bg-tertiary);
+}
+
+.rag-file-icon {
+    font-size: 14px;
+}
+
+.rag-file-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rag-file-score {
+    font-size: 12px;
+    color: var(--accent-green);
+    font-weight: 600;
+}
+
+.rag-file-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    background: var(--accent-blue);
+    color: white;
+    border-radius: 8px;
+}
+
+.rag-file-chunks {
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    display: none;
+}
+
+.rag-file-chunks.expanded {
+    display: block;
+}
+
+.rag-chunk-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px;
+    margin-bottom: 6px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rag-chunk-item:hover {
+    background: var(--bg-tertiary);
+    transform: translateX(2px);
+}
+
+.rag-chunk-item:last-child {
+    margin-bottom: 0;
+}
+
+.rag-chunk-lines {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-purple);
+    min-width: 70px;
+}
+
+.rag-chunk-preview {
+    flex: 1;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.rag-chunk-score {
+    font-size: 11px;
+    color: var(--accent-green);
+    font-weight: 500;
+}
+
+/* Graph View */
+.rag-explorer-graph {
+    position: relative;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+}
+
+.rag-graph-container {
+    width: 100%;
+    height: 400px;
+    overflow: hidden;
+}
+
+.rag-graph-container svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Graph Nodes */
+.rag-graph-node {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rag-graph-node:hover {
+    filter: brightness(1.2);
+}
+
+.rag-graph-node.concept {
+    fill: var(--accent-purple);
+}
+
+.rag-graph-node.chunk {
+    fill: var(--accent-blue);
+}
+
+.rag-graph-node.file {
+    fill: var(--accent-green);
+}
+
+.rag-graph-label {
+    font-size: 10px;
+    fill: var(--text-primary);
+    text-anchor: middle;
+    pointer-events: none;
+}
+
+.rag-graph-edge {
+    stroke: var(--border-color);
+    stroke-opacity: 0.6;
+    fill: none;
+}
+
+.rag-graph-edge.mentions {
+    stroke: var(--accent-purple);
+    stroke-opacity: 0.4;
+}
+
+.rag-graph-edge.contains {
+    stroke: var(--accent-green);
+    stroke-opacity: 0.3;
+    stroke-dasharray: 4,2;
+}
+
+/* Graph Controls */
+.rag-graph-controls {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    z-index: 10;
+}
+
+.rag-graph-controls .btn-sm {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+/* Graph Legend */
+.rag-graph-legend {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    display: flex;
+    gap: 12px;
+    padding: 6px 10px;
+    background: var(--bg-primary);
+    border-radius: 4px;
+    font-size: 11px;
+    opacity: 0.9;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.legend-dot.concept {
+    background: var(--accent-purple);
+}
+
+.legend-dot.chunk {
+    background: var(--accent-blue);
+}
+
+.legend-dot.file {
+    background: var(--accent-green);
+}
+
+/* Related Concepts */
+.rag-related-concepts {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+}
+
+#ragRelatedConceptsList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.rag-related-btn {
+    padding: 3px 10px;
+    font-size: 11px;
+    background: rgba(156, 39, 176, 0.1);
+    border: 1px solid rgba(156, 39, 176, 0.3);
+    border-radius: 12px;
+    color: var(--accent-purple);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rag-related-btn:hover {
+    background: var(--accent-purple);
+    border-color: var(--accent-purple);
+    color: white;
+}
+
+/* Graph Tooltip */
+.rag-graph-tooltip {
+    position: absolute;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    pointer-events: none;
+    z-index: 100;
+    max-width: 300px;
+}
+
+.rag-graph-tooltip .tooltip-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.rag-graph-tooltip .tooltip-content {
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+/* Concept Explorer Fullscreen Mode */
+.rag-section.fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 9999 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    background: var(--bg-primary) !important;
+    overflow: auto;
+}
+
+.rag-section.fullscreen .rag-section-content {
+    height: calc(100vh - 50px);
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.rag-section.fullscreen .rag-explorer-files {
+    max-height: calc(100vh - 200px);
+}
+
+.rag-section.fullscreen .rag-graph-container {
+    height: calc(100vh - 250px);
+}
+
+.rag-section.fullscreen .rag-graph-container svg {
+    height: 100%;
+}
+
+.rag-section.fullscreen #explorerFullscreenIcon {
+    transform: rotate(45deg);
+}
+
+/* Fullscreen button styling */
+.rag-section-header .btn-icon {
+    padding: 4px 8px;
+    font-size: 14px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rag-section-header .btn-icon:hover {
+    color: var(--accent-blue);
+    background: rgba(33, 150, 243, 0.1);
 }
