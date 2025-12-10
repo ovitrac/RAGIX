@@ -824,6 +824,88 @@ TECHNICAL_AUDIT_TEMPLATE = """
             {% endif %}
         </section>
 
+        {% if component_analysis and component_analysis.components %}
+        <section class="report-section">
+            <h2 class="section-title">Component Analysis (SK/SC/SG)</h2>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-name">Service Keys (SK)</div>
+                    <div class="metric-value" style="color: #3b82f6;">{{ component_analysis.by_type.service | default(0) }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-name">Screen Codes (SC)</div>
+                    <div class="metric-value" style="color: #8b5cf6;">{{ component_analysis.by_type.screen | default(0) }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-name">General Services (SG)</div>
+                    <div class="metric-value" style="color: #22c55e;">{{ component_analysis.by_type.general | default(0) }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-name">Total Components</div>
+                    <div class="metric-value">{{ component_analysis.total }}</div>
+                </div>
+            </div>
+
+            <div class="section-content" style="margin-top: 20px;">
+                <h3 style="margin: 15px 0 10px;">Service Life Profiles</h3>
+                <table class="data-table">
+                    <tr>
+                        <th>Component</th>
+                        <th>Type</th>
+                        <th>Files</th>
+                        <th>Age</th>
+                        <th>Lifecycle</th>
+                        <th>Risk</th>
+                        <th>Assessment</th>
+                    </tr>
+                    {% for comp in component_analysis.components %}
+                    <tr>
+                        <td><strong>{{ comp.id }}</strong></td>
+                        <td>
+                            {% if comp.type == 'service' %}
+                            <span style="color: #3b82f6;">●</span> Service
+                            {% elif comp.type == 'screen' %}
+                            <span style="color: #8b5cf6;">●</span> Screen
+                            {% else %}
+                            <span style="color: #22c55e;">●</span> General
+                            {% endif %}
+                        </td>
+                        <td>{{ comp.file_count }}</td>
+                        <td>{{ comp.age_display }}</td>
+                        <td>
+                            <span class="severity-badge severity-{{ comp.lifecycle_badge }}">{{ comp.lifecycle }}</span>
+                        </td>
+                        <td>
+                            <span class="severity-badge severity-{{ comp.risk_badge }}">{{ comp.risk_level }}</span>
+                            <small>({{ comp.risk_score }})</small>
+                        </td>
+                        <td style="font-size: 11px; max-width: 250px;">{{ comp.recommendation }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+
+            {% if component_analysis.high_risk_components %}
+            <div class="section-content" style="margin-top: 20px;">
+                <h3 style="margin: 15px 0 10px; color: #ef4444;">⚠ High Risk Components (MCO Attention)</h3>
+                {% for comp in component_analysis.high_risk_components %}
+                <div class="finding-card">
+                    <div class="finding-header">
+                        <span class="severity-badge severity-{{ comp.risk_badge }}">{{ comp.risk_level }}</span>
+                        <span class="finding-title">{{ comp.id }} - {{ comp.lifecycle }}</span>
+                    </div>
+                    <div class="finding-body">
+                        <p><strong>Risk Score:</strong> {{ comp.risk_score }} | <strong>Files:</strong> {{ comp.file_count }} | <strong>Age:</strong> {{ comp.age_display }}</p>
+                        <div class="finding-recommendation">{{ comp.recommendation }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+        {% endif %}
+
         <section class="report-section">
             <h2 class="section-title">All Findings</h2>
             <div class="findings-list">
@@ -1284,6 +1366,9 @@ class TechnicalAuditGenerator(BaseReportGenerator):
         # Files analysis
         files_analysis = self._get_files_analysis(data)
 
+        # Component analysis (SK/SC/SG) - uses ragix_audit module
+        component_analysis = self._get_component_analysis(data)
+
         return template.render(
             config=data.config,
             date=data.config.date.strftime("%Y-%m-%d") if data.config.date else datetime.now().strftime("%Y-%m-%d"),
@@ -1295,7 +1380,8 @@ class TechnicalAuditGenerator(BaseReportGenerator):
             findings=data.findings,
             files_analysis=files_analysis,
             maven=data.maven,
-            sonar=data.sonar
+            sonar=data.sonar,
+            component_analysis=component_analysis
         )
 
     def _enrich_summary(self, summary: Dict[str, Any]) -> Dict[str, Any]:
@@ -1342,6 +1428,14 @@ class TechnicalAuditGenerator(BaseReportGenerator):
 
     def _get_complexity_distribution(self, data: ReportData) -> List[Dict[str, Any]]:
         """Get complexity distribution data."""
+        # Map display names to dict keys
+        level_keys = {
+            "Simple (1-5)": "simple",
+            "Moderate (6-10)": "moderate",
+            "Complex (11-20)": "complex",
+            "Very Complex (>20)": "very",
+        }
+
         # Default distribution if no metrics
         levels = [
             {"name": "Simple (1-5)", "count": 0, "percentage": 0, "badge": "info", "status": "OK"},
@@ -1355,7 +1449,7 @@ class TechnicalAuditGenerator(BaseReportGenerator):
             total = sum(dist.values()) or 1
 
             for level in levels:
-                key = level["name"].split()[0].lower()
+                key = level_keys.get(level["name"], "")
                 count = dist.get(key, 0)
                 level["count"] = count
                 level["percentage"] = round(count / total * 100, 1)
@@ -1422,6 +1516,196 @@ class TechnicalAuditGenerator(BaseReportGenerator):
             })
 
         return result
+
+    def _get_component_analysis(self, data: ReportData) -> Optional[Dict[str, Any]]:
+        """
+        Get component analysis using ragix_audit module.
+
+        Detects SK/SC/SG components and computes service life profiles.
+        """
+        if not data.metrics:
+            return None
+
+        try:
+            from ragix_audit import ComponentMapper, TimelineScanner, RiskScorer, LifecycleCategory
+            from ragix_audit.component_mapper import ComponentType
+            from pathlib import Path
+            from datetime import datetime
+            import os
+
+            # Get project root from config or first file
+            project_root = None
+            if data.metrics.file_metrics:
+                first_file = Path(data.metrics.file_metrics[0].path)
+                # Try to find project root (go up until we find src or lose the path)
+                for parent in first_file.parents:
+                    if parent.name in ('src', 'main', 'java'):
+                        project_root = parent.parent
+                        break
+                    if (parent / 'pom.xml').exists() or (parent / 'build.gradle').exists():
+                        project_root = parent
+                        break
+                if not project_root:
+                    project_root = first_file.parent
+
+            # Initialize component mapper
+            mapper = ComponentMapper()
+
+            # Map files to components using map_file method
+            for fm in data.metrics.file_metrics:
+                file_path = Path(fm.path)
+                mapper.map_file(file_path)
+
+            if not mapper.components:
+                return None
+
+            # Initialize timeline scanner and scan directory
+            scanner = TimelineScanner()
+            if project_root and project_root.exists():
+                scanner.scan_directory(project_root)
+                scanner.build_component_timelines()
+
+            # Get component timeline data
+            components_data = []
+            by_type = {"service": 0, "screen": 0, "general": 0, "unknown": 0}
+
+            for comp_id, component in mapper.components.items():
+                comp_type = component.type.value
+                by_type[comp_type] = by_type.get(comp_type, 0) + 1
+
+                # Get timeline from scanner if available
+                timeline = scanner.component_timelines.get(comp_id)
+                age_days = 0
+                lifecycle = "UNKNOWN"
+                lifecycle_badge = "info"
+
+                if timeline:
+                    age_days = timeline.age_days
+                    lifecycle = timeline.category.value.upper()
+                    lifecycle_badge = self._lifecycle_to_badge(timeline.category)
+                else:
+                    # Fallback: calculate from file mtimes
+                    mtimes = []
+                    for f in component.files:
+                        try:
+                            mtime = os.path.getmtime(f)
+                            mtimes.append(datetime.fromtimestamp(mtime))
+                        except OSError:
+                            pass
+                    if mtimes:
+                        oldest = min(mtimes)
+                        age_days = (datetime.now() - oldest).days
+                        # Simple lifecycle estimation based on age
+                        if age_days < 180:
+                            lifecycle = "NEW"
+                            lifecycle_badge = "info"
+                        elif age_days < 365:
+                            lifecycle = "ACTIVE"
+                            lifecycle_badge = "low"
+                        elif age_days < 730:
+                            lifecycle = "MATURE"
+                            lifecycle_badge = "info"
+                        else:
+                            lifecycle = "LEGACY"
+                            lifecycle_badge = "medium"
+
+                # Calculate age display
+                if age_days > 365:
+                    age_display = f"{age_days // 365}y {(age_days % 365) // 30}m"
+                elif age_days > 30:
+                    age_display = f"{age_days // 30}m"
+                else:
+                    age_display = f"{age_days}d"
+
+                # Compute risk score
+                risk_score = 0.0
+                risk_level = "UNKNOWN"
+                risk_badge = "info"
+                recommendation = "Analyze component for risk assessment."
+
+                if timeline:
+                    try:
+                        risk_scorer = RiskScorer()
+                        risk = risk_scorer.score_component(timeline)
+                        if risk:
+                            risk_score = risk.score
+                            risk_level = risk.level.value.upper()
+                            risk_badge = self._risk_to_badge(risk_level)
+                            recommendation = risk.recommendation
+                    except Exception:
+                        pass
+                else:
+                    # Estimate risk based on file count and age
+                    if component.file_count > 50:
+                        risk_score = 0.5
+                        risk_level = "MEDIUM"
+                        risk_badge = "low"
+                        recommendation = f"Large component with {component.file_count} files. Consider modularization."
+                    elif age_days > 1095 and component.file_count > 20:  # > 3 years
+                        risk_score = 0.6
+                        risk_level = "HIGH"
+                        risk_badge = "high"
+                        recommendation = "Legacy component requiring MCO attention."
+
+                comp_data = {
+                    "id": comp_id,
+                    "type": comp_type,
+                    "file_count": component.file_count,
+                    "age_days": age_days,
+                    "age_display": age_display,
+                    "lifecycle": lifecycle,
+                    "lifecycle_badge": lifecycle_badge,
+                    "risk_score": f"{risk_score:.2f}",
+                    "risk_level": risk_level,
+                    "risk_badge": risk_badge,
+                    "recommendation": recommendation[:150] + "..." if len(recommendation) > 150 else recommendation,
+                }
+                components_data.append(comp_data)
+
+            # Sort by risk score (highest first)
+            components_data.sort(key=lambda x: float(x["risk_score"]), reverse=True)
+
+            # Filter high risk components
+            high_risk = [c for c in components_data if c["risk_level"] in ("HIGH", "CRITICAL")]
+
+            return {
+                "total": len(mapper.components),
+                "by_type": by_type,
+                "components": components_data,
+                "high_risk_components": high_risk[:5],  # Top 5 high risk
+            }
+
+        except ImportError as e:
+            logger.warning(f"ragix_audit module not available: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"Error computing component analysis: {e}")
+            return None
+
+    def _lifecycle_to_badge(self, category) -> str:
+        """Convert lifecycle category to badge class."""
+        from ragix_audit import LifecycleCategory
+        mapping = {
+            LifecycleCategory.NEW: "info",
+            LifecycleCategory.ACTIVE: "low",
+            LifecycleCategory.MATURE: "info",
+            LifecycleCategory.LEGACY_HOT: "high",
+            LifecycleCategory.FROZEN: "medium",
+            LifecycleCategory.FROZEN_RISKY: "high",
+            LifecycleCategory.UNKNOWN: "info",
+        }
+        return mapping.get(category, "info")
+
+    def _risk_to_badge(self, risk_level: str) -> str:
+        """Convert risk level to badge class."""
+        mapping = {
+            "LOW": "info",
+            "MEDIUM": "low",
+            "HIGH": "high",
+            "CRITICAL": "critical",
+            "UNKNOWN": "info",
+        }
+        return mapping.get(risk_level, "info")
 
 
 class ComplianceReportGenerator(BaseReportGenerator):
@@ -1656,12 +1940,59 @@ class ReportEngine:
                 "maintainability_index": metrics.maintainability_index,
             }
 
-            # Build high complexity methods list
-            hotspots = metrics.get_hotspots(20)
-            data.summary["high_complexity_methods"] = [
-                {"name": name, "complexity": cc, "file": "", "line": 0}
-                for name, cc in hotspots if cc > 10
-            ]
+            # Build complexity distribution from all methods
+            complexity_dist = {"simple": 0, "moderate": 0, "complex": 0, "very": 0}
+            high_complexity_methods = []
+
+            for fm in metrics.file_metrics:
+                # Class methods
+                for cm in fm.class_metrics:
+                    for mm in cm.method_metrics:
+                        cc = mm.cyclomatic_complexity
+                        if cc <= 5:
+                            complexity_dist["simple"] += 1
+                        elif cc <= 10:
+                            complexity_dist["moderate"] += 1
+                        elif cc <= 20:
+                            complexity_dist["complex"] += 1
+                        else:
+                            complexity_dist["very"] += 1
+
+                        # Track high complexity methods
+                        if cc > 10:
+                            high_complexity_methods.append({
+                                "name": mm.qualified_name or mm.name,
+                                "complexity": cc,
+                                "file": fm.path,
+                                "line": mm.line
+                            })
+
+                # Standalone functions
+                for ff in fm.function_metrics:
+                    cc = ff.cyclomatic_complexity
+                    if cc <= 5:
+                        complexity_dist["simple"] += 1
+                    elif cc <= 10:
+                        complexity_dist["moderate"] += 1
+                    elif cc <= 20:
+                        complexity_dist["complex"] += 1
+                    else:
+                        complexity_dist["very"] += 1
+
+                    # Track high complexity functions
+                    if cc > 10:
+                        high_complexity_methods.append({
+                            "name": ff.qualified_name or ff.name,
+                            "complexity": cc,
+                            "file": fm.path,
+                            "line": ff.line
+                        })
+
+            data.summary["complexity_distribution"] = complexity_dist
+
+            # Sort by complexity descending and take top 20
+            high_complexity_methods.sort(key=lambda x: x["complexity"], reverse=True)
+            data.summary["high_complexity_methods"] = high_complexity_methods[:20]
 
             # Build files list for technical audit
             data.summary["files"] = [
