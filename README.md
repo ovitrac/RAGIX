@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.35.0
+# RAGIX v0.40.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
@@ -15,8 +15,8 @@
 
 ---
 
-**Version:** 0.35.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Updated:** 2025-12-09
+**Version:** 0.40.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Updated:** 2025-12-10
 
 ---
 
@@ -42,18 +42,44 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 
 ---
 
-## **What's New in v0.35.0**
+## **What's New in v0.40.0**
 
 | Feature | Description |
 |---------|-------------|
-| **Project RAG** | Two-level RAG: Project-level ChromaDB + Chat-level BM25 |
-| **Concept Explorer** | Dual-view concept exploration with D3.js force-directed graph |
-| **Fullscreen Sections** | All RAG sections support fullscreen mode (⛶ button) |
-| **Concept Pagination** | Browse discovered concepts with ◀ Less / More ▶ navigation |
-| **Task Classification Fix** | RAG-augmented queries auto-downgrade to BYPASS (14s vs 140s) |
-| **Knowledge Summary** | LLM-powered concept summarization with citations |
+| **Project RAG Settings** | Configurable settings for concepts, graph physics, and search |
+| **File Viewer Modal** | Rich file preview with chunk highlighting and navigation |
+| **Markdown Rendering** | Beautiful Markdown display with colored headings and styled text |
+| **XML/HTML Syntax Highlighting** | Syntax-colored display for XML, HTML, and POM files |
+| **Chunk Navigation** | ◀ ▶ navigation between chunks with position indicator |
+| **Graph Fullscreen Fix** | Concept Explorer graph properly spans vertical space |
+| **Index Statistics** | Colored badges showing files, chunks, code, and docs counts |
 
-### v0.35.0 Highlights (Latest)
+### v0.40.0 Highlights (Latest)
+
+- **Project RAG Enhancements** — Complete settings and file preview system
+  - Settings modal: Max concepts, min hits filter, graph physics, search limits
+  - Index statistics: Colored badges (files, chunks, code, docs) in header
+  - Discovered concepts: Configurable max and minimum hits threshold
+- **File Viewer Modal** — Rich file preview with chunk visualization
+  - Chunk highlighting with 6 distinct colors cycling through chunks
+  - Chunk navigation: ◀ ▶ buttons to jump between chunks
+  - Chunk legend: Clickable items showing line ranges
+  - Open in new window option for independent viewing
+- **Markdown Rendering** — Professional document display
+  - Marked.js integration for proper Markdown parsing
+  - Colored headings: H1 blue, H2 purple, H3 cyan, H4 green, H5 orange, H6 red
+  - Bold/italic styling with purple tint for emphasis
+  - Tables, blockquotes, code blocks, lists all properly styled
+- **XML/HTML/POM Syntax Highlighting** — Code-aware display
+  - Tags in blue, attributes in purple, values in green
+  - Comments in gray italic, CDATA in orange
+  - Proper indentation and line numbers preserved
+- **Graph Visualization Fixes** — Fullscreen now works correctly
+  - Graph dynamically calculates height from viewport
+  - Uses legend position to determine available space
+  - Re-renders with correct dimensions on fullscreen toggle
+
+### v0.35.0 Highlights
 
 - **Project RAG Integration** — Two-level retrieval architecture
   - Project-level: ChromaDB vector store in `.RAG/` folder per project

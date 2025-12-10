@@ -178,6 +178,7 @@ QUICKSTART_CLAUDE_CODE.md
 # Agent-generated artifacts (Claude/Gemini/Codex)
 FORREVIEW_*
 REVIEW_*
+PLAN_*
 .session*
 .claude*
 .claude/

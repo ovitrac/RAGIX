@@ -151,6 +151,7 @@ try:
         threads_router,
         rag_router,
         rag_project_router,
+        audit_router,
     )
     from ragix_web.routers.sessions import set_sessions_store
     from ragix_web.routers.context import set_context_store
@@ -166,6 +167,7 @@ try:
         is_project_rag_enabled,
         get_current_project,
     )
+    from ragix_web.routers.audit import set_current_project as set_audit_project
     ROUTERS_AVAILABLE = True
 except ImportError:
     ROUTERS_AVAILABLE = False
@@ -379,6 +381,7 @@ if ROUTERS_AVAILABLE:
     app.include_router(threads_router, tags=["Threads (v0.33)"])
     app.include_router(rag_router, tags=["Chat RAG (v0.33)"])
     app.include_router(rag_project_router, tags=["Project RAG (v0.33)"])
+    app.include_router(audit_router, tags=["Code Audit (v0.4)"])
 
 
 @app.get("/", response_class=HTMLResponse)

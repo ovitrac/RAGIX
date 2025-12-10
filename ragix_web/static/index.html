@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="/static/style.css">
     <!-- D3.js for graph visualization (v0.33.1) -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         /* Navigation Tabs */
         .nav-tabs {
@@ -60,9 +62,13 @@
         }
         .ast-header {
             margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
         }
         .ast-header h2 {
-            margin: 0 0 10px 0;
+            margin: 0;
             font-size: 18px;
         }
         .project-input-group {
@@ -127,6 +133,736 @@
             border: 1px solid #da3633;
             color: #f85149;
         }
+        /* =================================================================
+           Audit Tab Styles (v0.4)
+           ================================================================= */
+        .audit-panel {
+            padding: 20px;
+            flex: 1;
+            min-height: 0;
+            display: block;  /* Block layout for natural scrolling */
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        /* Ensure scrollbar is always visible when content overflows */
+        .audit-panel::-webkit-scrollbar {
+            width: 12px;
+        }
+        .audit-panel::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 6px;
+        }
+        .audit-panel::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 6px;
+            border: 2px solid var(--bg-secondary);
+        }
+        .audit-panel::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color);
+        }
+        /* Give sections min-height so panel has content to scroll */
+        .audit-section-content {
+            min-height: 200px;
+        }
+        .risk-matrix-container {
+            min-height: 300px;
+        }
+        .audit-table-wrapper {
+            max-height: 350px;
+            overflow-y: auto;
+        }
+        .audit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .audit-header h2 {
+            margin: 0;
+            color: var(--text-primary);
+        }
+        .audit-header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        /* Project Selection Row */
+        .audit-project-row {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .audit-project-input {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .audit-project-input label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .audit-project-input input {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+        }
+        .audit-project-row .btn-icon-left {
+            margin-right: 6px;
+        }
+        /* Sources Status Badges */
+        .audit-sources {
+            display: flex;
+            gap: 12px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        .source-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            font-size: 13px;
+        }
+        .source-badge[data-available="true"] {
+            border-color: #238636;
+            background: rgba(35, 134, 54, 0.1);
+        }
+        .source-badge[data-available="true"] .source-status {
+            color: #3fb950;
+        }
+        .source-badge[data-available="false"] {
+            opacity: 0.6;
+        }
+        .source-icon {
+            font-size: 16px;
+        }
+        .source-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .source-status {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        /* Summary Cards */
+        .audit-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        .audit-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 18px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+        }
+        .audit-card-icon {
+            font-size: 28px;
+            opacity: 0.8;
+        }
+        .audit-card-icon.risk-high {
+            color: #f85149;
+        }
+        .audit-card-icon.drift-alert {
+            color: #d29922;
+        }
+        .audit-card-content {
+            display: flex;
+            flex-direction: column;
+        }
+        .audit-card-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .audit-card-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        /* Main Content Grid */
+        .audit-main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 1200px) {
+            .audit-main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        /* Spacing for direct children of audit-panel */
+        .audit-panel > .audit-section {
+            margin-bottom: 20px;
+        }
+        .audit-panel > .audit-header {
+            margin-bottom: 20px;
+        }
+        /* Audit Section Fullscreen Mode */
+        .audit-section.fullscreen {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 9999 !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            background: var(--bg-primary, #1e1e1e) !important;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .audit-section.fullscreen .audit-section-header {
+            flex-shrink: 0;
+        }
+        .audit-section.fullscreen .audit-section-content {
+            flex: 1 !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            height: auto !important;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .audit-section.fullscreen .audit-table-wrapper {
+            max-height: none !important;
+            height: calc(100vh - 180px);
+            overflow-y: auto;
+        }
+        .audit-section.fullscreen .risk-matrix-container {
+            height: calc(100vh - 180px) !important;
+            max-height: none !important;
+            min-height: 0 !important;
+        }
+        .audit-section.fullscreen .audit-section-content .risk-matrix-container {
+            height: 100% !important;
+        }
+        .audit-section.fullscreen .insights-result {
+            max-height: calc(100vh - 150px);
+            overflow-y: auto;
+        }
+        .audit-section.fullscreen .audit-drift-list {
+            max-height: calc(100vh - 180px);
+            overflow-y: auto;
+        }
+        /* Audit Sections */
+        .audit-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .audit-section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 18px;
+            background: rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            user-select: none;
+        }
+        .audit-section-header:hover {
+            background: rgba(0, 0, 0, 0.3);
+        }
+        .audit-section-header h3 {
+            margin: 0;
+            font-size: 15px;
+            color: var(--text-primary);
+        }
+        .audit-section-toggle {
+            font-size: 12px;
+            color: var(--text-secondary);
+            transition: transform 0.2s;
+        }
+        .audit-section-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+        .audit-section-hint {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-left: auto;
+        }
+        .audit-section-badge {
+            background: var(--accent-color);
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: auto;
+        }
+        /* Fullscreen button in audit section header */
+        .audit-section-header .btn.btn-sm.btn-icon {
+            padding: 4px 8px;
+            font-size: 14px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+        .audit-section-header .btn.btn-sm.btn-icon:hover {
+            color: var(--accent-color);
+            border-color: var(--accent-color);
+            background: rgba(79, 195, 247, 0.1);
+        }
+        .audit-section-content {
+            padding: 15px;
+        }
+        .audit-section-content.collapsed {
+            display: none;
+        }
+        /* Risk Matrix */
+        .risk-matrix-container {
+            width: 100%;
+            height: 300px;
+            position: relative;
+        }
+        .risk-matrix-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-secondary);
+        }
+        .risk-matrix-legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .legend-dot.low { background: #238636; }
+        .legend-dot.medium { background: #d29922; }
+        .legend-dot.high { background: #da3633; }
+        .legend-dot.critical { background: #8b0000; }
+        /* Service Profiles Table */
+        .audit-table-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .audit-table-controls input {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+        }
+        .audit-table-controls select {
+            padding: 8px 12px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+        }
+        .audit-table-wrapper {
+            max-height: 350px;
+            overflow-y: auto;
+        }
+        .audit-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .audit-table th,
+        .audit-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .audit-table th {
+            background: rgba(0, 0, 0, 0.2);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .audit-table tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .audit-table-empty {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 30px !important;
+        }
+        /* Risk Badges */
+        .risk-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .risk-badge.low {
+            background: rgba(35, 134, 54, 0.2);
+            color: #3fb950;
+        }
+        .risk-badge.medium {
+            background: rgba(210, 153, 34, 0.2);
+            color: #d29922;
+        }
+        .risk-badge.high {
+            background: rgba(218, 54, 51, 0.2);
+            color: #f85149;
+        }
+        .risk-badge.critical {
+            background: rgba(139, 0, 0, 0.3);
+            color: #ff6b6b;
+        }
+        /* Category Badges */
+        .category-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            background: var(--code-bg);
+            color: var(--text-secondary);
+        }
+        .category-badge.legacy_hot {
+            background: rgba(218, 54, 51, 0.15);
+            color: #f85149;
+        }
+        .category-badge.active {
+            background: rgba(35, 134, 54, 0.15);
+            color: #3fb950;
+        }
+        .category-badge.new {
+            background: rgba(88, 166, 255, 0.15);
+            color: #58a6ff;
+        }
+        .category-badge.frozen {
+            background: rgba(139, 148, 158, 0.15);
+            color: #8b949e;
+        }
+        /* Drift Alerts */
+        .audit-drift-filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .audit-drift-filters label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        .audit-drift-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .audit-drift-empty {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 20px;
+        }
+        .drift-alert-card {
+            display: flex;
+            gap: 12px;
+            padding: 12px 15px;
+            background: var(--code-bg);
+            border-radius: 8px;
+            border-left: 4px solid var(--border-color);
+        }
+        .drift-alert-card.critical {
+            border-left-color: #8b0000;
+        }
+        .drift-alert-card.error {
+            border-left-color: #da3633;
+        }
+        .drift-alert-card.warning {
+            border-left-color: #d29922;
+        }
+        .drift-alert-card.info {
+            border-left-color: #58a6ff;
+        }
+        .drift-alert-icon {
+            font-size: 18px;
+        }
+        .drift-alert-content {
+            flex: 1;
+        }
+        .drift-alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .drift-alert-component {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .drift-alert-type {
+            font-size: 11px;
+            padding: 2px 8px;
+            background: var(--card-bg);
+            border-radius: 4px;
+            color: var(--text-secondary);
+        }
+        .drift-alert-message {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+        .drift-alert-meta {
+            display: flex;
+            gap: 15px;
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        /* AI Insights Section */
+        .audit-insights-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-left: auto;
+        }
+        .insight-select {
+            padding: 6px 12px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        .insights-placeholder {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-secondary);
+        }
+        .insights-placeholder .muted {
+            font-size: 13px;
+            margin-top: 10px;
+        }
+        .insights-loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        .insights-result {
+            padding: 15px;
+            min-height: 200px;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+        .insights-meta {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .insights-text {
+            line-height: 1.7;
+            font-size: 14px;
+        }
+        .insights-text h2, .insights-text h3, .insights-text h4 {
+            margin: 20px 0 10px 0;
+            color: var(--accent-color);
+        }
+        .insights-text h2 { font-size: 1.3em; }
+        .insights-text h3 { font-size: 1.15em; }
+        .insights-text h4 { font-size: 1.05em; }
+        .insights-text p {
+            margin-bottom: 12px;
+        }
+        .insights-text ul, .insights-text ol {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+        .insights-text li {
+            margin-bottom: 6px;
+        }
+        .insights-text strong {
+            color: var(--text-primary);
+        }
+        .insights-text code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        /* Audit Settings Modal */
+        .audit-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .audit-modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+        }
+        .audit-modal-content {
+            position: relative;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            width: 500px;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        .audit-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+        .audit-modal-header h3 {
+            margin: 0;
+            font-size: 16px;
+        }
+        .audit-modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .audit-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+        .settings-section {
+            margin-bottom: 24px;
+        }
+        .settings-section h4 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: var(--accent-color);
+        }
+        .settings-note {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin: 0 0 12px 0;
+        }
+        .settings-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .settings-row label {
+            width: 140px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .settings-row input[type="number"] {
+            width: 80px;
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+        .settings-hint {
+            font-size: 11px;
+            color: var(--text-secondary);
+            flex: 1;
+        }
+        .settings-row.weight-total {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+        }
+        .settings-row.weight-total span {
+            font-weight: 600;
+            color: var(--accent-color);
+        }
+
+        /* Report Section */
+        .audit-report-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-end;
+            padding: 15px;
+        }
+        .report-option-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .report-option-group label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .report-select {
+            padding: 8px 12px;
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+            min-width: 180px;
+        }
+        .report-buttons {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+        }
+
         /* Logs Panel */
         .logs-panel {
             padding: 20px;
@@ -995,6 +1731,7 @@
             <button class="nav-tab" data-tab="reasoning">Reasoning</button>
             <button class="nav-tab" data-tab="ast">AST Analysis</button>
             <button class="nav-tab" data-tab="rag">Project RAG</button>
+            <button class="nav-tab" data-tab="audit">Audit</button>
             <button class="nav-tab" data-tab="logs">Logs</button>
         </nav>
 
@@ -1747,14 +2484,330 @@
 
                     <div id="astResults" style="margin-top: 20px;"></div>
 
-                    <!-- Embedded Visualization Area -->
+                    <!-- Embedded Visualization Area (with fullscreen and resize support) -->
                     <div id="vizContainer" class="viz-container" style="display: none;">
                         <div class="viz-header">
                             <h3 id="vizTitle">Visualization</h3>
-                            <button class="btn btn-icon" onclick="astApp.closeViz()">&#10005;</button>
+                            <div class="viz-header-actions">
+                                <button class="btn btn-icon" onclick="astApp.toggleVizFullscreen()" title="Toggle Fullscreen" id="vizFullscreenBtn">&#9974;</button>
+                                <button class="btn btn-icon" onclick="astApp.closeViz()" title="Close">&#10005;</button>
+                            </div>
                         </div>
-                        <div class="viz-frame-container">
-                            <iframe id="vizFrame" class="viz-frame" src="about:blank"></iframe>
+                        <div class="viz-frame-container" id="vizFrameContainer">
+                            <iframe id="vizFrame" name="vizFrame" class="viz-frame" src="about:blank"></iframe>
+                            <div class="viz-resize-handle" id="vizResizeHandle" title="Drag to resize"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit Tab (v0.4) -->
+            <div id="auditTab" class="tab-content">
+                <div class="audit-panel">
+                    <div class="audit-header">
+                        <h2>Code Audit Dashboard</h2>
+                        <div class="audit-header-actions">
+                            <button class="btn" onclick="auditApp.refresh()">Refresh</button>
+                            <button class="btn btn-icon" onclick="auditApp.openSettings()" title="Audit Settings">&#9881;</button>
+                        </div>
+                    </div>
+
+                    <!-- Project Selection & Sources Status -->
+                    <div class="audit-section">
+                        <div class="audit-project-row">
+                            <div class="audit-project-input">
+                                <label>Project Path:</label>
+                                <input type="text" id="auditProjectPath" placeholder="Enter project path to audit..." />
+                                <button class="btn btn-icon" onclick="folderBrowser.open('auditProjectPath')" title="Browse folders">&#128193;</button>
+                            </div>
+                            <button class="btn btn-primary" onclick="auditApp.detectServices()" id="auditDetectBtn">
+                                <span class="btn-icon-left">&#128269;</span> Detect Services
+                            </button>
+                            <button class="btn" onclick="auditApp.runFullAudit()" id="auditRunBtn" disabled>
+                                <span class="btn-icon-left">&#9881;</span> Run Audit
+                            </button>
+                        </div>
+
+                        <!-- Sources Status -->
+                        <div class="audit-sources" id="auditSources">
+                            <div class="source-badge" id="sourceFilesystem" data-available="true">
+                                <span class="source-icon">&#128193;</span>
+                                <span class="source-name">Filesystem</span>
+                                <span class="source-status">Ready</span>
+                            </div>
+                            <div class="source-badge" id="sourceRag" data-available="false">
+                                <span class="source-icon">&#128218;</span>
+                                <span class="source-name">RAG Index</span>
+                                <span class="source-status">Not indexed</span>
+                            </div>
+                            <div class="source-badge" id="sourceAst" data-available="false">
+                                <span class="source-icon">&#128194;</span>
+                                <span class="source-name">AST Cache</span>
+                                <span class="source-status">Not cached</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summary Cards -->
+                    <div class="audit-summary" id="auditSummary" style="display: none;">
+                        <div class="audit-card">
+                            <div class="audit-card-icon">&#128202;</div>
+                            <div class="audit-card-content">
+                                <span class="audit-card-value" id="auditTotalServices">0</span>
+                                <span class="audit-card-label">Services</span>
+                            </div>
+                        </div>
+                        <div class="audit-card">
+                            <div class="audit-card-icon risk-high">&#9888;</div>
+                            <div class="audit-card-content">
+                                <span class="audit-card-value" id="auditHighRisk">0</span>
+                                <span class="audit-card-label">High Risk</span>
+                            </div>
+                        </div>
+                        <div class="audit-card">
+                            <div class="audit-card-icon">&#128200;</div>
+                            <div class="audit-card-content">
+                                <span class="audit-card-value" id="auditAvgRisk">-</span>
+                                <span class="audit-card-label">Avg Risk</span>
+                            </div>
+                        </div>
+                        <div class="audit-card">
+                            <div class="audit-card-icon drift-alert">&#128196;</div>
+                            <div class="audit-card-content">
+                                <span class="audit-card-value" id="auditDriftAlerts">0</span>
+                                <span class="audit-card-label">Drift Alerts</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Matrix & Service Profiles (side by side) -->
+                    <div class="audit-main-content" id="auditMainContent" style="display: none;">
+                        <!-- Risk Matrix -->
+                        <div class="audit-section audit-matrix-section" id="auditMatrixWrapper">
+                            <div class="audit-section-header" onclick="auditApp.toggleSection('matrix')">
+                                <span class="audit-section-toggle" id="auditMatrixToggle">&#9660;</span>
+                                <h3>Risk Matrix</h3>
+                                <span class="audit-section-hint">Impact × Complexity</span>
+                                <button class="btn btn-sm btn-icon" onclick="event.stopPropagation(); auditApp.toggleSectionFullscreen('matrix')" title="Toggle Fullscreen">
+                                    <span id="matrixFullscreenIcon">&#9974;</span>
+                                </button>
+                            </div>
+                            <div class="audit-section-content" id="auditMatrixSection">
+                                <div id="riskMatrixChart" class="risk-matrix-container">
+                                    <div class="risk-matrix-loading">Loading risk matrix...</div>
+                                </div>
+                                <div class="risk-matrix-legend">
+                                    <span class="legend-item"><span class="legend-dot low"></span> Low</span>
+                                    <span class="legend-item"><span class="legend-dot medium"></span> Medium</span>
+                                    <span class="legend-item"><span class="legend-dot high"></span> High</span>
+                                    <span class="legend-item"><span class="legend-dot critical"></span> Critical</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Service Life Profiles -->
+                        <div class="audit-section audit-profiles-section" id="auditProfilesWrapper">
+                            <div class="audit-section-header" onclick="auditApp.toggleSection('profiles')">
+                                <span class="audit-section-toggle" id="auditProfilesToggle">&#9660;</span>
+                                <h3>Service Life Profiles</h3>
+                                <span class="audit-section-badge" id="auditProfilesCount">0</span>
+                                <button class="btn btn-sm btn-icon" onclick="event.stopPropagation(); auditApp.toggleSectionFullscreen('profiles')" title="Toggle Fullscreen">
+                                    <span id="profilesFullscreenIcon">&#9974;</span>
+                                </button>
+                            </div>
+                            <div class="audit-section-content" id="auditProfilesSection">
+                                <div class="audit-table-controls">
+                                    <input type="text" id="auditProfilesFilter" placeholder="Filter by ID or type..." oninput="auditApp.filterProfiles()" />
+                                    <select id="auditProfilesSort" onchange="auditApp.sortProfiles()">
+                                        <option value="risk-desc">Risk (High → Low)</option>
+                                        <option value="risk-asc">Risk (Low → High)</option>
+                                        <option value="age-desc">Age (Old → New)</option>
+                                        <option value="age-asc">Age (New → Old)</option>
+                                        <option value="id-asc">ID (A → Z)</option>
+                                    </select>
+                                </div>
+                                <div class="audit-table-wrapper">
+                                    <table class="audit-table" id="auditProfilesTable">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Type</th>
+                                                <th>Files</th>
+                                                <th>Age</th>
+                                                <th>Risk</th>
+                                                <th>Category</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="auditProfilesBody">
+                                            <tr><td colspan="7" class="audit-table-empty">Run detection to see services</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Drift Alerts -->
+                    <div class="audit-section" id="auditDriftWrapper" style="display: none;">
+                        <div class="audit-section-header" onclick="auditApp.toggleSection('drift')">
+                            <span class="audit-section-toggle" id="auditDriftToggle">&#9660;</span>
+                            <h3>Drift Alerts</h3>
+                            <span class="audit-section-badge" id="auditDriftCount">0</span>
+                            <button class="btn btn-sm btn-icon" onclick="event.stopPropagation(); auditApp.toggleSectionFullscreen('drift')" title="Toggle Fullscreen">
+                                <span id="driftFullscreenIcon">&#9974;</span>
+                            </button>
+                        </div>
+                        <div class="audit-section-content" id="auditDriftContent">
+                            <div class="audit-drift-filters">
+                                <label>
+                                    <input type="checkbox" id="auditDriftCritical" checked onchange="auditApp.filterDrift()"> Critical
+                                </label>
+                                <label>
+                                    <input type="checkbox" id="auditDriftError" checked onchange="auditApp.filterDrift()"> Error
+                                </label>
+                                <label>
+                                    <input type="checkbox" id="auditDriftWarning" checked onchange="auditApp.filterDrift()"> Warning
+                                </label>
+                                <label>
+                                    <input type="checkbox" id="auditDriftInfo" onchange="auditApp.filterDrift()"> Info
+                                </label>
+                            </div>
+                            <div class="audit-drift-list" id="auditDriftList">
+                                <div class="audit-drift-empty">No drift alerts</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Insights Section -->
+                    <div class="audit-section" id="auditInsightsWrapper" style="display: none;">
+                        <div class="audit-section-header" onclick="auditApp.toggleSection('insights')">
+                            <span class="audit-section-toggle" id="auditInsightsToggle">&#9660;</span>
+                            <h3>&#129302; AI Insights</h3>
+                            <button class="btn btn-sm btn-icon" onclick="event.stopPropagation(); auditApp.toggleSectionFullscreen('insights')" title="Toggle Fullscreen">
+                                <span id="insightsFullscreenIcon">&#9974;</span>
+                            </button>
+                            <div class="audit-insights-actions">
+                                <select id="insightFocusSelect" class="insight-select" onchange="auditApp.insightFocusChanged()">
+                                    <option value="executive">Executive Summary</option>
+                                    <option value="technical">Technical Analysis</option>
+                                    <option value="recommendations">Recommendations</option>
+                                </select>
+                                <button class="btn btn-sm" onclick="auditApp.generateInsights()" id="generateInsightsBtn">
+                                    &#9889; Generate
+                                </button>
+                            </div>
+                        </div>
+                        <div class="audit-section-content" id="auditInsightsContent">
+                            <div class="insights-placeholder" id="insightsPlaceholder">
+                                <p>Run an audit and click "Generate" to get AI-powered insights based on your audit data.</p>
+                                <p class="muted">Choose a focus mode: Executive (for stakeholders), Technical (for developers), or Recommendations (action items).</p>
+                            </div>
+                            <div class="insights-loading" id="insightsLoading" style="display: none;">
+                                <span class="spinner"></span> Generating insights...
+                            </div>
+                            <div class="insights-result" id="insightsResult" style="display: none;">
+                                <div class="insights-meta" id="insightsMeta"></div>
+                                <div class="insights-text" id="insightsText"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Report Generation Section -->
+                    <div class="audit-section" id="auditReportSection" style="display: none;">
+                        <div class="audit-section-header">
+                            <h3>&#128196; Generate Report</h3>
+                        </div>
+                        <div class="audit-section-content audit-report-options">
+                            <div class="report-option-group">
+                                <label>Report Type:</label>
+                                <select id="reportTypeSelect" class="report-select">
+                                    <option value="full">Full Audit Report</option>
+                                    <option value="risk">Risk Analysis Only</option>
+                                    <option value="timeline">Timeline Only</option>
+                                    <option value="drift">Drift Analysis Only</option>
+                                </select>
+                            </div>
+                            <div class="report-option-group">
+                                <label>Include AI Insights:</label>
+                                <select id="reportInsightsSelect" class="report-select">
+                                    <option value="executive">Executive Summary</option>
+                                    <option value="technical">Technical Analysis</option>
+                                    <option value="recommendations">Recommendations</option>
+                                    <option value="none">No AI Insights</option>
+                                </select>
+                            </div>
+                            <div class="report-buttons">
+                                <button class="btn btn-primary" onclick="auditApp.openReport()">
+                                    &#128196; View Report
+                                </button>
+                                <button class="btn" onclick="auditApp.downloadReport()">
+                                    &#128190; Save HTML
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Audit Settings Modal -->
+                    <div id="auditSettingsModal" class="audit-modal" style="display: none;">
+                        <div class="audit-modal-backdrop" onclick="auditApp.closeSettings()"></div>
+                        <div class="audit-modal-content">
+                            <div class="audit-modal-header">
+                                <h3>&#9881; Audit Settings</h3>
+                                <button class="btn btn-icon" onclick="auditApp.closeSettings()">&#10005;</button>
+                            </div>
+                            <div class="audit-modal-body">
+                                <div class="settings-section">
+                                    <h4>Thresholds</h4>
+                                    <div class="settings-row">
+                                        <label>Drift Alert (days):</label>
+                                        <input type="number" id="settingDriftDays" value="90" min="1" max="365" />
+                                        <span class="settings-hint">Days without doc update triggers drift alert</span>
+                                    </div>
+                                    <div class="settings-row">
+                                        <label>New Component (days):</label>
+                                        <input type="number" id="settingNewDays" value="180" min="30" max="730" />
+                                        <span class="settings-hint">Components younger than this are "New"</span>
+                                    </div>
+                                    <div class="settings-row">
+                                        <label>Legacy Threshold (years):</label>
+                                        <input type="number" id="settingLegacyYears" value="3" min="1" max="10" />
+                                        <span class="settings-hint">Components older than this are "Legacy"</span>
+                                    </div>
+                                </div>
+                                <div class="settings-section">
+                                    <h4>Risk Weights</h4>
+                                    <p class="settings-note">Weights should sum to 1.0</p>
+                                    <div class="settings-row">
+                                        <label>Age:</label>
+                                        <input type="number" id="settingWeightAge" value="0.2" min="0" max="1" step="0.05" />
+                                    </div>
+                                    <div class="settings-row">
+                                        <label>Volatility:</label>
+                                        <input type="number" id="settingWeightVolatility" value="0.25" min="0" max="1" step="0.05" />
+                                    </div>
+                                    <div class="settings-row">
+                                        <label>Complexity:</label>
+                                        <input type="number" id="settingWeightComplexity" value="0.2" min="0" max="1" step="0.05" />
+                                    </div>
+                                    <div class="settings-row">
+                                        <label>Doc Coverage:</label>
+                                        <input type="number" id="settingWeightDocCoverage" value="0.15" min="0" max="1" step="0.05" />
+                                    </div>
+                                    <div class="settings-row">
+                                        <label>Test Coverage:</label>
+                                        <input type="number" id="settingWeightTestCoverage" value="0.2" min="0" max="1" step="0.05" />
+                                    </div>
+                                    <div class="settings-row weight-total">
+                                        <label>Total:</label>
+                                        <span id="settingWeightTotal">1.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="audit-modal-footer">
+                                <button class="btn" onclick="auditApp.resetSettings()">Reset Defaults</button>
+                                <button class="btn btn-primary" onclick="auditApp.saveSettings()">Save & Apply</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1817,6 +2870,7 @@
                         <div id="ragTabStatus" class="ast-status available">
                             Checking Project RAG status...
                         </div>
+                        <button class="btn btn-icon" onclick="projectRagApp.openSettings()" title="RAG Settings" style="margin-left: auto;">&#9881;</button>
                     </div>
 
                     <!-- Change Detection Notification -->
@@ -1933,6 +2987,8 @@
                                 <div id="ragExplorerGraph" class="rag-explorer-graph" style="display: none;">
                                     <div id="ragGraphContainer" class="rag-graph-container">
                                         <svg id="ragGraphSvg" width="100%" height="400"></svg>
+                                        <!-- Tooltip for graph nodes -->
+                                        <div id="ragGraphTooltip" class="rag-graph-tooltip" style="display: none;"></div>
                                     </div>
                                     <div id="ragGraphControls" class="rag-graph-controls">
                                         <button class="btn btn-sm" onclick="projectRagApp.zoomGraph(1.2)" title="Zoom In">+</button>
@@ -1956,10 +3012,17 @@
                     </div>
 
                     <!-- Stats Section (Collapsible) -->
-                    <div class="rag-section">
+                    <div class="rag-section" id="ragStatsWrapper">
                         <div class="rag-section-header" onclick="projectRagApp.toggleSection('stats')">
                             <span class="rag-section-toggle" id="ragStatsToggle">▼</span>
                             <h3>Index Statistics</h3>
+                            <span id="ragStatsFiles" class="rag-stat-badge files" title="Total Files">0 files</span>
+                            <span id="ragStatsChunks" class="rag-stat-badge chunks" title="Total Chunks">0 chunks</span>
+                            <span id="ragStatsCode" class="rag-stat-badge code" title="Code Chunks">0 code</span>
+                            <span id="ragStatsDocs" class="rag-stat-badge docs" title="Doc Chunks">0 docs</span>
+                            <button class="btn btn-sm btn-icon" onclick="event.stopPropagation(); projectRagApp.toggleSectionFullscreen('stats')" title="Toggle Fullscreen">
+                                <span id="statsFullscreenIcon">⛶</span>
+                            </button>
                         </div>
                         <div class="rag-section-content" id="ragStatsSection">
                             <div id="ragStatsDetail" style="font-size: 13px; color: var(--text-secondary);">
@@ -1989,6 +3052,101 @@
                             </div>
                             <div id="ragSummarizeResults" class="rag-summarize-results">
                                 <p style="color: var(--text-secondary);">Enter a concept to get an LLM-generated summary with source citations.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- File Viewer Modal -->
+                    <div id="ragFileViewerModal" class="file-viewer-modal" style="display: none;">
+                        <div class="file-viewer-backdrop" onclick="projectRagApp.closeFileViewer()"></div>
+                        <div class="file-viewer-content">
+                            <div class="file-viewer-header">
+                                <div class="file-viewer-title">
+                                    <span id="fileViewerIcon">📄</span>
+                                    <span id="fileViewerName">file.txt</span>
+                                    <span id="fileViewerPath" class="file-viewer-path"></span>
+                                </div>
+                                <div class="file-viewer-actions">
+                                    <button class="btn btn-sm" onclick="projectRagApp.openFileInNewWindow()" title="Open in New Window">↗</button>
+                                    <button class="btn btn-sm" onclick="projectRagApp.copyFilePath()" title="Copy Path">📋</button>
+                                    <button class="btn btn-icon" onclick="projectRagApp.closeFileViewer()">✕</button>
+                                </div>
+                            </div>
+                            <div class="file-viewer-info">
+                                <span id="fileViewerLines">0 lines</span>
+                                <span id="fileViewerChunks">0 chunks</span>
+                                <span id="fileViewerLang">plaintext</span>
+                                <!-- Chunk Navigation -->
+                                <div id="fileViewerChunkNav" class="chunk-nav" style="display: none;">
+                                    <button class="btn btn-sm" onclick="projectRagApp.prevChunk()" title="Previous Chunk">◀</button>
+                                    <span id="fileViewerChunkPos">1/1</span>
+                                    <button class="btn btn-sm" onclick="projectRagApp.nextChunk()" title="Next Chunk">▶</button>
+                                </div>
+                            </div>
+                            <div class="file-viewer-body">
+                                <div id="fileViewerContent" class="file-viewer-code">
+                                    <pre><code>Loading...</code></pre>
+                                </div>
+                            </div>
+                            <div class="file-viewer-legend" id="fileViewerLegend" style="display: none;">
+                                <span class="legend-title">Chunks:</span>
+                                <div id="fileViewerChunkList" class="chunk-legend-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RAG Settings Modal -->
+                    <div id="ragSettingsModal" class="audit-modal" style="display: none;">
+                        <div class="audit-modal-backdrop" onclick="projectRagApp.closeSettings()"></div>
+                        <div class="audit-modal-content">
+                            <div class="audit-modal-header">
+                                <h3>&#9881; Project RAG Settings</h3>
+                                <button class="btn btn-icon" onclick="projectRagApp.closeSettings()">&#10005;</button>
+                            </div>
+                            <div class="audit-modal-body">
+                                <div class="settings-section">
+                                    <h4>Discovered Concepts</h4>
+                                    <div class="settings-row">
+                                        <label>Max concepts:</label>
+                                        <input type="number" id="ragSettingMaxConcepts" value="200" min="50" max="2000" step="50" />
+                                        <span class="settings-hint">Maximum concepts to load (50-2000)</span>
+                                    </div>
+                                    <div class="settings-row">
+                                        <label>Min hits threshold:</label>
+                                        <input type="number" id="ragSettingMinHits" value="1" min="1" max="100" />
+                                        <span class="settings-hint">Only show concepts with ≥ this many hits</span>
+                                    </div>
+                                </div>
+                                <div class="settings-section">
+                                    <h4>Concept Explorer Graph</h4>
+                                    <div class="settings-row">
+                                        <label>Force strength:</label>
+                                        <input type="number" id="ragSettingForceStrength" value="-300" min="-1000" max="-50" step="50" />
+                                        <span class="settings-hint">Node repulsion (-1000 to -50)</span>
+                                    </div>
+                                    <div class="settings-row">
+                                        <label>Node size factor:</label>
+                                        <input type="number" id="ragSettingNodeSize" value="1.0" min="0.5" max="3.0" step="0.1" />
+                                        <span class="settings-hint">Scale factor for node radius</span>
+                                    </div>
+                                    <div class="settings-row">
+                                        <label>Link distance:</label>
+                                        <input type="number" id="ragSettingLinkDistance" value="80" min="30" max="200" step="10" />
+                                        <span class="settings-hint">Distance between linked nodes</span>
+                                    </div>
+                                </div>
+                                <div class="settings-section">
+                                    <h4>Search Settings</h4>
+                                    <div class="settings-row">
+                                        <label>Results limit:</label>
+                                        <input type="number" id="ragSettingSearchLimit" value="20" min="5" max="100" step="5" />
+                                        <span class="settings-hint">Max search results to show</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="audit-modal-footer">
+                                <button class="btn" onclick="projectRagApp.resetSettings()">Reset Defaults</button>
+                                <button class="btn btn-primary" onclick="projectRagApp.saveSettings()">Save & Apply</button>
                             </div>
                         </div>
                     </div>
@@ -2479,6 +3637,57 @@
                 } catch (e) {
                     console.error('AST status check failed:', e);
                 }
+
+                // Initialize viz resize handle
+                this.initVizResize();
+            },
+
+            initVizResize() {
+                const handle = document.getElementById('vizResizeHandle');
+                const container = document.getElementById('vizFrameContainer');
+                if (!handle || !container) return;
+
+                let startY = 0;
+                let startHeight = 0;
+                let isResizing = false;
+
+                const startResize = (e) => {
+                    isResizing = true;
+                    startY = e.clientY || e.touches?.[0]?.clientY || 0;
+                    startHeight = container.offsetHeight;
+                    document.body.style.cursor = 'ns-resize';
+                    document.body.style.userSelect = 'none';
+
+                    // Prevent iframe from capturing mouse events
+                    const iframe = container.querySelector('iframe');
+                    if (iframe) iframe.style.pointerEvents = 'none';
+                };
+
+                const doResize = (e) => {
+                    if (!isResizing) return;
+                    const clientY = e.clientY || e.touches?.[0]?.clientY || 0;
+                    const delta = clientY - startY;
+                    const newHeight = Math.max(200, Math.min(startHeight + delta, window.innerHeight - 100));
+                    container.style.height = newHeight + 'px';
+                };
+
+                const stopResize = () => {
+                    if (!isResizing) return;
+                    isResizing = false;
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+
+                    // Restore iframe events
+                    const iframe = container.querySelector('iframe');
+                    if (iframe) iframe.style.pointerEvents = '';
+                };
+
+                handle.addEventListener('mousedown', startResize);
+                handle.addEventListener('touchstart', startResize, { passive: true });
+                document.addEventListener('mousemove', doResize);
+                document.addEventListener('touchmove', doResize, { passive: true });
+                document.addEventListener('mouseup', stopResize);
+                document.addEventListener('touchend', stopResize);
             },
 
             getPath() {
@@ -2650,14 +3859,59 @@
 
                 // Scroll to visualization
                 container.scrollIntoView({ behavior: 'smooth' });
+
+                // Add export buttons after iframe loads
+                frame.onload = () => {
+                    const baseName = title.toLowerCase().replace(/\s+/g, '-');
+                    addExportButtons('vizContainer', 'vizFrame', baseName);
+                };
             },
 
             closeViz() {
                 const container = document.getElementById('vizContainer');
                 const frame = document.getElementById('vizFrame');
 
+                // Exit fullscreen if active
+                if (container.classList.contains('fullscreen')) {
+                    this.toggleVizFullscreen();
+                }
+
                 container.style.display = 'none';
                 frame.src = 'about:blank';
+            },
+
+            // Viz container fullscreen state
+            vizFullscreen: false,
+            _vizEscHandler: null,
+
+            toggleVizFullscreen() {
+                const container = document.getElementById('vizContainer');
+                const btn = document.getElementById('vizFullscreenBtn');
+                if (!container) return;
+
+                this.vizFullscreen = !this.vizFullscreen;
+
+                if (this.vizFullscreen) {
+                    container.classList.add('fullscreen');
+                    document.body.style.overflow = 'hidden';
+                    if (btn) btn.innerHTML = '&#10005;'; // X icon when fullscreen
+
+                    // Add ESC key listener
+                    this._vizEscHandler = (e) => {
+                        if (e.key === 'Escape') this.toggleVizFullscreen();
+                    };
+                    document.addEventListener('keydown', this._vizEscHandler);
+                } else {
+                    container.classList.remove('fullscreen');
+                    document.body.style.overflow = '';
+                    if (btn) btn.innerHTML = '&#9974;'; // Restore expand icon
+
+                    // Remove ESC key listener
+                    if (this._vizEscHandler) {
+                        document.removeEventListener('keydown', this._vizEscHandler);
+                        this._vizEscHandler = null;
+                    }
+                }
             },
 
             openInNewTab() {
@@ -2667,6 +3921,816 @@
                 }
             }
         };
+
+        // =================================================================
+        // Audit Application (v0.4)
+        // =================================================================
+        const auditApp = {
+            projectPath: null,
+            detectionResult: null,
+            riskResult: null,
+            driftResult: null,
+            allProfiles: [],
+
+            async init() {
+                // Sync project path from dashboard if available
+                const dashPath = document.getElementById('dashboardProjectPath')?.value;
+                if (dashPath) {
+                    document.getElementById('auditProjectPath').value = dashPath;
+                }
+            },
+
+            async checkSourcesStatus() {
+                const path = document.getElementById('auditProjectPath').value.trim();
+                if (!path) return;
+
+                try {
+                    const response = await fetch(`/api/audit/sources-status?project_path=${encodeURIComponent(path)}`);
+                    const data = await response.json();
+
+                    // Update source badges
+                    const sources = data.sources || {};
+
+                    // Filesystem
+                    const fsEl = document.getElementById('sourceFilesystem');
+                    fsEl.dataset.available = sources.filesystem?.available ? 'true' : 'false';
+                    fsEl.querySelector('.source-status').textContent = sources.filesystem?.status || 'Ready';
+
+                    // RAG
+                    const ragEl = document.getElementById('sourceRag');
+                    ragEl.dataset.available = sources.rag?.available ? 'true' : 'false';
+                    let ragStatus = 'Not indexed';
+                    if (sources.rag?.available) {
+                        const status = sources.rag.status === 'active' ? 'Active' : 'Indexed';
+                        const count = sources.rag.file_count || '?';
+                        ragStatus = `${status} (${count} files)`;
+                    }
+                    ragEl.querySelector('.source-status').textContent = ragStatus;
+
+                    // AST
+                    const astEl = document.getElementById('sourceAst');
+                    astEl.dataset.available = sources.ast?.available ? 'true' : 'false';
+                    let astStatus = 'Not cached';
+                    if (sources.ast?.available) {
+                        const count = sources.ast.node_count || '?';
+                        astStatus = `Cached (${count} nodes)`;
+                    }
+                    astEl.querySelector('.source-status').textContent = astStatus;
+
+                } catch (error) {
+                    console.error('Failed to check sources:', error);
+                }
+            },
+
+            async detectServices() {
+                const path = document.getElementById('auditProjectPath').value.trim();
+                if (!path) {
+                    alert('Please enter a project path');
+                    return;
+                }
+
+                this.projectPath = path;
+                const btn = document.getElementById('auditDetectBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<span class="btn-icon-left">&#8987;</span> Detecting...';
+
+                try {
+                    // Check sources first
+                    await this.checkSourcesStatus();
+
+                    // Run detection
+                    const response = await fetch(`/api/audit/detect-services?project_path=${encodeURIComponent(path)}`);
+                    if (!response.ok) throw new Error(await response.text());
+
+                    this.detectionResult = await response.json();
+                    console.log('Detection result:', this.detectionResult);
+
+                    // Update summary cards
+                    document.getElementById('auditSummary').style.display = 'grid';
+                    document.getElementById('auditTotalServices').textContent =
+                        this.detectionResult.summary?.total_services || 0;
+
+                    // Enable run audit button
+                    document.getElementById('auditRunBtn').disabled = false;
+
+                    // Show services in table (without risk data yet)
+                    this.renderServicesTable(this.detectionResult.services || {});
+
+                    // Show main content
+                    document.getElementById('auditMainContent').style.display = 'grid';
+
+                } catch (error) {
+                    console.error('Detection failed:', error);
+                    alert('Detection failed: ' + error.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span class="btn-icon-left">&#128269;</span> Detect Services';
+                }
+            },
+
+            async runFullAudit() {
+                if (!this.projectPath) {
+                    alert('Please detect services first');
+                    return;
+                }
+
+                const btn = document.getElementById('auditRunBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<span class="btn-icon-left">&#8987;</span> Running...';
+
+                try {
+                    // Get full audit (timeline + risk + drift)
+                    const response = await fetch(`/api/audit/full?project_path=${encodeURIComponent(this.projectPath)}`);
+                    if (!response.ok) throw new Error(await response.text());
+
+                    const fullAudit = await response.json();
+                    console.log('Full audit:', fullAudit);
+
+                    this.riskResult = fullAudit.risk;
+                    this.driftResult = fullAudit.drift;
+
+                    // Update summary
+                    const riskSummary = this.riskResult?.summary || {};
+                    const highRisk = (riskSummary.by_level?.high?.count || 0) +
+                                     (riskSummary.by_level?.critical?.count || 0);
+                    document.getElementById('auditHighRisk').textContent = highRisk;
+                    document.getElementById('auditAvgRisk').textContent =
+                        (riskSummary.avg_risk_score || 0).toFixed(2);
+
+                    // Drift alerts count
+                    const driftSummary = this.driftResult?.summary || {};
+                    const alertCount = (driftSummary.by_severity?.error?.count || 0) +
+                                       (driftSummary.by_severity?.warning?.count || 0);
+                    document.getElementById('auditDriftAlerts').textContent = alertCount;
+
+                    // Render risk matrix
+                    await this.renderRiskMatrix();
+
+                    // Update profiles table with risk data
+                    this.renderProfilesWithRisk();
+
+                    // Render drift alerts
+                    this.renderDriftAlerts();
+                    document.getElementById('auditDriftWrapper').style.display = 'block';
+
+                    // Show AI Insights and Report sections
+                    document.getElementById('auditInsightsWrapper').style.display = 'block';
+                    document.getElementById('auditReportSection').style.display = 'block';
+
+                } catch (error) {
+                    console.error('Audit failed:', error);
+                    alert('Audit failed: ' + error.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span class="btn-icon-left">&#9881;</span> Run Audit';
+                }
+            },
+
+            renderServicesTable(services) {
+                const tbody = document.getElementById('auditProfilesBody');
+                const profiles = [];
+
+                for (const [id, svc] of Object.entries(services)) {
+                    profiles.push({
+                        id: id,
+                        type: svc.type || 'unknown',
+                        files: svc.file_count || 0,
+                        age: null,
+                        risk: null,
+                        riskLevel: null,
+                        category: null,
+                        confidence: svc.confidence || 0,
+                    });
+                }
+
+                this.allProfiles = profiles;
+                document.getElementById('auditProfilesCount').textContent = profiles.length;
+
+                if (profiles.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="audit-table-empty">No services detected</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = profiles.map(p => `
+                    <tr data-id="${p.id}">
+                        <td><strong>${p.id}</strong></td>
+                        <td>${this.formatType(p.type)}</td>
+                        <td>${p.files}</td>
+                        <td>-</td>
+                        <td><span class="risk-badge">Pending</span></td>
+                        <td>-</td>
+                        <td>
+                            <button class="btn btn-sm" onclick="auditApp.viewComponent('${p.id}')" title="View details">&#128269;</button>
+                        </td>
+                    </tr>
+                `).join('');
+            },
+
+            renderProfilesWithRisk() {
+                if (!this.riskResult?.risks) return;
+
+                const risks = this.riskResult.risks;
+                const timeline = this.detectionResult?.services || {};
+
+                // Merge data
+                for (const profile of this.allProfiles) {
+                    const risk = risks[profile.id];
+                    if (risk) {
+                        profile.risk = risk.score;
+                        profile.riskLevel = risk.level;
+                        profile.category = risk.timeline?.category;
+                        profile.age = risk.timeline?.age_years;
+                    }
+                }
+
+                this.sortProfiles();
+            },
+
+            sortProfiles() {
+                const sortBy = document.getElementById('auditProfilesSort').value;
+                const profiles = [...this.allProfiles];
+
+                switch (sortBy) {
+                    case 'risk-desc':
+                        profiles.sort((a, b) => (b.risk || 0) - (a.risk || 0));
+                        break;
+                    case 'risk-asc':
+                        profiles.sort((a, b) => (a.risk || 0) - (b.risk || 0));
+                        break;
+                    case 'age-desc':
+                        profiles.sort((a, b) => (b.age || 0) - (a.age || 0));
+                        break;
+                    case 'age-asc':
+                        profiles.sort((a, b) => (a.age || 0) - (b.age || 0));
+                        break;
+                    case 'id-asc':
+                        profiles.sort((a, b) => a.id.localeCompare(b.id));
+                        break;
+                }
+
+                this.renderProfilesRows(profiles);
+            },
+
+            filterProfiles() {
+                const filter = document.getElementById('auditProfilesFilter').value.toLowerCase();
+                const filtered = this.allProfiles.filter(p =>
+                    p.id.toLowerCase().includes(filter) ||
+                    p.type.toLowerCase().includes(filter)
+                );
+                this.renderProfilesRows(filtered);
+            },
+
+            renderProfilesRows(profiles) {
+                const tbody = document.getElementById('auditProfilesBody');
+
+                if (profiles.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="audit-table-empty">No matching services</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = profiles.map(p => `
+                    <tr data-id="${p.id}">
+                        <td><strong>${p.id}</strong></td>
+                        <td>${this.formatType(p.type)}</td>
+                        <td>${p.files}</td>
+                        <td>${p.age !== null ? p.age.toFixed(1) + 'y' : '-'}</td>
+                        <td>${this.formatRiskBadge(p.riskLevel, p.risk)}</td>
+                        <td>${this.formatCategoryBadge(p.category)}</td>
+                        <td>
+                            <button class="btn btn-sm" onclick="auditApp.viewComponent('${p.id}')" title="View details">&#128269;</button>
+                        </td>
+                    </tr>
+                `).join('');
+            },
+
+            formatType(type) {
+                const icons = { service: '&#9881;', screen: '&#128187;', general: '&#128230;' };
+                return `${icons[type] || ''} ${type}`;
+            },
+
+            formatRiskBadge(level, score) {
+                if (!level) return '<span class="risk-badge">Pending</span>';
+                const scoreText = score !== null ? ` (${(score * 100).toFixed(0)}%)` : '';
+                return `<span class="risk-badge ${level}">${level}${scoreText}</span>`;
+            },
+
+            formatCategoryBadge(category) {
+                if (!category) return '-';
+                const display = category.replace(/_/g, ' ');
+                return `<span class="category-badge ${category}">${display}</span>`;
+            },
+
+            async renderRiskMatrix() {
+                const container = document.getElementById('riskMatrixChart');
+
+                try {
+                    const response = await fetch(`/api/audit/risk/matrix?project_path=${encodeURIComponent(this.projectPath)}`);
+                    if (!response.ok) throw new Error('Failed to load matrix');
+
+                    const data = await response.json();
+                    const matrix = data.matrix || [];
+
+                    // Simple SVG-based matrix (no D3 dependency)
+                    // Use container dimensions for responsive sizing
+                    const width = container.clientWidth || 400;
+                    const height = container.clientHeight || 280;
+                    const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+                    const plotWidth = width - margin.left - margin.right;
+                    const plotHeight = height - margin.top - margin.bottom;
+
+                    const colorMap = {
+                        low: '#238636',
+                        medium: '#d29922',
+                        high: '#da3633',
+                        critical: '#8b0000'
+                    };
+
+                    // Create SVG
+                    let svg = `<svg width="${width}" height="${height}" style="font-family: inherit;">`;
+
+                    // Background quadrants
+                    svg += `<rect x="${margin.left}" y="${margin.top}" width="${plotWidth/2}" height="${plotHeight/2}" fill="rgba(35,134,54,0.1)"/>`;
+                    svg += `<rect x="${margin.left + plotWidth/2}" y="${margin.top}" width="${plotWidth/2}" height="${plotHeight/2}" fill="rgba(210,153,34,0.1)"/>`;
+                    svg += `<rect x="${margin.left}" y="${margin.top + plotHeight/2}" width="${plotWidth/2}" height="${plotHeight/2}" fill="rgba(210,153,34,0.05)"/>`;
+                    svg += `<rect x="${margin.left + plotWidth/2}" y="${margin.top + plotHeight/2}" width="${plotWidth/2}" height="${plotHeight/2}" fill="rgba(218,54,51,0.1)"/>`;
+
+                    // Axes
+                    svg += `<line x1="${margin.left}" y1="${margin.top + plotHeight}" x2="${margin.left + plotWidth}" y2="${margin.top + plotHeight}" stroke="#444" stroke-width="1"/>`;
+                    svg += `<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + plotHeight}" stroke="#444" stroke-width="1"/>`;
+
+                    // Labels
+                    svg += `<text x="${margin.left + plotWidth/2}" y="${height - 5}" text-anchor="middle" fill="#8b949e" font-size="12">Impact →</text>`;
+                    svg += `<text x="15" y="${margin.top + plotHeight/2}" text-anchor="middle" fill="#8b949e" font-size="12" transform="rotate(-90, 15, ${margin.top + plotHeight/2})">Complexity →</text>`;
+
+                    // Points
+                    for (const point of matrix) {
+                        const x = margin.left + point.x * plotWidth;
+                        const y = margin.top + plotHeight - (point.y * plotHeight);
+                        const r = 6 + (point.size || 0.3) * 10;
+                        const color = colorMap[point.color] || '#888';
+
+                        svg += `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" fill-opacity="0.7" stroke="${color}" stroke-width="2" style="cursor: pointer;">
+                            <title>${point.id}: Risk ${(point.score * 100).toFixed(0)}%</title>
+                        </circle>`;
+                        svg += `<text x="${x}" y="${y + 3}" text-anchor="middle" fill="white" font-size="9" font-weight="bold" pointer-events="none">${point.id}</text>`;
+                    }
+
+                    svg += '</svg>';
+                    container.innerHTML = svg;
+
+                } catch (error) {
+                    console.error('Matrix render failed:', error);
+                    container.innerHTML = '<div class="risk-matrix-loading">Failed to load risk matrix</div>';
+                }
+            },
+
+            renderDriftAlerts() {
+                const reports = this.driftResult?.reports || {};
+                const list = document.getElementById('auditDriftList');
+
+                const alerts = Object.values(reports)
+                    .filter(r => r.severity !== 'info' || document.getElementById('auditDriftInfo').checked)
+                    .sort((a, b) => {
+                        const order = ['critical', 'error', 'warning', 'info'];
+                        return order.indexOf(a.severity) - order.indexOf(b.severity);
+                    });
+
+                document.getElementById('auditDriftCount').textContent = alerts.length;
+
+                if (alerts.length === 0) {
+                    list.innerHTML = '<div class="audit-drift-empty">No drift alerts</div>';
+                    return;
+                }
+
+                const icons = { critical: '&#128680;', error: '&#9888;', warning: '&#9888;', info: '&#8505;' };
+
+                list.innerHTML = alerts.map(alert => `
+                    <div class="drift-alert-card ${alert.severity}">
+                        <div class="drift-alert-icon">${icons[alert.severity] || '&#8505;'}</div>
+                        <div class="drift-alert-content">
+                            <div class="drift-alert-header">
+                                <span class="drift-alert-component">${alert.component_id}</span>
+                                <span class="drift-alert-type">${alert.drift_type}</span>
+                            </div>
+                            <div class="drift-alert-message">${alert.message}</div>
+                            <div class="drift-alert-meta">
+                                <span>Drift: ${alert.drift_days} days</span>
+                                <span>Gap score: ${(alert.gap_score * 100).toFixed(0)}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            filterDrift() {
+                this.renderDriftAlerts();
+            },
+
+            toggleSection(section) {
+                const toggle = document.getElementById(`audit${section.charAt(0).toUpperCase() + section.slice(1)}Toggle`);
+                const content = document.getElementById(`audit${section.charAt(0).toUpperCase() + section.slice(1)}Section`) ||
+                               document.getElementById(`audit${section.charAt(0).toUpperCase() + section.slice(1)}Content`);
+
+                if (toggle && content) {
+                    toggle.classList.toggle('collapsed');
+                    content.classList.toggle('collapsed');
+                }
+            },
+
+            // Fullscreen state for audit sections
+            fullscreenSections: {},
+            _escHandlers: {},
+
+            toggleSectionFullscreen(sectionName) {
+                const wrapperIds = {
+                    'matrix': 'auditMatrixWrapper',
+                    'profiles': 'auditProfilesWrapper',
+                    'drift': 'auditDriftWrapper',
+                    'insights': 'auditInsightsWrapper'
+                };
+                const iconIds = {
+                    'matrix': 'matrixFullscreenIcon',
+                    'profiles': 'profilesFullscreenIcon',
+                    'drift': 'driftFullscreenIcon',
+                    'insights': 'insightsFullscreenIcon'
+                };
+
+                const wrapper = document.getElementById(wrapperIds[sectionName]);
+                const icon = document.getElementById(iconIds[sectionName]);
+                if (!wrapper) return;
+
+                // Close any other fullscreen section first
+                Object.keys(this.fullscreenSections).forEach(name => {
+                    if (name !== sectionName && this.fullscreenSections[name]) {
+                        this.fullscreenSections[name] = false;
+                        const otherWrapper = document.getElementById(wrapperIds[name]);
+                        if (otherWrapper) otherWrapper.classList.remove('fullscreen');
+                        const otherIcon = document.getElementById(iconIds[name]);
+                        if (otherIcon) otherIcon.innerHTML = '&#9974;';
+                        if (this._escHandlers[name]) {
+                            document.removeEventListener('keydown', this._escHandlers[name]);
+                        }
+                    }
+                });
+
+                this.fullscreenSections[sectionName] = !this.fullscreenSections[sectionName];
+
+                if (this.fullscreenSections[sectionName]) {
+                    wrapper.classList.add('fullscreen');
+                    document.body.style.overflow = 'hidden';
+                    if (icon) icon.innerHTML = '&#10005;'; // X icon when fullscreen
+
+                    // Expand the section if collapsed
+                    const sectionContent = wrapper.querySelector('.audit-section-content');
+                    if (sectionContent && sectionContent.classList.contains('collapsed')) {
+                        sectionContent.classList.remove('collapsed');
+                        const toggle = wrapper.querySelector('.audit-section-toggle');
+                        if (toggle) toggle.classList.remove('collapsed');
+                    }
+
+                    // Re-render risk matrix if it's the matrix section (to fit new size)
+                    if (sectionName === 'matrix' && this.riskResult) {
+                        // Wait for CSS to fully apply, force layout flush, then render
+                        setTimeout(() => {
+                            // Force layout recalculation
+                            const container = document.getElementById('riskMatrixChart');
+                            void container.offsetHeight;
+                            this.renderRiskMatrix();
+                        }, 150);
+                    }
+
+                    // Add ESC key listener
+                    this._escHandlers[sectionName] = (e) => {
+                        if (e.key === 'Escape') this.toggleSectionFullscreen(sectionName);
+                    };
+                    document.addEventListener('keydown', this._escHandlers[sectionName]);
+                } else {
+                    wrapper.classList.remove('fullscreen');
+                    document.body.style.overflow = '';
+                    if (icon) icon.innerHTML = '&#9974;'; // Restore expand icon
+
+                    // Remove ESC key listener
+                    if (this._escHandlers[sectionName]) {
+                        document.removeEventListener('keydown', this._escHandlers[sectionName]);
+                    }
+
+                    // Re-render risk matrix when exiting fullscreen (to fit normal size)
+                    if (sectionName === 'matrix' && this.riskResult) {
+                        setTimeout(() => {
+                            const container = document.getElementById('riskMatrixChart');
+                            void container.offsetHeight;
+                            this.renderRiskMatrix();
+                        }, 150);
+                    }
+                }
+            },
+
+            async viewComponent(id) {
+                // Show component details - for now just log
+                console.log('View component:', id);
+
+                if (this.riskResult?.risks?.[id]) {
+                    const risk = this.riskResult.risks[id];
+                    alert(`${id}\n\nRisk Score: ${(risk.score * 100).toFixed(0)}%\nLevel: ${risk.level}\n\n${risk.recommendation}`);
+                }
+            },
+
+            async openSettings() {
+                const modal = document.getElementById('auditSettingsModal');
+                modal.style.display = 'flex';
+
+                // Load current settings from API
+                try {
+                    const path = this.projectPath || document.getElementById('auditProjectPath').value.trim();
+                    if (path) {
+                        const response = await fetch(`/api/audit/config?project_path=${encodeURIComponent(path)}`);
+                        if (response.ok) {
+                            const config = await response.json();
+
+                            // Populate thresholds
+                            if (config.thresholds) {
+                                document.getElementById('settingDriftDays').value = config.thresholds.drift_days || 90;
+                                document.getElementById('settingNewDays').value = config.thresholds.new_component_days || 180;
+                                document.getElementById('settingLegacyYears').value = config.thresholds.legacy_years || 3;
+                            }
+
+                            // Populate weights
+                            if (config.risk_weights) {
+                                document.getElementById('settingWeightAge').value = config.risk_weights.age || 0.2;
+                                document.getElementById('settingWeightVolatility').value = config.risk_weights.volatility || 0.25;
+                                document.getElementById('settingWeightComplexity').value = config.risk_weights.complexity || 0.2;
+                                document.getElementById('settingWeightDocCoverage').value = config.risk_weights.doc_coverage || 0.15;
+                                document.getElementById('settingWeightTestCoverage').value = config.risk_weights.test_coverage || 0.2;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to load settings:', e);
+                }
+
+                this.updateWeightTotal();
+
+                // Add listeners for weight updates
+                document.querySelectorAll('.settings-row input[id^="settingWeight"]').forEach(input => {
+                    input.addEventListener('input', () => this.updateWeightTotal());
+                });
+            },
+
+            closeSettings() {
+                document.getElementById('auditSettingsModal').style.display = 'none';
+            },
+
+            updateWeightTotal() {
+                const age = parseFloat(document.getElementById('settingWeightAge').value) || 0;
+                const volatility = parseFloat(document.getElementById('settingWeightVolatility').value) || 0;
+                const complexity = parseFloat(document.getElementById('settingWeightComplexity').value) || 0;
+                const docCoverage = parseFloat(document.getElementById('settingWeightDocCoverage').value) || 0;
+                const testCoverage = parseFloat(document.getElementById('settingWeightTestCoverage').value) || 0;
+                const total = age + volatility + complexity + docCoverage + testCoverage;
+
+                const totalEl = document.getElementById('settingWeightTotal');
+                totalEl.textContent = total.toFixed(2);
+                totalEl.style.color = Math.abs(total - 1.0) < 0.05 ? 'var(--accent-color)' : '#ef4444';
+            },
+
+            resetSettings() {
+                document.getElementById('settingDriftDays').value = 90;
+                document.getElementById('settingNewDays').value = 180;
+                document.getElementById('settingLegacyYears').value = 3;
+                document.getElementById('settingWeightAge').value = 0.2;
+                document.getElementById('settingWeightVolatility').value = 0.25;
+                document.getElementById('settingWeightComplexity').value = 0.2;
+                document.getElementById('settingWeightDocCoverage').value = 0.15;
+                document.getElementById('settingWeightTestCoverage').value = 0.2;
+                this.updateWeightTotal();
+            },
+
+            async saveSettings() {
+                const path = this.projectPath || document.getElementById('auditProjectPath').value.trim();
+                if (!path) {
+                    alert('Please select a project first');
+                    return;
+                }
+
+                const config = {
+                    thresholds: {
+                        drift_days: parseInt(document.getElementById('settingDriftDays').value),
+                        new_component_days: parseInt(document.getElementById('settingNewDays').value),
+                        legacy_years: parseInt(document.getElementById('settingLegacyYears').value),
+                    },
+                    risk_weights: {
+                        age: parseFloat(document.getElementById('settingWeightAge').value),
+                        volatility: parseFloat(document.getElementById('settingWeightVolatility').value),
+                        complexity: parseFloat(document.getElementById('settingWeightComplexity').value),
+                        doc_coverage: parseFloat(document.getElementById('settingWeightDocCoverage').value),
+                        test_coverage: parseFloat(document.getElementById('settingWeightTestCoverage').value),
+                    }
+                };
+
+                try {
+                    const response = await fetch(`/api/audit/config?project_path=${encodeURIComponent(path)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(config)
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.text();
+                        throw new Error(error);
+                    }
+
+                    this.closeSettings();
+
+                    // Re-run audit with new settings if we have results
+                    if (this.riskResult) {
+                        await this.runFullAudit();
+                    }
+                } catch (e) {
+                    alert('Failed to save settings: ' + e.message);
+                }
+            },
+
+            async refresh() {
+                if (this.projectPath) {
+                    await this.checkSourcesStatus();
+                    if (this.riskResult) {
+                        await this.runFullAudit();
+                    }
+                }
+            },
+
+            // ========== AI Insights Methods ==========
+
+            insightsCache: {},
+
+            insightFocusChanged() {
+                // Clear cached result when focus changes
+                const focus = document.getElementById('insightFocusSelect').value;
+                if (this.insightsCache[focus]) {
+                    this.displayInsights(this.insightsCache[focus]);
+                }
+            },
+
+            async generateInsights() {
+                const path = this.projectPath;
+                if (!path) {
+                    alert('Please select a project first');
+                    return;
+                }
+
+                if (!this.riskResult) {
+                    alert('Please run an audit first to generate insights');
+                    return;
+                }
+
+                const focus = document.getElementById('insightFocusSelect').value;
+                const btn = document.getElementById('generateInsightsBtn');
+
+                // Show loading state
+                document.getElementById('insightsPlaceholder').style.display = 'none';
+                document.getElementById('insightsLoading').style.display = 'block';
+                document.getElementById('insightsResult').style.display = 'none';
+                btn.disabled = true;
+                btn.innerHTML = '&#9889; Generating...';
+
+                try {
+                    const response = await fetch(`/api/audit/insights?project_path=${encodeURIComponent(path)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ focus: focus })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.text();
+                        throw new Error(error);
+                    }
+
+                    const result = await response.json();
+                    this.insightsCache[focus] = result;
+                    this.displayInsights(result);
+
+                } catch (error) {
+                    console.error('Insight generation failed:', error);
+                    document.getElementById('insightsLoading').style.display = 'none';
+                    document.getElementById('insightsPlaceholder').style.display = 'block';
+                    document.getElementById('insightsPlaceholder').innerHTML = `
+                        <p style="color: var(--error-color);">Failed to generate insights: ${error.message}</p>
+                        <p class="muted">Make sure Ollama is running and try again.</p>
+                    `;
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '&#9889; Generate';
+                }
+            },
+
+            displayInsights(result) {
+                document.getElementById('insightsLoading').style.display = 'none';
+                document.getElementById('insightsPlaceholder').style.display = 'none';
+                document.getElementById('insightsResult').style.display = 'block';
+
+                const summary = result.data_summary || {};
+                document.getElementById('insightsMeta').innerHTML = `
+                    <span>Focus: <strong>${result.focus}</strong></span>
+                    <span>Components: ${summary.components || 0}</span>
+                    <span>Services: ${summary.services_detected || 0}</span>
+                    <span>Critical: ${summary.risk_critical || 0}</span>
+                    <span>Generated: ${result.generated_at?.slice(0, 16).replace('T', ' ') || 'now'}</span>
+                `;
+
+                // Convert markdown to HTML
+                let text = result.insights || '';
+                text = text.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+                text = text.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+                text = text.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+                text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+                text = text.replace(/^- (.+)$/gm, '<li>$1</li>');
+                text = text.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
+                text = text.replace(/((?:<li>.*?<\/li>\s*)+)/g, '<ul>$1</ul>');
+                text = text.replace(/\n\n+/g, '</p><p>');
+                text = '<p>' + text + '</p>';
+                text = text.replace(/<p><\/p>/g, '');
+                text = text.replace(/<p>(<h[234]>)/g, '$1');
+                text = text.replace(/(<\/h[234]>)<\/p>/g, '$1');
+                text = text.replace(/<p>(<ul>)/g, '$1');
+                text = text.replace(/(<\/ul>)<\/p>/g, '$1');
+
+                document.getElementById('insightsText').innerHTML = text;
+            },
+
+            // ========== Report Methods ==========
+
+            openReport() {
+                const path = this.projectPath;
+                if (!path) {
+                    alert('Please select a project first');
+                    return;
+                }
+
+                const reportType = document.getElementById('reportTypeSelect').value;
+                const insightFocus = document.getElementById('reportInsightsSelect').value;
+                const includeInsights = insightFocus !== 'none';
+
+                let url = `/api/audit/report/html?project_path=${encodeURIComponent(path)}`;
+                url += `&report_type=${reportType}`;
+                url += `&include_insights=${includeInsights}`;
+                if (includeInsights) {
+                    url += `&insight_focus=${insightFocus}`;
+                }
+
+                // Open in new tab
+                window.open(url, '_blank');
+            },
+
+            async downloadReport() {
+                const path = this.projectPath;
+                if (!path) {
+                    alert('Please select a project first');
+                    return;
+                }
+
+                const reportType = document.getElementById('reportTypeSelect').value;
+                const insightFocus = document.getElementById('reportInsightsSelect').value;
+                const includeInsights = insightFocus !== 'none';
+
+                let url = `/api/audit/report/html?project_path=${encodeURIComponent(path)}`;
+                url += `&report_type=${reportType}`;
+                url += `&include_insights=${includeInsights}`;
+                if (includeInsights) {
+                    url += `&insight_focus=${insightFocus}`;
+                }
+
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error('Failed to generate report');
+
+                    const html = await response.text();
+                    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                    const downloadUrl = URL.createObjectURL(blob);
+
+                    const a = document.createElement('a');
+                    a.href = downloadUrl;
+                    a.download = `audit-report-${path.split('/').pop()}-${new Date().toISOString().slice(0, 10)}.html`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(downloadUrl);
+
+                } catch (error) {
+                    alert('Failed to download report: ' + error.message);
+                }
+            }
+        };
+
+        // Initialize audit app when tab is shown
+        document.addEventListener('DOMContentLoaded', () => {
+            const auditTab = document.querySelector('[data-tab="audit"]');
+            if (auditTab) {
+                auditTab.addEventListener('click', () => {
+                    auditApp.init();
+                });
+            }
+        });
 
         // Logs Application
         const logsApp = {
@@ -4808,6 +6872,9 @@
                 return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
             },
 
+            // Store search results for file viewer
+            searchResults: [],
+
             async search() {
                 const query = document.getElementById('ragQueryInput').value.trim();
                 const collection = document.getElementById('ragCollectionSelect').value;
@@ -4836,19 +6903,51 @@
 
                     if (!data.results || data.results.length === 0) {
                         resultsDiv.innerHTML = '<p style="color: var(--text-secondary);">No results found.</p>';
+                        this.searchResults = [];
                         return;
                     }
 
+                    // Store results for later use
+                    this.searchResults = data.results;
+
                     resultsDiv.innerHTML = data.results.map((r, idx) => `
-                        <div class="rag-result-card">
+                        <div class="rag-result-card" data-result-idx="${idx}" style="cursor: pointer;">
                             <div class="rag-result-header">
-                                <span class="rag-result-file">${r.file_path}</span>
+                                <span class="rag-result-file">${escapeHtml(r.file_path)}</span>
                                 <span class="rag-result-score">Score: ${(r.score * 100).toFixed(1)}%</span>
+                                <button class="btn btn-sm btn-view" title="View File">👁</button>
                             </div>
                             <div class="rag-result-content">${escapeHtml(r.content)}</div>
                             <div class="rag-result-lines">Lines ${r.line_start}-${r.line_end}</div>
                         </div>
                     `).join('');
+
+                    // Attach click handlers - pass search result as chunk
+                    resultsDiv.querySelectorAll('.rag-result-card').forEach(card => {
+                        card.addEventListener('click', () => {
+                            const idx = parseInt(card.dataset.resultIdx);
+                            const result = this.searchResults[idx];
+                            if (!result) return;
+
+                            // Group all results for the same file as chunks
+                            const fileResults = this.searchResults.filter(r => r.file_path === result.file_path);
+                            const chunks = fileResults.map(r => ({
+                                chunk_id: r.chunk_id || `search-${r.line_start}`,
+                                line_start: r.line_start,
+                                line_end: r.line_end,
+                                content: r.content?.substring(0, 200) || '',
+                                concepts: [],
+                                score: r.score
+                            }));
+
+                            projectRagApp.showFileViewer({
+                                path: result.file_path,
+                                line_start: result.line_start,
+                                line_end: result.line_end,
+                                chunks: chunks
+                            });
+                        });
+                    });
                 } catch (e) {
                     console.error('Search failed:', e);
                     resultsDiv.innerHTML = `<p style="color: var(--accent-red);">Search failed: ${e.message}</p>`;
@@ -4868,6 +6967,11 @@
                     const statsDiv = document.getElementById('ragStatsDetail');
                     if (!data.initialized) {
                         statsDiv.textContent = 'Project RAG not initialized.';
+                        // Reset header badges
+                        document.getElementById('ragStatsFiles').textContent = '0 files';
+                        document.getElementById('ragStatsChunks').textContent = '0 chunks';
+                        document.getElementById('ragStatsCode').textContent = '0 code';
+                        document.getElementById('ragStatsDocs').textContent = '0 docs';
                         return;
                     }
 
@@ -4875,23 +6979,34 @@
                     const vectorStore = data.vector_store || {};
                     const graph = data.graph || {};
 
+                    // Update header stat badges
+                    const totalFiles = metadata.total_files || 0;
+                    const totalChunks = metadata.total_chunks || 0;
+                    const codeChunks = vectorStore.collections?.code?.count || 0;
+                    const docsChunks = vectorStore.collections?.docs?.count || 0;
+
+                    document.getElementById('ragStatsFiles').textContent = `${totalFiles} files`;
+                    document.getElementById('ragStatsChunks').textContent = `${totalChunks} chunks`;
+                    document.getElementById('ragStatsCode').textContent = `${codeChunks} code`;
+                    document.getElementById('ragStatsDocs').textContent = `${docsChunks} docs`;
+
                     statsDiv.innerHTML = `
                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
                             <div>
                                 <strong>Files</strong><br>
-                                Total: ${metadata.total_files || 0}<br>
+                                Total: ${totalFiles}<br>
                                 ${Object.entries(metadata.files_by_kind || {}).map(([k, v]) => `${k}: ${v}`).join('<br>')}
                             </div>
                             <div>
                                 <strong>Chunks</strong><br>
-                                Total: ${metadata.total_chunks || 0}<br>
+                                Total: ${totalChunks}<br>
                                 Metadata: ${((metadata.metadata_size_bytes || 0) / 1024).toFixed(1)} KB
                             </div>
                             <div>
                                 <strong>Vector Store</strong><br>
                                 Mixed: ${vectorStore.collections?.mixed?.count || 0}<br>
-                                Code: ${vectorStore.collections?.code?.count || 0}<br>
-                                Docs: ${vectorStore.collections?.docs?.count || 0}<br>
+                                Code: ${codeChunks}<br>
+                                Docs: ${docsChunks}<br>
                                 Size: ${vectorStore.disk_size_mb || 0} MB
                             </div>
                         </div>
@@ -4913,8 +7028,9 @@
             async loadPopularConcepts() {
                 try {
                     const projectPath = dashboardApp.currentProject || '';
-                    // Load more concepts for pagination (up to 200)
-                    let url = '/api/rag/project/popular-concepts?top_k=200';
+                    // Use settings for max concepts
+                    const maxConcepts = this.settings?.maxConcepts || 200;
+                    let url = `/api/rag/project/popular-concepts?top_k=${maxConcepts}`;
                     if (projectPath) {
                         url += `&project_path=${encodeURIComponent(projectPath)}`;
                     }
@@ -4941,9 +7057,14 @@
                         return;
                     }
 
-                    // Store all concepts for pagination
-                    this.allConcepts = data.concepts;
-                    this.totalConcepts = data.total_concepts || data.concepts.length;
+                    // Filter by minimum hits threshold from settings
+                    // API returns 'mentions' field, not 'count'
+                    const minHits = this.settings?.minHits || 1;
+                    const filteredConcepts = data.concepts.filter(c => (c.mentions || c.count || 0) >= minHits);
+
+                    // Store filtered concepts for pagination
+                    this.allConcepts = filteredConcepts;
+                    this.totalConcepts = filteredConcepts.length;
                     this.conceptsPage = 0;
 
                     // Update concepts count badge
@@ -5190,6 +7311,7 @@
                                 <span class="rag-file-name" title="${escapeHtml(f.path)}">${escapeHtml(f.path.split('/').pop())}</span>
                                 <span class="rag-file-score">★${f.max_score.toFixed(2)}</span>
                                 <span class="rag-file-badge">${f.chunk_count}</span>
+                                <button class="btn btn-sm btn-view" onclick="event.stopPropagation(); projectRagApp.openFileFromExplorer('${escapeHtml(f.path)}')" title="View File">👁</button>
                             </div>
                             <div class="rag-file-chunks" id="fileChunks${idx}">
                                 ${f.chunks.map(c => `
@@ -5219,13 +7341,47 @@
             },
 
             showChunkDetail(chunkId, filePath, lineStart, lineEnd) {
-                // For now, copy the location to clipboard and show a tooltip
-                const location = `${filePath}:${lineStart}-${lineEnd}`;
-                navigator.clipboard.writeText(location).then(() => {
-                    this.showToast(`Copied: ${location}`);
-                }).catch(() => {
-                    console.log('Location:', location);
+                // Get all chunks for this file from explorer data
+                const fileChunks = this.getExplorerChunksForFile(filePath);
+
+                // Open file viewer and scroll to the chunk
+                this.showFileViewer({
+                    path: filePath,
+                    line_start: lineStart,
+                    line_end: lineEnd,
+                    chunk_id: chunkId,
+                    concept: this.explorerData?.query || '',
+                    chunks: fileChunks  // Pass chunks directly
                 });
+            },
+
+            openFileFromExplorer(filePath) {
+                // Get all chunks for this file from explorer data
+                const fileChunks = this.getExplorerChunksForFile(filePath);
+
+                // Open file viewer from the file list
+                this.showFileViewer({
+                    path: filePath,
+                    concept: this.explorerData?.query || '',
+                    chunks: fileChunks  // Pass chunks directly
+                });
+            },
+
+            // Helper to extract chunks for a file from explorer data
+            getExplorerChunksForFile(filePath) {
+                if (!this.explorerData?.files) return [];
+
+                const file = this.explorerData.files.find(f => f.path === filePath);
+                if (!file?.chunks) return [];
+
+                return file.chunks.map(c => ({
+                    chunk_id: c.chunk_id,
+                    line_start: c.line_start,
+                    line_end: c.line_end,
+                    content: c.preview || '',
+                    concepts: [],
+                    score: c.score || 1.0
+                }));
             },
 
             showToast(message) {
@@ -5316,7 +7472,24 @@
                 }
 
                 const width = container.clientWidth || 600;
-                const height = 400;
+                // Use container height in fullscreen, fallback to 400px
+                const section = container.closest('.rag-section');
+                const isFullscreen = section && section.classList.contains('fullscreen');
+                let height = 400;
+                if (isFullscreen) {
+                    // Use the legend position to calculate available height
+                    // The legend sits at the bottom of the graph area
+                    const legend = document.getElementById('ragGraphLegend');
+                    const containerRect = container.getBoundingClientRect();
+                    if (legend) {
+                        const legendRect = legend.getBoundingClientRect();
+                        // Graph height = from container top to legend top, minus small padding
+                        height = Math.max(400, legendRect.top - containerRect.top - 10);
+                    } else {
+                        // Fallback: use 85% of viewport height minus header
+                        height = Math.max(400, window.innerHeight * 0.85 - 100);
+                    }
+                }
 
                 const svg = d3.select(svgElement)
                     .attr('width', width)
@@ -5385,10 +7558,19 @@
                         if (d.type === 'concept') {
                             // Already exploring this concept
                         } else if (d.type === 'file') {
-                            this.showToast(`File: ${d.path || d.label}`);
+                            this.showFileViewer(d);
                         } else if (d.type === 'chunk') {
-                            this.showToast(`${d.file}:${d.line_start}-${d.line_end}`);
+                            this.showFileViewer({ path: d.file, line_start: d.line_start, line_end: d.line_end, chunk_id: d.id });
                         }
+                    })
+                    .on('mouseover', (event, d) => {
+                        this.showGraphTooltip(event, d);
+                    })
+                    .on('mouseout', () => {
+                        this.hideGraphTooltip();
+                    })
+                    .on('mousemove', (event) => {
+                        this.moveGraphTooltip(event);
                     });
 
                 // Add labels
@@ -5467,12 +7649,14 @@
                     'concepts': 'ragConceptsWrapper',
                     'search': 'ragSearchWrapper',
                     'explorer': 'ragExplorerWrapper',
+                    'stats': 'ragStatsWrapper',
                     'summarize': 'ragSummarizeWrapper'
                 };
                 const iconIds = {
                     'concepts': 'conceptsFullscreenIcon',
                     'search': 'searchFullscreenIcon',
                     'explorer': 'explorerFullscreenIcon',
+                    'stats': 'statsFullscreenIcon',
                     'summarize': 'summarizeFullscreenIcon'
                 };
 
@@ -5508,10 +7692,16 @@
 
                     // Re-render graph if explorer section in graph view
                     if (sectionName === 'explorer' && this.explorerView === 'graph' && this.explorerData) {
-                        setTimeout(() => {
-                            const query = document.getElementById('ragExploreInput').value.trim();
-                            this.renderGraphView(query);
-                        }, 100);
+                        // Use requestAnimationFrame + timeout for proper layout calculation
+                        requestAnimationFrame(() => {
+                            // Force layout calculation
+                            const container = document.getElementById('ragGraphContainer');
+                            if (container) void container.offsetHeight;
+                            setTimeout(() => {
+                                const query = document.getElementById('ragExploreInput').value.trim();
+                                this.renderGraphView(query);
+                            }, 150);
+                        });
                     }
 
                     // Add ESC key listener
@@ -5613,6 +7803,504 @@
                 const div = document.createElement('div');
                 div.textContent = text;
                 return div.innerHTML;
+            },
+
+            // Settings management
+            settings: {
+                maxConcepts: 200,
+                minHits: 1,
+                forceStrength: -300,
+                nodeSizeFactor: 1.0,
+                linkDistance: 80,
+                searchLimit: 20
+            },
+
+            openSettings() {
+                const modal = document.getElementById('ragSettingsModal');
+                modal.style.display = 'flex';
+
+                // Populate current settings
+                document.getElementById('ragSettingMaxConcepts').value = this.settings.maxConcepts;
+                document.getElementById('ragSettingMinHits').value = this.settings.minHits;
+                document.getElementById('ragSettingForceStrength').value = this.settings.forceStrength;
+                document.getElementById('ragSettingNodeSize').value = this.settings.nodeSizeFactor;
+                document.getElementById('ragSettingLinkDistance').value = this.settings.linkDistance;
+                document.getElementById('ragSettingSearchLimit').value = this.settings.searchLimit;
+            },
+
+            closeSettings() {
+                document.getElementById('ragSettingsModal').style.display = 'none';
+            },
+
+            resetSettings() {
+                document.getElementById('ragSettingMaxConcepts').value = 200;
+                document.getElementById('ragSettingMinHits').value = 1;
+                document.getElementById('ragSettingForceStrength').value = -300;
+                document.getElementById('ragSettingNodeSize').value = 1.0;
+                document.getElementById('ragSettingLinkDistance').value = 80;
+                document.getElementById('ragSettingSearchLimit').value = 20;
+            },
+
+            saveSettings() {
+                // Update settings object
+                this.settings.maxConcepts = parseInt(document.getElementById('ragSettingMaxConcepts').value) || 200;
+                this.settings.minHits = parseInt(document.getElementById('ragSettingMinHits').value) || 1;
+                this.settings.forceStrength = parseInt(document.getElementById('ragSettingForceStrength').value) || -300;
+                this.settings.nodeSizeFactor = parseFloat(document.getElementById('ragSettingNodeSize').value) || 1.0;
+                this.settings.linkDistance = parseInt(document.getElementById('ragSettingLinkDistance').value) || 80;
+                this.settings.searchLimit = parseInt(document.getElementById('ragSettingSearchLimit').value) || 20;
+
+                // Close modal
+                this.closeSettings();
+
+                // Reload concepts with new settings
+                this.loadPopularConcepts();
+
+                // If graph is visible, update it
+                if (this.currentGraphData) {
+                    this.updateGraphWithSettings();
+                }
+            },
+
+            updateGraphWithSettings() {
+                // Re-create the force simulation with new settings if it exists
+                if (this.simulation) {
+                    this.simulation
+                        .force('charge', d3.forceManyBody().strength(this.settings.forceStrength))
+                        .force('link', d3.forceLink().id(d => d.id).distance(this.settings.linkDistance))
+                        .alpha(1)
+                        .restart();
+                }
+            },
+
+            // Graph tooltip functions
+            showGraphTooltip(event, d) {
+                const tooltip = document.getElementById('ragGraphTooltip');
+                if (!tooltip) return;
+
+                let content = '';
+                if (d.type === 'concept') {
+                    content = `<div class="tooltip-title">📚 Concept</div>
+                        <div class="tooltip-path">${escapeHtml(d.label)}</div>
+                        <div class="tooltip-meta">Click to explore related files</div>`;
+                } else if (d.type === 'file') {
+                    const fileName = (d.path || d.label).split('/').pop();
+                    content = `<div class="tooltip-title">📄 ${escapeHtml(fileName)}</div>
+                        <div class="tooltip-path">${escapeHtml(d.path || d.label)}</div>
+                        ${d.chunks_count ? `<div class="tooltip-lines">${d.chunks_count} chunks</div>` : ''}
+                        <div class="tooltip-meta">Click to open file viewer</div>`;
+                } else if (d.type === 'chunk') {
+                    const fileName = (d.file || '').split('/').pop();
+                    content = `<div class="tooltip-title">📦 Chunk: ${escapeHtml(fileName)}</div>
+                        <div class="tooltip-path">${escapeHtml(d.file || '')}</div>
+                        <div class="tooltip-lines">Lines ${d.line_start || '?'}-${d.line_end || '?'}</div>
+                        <div class="tooltip-meta">Click to view chunk in context</div>`;
+                }
+
+                tooltip.innerHTML = content;
+                tooltip.style.display = 'block';
+                this.moveGraphTooltip(event);
+            },
+
+            hideGraphTooltip() {
+                const tooltip = document.getElementById('ragGraphTooltip');
+                if (tooltip) {
+                    tooltip.style.display = 'none';
+                }
+            },
+
+            moveGraphTooltip(event) {
+                const tooltip = document.getElementById('ragGraphTooltip');
+                const container = document.getElementById('ragGraphContainer');
+                if (!tooltip || !container) return;
+
+                const rect = container.getBoundingClientRect();
+                let x = event.clientX - rect.left + 15;
+                let y = event.clientY - rect.top + 15;
+
+                // Keep tooltip within container bounds
+                if (x + tooltip.offsetWidth > rect.width - 10) {
+                    x = event.clientX - rect.left - tooltip.offsetWidth - 15;
+                }
+                if (y + tooltip.offsetHeight > rect.height - 10) {
+                    y = event.clientY - rect.top - tooltip.offsetHeight - 15;
+                }
+
+                tooltip.style.left = x + 'px';
+                tooltip.style.top = y + 'px';
+            },
+
+            // File viewer state
+            currentFileData: null,
+            currentChunkIndex: 0,
+            fileViewerChunks: [],
+
+            async showFileViewer(fileData) {
+                const path = fileData.path || fileData.file;
+                if (!path) {
+                    this.showToast('No file path available');
+                    return;
+                }
+
+                const modal = document.getElementById('ragFileViewerModal');
+                const contentDiv = document.getElementById('fileViewerContent');
+                modal.style.display = 'flex';
+
+                // Show loading state
+                contentDiv.innerHTML = '<pre><code>Loading file...</code></pre>';
+
+                try {
+                    const projectPath = dashboardApp.currentProject || '';
+                    const concept = fileData.concept || this.explorerData?.query || '';
+                    let url = `/api/rag/project/file-view?file_path=${encodeURIComponent(path)}`;
+                    if (projectPath) url += `&project_path=${encodeURIComponent(projectPath)}`;
+                    if (concept) url += `&concept=${encodeURIComponent(concept)}`;
+
+                    const resp = await fetch(url);
+                    if (!resp.ok) throw new Error(await resp.text());
+                    const data = await resp.json();
+
+                    // Priority 1: Use chunks passed directly (from Explorer)
+                    if (fileData.chunks && fileData.chunks.length > 0) {
+                        data.chunks = fileData.chunks;
+                    }
+                    // Priority 2: If still no chunks but we have line range, create synthetic chunk
+                    else if ((!data.chunks || data.chunks.length === 0) && fileData.line_start && fileData.line_end) {
+                        data.chunks = [{
+                            chunk_id: fileData.chunk_id || 'search-result',
+                            line_start: fileData.line_start,
+                            line_end: fileData.line_end,
+                            content: 'Search result match',
+                            concepts: concept ? [concept] : [],
+                            score: 1.0
+                        }];
+                    }
+
+                    this.currentFileData = data;
+                    this.fileViewerChunks = data.chunks || [];
+                    this.currentChunkIndex = 0;
+
+                    // If a specific chunk was requested, find its index
+                    if (fileData.chunk_id && this.fileViewerChunks.length > 0) {
+                        const idx = this.fileViewerChunks.findIndex(c => c.chunk_id === fileData.chunk_id);
+                        if (idx >= 0) this.currentChunkIndex = idx;
+                    }
+
+                    this.renderFileContent(data, fileData.line_start);
+
+                } catch (e) {
+                    console.error('Failed to load file:', e);
+                    contentDiv.innerHTML = `<pre><code style="color: var(--accent-red);">Failed to load file: ${escapeHtml(e.message)}</code></pre>`;
+                }
+            },
+
+            renderFileContent(data, scrollToLine = null) {
+                // Update header with format-aware icons
+                const iconMap = {
+                    'python': '🐍', 'javascript': '📜', 'typescript': '📜',
+                    'java': '☕', 'html': '🌐', 'css': '🎨', 'json': '⚙️',
+                    'markdown': '📝', 'bash': '💻', 'sql': '🗃️'
+                };
+                const formatIcons = {
+                    'document': '📄', 'presentation': '📊', 'spreadsheet': '📈', 'pdf': '📕'
+                };
+                const formatLabels = {
+                    'document': 'Document', 'presentation': 'Presentation',
+                    'spreadsheet': 'Spreadsheet', 'pdf': 'PDF', 'code': 'Code'
+                };
+
+                const icon = data.format_type && data.format_type !== 'code'
+                    ? formatIcons[data.format_type] || '📄'
+                    : iconMap[data.language] || '📄';
+                const langLabel = data.format_type && data.format_type !== 'code'
+                    ? formatLabels[data.format_type]
+                    : data.language;
+
+                const chunks = data.chunks || [];
+                const numChunks = chunks.length;
+
+                document.getElementById('fileViewerIcon').textContent = icon;
+                document.getElementById('fileViewerName').textContent = data.file_name;
+                document.getElementById('fileViewerPath').textContent = data.file_path;
+                document.getElementById('fileViewerLines').textContent = `${data.line_count} lines`;
+                document.getElementById('fileViewerChunks').textContent = `${numChunks} chunk${numChunks !== 1 ? 's' : ''}`;
+                document.getElementById('fileViewerLang').textContent = langLabel;
+
+                // Show/hide chunk navigation
+                const chunkNav = document.getElementById('fileViewerChunkNav');
+                if (numChunks > 1) {
+                    chunkNav.style.display = 'flex';
+                    this.updateChunkNavPosition();
+                } else {
+                    chunkNav.style.display = 'none';
+                }
+
+                // Build line-to-chunk map for highlighting
+                const lineChunks = {};
+                const chunkColors = {};
+                chunks.forEach((chunk, idx) => {
+                    const colorIdx = idx % 6;
+                    chunkColors[chunk.chunk_id] = colorIdx;
+                    for (let line = chunk.line_start; line <= chunk.line_end; line++) {
+                        if (!lineChunks[line]) lineChunks[line] = [];
+                        lineChunks[line].push({ ...chunk, colorIdx });
+                    }
+                });
+
+                // Determine render mode based on file type
+                const isMarkdown = data.language === 'markdown' ||
+                                   data.format_type === 'document' ||
+                                   data.format_type === 'presentation' ||
+                                   data.file_name?.endsWith('.md');
+                const isXml = data.language === 'xml' ||
+                              data.file_name?.endsWith('.xml') ||
+                              data.file_name?.endsWith('.pom') ||
+                              data.file_name?.endsWith('.xsd') ||
+                              data.file_name?.endsWith('.xsl');
+                const isHtml = data.language === 'html' ||
+                               data.file_name?.endsWith('.html') ||
+                               data.file_name?.endsWith('.htm');
+
+                const contentDiv = document.getElementById('fileViewerContent');
+                const lines = data.lines || data.content.split('\n');
+
+                if (isMarkdown && typeof marked !== 'undefined') {
+                    // Render as Markdown with chunk highlighting
+                    let mdContent = '';
+                    let currentChunkIdx = -1;
+
+                    lines.forEach((line, idx) => {
+                        const lineNum = idx + 1;
+                        const lineChunkList = lineChunks[lineNum] || [];
+
+                        if (lineChunkList.length > 0) {
+                            const chunkIdx = lineChunkList[0].colorIdx;
+                            if (currentChunkIdx !== chunkIdx) {
+                                if (currentChunkIdx >= 0) mdContent += '\n</div>\n';
+                                mdContent += `<div class="md-chunk-highlight md-chunk-${chunkIdx}" data-chunk-line="${lineNum}">\n`;
+                                currentChunkIdx = chunkIdx;
+                            }
+                        } else if (currentChunkIdx >= 0) {
+                            mdContent += '\n</div>\n';
+                            currentChunkIdx = -1;
+                        }
+                        mdContent += line + '\n';
+                    });
+                    if (currentChunkIdx >= 0) mdContent += '\n</div>\n';
+
+                    // Render markdown
+                    try {
+                        const rendered = marked.parse(mdContent);
+                        contentDiv.innerHTML = `<div class="markdown-body file-viewer-markdown">${rendered}</div>`;
+                    } catch (e) {
+                        // Fallback to plain text
+                        contentDiv.innerHTML = `<pre><code>${escapeHtml(lines.join('\n'))}</code></pre>`;
+                    }
+                } else if (isXml || isHtml) {
+                    // Render XML/HTML with syntax highlighting and structure
+                    const html = this.renderXmlContent(lines, lineChunks, isHtml);
+                    contentDiv.innerHTML = html;
+                } else {
+                    // Render as code with line numbers
+                    const html = lines.map((line, idx) => {
+                        const lineNum = idx + 1;
+                        const lineChunkList = lineChunks[lineNum] || [];
+                        const highlightClass = lineChunkList.length > 0 ? `chunk-highlight chunk-highlight-${lineChunkList[0].colorIdx}` : '';
+
+                        return `<div class="file-viewer-line ${highlightClass}" data-line="${lineNum}">
+                            <span class="file-viewer-line-num">${lineNum}</span>
+                            <span class="file-viewer-line-content">${escapeHtml(line) || ' '}</span>
+                        </div>`;
+                    }).join('');
+
+                    contentDiv.innerHTML = `<pre><code>${html}</code></pre>`;
+                }
+
+                // Render chunk legend
+                const legendDiv = document.getElementById('fileViewerLegend');
+                const chunkListDiv = document.getElementById('fileViewerChunkList');
+                if (numChunks > 0) {
+                    legendDiv.style.display = 'flex';
+                    chunkListDiv.innerHTML = chunks.map((chunk, idx) => {
+                        const colorIdx = idx % 6;
+                        const isActive = idx === this.currentChunkIndex;
+                        return `<div class="chunk-legend-item ${isActive ? 'active' : ''}" data-chunk-idx="${idx}" onclick="projectRagApp.goToChunk(${idx})">
+                            <span class="chunk-legend-dot color-${colorIdx}"></span>
+                            <span>L${chunk.line_start}-${chunk.line_end}</span>
+                        </div>`;
+                    }).join('');
+                } else {
+                    legendDiv.style.display = 'none';
+                }
+
+                // Scroll to line if specified, otherwise scroll to first chunk
+                if (scrollToLine) {
+                    setTimeout(() => this.scrollToLine(scrollToLine), 100);
+                } else if (numChunks > 0) {
+                    setTimeout(() => this.scrollToLine(chunks[0].line_start), 100);
+                }
+            },
+
+            updateChunkNavPosition() {
+                const pos = document.getElementById('fileViewerChunkPos');
+                const total = this.fileViewerChunks.length;
+                pos.textContent = `${this.currentChunkIndex + 1}/${total}`;
+            },
+
+            prevChunk() {
+                if (this.fileViewerChunks.length === 0) return;
+                this.currentChunkIndex = (this.currentChunkIndex - 1 + this.fileViewerChunks.length) % this.fileViewerChunks.length;
+                this.goToChunk(this.currentChunkIndex);
+            },
+
+            nextChunk() {
+                if (this.fileViewerChunks.length === 0) return;
+                this.currentChunkIndex = (this.currentChunkIndex + 1) % this.fileViewerChunks.length;
+                this.goToChunk(this.currentChunkIndex);
+            },
+
+            goToChunk(idx) {
+                if (idx < 0 || idx >= this.fileViewerChunks.length) return;
+                this.currentChunkIndex = idx;
+                this.updateChunkNavPosition();
+
+                // Update legend active state
+                document.querySelectorAll('.chunk-legend-item').forEach((el, i) => {
+                    el.classList.toggle('active', i === idx);
+                });
+
+                // Scroll to chunk
+                const chunk = this.fileViewerChunks[idx];
+                this.scrollToLine(chunk.line_start);
+            },
+
+            // Render XML/HTML with syntax highlighting
+            renderXmlContent(lines, lineChunks, isHtml) {
+                const highlightXml = (text) => {
+                    // Escape HTML first
+                    let escaped = escapeHtml(text);
+
+                    // Highlight XML/HTML structure
+                    // Comments
+                    escaped = escaped.replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span class="xml-comment">$1</span>');
+                    // CDATA
+                    escaped = escaped.replace(/(&lt;!\[CDATA\[[\s\S]*?\]\]&gt;)/g, '<span class="xml-cdata">$1</span>');
+                    // Tags and attributes
+                    escaped = escaped.replace(/(&lt;\/?)([\w:-]+)/g, '$1<span class="xml-tag">$2</span>');
+                    // Attribute names
+                    escaped = escaped.replace(/\s([\w:-]+)(=)/g, ' <span class="xml-attr">$1</span>$2');
+                    // Attribute values
+                    escaped = escaped.replace(/(=)(&quot;[^&]*&quot;|&#39;[^&]*&#39;)/g, '$1<span class="xml-value">$2</span>');
+                    // Self-closing and closing brackets
+                    escaped = escaped.replace(/(\/?&gt;)/g, '<span class="xml-bracket">$1</span>');
+                    // Opening brackets
+                    escaped = escaped.replace(/(&lt;)/g, '<span class="xml-bracket">$1</span>');
+
+                    return escaped;
+                };
+
+                const html = lines.map((line, idx) => {
+                    const lineNum = idx + 1;
+                    const lineChunkList = lineChunks[lineNum] || [];
+                    const highlightClass = lineChunkList.length > 0 ? `chunk-highlight chunk-highlight-${lineChunkList[0].colorIdx}` : '';
+
+                    return `<div class="file-viewer-line xml-line ${highlightClass}" data-line="${lineNum}">
+                        <span class="file-viewer-line-num">${lineNum}</span>
+                        <span class="file-viewer-line-content">${highlightXml(line) || ' '}</span>
+                    </div>`;
+                }).join('');
+
+                return `<pre><code class="xml-content">${html}</code></pre>`;
+            },
+
+            scrollToLine(lineNum) {
+                // Try code view first
+                const lineEl = document.querySelector(`.file-viewer-line[data-line="${lineNum}"]`);
+                if (lineEl) {
+                    lineEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    lineEl.style.animation = 'highlight-flash 1s ease-out';
+                    setTimeout(() => lineEl.style.animation = '', 1000);
+                    return;
+                }
+
+                // Try Markdown chunk view
+                const mdChunk = document.querySelector(`.md-chunk-highlight[data-chunk-line="${lineNum}"]`);
+                if (mdChunk) {
+                    mdChunk.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    mdChunk.style.animation = 'highlight-flash 1s ease-out';
+                    setTimeout(() => mdChunk.style.animation = '', 1000);
+                }
+            },
+
+            closeFileViewer() {
+                document.getElementById('ragFileViewerModal').style.display = 'none';
+                this.currentFileData = null;
+            },
+
+            openFileInNewWindow() {
+                if (!this.currentFileData) return;
+                const data = this.currentFileData;
+
+                // Create standalone HTML
+                const iconMap = {
+                    'python': '🐍', 'javascript': '📜', 'typescript': '📜',
+                    'java': '☕', 'html': '🌐', 'css': '🎨'
+                };
+                const icon = iconMap[data.language] || '📄';
+
+                const lines = data.lines || data.content.split('\n');
+                const lineChunks = {};
+                (data.chunks || []).forEach((chunk, idx) => {
+                    const colorIdx = idx % 6;
+                    for (let line = chunk.line_start; line <= chunk.line_end; line++) {
+                        if (!lineChunks[line]) lineChunks[line] = colorIdx;
+                    }
+                });
+
+                const codeHtml = lines.map((line, idx) => {
+                    const lineNum = idx + 1;
+                    const colorIdx = lineChunks[lineNum];
+                    const bg = colorIdx !== undefined ? `background: var(--chunk-${colorIdx});` : '';
+                    return `<div style="${bg}"><span style="opacity:0.5;width:50px;display:inline-block;text-align:right;padding-right:16px;">${lineNum}</span>${this.escapeHtmlForNewWindow(line) || ' '}</div>`;
+                }).join('');
+
+                const html = `<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<title>${icon} ${data.file_name}</title>
+<style>
+:root {
+    --chunk-0: rgba(59, 130, 246, 0.15);
+    --chunk-1: rgba(139, 92, 246, 0.15);
+    --chunk-2: rgba(34, 197, 94, 0.15);
+    --chunk-3: rgba(245, 158, 11, 0.15);
+    --chunk-4: rgba(239, 68, 68, 0.15);
+    --chunk-5: rgba(236, 72, 153, 0.15);
+}
+body { margin: 0; padding: 20px; background: #1e1e1e; color: #d4d4d4; font-family: monospace; }
+h1 { font-size: 16px; margin: 0 0 8px 0; }
+.path { font-size: 12px; color: #888; margin-bottom: 16px; }
+pre { margin: 0; font-size: 13px; line-height: 1.5; }
+</style>
+</head><body>
+<h1>${icon} ${data.file_name}</h1>
+<div class="path">${data.file_path}</div>
+<pre>${codeHtml}</pre>
+</body></html>`;
+
+                const newWindow = window.open('', '_blank');
+                newWindow.document.write(html);
+                newWindow.document.close();
+            },
+
+            escapeHtmlForNewWindow(text) {
+                return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            },
+
+            copyFilePath() {
+                if (!this.currentFileData) return;
+                navigator.clipboard.writeText(this.currentFileData.absolute_path || this.currentFileData.file_path);
+                this.showToast('Path copied to clipboard');
             }
         };
 
@@ -5790,6 +8478,140 @@
             }
             initSidebarResize();
         });
+
+        // =============================================================================
+        // Single-Page Export Utility (reusable for all reports)
+        // =============================================================================
+
+        /**
+         * Save any iframe content as a self-contained HTML file.
+         * Works with AST reports, Audit reports, and any other HTML content.
+         *
+         * @param {HTMLIFrameElement} iframe - The iframe containing the content
+         * @param {string} filename - The filename for download
+         */
+        function saveIframeAsHtml(iframe, filename) {
+            try {
+                const doc = iframe.contentDocument || iframe.contentWindow.document;
+                if (!doc) {
+                    alert('Cannot access iframe content. Try using the Save button in the report itself.');
+                    return;
+                }
+
+                // Clone the document
+                const html = doc.documentElement.cloneNode(true);
+
+                // Remove any no-print elements and export bars
+                html.querySelectorAll('.no-print, .export-bar').forEach(el => el.remove());
+
+                // Remove scripts (they won't work in saved file anyway)
+                html.querySelectorAll('script').forEach(s => s.remove());
+
+                // Get full HTML
+                const fullHtml = '<!DOCTYPE html>\n' + html.outerHTML;
+
+                // Download
+                const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename || 'report.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+            } catch (e) {
+                console.error('Failed to save iframe:', e);
+                alert('Failed to save: ' + e.message + '. Try using Print to PDF instead.');
+            }
+        }
+
+        /**
+         * Convert current page section to self-contained HTML and download.
+         * Useful for saving dashboard sections as reports.
+         *
+         * @param {string} selector - CSS selector for the content to save
+         * @param {string} filename - The filename for download
+         * @param {object} options - Optional styling/title overrides
+         */
+        function saveElementAsHtml(selector, filename, options = {}) {
+            const element = document.querySelector(selector);
+            if (!element) {
+                alert('Content not found: ' + selector);
+                return;
+            }
+
+            // Get computed styles
+            const styles = document.querySelectorAll('style');
+            let cssText = '';
+            styles.forEach(s => { cssText += s.textContent + '\n'; });
+
+            // Build standalone HTML
+            const title = options.title || document.title;
+            const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    <style>
+        ${cssText}
+        body { background: #0d1117; color: #e6edf3; padding: 20px; }
+    </style>
+</head>
+<body>
+    ${element.outerHTML}
+    <footer style="text-align: center; margin-top: 30px; color: #8b949e; font-size: 12px;">
+        <p>Generated by RAGIX | ${new Date().toLocaleString()}</p>
+        <p>Olivier Vitrac, PhD, HDR | Adservio</p>
+    </footer>
+</body>
+</html>`;
+
+            // Download
+            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename || 'export.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        /**
+         * Add export buttons to a visualization container.
+         * Call this after loading content into an iframe.
+         *
+         * @param {string} containerId - ID of the container element
+         * @param {string} iframeId - ID of the iframe
+         * @param {string} baseName - Base filename for exports
+         */
+        function addExportButtons(containerId, iframeId, baseName) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            // Check if buttons already exist
+            if (container.querySelector('.export-buttons')) return;
+
+            const iframe = document.getElementById(iframeId);
+            const exportDiv = document.createElement('div');
+            exportDiv.className = 'export-buttons';
+            exportDiv.style.cssText = 'position: absolute; top: 10px; right: 60px; display: flex; gap: 8px; z-index: 100;';
+
+            exportDiv.innerHTML = `
+                <button class="btn btn-sm" onclick="window.frames['${iframeId}'].print()" title="Print / PDF">
+                    &#128424; Print
+                </button>
+                <button class="btn btn-sm" onclick="saveIframeAsHtml(document.getElementById('${iframeId}'), '${baseName}-${new Date().toISOString().slice(0,10)}.html')" title="Save as HTML">
+                    &#128190; Save
+                </button>
+            `;
+
+            container.appendChild(exportDiv);
+        }
     </script>
 
     <!-- Author Footer -->

@@ -1,9 +1,42 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-12-09 (v0.35.0 - Project RAG & Concept Explorer)
+**Updated:** 2025-12-10 (v0.40.0 - Project RAG UI Enhancements)
 **Reference:** See `PLAN_v0.30_REASONING.md` for full implementation plan
 **Review:** See `REVIEW_current_reasoning_towardsv0.30.md` for colleague feedback
-**Next Major:** v0.4 - Code Audit Capabilities (see `FORREVIEW_AUDIT.md`)
+**Next Major:** v0.5 - Code Audit Capabilities (see `FORREVIEW_AUDIT.md`)
+
+---
+
+## Session Completed (2025-12-10 - v0.40.0)
+
+### Project RAG UI Enhancements & File Viewer
+
+| Task | Status |
+|------|--------|
+| **Project RAG Settings Modal** - Configurable max concepts, min hits, graph physics, search limits | ✅ Done |
+| **Index Statistics Badges** - Colored stat boxes (files, chunks, code, docs) in header | ✅ Done |
+| **File Viewer Modal** - Rich file preview with chunk highlighting | ✅ Done |
+| **Chunk Navigation** - ◀ ▶ buttons with position indicator (1/N) | ✅ Done |
+| **Chunk Coloring** - 6 distinct colors cycling through chunks | ✅ Done |
+| **Chunk Legend** - Clickable items with line ranges | ✅ Done |
+| **Markdown Rendering** - Marked.js integration with styled headings | ✅ Done |
+| **XML/HTML Syntax Highlighting** - Tags, attributes, values color-coded | ✅ Done |
+| **Graph Fullscreen Fix** - Dynamic height calculation using viewport | ✅ Done |
+| **Search Project Preview Fix** - Data attributes for safe click handlers | ✅ Done |
+| **Discovered Concepts Filter Fix** - Use `mentions` field from API | ✅ Done |
+| **Settings Button Alignment** - Right-aligned using flexbox | ✅ Done |
+
+**Key Files Created/Modified:**
+- `ragix_web/static/index.html` - File viewer modal, settings modal, chunk navigation, Marked.js
+- `ragix_web/static/style.css` - Markdown styling, XML syntax colors, chunk highlights, navigation
+- `ragix_web/routers/rag_project.py` - File-view API with document conversion, improved chunk retrieval
+
+**Features:**
+- Project RAG Settings: Configure concepts (max 500, min hits 1-10), graph physics (force, node size, link distance), search (max results)
+- File Viewer: Modal with header showing file info, chunks count, language; chunk navigation; open in new window
+- Markdown: Colored headings (H1=blue, H2=purple, H3=cyan, H4=green, H5=orange, H6=red), bold/italic styling
+- XML/HTML: Syntax highlighting (tags=blue, attrs=purple, values=green, comments=gray)
+- Graph Fullscreen: Uses legend position to calculate available height, re-renders on toggle
 
 ---
 

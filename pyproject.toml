@@ -54,7 +54,7 @@ Repository = "https://github.com/ovitrac/RAGIX"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["ragix_core*", "ragix_unix*", "ragix_web*", "wasp_tools*"]
+include = ["ragix_core*", "ragix_unix*", "ragix_web*", "ragix_audit*", "wasp_tools*"]
 exclude = ["tests*", "MCP*"]
 
 [tool.ruff]

@@ -1133,6 +1133,345 @@ async def get_chunk_neighbors(
         raise HTTPException(500, f"Chunk neighbors lookup failed: {e}")
 
 
+# =================================================================
+# Document conversion helpers for file viewer
+# =================================================================
+
+def _convert_document(file_path: Path) -> str:
+    """Convert Word/ODT document to markdown text."""
+    import shutil
+    import subprocess
+
+    # Try pandoc first
+    pandoc_path = shutil.which("pandoc")
+    if pandoc_path:
+        try:
+            result = subprocess.run(
+                [pandoc_path, "-t", "markdown", str(file_path)],
+                capture_output=True, text=True, timeout=60
+            )
+            if result.returncode == 0:
+                return result.stdout
+        except Exception as e:
+            logger.warning(f"pandoc conversion failed: {e}")
+
+    # Fallback: try python-docx for .docx
+    if file_path.suffix.lower() in ['.docx']:
+        try:
+            from docx import Document
+            doc = Document(str(file_path))
+            paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+            return '\n\n'.join(paragraphs)
+        except ImportError:
+            pass
+        except Exception as e:
+            logger.warning(f"python-docx failed: {e}")
+
+    return f"[Document preview not available - install pandoc for full support]\n\nFile: {file_path.name}"
+
+
+def _convert_presentation(file_path: Path) -> str:
+    """Convert PowerPoint/ODP presentation to text."""
+    suffix = file_path.suffix.lower()
+
+    # Use python-pptx for .pptx
+    if suffix in ['.pptx']:
+        try:
+            from pptx import Presentation
+            prs = Presentation(str(file_path))
+            text_parts = []
+
+            for slide_num, slide in enumerate(prs.slides, 1):
+                slide_text = [f"\n## Slide {slide_num}\n"]
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text.strip():
+                        slide_text.append(shape.text.strip())
+                if len(slide_text) > 1:
+                    text_parts.append("\n".join(slide_text))
+
+            return "\n\n".join(text_parts) if text_parts else "[Empty presentation]"
+        except ImportError:
+            pass
+        except Exception as e:
+            logger.warning(f"python-pptx failed: {e}")
+
+    # Try pandoc for other formats
+    import shutil
+    import subprocess
+    pandoc_path = shutil.which("pandoc")
+    if pandoc_path:
+        try:
+            result = subprocess.run(
+                [pandoc_path, "-t", "markdown", str(file_path)],
+                capture_output=True, text=True, timeout=60
+            )
+            if result.returncode == 0:
+                return result.stdout
+        except Exception as e:
+            logger.warning(f"pandoc conversion failed: {e}")
+
+    return f"[Presentation preview not available]\n\nFile: {file_path.name}"
+
+
+def _convert_spreadsheet(file_path: Path) -> str:
+    """Convert Excel/ODS spreadsheet to text table."""
+    suffix = file_path.suffix.lower()
+
+    # Use openpyxl for .xlsx
+    if suffix in ['.xlsx']:
+        try:
+            from openpyxl import load_workbook
+            wb = load_workbook(str(file_path), read_only=True, data_only=True)
+            text_parts = []
+
+            for sheet_name in wb.sheetnames:
+                sheet = wb[sheet_name]
+                sheet_text = [f"\n## Sheet: {sheet_name}\n"]
+
+                for row in sheet.iter_rows(values_only=True, max_row=100):  # Limit rows
+                    row_values = [str(cell) if cell is not None else "" for cell in row]
+                    if any(v.strip() for v in row_values):
+                        sheet_text.append(" | ".join(row_values))
+
+                if len(sheet_text) > 1:
+                    text_parts.append("\n".join(sheet_text))
+
+            wb.close()
+            return "\n\n".join(text_parts) if text_parts else "[Empty spreadsheet]"
+        except ImportError:
+            pass
+        except Exception as e:
+            logger.warning(f"openpyxl failed: {e}")
+
+    # Try pandoc for other formats (ods)
+    import shutil
+    import subprocess
+    pandoc_path = shutil.which("pandoc")
+    if pandoc_path:
+        try:
+            result = subprocess.run(
+                [pandoc_path, "-t", "markdown", str(file_path)],
+                capture_output=True, text=True, timeout=60
+            )
+            if result.returncode == 0:
+                return result.stdout
+        except Exception as e:
+            logger.warning(f"pandoc conversion failed: {e}")
+
+    return f"[Spreadsheet preview not available]\n\nFile: {file_path.name}"
+
+
+def _convert_pdf(file_path: Path) -> str:
+    """Convert PDF to text using pdftotext."""
+    import shutil
+    import subprocess
+
+    pdftotext_path = shutil.which("pdftotext")
+    if pdftotext_path:
+        try:
+            result = subprocess.run(
+                [pdftotext_path, "-layout", str(file_path), "-"],
+                capture_output=True, text=True, timeout=120
+            )
+            if result.returncode == 0:
+                return result.stdout
+        except Exception as e:
+            logger.warning(f"pdftotext failed: {e}")
+
+    return f"[PDF preview not available - install poppler-utils for pdftotext]\n\nFile: {file_path.name}"
+
+
+@router.get("/file-view")
+async def get_file_view(
+    file_path: str = Query(..., description="Path to the file (relative or absolute)"),
+    project_path: Optional[str] = Query(None, description="Project path"),
+    concept: Optional[str] = Query(None, description="Concept to highlight"),
+) -> Dict[str, Any]:
+    """
+    Get file content with chunk information for the file viewer.
+
+    Supports various formats:
+    - Code files: displayed as-is with syntax highlighting
+    - Documents: .docx, .odt converted via pandoc
+    - Presentations: .pptx, .odp converted via python-pptx or pandoc
+    - Spreadsheets: .xlsx, .ods converted via openpyxl or pandoc
+
+    Returns:
+        - File content (lines or converted text)
+        - Chunks in this file with their line ranges
+        - Concept associations for each chunk
+        - Format type for appropriate rendering
+    """
+    import html as html_lib
+
+    path = project_path or _current_project_path
+    if not path:
+        raise HTTPException(400, "No project path specified")
+
+    # Resolve the file path
+    project_root = Path(path)
+    file_p = Path(file_path)
+
+    # Handle both absolute and relative paths
+    if file_p.is_absolute():
+        actual_path = file_p
+    else:
+        actual_path = project_root / file_p
+
+    # Security: ensure file is within project
+    try:
+        actual_path = actual_path.resolve()
+        project_root = project_root.resolve()
+        if not str(actual_path).startswith(str(project_root)):
+            raise HTTPException(403, "File path outside project directory")
+    except Exception:
+        raise HTTPException(400, "Invalid file path")
+
+    if not actual_path.exists():
+        raise HTTPException(404, f"File not found: {file_path}")
+
+    if not actual_path.is_file():
+        raise HTTPException(400, "Path is not a file")
+
+    # Determine file type and format
+    suffix = actual_path.suffix.lower()
+
+    # Document formats that need conversion
+    doc_formats = {
+        '.docx': 'document', '.doc': 'document', '.odt': 'document',
+        '.pptx': 'presentation', '.ppt': 'presentation', '.odp': 'presentation',
+        '.xlsx': 'spreadsheet', '.xls': 'spreadsheet', '.ods': 'spreadsheet',
+        '.pdf': 'pdf',
+    }
+
+    format_type = doc_formats.get(suffix, 'code')
+    is_binary = suffix in doc_formats
+
+    # Read or convert file content
+    try:
+        if format_type == 'document':
+            # Convert Word/ODT documents
+            content = _convert_document(actual_path)
+            lines = content.split('\n')
+        elif format_type == 'presentation':
+            # Convert PowerPoint/ODP presentations
+            content = _convert_presentation(actual_path)
+            lines = content.split('\n')
+        elif format_type == 'spreadsheet':
+            # Convert Excel/ODS spreadsheets
+            content = _convert_spreadsheet(actual_path)
+            lines = content.split('\n')
+        elif format_type == 'pdf':
+            # Convert PDF (if pdftotext available)
+            content = _convert_pdf(actual_path)
+            lines = content.split('\n')
+        else:
+            # Plain text/code files
+            content = actual_path.read_text(encoding='utf-8', errors='replace')
+            lines = content.split('\n')
+    except Exception as e:
+        logger.error(f"Failed to read/convert file: {e}")
+        raise HTTPException(500, f"Failed to read file: {e}")
+
+    # Get chunks for this file from Project RAG
+    chunks = []
+    try:
+        project = _get_rag_project(path)
+        if project and project.is_initialized():
+            rel_path = str(actual_path.relative_to(project_root))
+
+            # Method 1: Use metadata store (most reliable)
+            meta_store = project.metadata_store
+            if meta_store:
+                # Get file metadata first
+                file_meta = meta_store.get_file_by_path(rel_path)
+                if file_meta:
+                    # Load all chunks and filter by file_id
+                    all_chunks = meta_store.load_chunks()
+                    for chunk_id, chunk_meta in all_chunks.items():
+                        if chunk_meta.file_id == file_meta.file_id:
+                            chunks.append({
+                                'chunk_id': chunk_meta.chunk_id,
+                                'line_start': chunk_meta.line_start,
+                                'line_end': chunk_meta.line_end,
+                                'content': chunk_meta.text_preview[:200] if chunk_meta.text_preview else '',
+                                'concepts': chunk_meta.tags,
+                                'score': 1.0,
+                            })
+
+            # Method 2: Fallback to vector store query if metadata didn't work
+            if not chunks:
+                vs = project.vector_store
+                if vs:
+                    # Query with file path filter
+                    results = vs.query_mixed(
+                        query_text=rel_path,
+                        top_k=100,
+                        min_score=0.0
+                    )
+                    for r in results:
+                        meta = r.get('metadata', {})
+                        chunk_file = meta.get('file_path', '')
+                        if chunk_file == rel_path or chunk_file.endswith(file_p.name):
+                            chunks.append({
+                                'chunk_id': r.get('id', ''),
+                                'line_start': meta.get('line_start', 0),
+                                'line_end': meta.get('line_end', 0),
+                                'content': r.get('content', '')[:200],
+                                'concepts': meta.get('concepts', []),
+                                'score': r.get('score', 0),
+                            })
+
+            # Sort chunks by line_start for proper ordering
+            chunks.sort(key=lambda c: (c.get('line_start', 0), c.get('line_end', 0)))
+
+            # Also get chunk-concept associations if concept specified
+            if concept:
+                graph = project.graph
+                if graph:
+                    # Find chunks that mention this concept
+                    concept_chunks = graph.get_concept_chunks(concept) if hasattr(graph, 'get_concept_chunks') else []
+                    for chunk in chunks:
+                        chunk['highlight'] = any(c.get('chunk_id') == chunk['chunk_id'] for c in concept_chunks)
+    except Exception as e:
+        logger.warning(f"Could not get chunks for file: {e}")
+
+    # Determine file type for syntax highlighting
+    suffix = actual_path.suffix.lower()
+    lang_map = {
+        '.py': 'python', '.js': 'javascript', '.ts': 'typescript',
+        '.java': 'java', '.c': 'c', '.cpp': 'cpp', '.h': 'c',
+        '.html': 'html', '.css': 'css', '.json': 'json',
+        '.xml': 'xml', '.yaml': 'yaml', '.yml': 'yaml',
+        '.md': 'markdown', '.sh': 'bash', '.sql': 'sql',
+    }
+    language = lang_map.get(suffix, 'plaintext')
+
+    # Extended language map for documents
+    doc_lang_map = {
+        '.docx': 'markdown', '.doc': 'markdown', '.odt': 'markdown',
+        '.pptx': 'markdown', '.ppt': 'markdown', '.odp': 'markdown',
+        '.xlsx': 'markdown', '.xls': 'markdown', '.ods': 'markdown',
+        '.pdf': 'plaintext',
+    }
+    if suffix in doc_lang_map:
+        language = doc_lang_map[suffix]
+
+    return {
+        'file_path': str(actual_path.relative_to(project_root)),
+        'absolute_path': str(actual_path),
+        'file_name': actual_path.name,
+        'language': language,
+        'format_type': format_type,  # 'code', 'document', 'presentation', 'spreadsheet', 'pdf'
+        'is_binary': is_binary,
+        'line_count': len(lines),
+        'content': content,
+        'lines': lines,
+        'chunks': sorted(chunks, key=lambda c: c.get('line_start', 0)),
+        'concept': concept,
+    }
+
+
 class ConceptCreateRequest(BaseModel):
     """Request to create a new concept."""
     label: str
