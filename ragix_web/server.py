@@ -4175,6 +4175,368 @@ async def get_file_view(path: str):
 
 
 # =============================================================================
+# Codebase Partitioner API (v0.55)
+# =============================================================================
+
+# Import partitioner module
+try:
+    from ragix_audit.partitioner import (
+        CodebasePartitioner,
+        PartitionConfig,
+        ApplicationFingerprint,
+        PartitionResult,
+        partition_from_graph,
+        create_sias_ticc_config,
+    )
+    PARTITIONER_AVAILABLE = True
+except ImportError:
+    PARTITIONER_AVAILABLE = False
+
+
+class PartitionRequest(BaseModel):
+    """Request model for partition endpoint."""
+    path: str
+    config: Optional[Dict[str, Any]] = None
+
+
+@app.get("/api/ast/partition/status")
+async def get_partition_status():
+    """Get partitioner module status."""
+    return {
+        "available": PARTITIONER_AVAILABLE,
+        "ast_available": AST_AVAILABLE,
+        "presets": ["sias_ticc", "generic_two_apps", "generic_three_apps"] if PARTITIONER_AVAILABLE else []
+    }
+
+
+@app.get("/api/ast/partition/presets")
+async def get_partition_presets():
+    """Get available partition configuration presets."""
+    if not PARTITIONER_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Partitioner module not available")
+
+    presets = {
+        "sias_ticc": {
+            "name": "SIAS/TICC (GRDF Pattern)",
+            "description": "Two-application separation pattern used in GRDF audits",
+            "config": create_sias_ticc_config().to_dict()
+        },
+        "generic_two_apps": {
+            "name": "Generic Two Applications",
+            "description": "Template for separating two applications with custom patterns",
+            "config": PartitionConfig.default_two_apps("APP_A", "APP_B").to_dict()
+        },
+        "generic_three_apps": {
+            "name": "Generic Three Applications",
+            "description": "Template for separating three applications",
+            "config": PartitionConfig(
+                applications=[
+                    ApplicationFingerprint(app_id="APP_A", package_patterns=[], color="#3498db"),
+                    ApplicationFingerprint(app_id="APP_B", package_patterns=[], color="#e74c3c"),
+                    ApplicationFingerprint(app_id="APP_C", package_patterns=[], color="#2ecc71"),
+                ]
+            ).to_dict()
+        }
+    }
+
+    return {"presets": presets}
+
+
+@app.post("/api/ast/partition")
+async def run_partition(request: PartitionRequest):
+    """
+    Run codebase partitioning analysis.
+
+    Partitions a Java codebase into logical applications using:
+    - Fingerprint-based classification (package patterns, class names)
+    - Graph propagation (neighbor majority voting)
+    - Evidence chains for traceability
+
+    Returns partition assignments, statistics, and visualization data.
+    """
+    if not PARTITIONER_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Partitioner module not available")
+    if not AST_AVAILABLE:
+        raise HTTPException(status_code=503, detail="AST analysis not available")
+
+    target_path = Path(request.path).expanduser()
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {request.path}")
+
+    try:
+        # Build dependency graph
+        graph_obj = build_dependency_graph([target_path], patterns=None, use_cache=True)
+
+        # Convert to D3 format
+        config = VizConfig()
+        renderer = D3Renderer(config)
+        graph = renderer.to_dict(graph_obj)
+
+        # Build partition config from request
+        partition_config = None
+        if request.config:
+            apps = []
+            for app_data in request.config.get("applications", []):
+                apps.append(ApplicationFingerprint(
+                    app_id=app_data.get("app_id", "APP"),
+                    package_patterns=app_data.get("package_patterns", []),
+                    class_patterns=app_data.get("class_patterns", []),
+                    annotation_patterns=app_data.get("annotation_patterns", []),
+                    keyword_patterns=app_data.get("keyword_patterns", []),
+                    entry_point_patterns=app_data.get("entry_point_patterns", []),
+                    color=app_data.get("color", "#3498db"),
+                ))
+            partition_config = PartitionConfig(
+                applications=apps,
+                shared_patterns=request.config.get("shared_patterns", PartitionConfig().shared_patterns),
+                dead_code_threshold=request.config.get("dead_code_threshold", 0.0),
+                propagation_iterations=request.config.get("propagation_iterations", 5),
+                confidence_threshold=request.config.get("confidence_threshold", 0.6),
+            )
+
+        # Run partitioning
+        result = partition_from_graph(graph, partition_config)
+
+        # Compute additional statistics
+        total_classes = len(result.assignments)
+        unknown_count = result.summary.get("UNKNOWN", 0)
+        coverage = (total_classes - unknown_count) / total_classes if total_classes > 0 else 0
+
+        # Count cross-partition edges
+        cross_partition_edges = sum(1 for e in result.edges if e.get("cross_partition", False))
+        total_edges = len(result.edges)
+        coupling_density = cross_partition_edges / total_edges if total_edges > 0 else 0
+
+        return {
+            "summary": result.summary,
+            "coverage": round(coverage, 3),
+            "coupling_density": round(coupling_density, 4),
+            "cross_partition_edges": cross_partition_edges,
+            "total_edges": total_edges,
+            "total_classes": total_classes,
+            "assignments": {k: v.to_dict() for k, v in result.assignments.items()},
+            "nodes": result.nodes,
+            "edges": result.edges,
+            "config": result.config.to_dict() if result.config else None
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Partition error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ast/partition/export")
+async def export_partition(
+    path: str,
+    format: str = "json",
+    partition: Optional[str] = None,
+    preset: Optional[str] = None
+):
+    """
+    Export partition results in various formats.
+
+    Args:
+        path: Path to the codebase
+        format: Export format (json, csv, xlsx)
+        partition: Filter by partition label (optional)
+        preset: Use a preset configuration (optional)
+
+    Returns:
+        Formatted export data or file download
+    """
+    if not PARTITIONER_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Partitioner module not available")
+    if not AST_AVAILABLE:
+        raise HTTPException(status_code=503, detail="AST analysis not available")
+
+    target_path = Path(path).expanduser()
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+
+    try:
+        # Build graph
+        graph_obj = build_dependency_graph([target_path], patterns=None, use_cache=True)
+        config = VizConfig()
+        renderer = D3Renderer(config)
+        graph = renderer.to_dict(graph_obj)
+
+        # Get partition config from preset
+        partition_config = None
+        if preset == "sias_ticc":
+            partition_config = create_sias_ticc_config()
+        elif preset == "generic_two_apps":
+            partition_config = PartitionConfig.default_two_apps()
+
+        # Run partitioning
+        result = partition_from_graph(graph, partition_config)
+
+        # Filter by partition if specified
+        assignments = result.assignments
+        if partition:
+            assignments = {k: v for k, v in assignments.items() if v.label == partition}
+
+        # Build export data
+        if format == "json":
+            export_data = {
+                "metadata": {
+                    "project": str(target_path.name),
+                    "partition_date": datetime.now().isoformat(),
+                    "total_classes": len(result.assignments),
+                    "exported_classes": len(assignments),
+                    "filter": partition,
+                },
+                "summary": result.summary,
+                "classes": []
+            }
+
+            for fqn, assignment in assignments.items():
+                node = next((n for n in result.nodes if n.get("id") == fqn), {})
+                export_data["classes"].append({
+                    "fqn": fqn,
+                    "partition": assignment.label,
+                    "confidence": assignment.confidence,
+                    "file": node.get("file", ""),
+                    "package": node.get("package", ""),
+                    "loc": node.get("loc", 0),
+                    "evidence": [e.to_dict() for e in assignment.evidence],
+                })
+
+            return export_data
+
+        elif format == "csv":
+            import io
+            import csv
+
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            # Header
+            writer.writerow([
+                "fqn", "partition", "confidence", "file", "package", "loc", "evidence"
+            ])
+
+            # Data rows
+            for fqn, assignment in assignments.items():
+                node = next((n for n in result.nodes if n.get("id") == fqn), {})
+                evidence_str = "; ".join(e.details for e in assignment.evidence)
+                writer.writerow([
+                    fqn,
+                    assignment.label,
+                    round(assignment.confidence, 3),
+                    node.get("file", ""),
+                    node.get("package", ""),
+                    node.get("loc", 0),
+                    evidence_str,
+                ])
+
+            csv_content = output.getvalue()
+            return JSONResponse(
+                content={"csv": csv_content, "filename": f"partition_{target_path.name}.csv"},
+                headers={"Content-Type": "application/json"}
+            )
+
+        elif format == "xlsx":
+            # Return JSON data for XLSX generation on client side
+            # (Server-side XLSX would require openpyxl)
+            sheets = {
+                "Summary": [
+                    {"partition": k, "count": v} for k, v in result.summary.items()
+                ],
+                "Classes": [],
+                "Cross-Partition": []
+            }
+
+            for fqn, assignment in assignments.items():
+                node = next((n for n in result.nodes if n.get("id") == fqn), {})
+                sheets["Classes"].append({
+                    "fqn": fqn,
+                    "partition": assignment.label,
+                    "confidence": round(assignment.confidence, 3),
+                    "file": node.get("file", ""),
+                    "package": node.get("package", ""),
+                    "loc": node.get("loc", 0),
+                })
+
+            # Cross-partition edges
+            for edge in result.edges:
+                if edge.get("cross_partition"):
+                    sheets["Cross-Partition"].append({
+                        "source": edge.get("source", ""),
+                        "target": edge.get("target", ""),
+                        "source_partition": edge.get("source_partition", ""),
+                        "target_partition": edge.get("target_partition", ""),
+                    })
+
+            return {"sheets": sheets, "filename": f"partition_{target_path.name}.xlsx"}
+
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Export error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/file/content")
+async def get_file_content(path: str, max_lines: int = 2000):
+    """
+    Get file content for preview.
+
+    Args:
+        path: Absolute path to the file
+        max_lines: Maximum number of lines to return (default 2000)
+
+    Returns:
+        File content and metadata
+    """
+    file_path = Path(path).expanduser()
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {path}")
+    if not file_path.is_file():
+        raise HTTPException(status_code=400, detail=f"Not a file: {path}")
+
+    try:
+        content = file_path.read_text(encoding="utf-8", errors="replace")
+        lines = content.split("\n")
+        total_lines = len(lines)
+
+        # Truncate if too large
+        if total_lines > max_lines:
+            lines = lines[:max_lines]
+            content = "\n".join(lines)
+            truncated = True
+        else:
+            truncated = False
+
+        return {
+            "content": content,
+            "filename": file_path.name,
+            "path": str(file_path),
+            "total_lines": total_lines,
+            "returned_lines": len(lines),
+            "truncated": truncated,
+            "extension": file_path.suffix,
+            "size_bytes": file_path.stat().st_size,
+        }
+    except Exception as e:
+        logger.error(f"Failed to read file {path}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {e}")
+
+
+# Alias for compatibility with partition preview
+@app.get("/api/audit/file-content")
+async def get_audit_file_content(path: str, max_lines: int = 2000):
+    """Alias for /api/file/content for audit/partition file previews."""
+    return await get_file_content(path, max_lines)
+
+
+# =============================================================================
 # Agents & Workflows API
 # =============================================================================
 

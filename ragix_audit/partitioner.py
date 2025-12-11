@@ -21,12 +21,15 @@ from __future__ import annotations
 
 import re
 import logging
+import math
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Any
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -548,27 +551,32 @@ class CodebasePartitioner:
             summary[assignment.label] += 1
         result.summary = dict(summary)
 
-        # Build visualization data
-        result.nodes = self._build_vis_nodes()
+        # Compute layout using MDS
+        layout = self.compute_layout(width=800, height=600)
+
+        # Build visualization data with precomputed positions
+        result.nodes = self._build_vis_nodes(layout)
         result.edges = self._build_vis_edges()
 
         return result
 
-    def _build_vis_nodes(self) -> List[Dict[str, Any]]:
-        """Build visualization nodes."""
+    def _build_vis_nodes(self, layout: Dict[str, Tuple[float, float]] = None) -> List[Dict[str, Any]]:
+        """Build visualization nodes with optional precomputed positions."""
         # Color map
         colors = {
             "UNKNOWN": "#95a5a6",    # Gray
             "SHARED": "#9b59b6",     # Purple
-            "DEAD_CODE": "#2c3e50",  # Dark
+            "DEAD_CODE": "#e67e22",  # Orange (visible)
         }
         for app in self.config.applications:
             colors[app.app_id] = app.color
 
+        layout = layout or {}
         nodes = []
         for fqn, class_info in self.classes.items():
             assignment = self.assignments.get(fqn)
             label = assignment.label if assignment else "UNKNOWN"
+            pos = layout.get(fqn, (400, 300))  # Default center if no position
 
             nodes.append({
                 "id": fqn,
@@ -579,7 +587,9 @@ class CodebasePartitioner:
                 "partition": label,
                 "confidence": assignment.confidence if assignment else 0,
                 "color": colors.get(label, "#95a5a6"),
-                "size": max(5, min(30, class_info.loc / 20))  # Size by LOC
+                "size": max(5, min(30, class_info.loc / 20)),  # Size by LOC
+                "x": pos[0],  # Precomputed MDS position
+                "y": pos[1],
             })
 
         return nodes
@@ -609,6 +619,240 @@ class CodebasePartitioner:
                 })
 
         return edges
+
+    def compute_layout(self, width: int = 800, height: int = 600) -> Dict[str, Tuple[float, float]]:
+        """
+        Compute 2D layout using partition-based clustering.
+
+        For large graphs (>500 nodes), uses a fast partition-based layout:
+        - Groups nodes by partition
+        - Arranges partitions in a grid or circle
+        - Spreads nodes within each partition
+
+        For smaller graphs, uses MDS for more accurate positioning.
+
+        Args:
+            width: Target width for layout
+            height: Target height for layout
+
+        Returns:
+            Dictionary mapping node ID to (x, y) position
+        """
+        node_ids = list(self.classes.keys())
+        n = len(node_ids)
+
+        if n == 0:
+            return {}
+
+        if n == 1:
+            return {node_ids[0]: (width / 2, height / 2)}
+
+        # For large graphs, use fast partition-based layout
+        if n > 500:
+            return self._partition_based_layout(node_ids, width, height)
+
+        # For smaller graphs, use MDS
+        return self._mds_layout(node_ids, width, height)
+
+    def _partition_based_layout(self, node_ids: List[str], width: int, height: int) -> Dict[str, Tuple[float, float]]:
+        """
+        Fast layout for large graphs using partition clustering.
+
+        Arranges partitions in a circular layout, with nodes spread within each partition area.
+        """
+        # Group nodes by partition
+        partition_groups: Dict[str, List[str]] = defaultdict(list)
+        for nid in node_ids:
+            assign = self.assignments.get(nid)
+            label = assign.label if assign else "UNKNOWN"
+            partition_groups[label].append(nid)
+
+        # Sort partitions by size (largest first, but DEAD_CODE and UNKNOWN last)
+        def partition_sort_key(label):
+            if label == "DEAD_CODE":
+                return (2, 0)
+            if label == "UNKNOWN":
+                return (1, 0)
+            return (0, -len(partition_groups[label]))
+
+        sorted_partitions = sorted(partition_groups.keys(), key=partition_sort_key)
+
+        # Calculate partition centers in a circular arrangement
+        n_partitions = len(sorted_partitions)
+        center_x, center_y = width / 2, height / 2
+        radius = min(width, height) * 0.35
+
+        partition_centers = {}
+        for i, label in enumerate(sorted_partitions):
+            if n_partitions == 1:
+                partition_centers[label] = (center_x, center_y)
+            else:
+                angle = 2 * math.pi * i / n_partitions - math.pi / 2
+                px = center_x + radius * math.cos(angle)
+                py = center_y + radius * math.sin(angle)
+                partition_centers[label] = (px, py)
+
+        # Spread nodes within each partition area
+        layout = {}
+        padding = 30
+
+        for label, nodes in partition_groups.items():
+            cx, cy = partition_centers[label]
+            n_nodes = len(nodes)
+
+            if n_nodes == 1:
+                layout[nodes[0]] = (cx, cy)
+                continue
+
+            # Calculate spread radius based on node count
+            # Larger partitions get more space
+            spread = min(radius * 0.8, max(30, math.sqrt(n_nodes) * 8))
+
+            # Arrange nodes in a spiral pattern within the partition
+            for j, nid in enumerate(nodes):
+                if n_nodes <= 20:
+                    # Small partition: circular arrangement
+                    angle = 2 * math.pi * j / n_nodes
+                    r = spread * 0.6
+                    x = cx + r * math.cos(angle)
+                    y = cy + r * math.sin(angle)
+                else:
+                    # Large partition: spiral arrangement
+                    angle = j * 0.3  # Golden angle approximation
+                    r = spread * math.sqrt(j / n_nodes)
+                    x = cx + r * math.cos(angle)
+                    y = cy + r * math.sin(angle)
+
+                # Clamp to canvas bounds
+                x = max(padding, min(width - padding, x))
+                y = max(padding, min(height - padding, y))
+                layout[nid] = (x, y)
+
+        return layout
+
+    def _mds_layout(self, node_ids: List[str], width: int, height: int) -> Dict[str, Tuple[float, float]]:
+        """
+        MDS-based layout for smaller graphs.
+        """
+        n = len(node_ids)
+        id_to_idx = {nid: i for i, nid in enumerate(node_ids)}
+
+        # Build adjacency matrix
+        adj = np.zeros((n, n), dtype=np.float32)
+        for source, targets in self.dependencies.items():
+            if source in id_to_idx:
+                i = id_to_idx[source]
+                for target in targets:
+                    if target in id_to_idx:
+                        j = id_to_idx[target]
+                        adj[i, j] = 1
+                        adj[j, i] = 1
+
+        # Compute distances
+        dist = np.full((n, n), float('inf'), dtype=np.float32)
+        np.fill_diagonal(dist, 0)
+        dist = np.where(adj > 0, 1, dist)
+
+        # Floyd-Warshall for small graphs only
+        for k in range(n):
+            dist = np.minimum(dist, dist[:, k:k+1] + dist[k:k+1, :])
+
+        # Handle infinite distances with partition info
+        max_finite = np.max(dist[np.isfinite(dist)]) if np.any(np.isfinite(dist)) else 1
+
+        for i, nid_i in enumerate(node_ids):
+            assign_i = self.assignments.get(nid_i)
+            label_i = assign_i.label if assign_i else "UNKNOWN"
+            for j in range(i + 1, n):
+                nid_j = node_ids[j]
+                assign_j = self.assignments.get(nid_j)
+                label_j = assign_j.label if assign_j else "UNKNOWN"
+
+                if np.isinf(dist[i, j]):
+                    if label_i == label_j and label_i not in ("UNKNOWN", "DEAD_CODE"):
+                        dist[i, j] = dist[j, i] = max_finite + 1
+                    else:
+                        dist[i, j] = dist[j, i] = max_finite + 3
+
+        # Classical MDS
+        positions = self._classical_mds(dist, width, height)
+
+        layout = {}
+        for i, nid in enumerate(node_ids):
+            layout[nid] = (float(positions[i, 0]), float(positions[i, 1]))
+
+        return layout
+
+    def _classical_mds(self, dist: np.ndarray, width: int, height: int) -> np.ndarray:
+        """
+        Classical (metric) MDS using eigendecomposition.
+
+        Args:
+            dist: Distance matrix (n x n)
+            width: Target width
+            height: Target height
+
+        Returns:
+            Positions array (n x 2)
+        """
+        n = dist.shape[0]
+
+        if n <= 2:
+            # Trivial cases
+            if n == 1:
+                return np.array([[width / 2, height / 2]])
+            else:
+                return np.array([[width * 0.3, height / 2], [width * 0.7, height / 2]])
+
+        # Double centering
+        D_sq = dist ** 2
+        row_mean = np.mean(D_sq, axis=1, keepdims=True)
+        col_mean = np.mean(D_sq, axis=0, keepdims=True)
+        total_mean = np.mean(D_sq)
+        B = -0.5 * (D_sq - row_mean - col_mean + total_mean)
+
+        # Eigendecomposition
+        try:
+            eigenvalues, eigenvectors = np.linalg.eigh(B)
+        except np.linalg.LinAlgError:
+            # Fallback to random layout
+            logger.warning("MDS eigendecomposition failed, using random layout")
+            return np.column_stack([
+                np.random.uniform(50, width - 50, n),
+                np.random.uniform(50, height - 50, n)
+            ])
+
+        # Sort by eigenvalue descending
+        idx = np.argsort(eigenvalues)[::-1]
+        eigenvalues = eigenvalues[idx]
+        eigenvectors = eigenvectors[:, idx]
+
+        # Take top 2 positive eigenvalues
+        pos_mask = eigenvalues > 1e-10
+        if np.sum(pos_mask) < 2:
+            # Not enough positive eigenvalues, use what we have
+            logger.warning("MDS: fewer than 2 positive eigenvalues")
+            eigenvalues = np.abs(eigenvalues[:2]) + 1e-10
+            eigenvectors = eigenvectors[:, :2]
+        else:
+            eigenvalues = eigenvalues[:2]
+            eigenvectors = eigenvectors[:, :2]
+
+        # Compute positions
+        positions = eigenvectors * np.sqrt(eigenvalues)
+
+        # Scale to fit canvas with padding
+        padding = 50
+        x_min, x_max = positions[:, 0].min(), positions[:, 0].max()
+        y_min, y_max = positions[:, 1].min(), positions[:, 1].max()
+
+        x_range = x_max - x_min if x_max > x_min else 1
+        y_range = y_max - y_min if y_max > y_min else 1
+
+        positions[:, 0] = padding + (positions[:, 0] - x_min) / x_range * (width - 2 * padding)
+        positions[:, 1] = padding + (positions[:, 1] - y_min) / y_range * (height - 2 * padding)
+
+        return positions
 
 
 # =============================================================================

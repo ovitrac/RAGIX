@@ -52,6 +52,24 @@ class RiskScorerConfig(BaseModel):
 # Timeline Endpoints
 # =============================================================================
 
+def _get_source_path(project_path: Path) -> Path:
+    """
+    Get the source path for a project, handling multi-module Maven structures.
+
+    For projects like SIAS where src/ exists but contains no code,
+    scans from project root instead.
+    """
+    src_path = project_path / "src"
+    if src_path.exists():
+        # Check if src has Java files
+        java_in_src = list(src_path.rglob("*.java"))[:1]
+        if not java_in_src:
+            # Multi-module project: scan from root
+            return project_path
+        return src_path
+    return project_path
+
+
 @router.get("/timeline")
 async def get_timeline(
     project_path: Optional[str] = Query(None, description="Project path"),
@@ -74,7 +92,7 @@ async def get_timeline(
 
     try:
         scanner = TimelineScanner()
-        src_path = Path(path) / "src" if (Path(path) / "src").exists() else Path(path)
+        src_path = _get_source_path(Path(path))
         scanner.scan_directory(src_path)
         timelines = scanner.build_component_timelines()
 
@@ -136,7 +154,7 @@ async def get_risk_analysis(
     try:
         # Get timelines
         scanner = TimelineScanner()
-        src_path = Path(path) / "src" if (Path(path) / "src").exists() else Path(path)
+        src_path = _get_source_path(Path(path))
         scanner.scan_directory(src_path)
         timelines = scanner.build_component_timelines()
 
@@ -241,7 +259,7 @@ async def get_drift_analysis(
     try:
         # Get timelines
         scanner = TimelineScanner()
-        src_path = Path(path) / "src" if (Path(path) / "src").exists() else Path(path)
+        src_path = _get_source_path(Path(path))
         scanner.scan_directory(src_path)
         timelines = scanner.build_component_timelines()
 

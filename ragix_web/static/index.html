@@ -830,6 +830,27 @@
             font-weight: 600;
             color: var(--accent-color);
         }
+        .settings-row textarea {
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 12px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            resize: vertical;
+        }
+        .settings-row select {
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+        }
 
         /* Report Section */
         .audit-report-options {
@@ -1732,6 +1753,7 @@
             <button class="nav-tab" data-tab="ast">AST Analysis</button>
             <button class="nav-tab" data-tab="rag">Project RAG</button>
             <button class="nav-tab" data-tab="audit">Audit</button>
+            <button class="nav-tab" data-tab="partitioner">Partitioner</button>
             <button class="nav-tab" data-tab="logs">Logs</button>
         </nav>
 
@@ -2454,6 +2476,18 @@
                         </div>
                     </div>
 
+                    <h3 style="margin-top: 24px;">Codebase Partitioning <span class="badge-new">v0.55</span></h3>
+                    <div class="viz-cards">
+                        <div class="viz-card viz-card-featured" onclick="astApp.openPartitioner()">
+                            <h3><span class="viz-icon">&#9995;</span> Partitioner</h3>
+                            <p>Separate codebase into logical applications (App A, App B, Shared, Dead Code) with force-directed visualization.</p>
+                        </div>
+                        <div class="viz-card" onclick="astApp.openPartitioner()">
+                            <h3><span class="viz-icon">&#128202;</span> Export Results</h3>
+                            <p>Export partition assignments in JSON, CSV, or XLSX format with file paths and line numbers.</p>
+                        </div>
+                    </div>
+
                     <h3 style="margin-top: 24px;">Build & Quality Tools</h3>
                     <div class="viz-cards">
                         <div class="viz-card" onclick="astApp.openMaven()">
@@ -2625,6 +2659,166 @@
                             <div class="tracker-file-methods" id="trackerFileMethods">
                                 <h4>Methods in this file</h4>
                                 <div class="methods-list" id="trackerMethodsList"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Codebase Partitioner Section (v0.55) -->
+                    <div id="partitionerSection" class="partitioner-section" style="display: none;">
+                        <div class="partitioner-header">
+                            <h3><span class="partitioner-icon">&#129513;</span> Codebase Partitioner</h3>
+                            <div class="partitioner-actions">
+                                <button class="btn btn-sm" onclick="partitionerApp.runPartition()">Run Partition</button>
+                                <button class="btn btn-sm btn-icon" onclick="partitionerApp.toggleFullscreen()" title="Fullscreen">&#9974;</button>
+                            </div>
+                        </div>
+
+                        <!-- Configuration Panel -->
+                        <div class="partitioner-config" id="partitionerConfig">
+                            <div class="config-row">
+                                <label>Preset:</label>
+                                <select id="partitionPreset" onchange="partitionerApp.loadPreset()">
+                                    <option value="">Custom Configuration</option>
+                                    <option value="sias_ticc">SIAS/TICC (GRDF Pattern)</option>
+                                    <option value="generic_two_apps">Generic Two Apps</option>
+                                    <option value="generic_three_apps">Generic Three Apps</option>
+                                </select>
+                                <button class="btn btn-sm" onclick="partitionerApp.addApplication()">+ Add App</button>
+                            </div>
+
+                            <!-- Application Configurations -->
+                            <div class="applications-config" id="applicationsConfig">
+                                <!-- App A -->
+                                <div class="app-config-card" data-app-index="0">
+                                    <div class="app-config-header">
+                                        <input type="text" class="app-name-input" value="APP_A" placeholder="App Name">
+                                        <input type="color" class="app-color-input" value="#3498db" title="App Color">
+                                        <button class="btn btn-sm btn-icon btn-danger" onclick="partitionerApp.removeApplication(0)" title="Remove">&#10005;</button>
+                                    </div>
+                                    <div class="app-patterns">
+                                        <div class="pattern-group">
+                                            <label>Package Patterns:</label>
+                                            <textarea class="pattern-input package-patterns" placeholder="*app_a*&#10;*module_a*&#10;*service_a*" rows="3"></textarea>
+                                        </div>
+                                        <div class="pattern-group">
+                                            <label>Class Patterns:</label>
+                                            <textarea class="pattern-input class-patterns" placeholder="*AppA*&#10;*ModuleA*" rows="2"></textarea>
+                                        </div>
+                                        <div class="pattern-group">
+                                            <label>Keywords:</label>
+                                            <textarea class="pattern-input keyword-patterns" placeholder="app_a&#10;module_a" rows="2"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- App B -->
+                                <div class="app-config-card" data-app-index="1">
+                                    <div class="app-config-header">
+                                        <input type="text" class="app-name-input" value="APP_B" placeholder="App Name">
+                                        <input type="color" class="app-color-input" value="#e74c3c" title="App Color">
+                                        <button class="btn btn-sm btn-icon btn-danger" onclick="partitionerApp.removeApplication(1)" title="Remove">&#10005;</button>
+                                    </div>
+                                    <div class="app-patterns">
+                                        <div class="pattern-group">
+                                            <label>Package Patterns:</label>
+                                            <textarea class="pattern-input package-patterns" placeholder="*app_b*&#10;*module_b*&#10;*service_b*" rows="3"></textarea>
+                                        </div>
+                                        <div class="pattern-group">
+                                            <label>Class Patterns:</label>
+                                            <textarea class="pattern-input class-patterns" placeholder="*AppB*&#10;*ModuleB*" rows="2"></textarea>
+                                        </div>
+                                        <div class="pattern-group">
+                                            <label>Keywords:</label>
+                                            <textarea class="pattern-input keyword-patterns" placeholder="app_b&#10;module_b" rows="2"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Shared Patterns -->
+                            <div class="shared-config">
+                                <label>Shared Patterns (common libraries, utilities):</label>
+                                <textarea id="sharedPatterns" class="pattern-input" rows="2" placeholder="*common*&#10;*util*&#10;*shared*&#10;*dto*&#10;*entity*">*common*
+*util*
+*shared*
+*dto*
+*entity*
+*model*
+*config*</textarea>
+                            </div>
+
+                            <!-- Advanced Options -->
+                            <div class="advanced-options">
+                                <details>
+                                    <summary>Advanced Options</summary>
+                                    <div class="option-row">
+                                        <label>Propagation Iterations:</label>
+                                        <input type="number" id="propagationIterations" value="5" min="1" max="20">
+                                    </div>
+                                    <div class="option-row">
+                                        <label>Confidence Threshold:</label>
+                                        <input type="number" id="confidenceThreshold" value="0.6" min="0" max="1" step="0.1">
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+
+                        <!-- Results Summary -->
+                        <div class="partitioner-summary" id="partitionerSummary" style="display: none;">
+                            <div class="summary-stats">
+                                <div class="summary-stat">
+                                    <span class="stat-label">Total Classes</span>
+                                    <span class="stat-value" id="partTotalClasses">-</span>
+                                </div>
+                                <div class="summary-stat">
+                                    <span class="stat-label">Coverage</span>
+                                    <span class="stat-value" id="partCoverage">-</span>
+                                </div>
+                                <div class="summary-stat">
+                                    <span class="stat-label">Cross-Partition</span>
+                                    <span class="stat-value" id="partCrossEdges">-</span>
+                                </div>
+                                <div class="summary-stat">
+                                    <span class="stat-label">Coupling</span>
+                                    <span class="stat-value" id="partCoupling">-</span>
+                                </div>
+                            </div>
+                            <div class="partition-badges" id="partitionBadges">
+                                <!-- Dynamically generated badges -->
+                            </div>
+                        </div>
+
+                        <!-- Force-Directed Visualization -->
+                        <div class="partitioner-graph" id="partitionerGraph">
+                            <div class="graph-controls">
+                                <button class="btn btn-sm" onclick="partitionerApp.resetGraph()">Reset View</button>
+                                <button class="btn btn-sm" onclick="partitionerApp.toggleSimulation()">Pause/Resume</button>
+                                <label class="control-label">
+                                    <input type="checkbox" id="showCrossOnly" onchange="partitionerApp.toggleCrossPartition()">
+                                    Show Cross-Partition Only
+                                </label>
+                            </div>
+                            <div class="graph-container" id="partitionGraphContainer">
+                                <svg id="partitionGraphSvg"></svg>
+                            </div>
+                            <div class="graph-legend" id="partitionLegend">
+                                <!-- Dynamically generated legend -->
+                            </div>
+                        </div>
+
+                        <!-- Class Lists (Accordion) -->
+                        <div class="partitioner-lists" id="partitionerLists">
+                            <div class="lists-header">
+                                <h4>Class Assignments</h4>
+                                <div class="export-buttons">
+                                    <button class="btn btn-sm" onclick="partitionerApp.exportResults('json')">Export JSON</button>
+                                    <button class="btn btn-sm" onclick="partitionerApp.exportResults('csv')">Export CSV</button>
+                                    <button class="btn btn-sm" onclick="partitionerApp.exportResults('xlsx')">Export XLSX</button>
+                                </div>
+                            </div>
+                            <div class="partition-accordion" id="partitionAccordion">
+                                <!-- Dynamically generated accordions for each partition -->
+                                <div class="partition-empty">Run partition analysis to see results.</div>
                             </div>
                         </div>
                     </div>
@@ -2948,11 +3142,306 @@
                                         <span id="settingWeightTotal">1.00</span>
                                     </div>
                                 </div>
+                                <div class="settings-section">
+                                    <h4>Service Detection Patterns</h4>
+                                    <p class="settings-note">Regex patterns to identify services in code (one per line)</p>
+                                    <div class="settings-row">
+                                        <label>Service ID Patterns:</label>
+                                        <textarea id="settingServicePatterns" rows="4" placeholder="SK\d{2}&#10;SC\d{2}&#10;spre\d{2}">SK\d{2}
+SC\d{2}
+SG\d{2}
+spre\d{2}(?:ws)?
+sprebpm(?:ws)?
+spremail</textarea>
+                                        <span class="settings-hint">Matches: SK01, SC02, spre28ws, sprebpm, etc.</span>
+                                    </div>
+                                    <div class="settings-row">
+                                        <label>Package Patterns:</label>
+                                        <textarea id="settingPackagePatterns" rows="3" placeholder="fr\.iowizmi\.iok\.sk&#10;com\.grdf\..*\.ws\.spre">fr\.iowizmi\.iok\.sk
+fr\.iowizmi\.iok\.sc
+fr\.iowizmi\.iok\.sg
+com\.grdf\..*\.ws\.spre
+com\.grdf\..*\.jms\.spre</textarea>
+                                        <span class="settings-hint">Java package patterns for service detection</span>
+                                    </div>
+                                    <div class="settings-row">
+                                        <label>Presets:</label>
+                                        <select id="settingPatternPreset" onchange="auditApp.loadPatternPreset()">
+                                            <option value="">Custom</option>
+                                            <option value="iowizme">IOWIZME (SK/SC/SG)</option>
+                                            <option value="sias_grdf">SIAS/GRDF (spre##)</option>
+                                            <option value="combined">Combined (All patterns)</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                             <div class="audit-modal-footer">
                                 <button class="btn" onclick="auditApp.resetSettings()">Reset Defaults</button>
                                 <button class="btn btn-primary" onclick="auditApp.saveSettings()">Save & Apply</button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Partitioner Tab (v0.55) -->
+            <div id="partitionerTab" class="tab-content">
+                <div class="partitioner-panel">
+                    <div class="partitioner-tab-header">
+                        <div class="partitioner-title-row">
+                            <h2><span class="partitioner-icon">&#129513;</span> Codebase Partitioner</h2>
+                            <span class="badge-new">v0.55</span>
+                        </div>
+                        <p class="partitioner-subtitle">Separate Java codebases into logical applications using fingerprint-based classification</p>
+                    </div>
+
+                    <!-- Project Selection -->
+                    <div class="partitioner-project-section">
+                        <div class="partitioner-project-row">
+                            <label>Project Path:</label>
+                            <input type="text" id="partitionerProjectPath" placeholder="Enter project path..." />
+                            <button class="btn btn-icon" onclick="folderBrowser.open('partitionerProjectPath')" title="Browse folders">&#128193;</button>
+                            <button class="btn btn-primary" onclick="partitionerApp.initTab()">Load & Configure</button>
+                        </div>
+                    </div>
+
+                    <!-- Two-Column Layout: Config + Graph -->
+                    <div class="partitioner-main-layout">
+                        <!-- Left: Configuration Panel -->
+                        <div class="partitioner-config-panel">
+                            <div class="config-section">
+                                <div class="config-section-header">
+                                    <h3>Configuration</h3>
+                                    <select id="partitionPresetTab" onchange="partitionerApp.loadPresetTab()">
+                                        <option value="">Custom Configuration</option>
+                                        <option value="sias_ticc">SIAS/TICC (GRDF Pattern)</option>
+                                        <option value="generic_two_apps">Generic Two Apps</option>
+                                        <option value="generic_three_apps">Generic Three Apps</option>
+                                    </select>
+                                </div>
+
+                                <!-- Applications List -->
+                                <div class="apps-list" id="appsListTab">
+                                    <!-- App A -->
+                                    <div class="app-config-item" data-app-index="0">
+                                        <div class="app-header">
+                                            <span class="app-color-dot" style="background: #3498db;"></span>
+                                            <input type="text" class="app-name-input" value="APP_A" placeholder="App Name">
+                                            <input type="color" class="app-color-input" value="#3498db">
+                                            <button class="btn btn-icon btn-sm btn-danger" onclick="partitionerApp.removeAppTab(0)">&#10005;</button>
+                                        </div>
+                                        <div class="app-patterns-compact">
+                                            <div class="pattern-field">
+                                                <span class="pattern-label">Pkg:</span>
+                                                <input type="text" class="package-patterns" placeholder="*app_a*, *module_a*">
+                                            </div>
+                                            <div class="pattern-field">
+                                                <span class="pattern-label">Class:</span>
+                                                <input type="text" class="class-patterns" placeholder="*AppA*, *ServiceA*">
+                                            </div>
+                                            <div class="pattern-field">
+                                                <span class="pattern-label">Keys:</span>
+                                                <input type="text" class="keyword-patterns" placeholder="app_a, module_a">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- App B -->
+                                    <div class="app-config-item" data-app-index="1">
+                                        <div class="app-header">
+                                            <span class="app-color-dot" style="background: #e74c3c;"></span>
+                                            <input type="text" class="app-name-input" value="APP_B" placeholder="App Name">
+                                            <input type="color" class="app-color-input" value="#e74c3c">
+                                            <button class="btn btn-icon btn-sm btn-danger" onclick="partitionerApp.removeAppTab(1)">&#10005;</button>
+                                        </div>
+                                        <div class="app-patterns-compact">
+                                            <div class="pattern-field">
+                                                <span class="pattern-label">Pkg:</span>
+                                                <input type="text" class="package-patterns" placeholder="*app_b*, *module_b*">
+                                            </div>
+                                            <div class="pattern-field">
+                                                <span class="pattern-label">Class:</span>
+                                                <input type="text" class="class-patterns" placeholder="*AppB*, *ServiceB*">
+                                            </div>
+                                            <div class="pattern-field">
+                                                <span class="pattern-label">Keys:</span>
+                                                <input type="text" class="keyword-patterns" placeholder="app_b, module_b">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button class="btn btn-sm btn-add-app" onclick="partitionerApp.addAppTab()">+ Add Application</button>
+
+                                <!-- Shared Patterns -->
+                                <div class="shared-patterns-section">
+                                    <label>Shared Patterns (common libraries):</label>
+                                    <input type="text" id="sharedPatternsTab" value="*common*, *util*, *shared*, *dto*, *entity*, *model*, *config*" placeholder="*common*, *util*, *shared*">
+                                </div>
+
+                                <!-- Force Tuning (Phase Separation) -->
+                                <div class="force-tuning-section">
+                                    <h4>Force Tuning <span class="help-icon" title="Adjust forces to control node separation and clustering">&#9432;</span></h4>
+                                    <div class="force-sliders">
+                                        <div class="force-slider-row">
+                                            <label>Repulsion (Separation):</label>
+                                            <input type="range" id="forceRepulsion" min="-500" max="-10" value="-100" oninput="partitionerApp.updateForces()">
+                                            <span id="forceRepulsionVal">-100</span>
+                                        </div>
+                                        <div class="force-slider-row">
+                                            <label>Link Distance:</label>
+                                            <input type="range" id="forceLinkDist" min="10" max="200" value="50" oninput="partitionerApp.updateForces()">
+                                            <span id="forceLinkDistVal">50</span>
+                                        </div>
+                                        <div class="force-slider-row">
+                                            <label>Link Strength:</label>
+                                            <input type="range" id="forceLinkStr" min="0" max="1" step="0.05" value="0.3" oninput="partitionerApp.updateForces()">
+                                            <span id="forceLinkStrVal">0.3</span>
+                                        </div>
+                                        <div class="force-slider-row">
+                                            <label>Center Gravity:</label>
+                                            <input type="range" id="forceCenterGravity" min="0" max="0.5" step="0.01" value="0.1" oninput="partitionerApp.updateForces()">
+                                            <span id="forceCenterGravityVal">0.1</span>
+                                        </div>
+                                        <div class="force-slider-row">
+                                            <label>Collision Radius:</label>
+                                            <input type="range" id="forceCollision" min="0" max="30" value="5" oninput="partitionerApp.updateForces()">
+                                            <span id="forceCollisionVal">5</span>
+                                        </div>
+                                    </div>
+                                    <div class="force-presets">
+                                        <button class="btn btn-xs" onclick="partitionerApp.applyForcePreset('separated')">Separated</button>
+                                        <button class="btn btn-xs" onclick="partitionerApp.applyForcePreset('clustered')">Clustered</button>
+                                        <button class="btn btn-xs" onclick="partitionerApp.applyForcePreset('balanced')">Balanced</button>
+                                    </div>
+                                </div>
+
+                                <!-- Advanced Options -->
+                                <details class="advanced-options-tab">
+                                    <summary>Advanced Options</summary>
+                                    <div class="option-row">
+                                        <label>Propagation Iterations:</label>
+                                        <input type="number" id="propagationIterationsTab" value="5" min="1" max="20">
+                                    </div>
+                                    <div class="option-row">
+                                        <label>Confidence Threshold:</label>
+                                        <input type="number" id="confidenceThresholdTab" value="0.6" min="0" max="1" step="0.1">
+                                    </div>
+                                </details>
+
+                                <!-- Run Button -->
+                                <button type="button" class="btn btn-primary btn-run-partition" onclick="console.log('Button clicked'); partitionerApp.runPartitionTab();">
+                                    <span class="btn-icon-left">&#9881;</span> Run Partition Analysis
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Right: Visualization Panel -->
+                        <div class="partitioner-viz-panel">
+                            <!-- Summary Bar -->
+                            <div class="partition-summary-bar" id="partitionSummaryBar" style="display: none;">
+                                <div class="summary-item">
+                                    <span class="summary-label">Classes:</span>
+                                    <span class="summary-value" id="partSummaryClasses">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Coverage:</span>
+                                    <span class="summary-value" id="partSummaryCoverage">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Cross-edges:</span>
+                                    <span class="summary-value" id="partSummaryCross">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Coupling:</span>
+                                    <span class="summary-value" id="partSummaryCoupling">-</span>
+                                </div>
+                            </div>
+
+                            <!-- Partition Filter Bar (Show/Hide partitions - all visible by default) -->
+                            <div class="partition-filter-bar" id="partitionFilterBar" style="display: none;">
+                                <span class="filter-label">Show/Hide:</span>
+                                <div class="filter-buttons" id="partitionFilterButtons"></div>
+                                <label class="toolbar-checkbox">
+                                    <input type="checkbox" id="showConnectionsTab" checked onchange="partitionerApp.toggleConnections()">
+                                    Connections
+                                </label>
+                                <span class="toolbar-divider"></span>
+                                <input type="text" id="partitionSearchInput" placeholder="Search classes..." class="toolbar-search" oninput="partitionerApp.setSearchTerm(this.value)">
+                            </div>
+
+                            <!-- Graph Toolbar -->
+                            <div class="graph-toolbar">
+                                <div class="toolbar-left">
+                                    <button class="btn btn-icon btn-sm" onclick="partitionerApp.zoomIn()" title="Zoom In">&#43;</button>
+                                    <button class="btn btn-icon btn-sm" onclick="partitionerApp.zoomOut()" title="Zoom Out">&#8722;</button>
+                                    <button class="btn btn-icon btn-sm" onclick="partitionerApp.resetZoom()" title="Reset View">&#8634;</button>
+                                    <button class="btn btn-icon btn-sm" onclick="partitionerApp.fitToView()" title="Fit to View">&#9633;</button>
+                                    <span class="toolbar-divider"></span>
+                                    <button class="btn btn-icon btn-sm" onclick="partitionerApp.toggleSimulationTab()" title="Pause/Resume" id="simToggleBtn">&#9208;</button>
+                                    <button class="btn btn-icon btn-sm" onclick="partitionerApp.reheatSimulation()" title="Reheat Simulation">&#128293;</button>
+                                </div>
+                                <div class="toolbar-center">
+                                    <label class="toolbar-checkbox">
+                                        <input type="checkbox" id="showCrossOnlyTab" onchange="partitionerApp.toggleCrossPartitionTab()">
+                                        Cross-partition only
+                                    </label>
+                                    <label class="toolbar-checkbox">
+                                        <input type="checkbox" id="showLabelsTab" onchange="partitionerApp.toggleLabels()">
+                                        Labels (auto on zoom)
+                                    </label>
+                                </div>
+                                <div class="toolbar-right">
+                                    <button class="btn btn-sm" onclick="partitionerApp.exportSVG()">Export SVG</button>
+                                    <button class="btn btn-sm" onclick="partitionerApp.exportPNG()">Export PNG</button>
+                                    <button class="btn btn-icon btn-sm" onclick="partitionerApp.toggleFullscreenTab()" title="Fullscreen">&#9974;</button>
+                                </div>
+                            </div>
+
+                            <!-- Graph Container -->
+                            <div class="graph-viz-container" id="partitionGraphVizContainer">
+                                <svg id="partitionGraphSvgTab"></svg>
+                                <!-- Legend overlay -->
+                                <div class="graph-legend-overlay" id="partitionLegendTab"></div>
+                                <!-- Tooltip -->
+                                <div class="partition-tooltip-tab" id="partitionTooltipTab" style="display: none;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom: Results Panel (Accordion + Export) -->
+                    <div class="partitioner-results-panel" id="partitionerResultsPanel" style="display: none;">
+                        <div class="results-header">
+                            <h3>Class Assignments</h3>
+                            <div class="export-buttons">
+                                <button class="btn btn-sm" onclick="partitionerApp.exportResultsTab('json')">Export JSON</button>
+                                <button class="btn btn-sm" onclick="partitionerApp.exportResultsTab('csv')">Export CSV</button>
+                            </div>
+                        </div>
+                        <div class="results-accordion" id="partitionAccordionTab">
+                            <div class="partition-empty">Run partition analysis to see results.</div>
+                        </div>
+                    </div>
+
+                    <!-- File Preview Pane (like Audit tab) -->
+                    <div class="partitioner-preview-pane" id="partitionerPreviewPane" style="display: none;">
+                        <div class="preview-header">
+                            <h4 id="previewFileName">File Preview</h4>
+                            <button class="btn btn-icon btn-sm" onclick="partitionerApp.closePreview()">&#10005;</button>
+                        </div>
+                        <div class="preview-info">
+                            <span class="info-badge">LOC: <strong id="previewLOC">0</strong></span>
+                            <span class="info-badge">Partition: <strong id="previewPartition">-</strong></span>
+                            <span class="info-badge">Confidence: <strong id="previewConfidence">-</strong></span>
+                        </div>
+                        <div class="preview-evidence" id="previewEvidence"></div>
+                        <div class="preview-line-nav">
+                            <label>Line: <span id="previewLineNum">1</span></label>
+                            <input type="range" id="previewLineSlider" min="1" max="1" value="1" oninput="partitionerApp.goToLine(this.value)">
+                            <input type="number" id="previewLineInput" min="1" value="1" style="width: 60px;" onchange="partitionerApp.goToLine(this.value)">
+                        </div>
+                        <div class="preview-body" id="previewBodyContainer">
+                            <pre><code id="previewCode"></code></pre>
                         </div>
                     </div>
                 </div>
@@ -3980,6 +4469,16 @@
                 this.showViz(`/api/ast/cycles/page?path=${encodeURIComponent(path)}`, 'Cycles Detection');
             },
 
+            openPartitioner() {
+                const path = this.getPath();
+                if (!path) { alert('Please enter a project path first'); return; }
+                // Show the partitioner section
+                document.getElementById('partitionerSection').style.display = 'block';
+                document.getElementById('partitionerSection').scrollIntoView({ behavior: 'smooth' });
+                // Initialize partitioner app
+                partitionerApp.init(path);
+            },
+
             openMaven() {
                 const path = this.getPath();
                 if (!path) { alert('Please enter a project path first'); return; }
@@ -4399,6 +4898,1592 @@
                           .replace(/</g, '&lt;')
                           .replace(/>/g, '&gt;')
                           .replace(/"/g, '&quot;');
+            }
+        };
+
+        // =================================================================
+        // Partitioner Application (v0.55)
+        // =================================================================
+        const partitionerApp = {
+            projectPath: null,
+            partitionData: null,
+            simulation: null,
+            presets: {},
+
+            async init(path) {
+                this.projectPath = path;
+                // Load presets
+                await this.loadPresets();
+            },
+
+            async loadPresets() {
+                try {
+                    const resp = await fetch('/api/ast/partition/presets');
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        this.presets = data.presets || {};
+                    }
+                } catch (e) {
+                    console.error('Failed to load partition presets:', e);
+                }
+            },
+
+            loadPreset() {
+                const presetSelect = document.getElementById('partitionPreset');
+                const presetName = presetSelect.value;
+
+                if (!presetName || !this.presets[presetName]) {
+                    return;
+                }
+
+                const preset = this.presets[presetName];
+                const config = preset.config;
+
+                // Clear existing app cards
+                const appsContainer = document.getElementById('applicationsConfig');
+                appsContainer.innerHTML = '';
+
+                // Create app cards from preset
+                config.applications.forEach((app, index) => {
+                    this.createAppCard(appsContainer, app, index);
+                });
+
+                // Update shared patterns
+                document.getElementById('sharedPatterns').value = config.shared_patterns.join('\n');
+
+                // Update advanced options
+                if (config.propagation_iterations) {
+                    document.getElementById('propagationIterations').value = config.propagation_iterations;
+                }
+                if (config.confidence_threshold) {
+                    document.getElementById('confidenceThreshold').value = config.confidence_threshold;
+                }
+            },
+
+            createAppCard(container, appData, index) {
+                const card = document.createElement('div');
+                card.className = 'app-config-card';
+                card.dataset.appIndex = index;
+
+                card.innerHTML = `
+                    <div class="app-config-header">
+                        <input type="text" class="app-name-input" value="${appData.app_id || 'APP_' + (index + 1)}" placeholder="App Name">
+                        <input type="color" class="app-color-input" value="${appData.color || '#3498db'}" title="App Color">
+                        <button class="btn btn-sm btn-icon btn-danger" onclick="partitionerApp.removeApplication(${index})" title="Remove">&#10005;</button>
+                    </div>
+                    <div class="app-patterns">
+                        <div class="pattern-group">
+                            <label>Package Patterns:</label>
+                            <textarea class="pattern-input package-patterns" placeholder="*app*" rows="3">${(appData.package_patterns || []).join('\n')}</textarea>
+                        </div>
+                        <div class="pattern-group">
+                            <label>Class Patterns:</label>
+                            <textarea class="pattern-input class-patterns" placeholder="*Class*" rows="2">${(appData.class_patterns || []).join('\n')}</textarea>
+                        </div>
+                        <div class="pattern-group">
+                            <label>Keywords:</label>
+                            <textarea class="pattern-input keyword-patterns" placeholder="keyword" rows="2">${(appData.keyword_patterns || []).join('\n')}</textarea>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            },
+
+            addApplication() {
+                const container = document.getElementById('applicationsConfig');
+                const existingCards = container.querySelectorAll('.app-config-card');
+                const newIndex = existingCards.length;
+
+                const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'];
+                const color = colors[newIndex % colors.length];
+
+                this.createAppCard(container, {
+                    app_id: 'APP_' + String.fromCharCode(65 + newIndex),
+                    color: color,
+                    package_patterns: [],
+                    class_patterns: [],
+                    keyword_patterns: []
+                }, newIndex);
+            },
+
+            removeApplication(index) {
+                const cards = document.querySelectorAll('.app-config-card');
+                if (cards.length <= 2) {
+                    alert('At least 2 applications are required for partitioning.');
+                    return;
+                }
+                if (cards[index]) {
+                    cards[index].remove();
+                }
+            },
+
+            getConfig() {
+                const applications = [];
+                const cards = document.querySelectorAll('.app-config-card');
+
+                cards.forEach(card => {
+                    const appId = card.querySelector('.app-name-input').value.trim() || 'APP';
+                    const color = card.querySelector('.app-color-input').value;
+
+                    const parsePatterns = (textarea) => {
+                        return textarea.value.split('\n')
+                            .map(s => s.trim())
+                            .filter(s => s.length > 0);
+                    };
+
+                    applications.push({
+                        app_id: appId,
+                        color: color,
+                        package_patterns: parsePatterns(card.querySelector('.package-patterns')),
+                        class_patterns: parsePatterns(card.querySelector('.class-patterns')),
+                        keyword_patterns: parsePatterns(card.querySelector('.keyword-patterns')),
+                        annotation_patterns: [],
+                        entry_point_patterns: []
+                    });
+                });
+
+                const sharedPatterns = document.getElementById('sharedPatterns').value.split('\n')
+                    .map(s => s.trim())
+                    .filter(s => s.length > 0);
+
+                return {
+                    applications: applications,
+                    shared_patterns: sharedPatterns,
+                    propagation_iterations: parseInt(document.getElementById('propagationIterations').value) || 5,
+                    confidence_threshold: parseFloat(document.getElementById('confidenceThreshold').value) || 0.6
+                };
+            },
+
+            async runPartition() {
+                if (!this.projectPath) {
+                    alert('No project path set');
+                    return;
+                }
+
+                const config = this.getConfig();
+
+                // Show loading state
+                const accordion = document.getElementById('partitionAccordion');
+                accordion.innerHTML = '<div class="partition-empty">Running partition analysis...</div>';
+
+                try {
+                    const resp = await fetch('/api/ast/partition', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            path: this.projectPath,
+                            config: config
+                        })
+                    });
+
+                    if (!resp.ok) {
+                        const error = await resp.text();
+                        throw new Error(error);
+                    }
+
+                    const data = await resp.json();
+                    this.partitionData = data;
+
+                    // Show summary
+                    this.displaySummary(data);
+
+                    // Build accordion
+                    this.displayAccordion(data);
+
+                    // Build graph
+                    this.buildGraph(data);
+
+                } catch (e) {
+                    console.error('Partition error:', e);
+                    accordion.innerHTML = `<div class="partition-empty" style="color: var(--accent-red);">Error: ${e.message}</div>`;
+                }
+            },
+
+            displaySummary(data) {
+                const summary = document.getElementById('partitionerSummary');
+                summary.style.display = 'block';
+
+                document.getElementById('partTotalClasses').textContent = data.total_classes || 0;
+                document.getElementById('partCoverage').textContent = ((data.coverage || 0) * 100).toFixed(1) + '%';
+                document.getElementById('partCrossEdges').textContent = data.cross_partition_edges || 0;
+                document.getElementById('partCoupling').textContent = ((data.coupling_density || 0) * 100).toFixed(2) + '%';
+
+                // Build badges
+                const badgesEl = document.getElementById('partitionBadges');
+                const colorMap = {
+                    'UNKNOWN': '#95a5a6',
+                    'SHARED': '#9b59b6',
+                    'DEAD_CODE': '#2c3e50'
+                };
+
+                // Get colors from config
+                if (data.config && data.config.applications) {
+                    data.config.applications.forEach(app => {
+                        colorMap[app.app_id] = app.color;
+                    });
+                }
+
+                let badgesHtml = '';
+                for (const [label, count] of Object.entries(data.summary || {})) {
+                    const color = colorMap[label] || '#95a5a6';
+                    badgesHtml += `
+                        <div class="partition-badge">
+                            <span class="badge-color" style="background: ${color}"></span>
+                            <span>${label}</span>
+                            <span class="badge-count">${count}</span>
+                        </div>
+                    `;
+                }
+                badgesEl.innerHTML = badgesHtml;
+            },
+
+            displayAccordion(data) {
+                const accordion = document.getElementById('partitionAccordion');
+
+                // Group by partition
+                const groups = {};
+                for (const [fqn, assignment] of Object.entries(data.assignments || {})) {
+                    const label = assignment.label;
+                    if (!groups[label]) groups[label] = [];
+                    groups[label].push({ fqn, ...assignment });
+                }
+
+                // Color map
+                const colorMap = {
+                    'UNKNOWN': '#95a5a6',
+                    'SHARED': '#9b59b6',
+                    'DEAD_CODE': '#2c3e50'
+                };
+                if (data.config && data.config.applications) {
+                    data.config.applications.forEach(app => {
+                        colorMap[app.app_id] = app.color;
+                    });
+                }
+
+                // Sort by count
+                const sorted = Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+
+                let html = '';
+                sorted.forEach(([label, classes]) => {
+                    const color = colorMap[label] || '#95a5a6';
+                    html += `
+                        <div class="accordion-item">
+                            <div class="accordion-header" onclick="partitionerApp.toggleAccordion(this)">
+                                <div class="accordion-title">
+                                    <span class="accordion-color" style="background: ${color}"></span>
+                                    <span>${label} (${classes.length} classes)</span>
+                                </div>
+                                <span class="accordion-arrow">&#9654;</span>
+                            </div>
+                            <div class="accordion-content">
+                                <div class="class-list">
+                                    ${classes.slice(0, 100).map(c => `
+                                        <div class="class-item" onclick="partitionerApp.showClassDetails('${c.fqn}')" title="${c.fqn}">
+                                            <span class="class-name">${c.fqn.split('.').pop()}</span>
+                                            <span class="class-confidence ${c.confidence > 0.8 ? 'high' : c.confidence > 0.5 ? 'medium' : 'low'}">${(c.confidence * 100).toFixed(0)}%</span>
+                                        </div>
+                                    `).join('')}
+                                    ${classes.length > 100 ? `<div class="class-item" style="color: var(--text-secondary); font-style: italic;">...and ${classes.length - 100} more</div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                accordion.innerHTML = html || '<div class="partition-empty">No results</div>';
+            },
+
+            toggleAccordion(header) {
+                const item = header.parentElement;
+                item.classList.toggle('open');
+            },
+
+            showClassDetails(fqn) {
+                // Find node in data
+                const node = this.partitionData?.nodes?.find(n => n.id === fqn);
+                const assignment = this.partitionData?.assignments?.[fqn];
+
+                if (!node || !assignment) return;
+
+                // Simple alert for now, could be a modal
+                let details = `Class: ${fqn}\n`;
+                details += `Partition: ${assignment.label}\n`;
+                details += `Confidence: ${(assignment.confidence * 100).toFixed(1)}%\n`;
+                details += `File: ${node.file || 'N/A'}\n`;
+                details += `LOC: ${node.loc || 'N/A'}\n\n`;
+                details += `Evidence:\n`;
+                (assignment.evidence || []).forEach(e => {
+                    details += `  - ${e.details}\n`;
+                });
+
+                alert(details);
+            },
+
+            buildGraph(data) {
+                const container = document.getElementById('partitionGraphContainer');
+                const svg = document.getElementById('partitionGraphSvg');
+
+                // Clear previous
+                svg.innerHTML = '';
+
+                if (!data.nodes || data.nodes.length === 0) {
+                    return;
+                }
+
+                const width = container.clientWidth;
+                const height = container.clientHeight || 400;
+
+                // Create D3 simulation
+                const nodes = data.nodes.map(n => ({
+                    ...n,
+                    x: Math.random() * width,
+                    y: Math.random() * height
+                }));
+
+                const nodeMap = {};
+                nodes.forEach((n, i) => nodeMap[n.id] = i);
+
+                const links = (data.edges || [])
+                    .filter(e => nodeMap[e.source] !== undefined && nodeMap[e.target] !== undefined)
+                    .map(e => ({
+                        source: nodeMap[e.source],
+                        target: nodeMap[e.target],
+                        cross_partition: e.cross_partition
+                    }));
+
+                // D3 force simulation
+                this.simulation = d3.forceSimulation(nodes)
+                    .force('charge', d3.forceManyBody().strength(-30))
+                    .force('link', d3.forceLink(links).distance(30).strength(0.3))
+                    .force('center', d3.forceCenter(width / 2, height / 2))
+                    .force('collision', d3.forceCollide().radius(d => (d.size || 5) + 2));
+
+                // Create SVG elements
+                const svgEl = d3.select(svg)
+                    .attr('width', width)
+                    .attr('height', height);
+
+                // Links
+                const link = svgEl.append('g')
+                    .selectAll('line')
+                    .data(links)
+                    .enter().append('line')
+                    .attr('class', d => d.cross_partition ? 'partition-link cross-partition' : 'partition-link');
+
+                // Nodes
+                const node = svgEl.append('g')
+                    .selectAll('circle')
+                    .data(nodes)
+                    .enter().append('circle')
+                    .attr('class', 'partition-node')
+                    .attr('r', d => Math.max(3, Math.min(12, (d.size || 5))))
+                    .attr('fill', d => d.color || '#95a5a6')
+                    .call(d3.drag()
+                        .on('start', (event, d) => {
+                            if (!event.active) this.simulation.alphaTarget(0.3).restart();
+                            d.fx = d.x;
+                            d.fy = d.y;
+                        })
+                        .on('drag', (event, d) => {
+                            d.fx = event.x;
+                            d.fy = event.y;
+                        })
+                        .on('end', (event, d) => {
+                            if (!event.active) this.simulation.alphaTarget(0);
+                            d.fx = null;
+                            d.fy = null;
+                        })
+                    )
+                    .on('mouseover', (event, d) => {
+                        this.showTooltip(event, d);
+                    })
+                    .on('mouseout', () => {
+                        this.hideTooltip();
+                    });
+
+                // Labels (only for larger nodes)
+                const labels = svgEl.append('g')
+                    .selectAll('text')
+                    .data(nodes.filter(n => (n.size || 5) > 8))
+                    .enter().append('text')
+                    .attr('class', 'node-label')
+                    .attr('text-anchor', 'middle')
+                    .attr('dy', d => (d.size || 5) + 12)
+                    .text(d => d.label || d.id.split('.').pop());
+
+                // Update positions
+                this.simulation.on('tick', () => {
+                    link
+                        .attr('x1', d => nodes[d.source.index || d.source].x)
+                        .attr('y1', d => nodes[d.source.index || d.source].y)
+                        .attr('x2', d => nodes[d.target.index || d.target].x)
+                        .attr('y2', d => nodes[d.target.index || d.target].y);
+
+                    node
+                        .attr('cx', d => d.x)
+                        .attr('cy', d => d.y);
+
+                    labels
+                        .attr('x', d => d.x)
+                        .attr('y', d => d.y);
+                });
+
+                // Build legend
+                this.buildLegend(data);
+            },
+
+            buildLegend(data) {
+                const legend = document.getElementById('partitionLegend');
+
+                const colorMap = {
+                    'UNKNOWN': '#95a5a6',
+                    'SHARED': '#9b59b6',
+                    'DEAD_CODE': '#2c3e50'
+                };
+                if (data.config && data.config.applications) {
+                    data.config.applications.forEach(app => {
+                        colorMap[app.app_id] = app.color;
+                    });
+                }
+
+                let html = '';
+                for (const label of Object.keys(data.summary || {})) {
+                    const color = colorMap[label] || '#95a5a6';
+                    html += `
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: ${color}"></span>
+                            <span>${label}</span>
+                        </div>
+                    `;
+                }
+
+                // Add cross-partition indicator
+                html += `
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: var(--accent-red)"></span>
+                        <span>Cross-Partition Edge</span>
+                    </div>
+                `;
+
+                legend.innerHTML = html;
+            },
+
+            showTooltip(event, d) {
+                let tooltip = document.querySelector('.partition-tooltip');
+                if (!tooltip) {
+                    tooltip = document.createElement('div');
+                    tooltip.className = 'partition-tooltip';
+                    document.body.appendChild(tooltip);
+                }
+
+                tooltip.innerHTML = `
+                    <div class="tooltip-title">${d.label || d.id.split('.').pop()}</div>
+                    <div class="tooltip-info">
+                        <div>Partition: ${d.partition}</div>
+                        <div>Confidence: ${(d.confidence * 100).toFixed(0)}%</div>
+                        <div>LOC: ${d.loc || 'N/A'}</div>
+                        <div>Package: ${d.package || 'N/A'}</div>
+                    </div>
+                `;
+
+                tooltip.style.display = 'block';
+                tooltip.style.left = (event.pageX + 10) + 'px';
+                tooltip.style.top = (event.pageY + 10) + 'px';
+            },
+
+            hideTooltip() {
+                const tooltip = document.querySelector('.partition-tooltip');
+                if (tooltip) {
+                    tooltip.style.display = 'none';
+                }
+            },
+
+            resetGraph() {
+                if (this.simulation) {
+                    this.simulation.alpha(1).restart();
+                }
+            },
+
+            toggleSimulation() {
+                if (!this.simulation) return;
+
+                if (this.simulation.alpha() > 0.001) {
+                    this.simulation.stop();
+                } else {
+                    this.simulation.alpha(0.3).restart();
+                }
+            },
+
+            toggleCrossPartition() {
+                const showCrossOnly = document.getElementById('showCrossOnly').checked;
+                const links = document.querySelectorAll('.partition-link');
+
+                links.forEach(link => {
+                    if (showCrossOnly) {
+                        link.style.display = link.classList.contains('cross-partition') ? '' : 'none';
+                    } else {
+                        link.style.display = '';
+                    }
+                });
+            },
+
+            toggleFullscreen() {
+                const section = document.getElementById('partitionerSection');
+                section.classList.toggle('fullscreen');
+            },
+
+            async exportResults(format) {
+                if (!this.projectPath) return;
+
+                try {
+                    const url = `/api/ast/partition/export?path=${encodeURIComponent(this.projectPath)}&format=${format}`;
+                    const resp = await fetch(url);
+
+                    if (!resp.ok) {
+                        throw new Error(await resp.text());
+                    }
+
+                    const data = await resp.json();
+
+                    if (format === 'json') {
+                        // Download JSON
+                        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = `partition_${Date.now()}.json`;
+                        link.click();
+                    } else if (format === 'csv') {
+                        // Download CSV
+                        const blob = new Blob([data.csv], { type: 'text/csv' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = data.filename || `partition_${Date.now()}.csv`;
+                        link.click();
+                    } else if (format === 'xlsx') {
+                        // For XLSX, download the JSON data - client can use xlsx library
+                        alert('XLSX export: Use the JSON export and convert using a spreadsheet tool.');
+                    }
+                } catch (e) {
+                    console.error('Export error:', e);
+                    alert('Export failed: ' + e.message);
+                }
+            },
+
+            // =================================================================
+            // Tab-specific methods (v0.55 dedicated tab)
+            // =================================================================
+            zoom: null,
+            svgEl: null,
+            graphGroup: null,
+            nodesData: [],
+            linksData: [],
+            nodeElements: null,
+            linkElements: null,
+            labelElements: null,
+
+            async initTab() {
+                // First try to get path from input, then from dashboard
+                let path = document.getElementById('partitionerProjectPath').value.trim();
+                if (!path) {
+                    const dashPath = document.getElementById('dashboardProjectPath')?.value?.trim();
+                    if (dashPath) {
+                        path = dashPath;
+                        document.getElementById('partitionerProjectPath').value = path;
+                    }
+                }
+
+                if (!path) {
+                    alert('Please enter a project path');
+                    return;
+                }
+                this.projectPath = path;
+                await this.loadPresets();
+
+                // Sync project path to dashboard
+                const dashPath = document.getElementById('dashboardProjectPath');
+                if (dashPath && !dashPath.value) dashPath.value = path;
+
+                console.log('Partitioner initialized with path:', path, 'Presets:', Object.keys(this.presets));
+            },
+
+            // Called when tab becomes active - sync from dashboard
+            onTabActivate() {
+                const dashPath = document.getElementById('dashboardProjectPath')?.value?.trim();
+                const partPath = document.getElementById('partitionerProjectPath');
+                if (dashPath && partPath && !partPath.value) {
+                    partPath.value = dashPath;
+                }
+                // Also ensure presets are loaded
+                if (Object.keys(this.presets).length === 0) {
+                    this.loadPresets();
+                }
+            },
+
+            loadPresetTab() {
+                const presetSelect = document.getElementById('partitionPresetTab');
+                const presetName = presetSelect.value;
+
+                // If presets not loaded yet, load them first
+                if (!presetName) return;
+                if (Object.keys(this.presets).length === 0) {
+                    this.loadPresets().then(() => {
+                        if (this.presets[presetName]) {
+                            this._applyPreset(presetName);
+                        }
+                    });
+                    return;
+                }
+
+                if (!this.presets[presetName]) {
+                    console.warn('Preset not found:', presetName, 'Available:', Object.keys(this.presets));
+                    return;
+                }
+
+                this._applyPreset(presetName);
+            },
+
+            _applyPreset(presetName) {
+                const preset = this.presets[presetName];
+                if (!preset || !preset.config) {
+                    console.error('Invalid preset:', presetName);
+                    return;
+                }
+
+                const config = preset.config;
+                const appsContainer = document.getElementById('appsListTab');
+                appsContainer.innerHTML = '';
+
+                config.applications.forEach((app, index) => {
+                    this.createAppCardTab(appsContainer, app, index);
+                });
+
+                document.getElementById('sharedPatternsTab').value = (config.shared_patterns || []).join(', ');
+                if (config.propagation_iterations) {
+                    document.getElementById('propagationIterationsTab').value = config.propagation_iterations;
+                }
+                if (config.confidence_threshold) {
+                    document.getElementById('confidenceThresholdTab').value = config.confidence_threshold;
+                }
+
+                console.log('Applied preset:', presetName);
+            },
+
+            createAppCardTab(container, appData, index) {
+                const item = document.createElement('div');
+                item.className = 'app-config-item';
+                item.dataset.appIndex = index;
+
+                const color = appData.color || ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6'][index % 5];
+
+                item.innerHTML = `
+                    <div class="app-header">
+                        <span class="app-color-dot" style="background: ${color};"></span>
+                        <input type="text" class="app-name-input" value="${appData.app_id || 'APP_' + (index + 1)}" placeholder="App Name">
+                        <input type="color" class="app-color-input" value="${color}">
+                        <button class="btn btn-icon btn-sm btn-danger" onclick="partitionerApp.removeAppTab(${index})">&#10005;</button>
+                    </div>
+                    <div class="app-patterns-compact">
+                        <div class="pattern-field">
+                            <span class="pattern-label">Pkg:</span>
+                            <input type="text" class="package-patterns" value="${(appData.package_patterns || []).join(', ')}" placeholder="*app*, *module*">
+                        </div>
+                        <div class="pattern-field">
+                            <span class="pattern-label">Class:</span>
+                            <input type="text" class="class-patterns" value="${(appData.class_patterns || []).join(', ')}" placeholder="*Class*, *Service*">
+                        </div>
+                        <div class="pattern-field">
+                            <span class="pattern-label">Keys:</span>
+                            <input type="text" class="keyword-patterns" value="${(appData.keyword_patterns || []).join(', ')}" placeholder="keyword1, keyword2">
+                        </div>
+                    </div>
+                `;
+
+                // Update color dot when color input changes
+                const colorInput = item.querySelector('.app-color-input');
+                const colorDot = item.querySelector('.app-color-dot');
+                colorInput.addEventListener('input', () => {
+                    colorDot.style.background = colorInput.value;
+                });
+
+                container.appendChild(item);
+            },
+
+            addAppTab() {
+                const container = document.getElementById('appsListTab');
+                const existingItems = container.querySelectorAll('.app-config-item');
+                const newIndex = existingItems.length;
+                const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'];
+
+                this.createAppCardTab(container, {
+                    app_id: 'APP_' + String.fromCharCode(65 + newIndex),
+                    color: colors[newIndex % colors.length],
+                    package_patterns: [],
+                    class_patterns: [],
+                    keyword_patterns: []
+                }, newIndex);
+            },
+
+            removeAppTab(index) {
+                const items = document.querySelectorAll('#appsListTab .app-config-item');
+                if (items.length <= 2) {
+                    alert('At least 2 applications are required for partitioning.');
+                    return;
+                }
+                if (items[index]) items[index].remove();
+            },
+
+            getConfigTab() {
+                const applications = [];
+                const items = document.querySelectorAll('#appsListTab .app-config-item');
+
+                items.forEach(item => {
+                    const appId = item.querySelector('.app-name-input').value.trim() || 'APP';
+                    const color = item.querySelector('.app-color-input').value;
+
+                    const parsePatterns = (input) => {
+                        return input.value.split(/[,\n]/)
+                            .map(s => s.trim())
+                            .filter(s => s.length > 0);
+                    };
+
+                    applications.push({
+                        app_id: appId,
+                        color: color,
+                        package_patterns: parsePatterns(item.querySelector('.package-patterns')),
+                        class_patterns: parsePatterns(item.querySelector('.class-patterns')),
+                        keyword_patterns: parsePatterns(item.querySelector('.keyword-patterns')),
+                        annotation_patterns: [],
+                        entry_point_patterns: []
+                    });
+                });
+
+                const sharedPatterns = document.getElementById('sharedPatternsTab').value.split(/[,\n]/)
+                    .map(s => s.trim())
+                    .filter(s => s.length > 0);
+
+                return {
+                    applications: applications,
+                    shared_patterns: sharedPatterns,
+                    propagation_iterations: parseInt(document.getElementById('propagationIterationsTab').value) || 5,
+                    confidence_threshold: parseFloat(document.getElementById('confidenceThresholdTab').value) || 0.6
+                };
+            },
+
+            async runPartitionTab() {
+                console.log('runPartitionTab called');
+                if (!this.projectPath) {
+                    const path = document.getElementById('partitionerProjectPath').value.trim();
+                    console.log('No projectPath, checking input:', path);
+                    if (!path) {
+                        alert('Please load a project first');
+                        return;
+                    }
+                    this.projectPath = path;
+                }
+
+                console.log('Running partition for:', this.projectPath);
+                const config = this.getConfigTab();
+                console.log('Config:', config);
+                const accordion = document.getElementById('partitionAccordionTab');
+                accordion.innerHTML = '<div class="partition-empty">Running partition analysis...</div>';
+
+                try {
+                    console.log('Sending fetch request...');
+                    const resp = await fetch('/api/ast/partition', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path: this.projectPath, config: config })
+                    });
+                    console.log('Response status:', resp.status);
+
+                    if (!resp.ok) throw new Error(await resp.text());
+
+                    const data = await resp.json();
+                    this.partitionData = data;
+
+                    // Show summary bar
+                    this.displaySummaryTab(data);
+
+                    // Build accordion
+                    this.displayAccordionTab(data);
+
+                    // Build force-directed graph with zoom
+                    this.buildGraphTab(data);
+
+                    // Show results panel
+                    document.getElementById('partitionerResultsPanel').style.display = 'block';
+
+                } catch (e) {
+                    console.error('Partition error:', e);
+                    accordion.innerHTML = `<div class="partition-empty" style="color: var(--accent-red);">Error: ${e.message}</div>`;
+                }
+            },
+
+            displaySummaryTab(data) {
+                const summaryBar = document.getElementById('partitionSummaryBar');
+                summaryBar.style.display = 'flex';
+
+                document.getElementById('partSummaryClasses').textContent = data.total_classes || 0;
+                document.getElementById('partSummaryCoverage').textContent = ((data.coverage || 0) * 100).toFixed(1) + '%';
+                document.getElementById('partSummaryCross').textContent = data.cross_partition_edges || 0;
+                document.getElementById('partSummaryCoupling').textContent = ((data.coupling_density || 0) * 100).toFixed(2) + '%';
+                // Note: Badges are now displayed only via filter buttons in buildFilterButtons()
+            },
+
+            buildColorMap(data) {
+                const colorMap = {
+                    'UNKNOWN': '#95a5a6',
+                    'SHARED': '#9b59b6',
+                    'DEAD_CODE': '#e67e22'  // Orange - visible on dark backgrounds
+                };
+                if (data.config && data.config.applications) {
+                    data.config.applications.forEach(app => {
+                        colorMap[app.app_id] = app.color;
+                    });
+                }
+                return colorMap;
+            },
+
+            displayAccordionTab(data) {
+                const accordion = document.getElementById('partitionAccordionTab');
+                const groups = {};
+                for (const [fqn, assignment] of Object.entries(data.assignments || {})) {
+                    const label = assignment.label;
+                    if (!groups[label]) groups[label] = [];
+                    groups[label].push({ fqn, ...assignment });
+                }
+
+                const colorMap = this.buildColorMap(data);
+                const sorted = Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+
+                let html = '';
+                sorted.forEach(([label, classes]) => {
+                    const color = colorMap[label] || '#95a5a6';
+                    html += `
+                        <div class="accordion-item">
+                            <div class="accordion-header" onclick="partitionerApp.toggleAccordion(this)">
+                                <div class="accordion-title">
+                                    <span class="accordion-color" style="background: ${color}"></span>
+                                    <span>${label} (${classes.length} classes)</span>
+                                </div>
+                                <span class="accordion-arrow">&#9654;</span>
+                            </div>
+                            <div class="accordion-content">
+                                <div class="class-list">
+                                    ${classes.slice(0, 100).map(c => `
+                                        <div class="class-item" onclick="partitionerApp.showClassPreview('${c.fqn}')" title="${c.fqn}">
+                                            <span class="class-name">${c.fqn.split('.').pop()}</span>
+                                            <span class="class-confidence ${c.confidence > 0.8 ? 'high' : c.confidence > 0.5 ? 'medium' : 'low'}">${(c.confidence * 100).toFixed(0)}%</span>
+                                        </div>
+                                    `).join('')}
+                                    ${classes.length > 100 ? `<div class="class-item more-indicator">...and ${classes.length - 100} more</div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                accordion.innerHTML = html || '<div class="partition-empty">No results</div>';
+            },
+
+            buildGraphTab(data) {
+                const container = document.getElementById('partitionGraphVizContainer');
+                const svg = document.getElementById('partitionGraphSvgTab');
+                svg.innerHTML = '';
+
+                if (!data.nodes || data.nodes.length === 0) return;
+
+                const width = container.clientWidth || 800;
+                const height = container.clientHeight || 500;
+
+                // Scale factor to map server layout (800x600) to actual container size
+                const scaleX = width / 800;
+                const scaleY = height / 600;
+
+                // Store nodes with precomputed MDS positions from server
+                // If positions exist, use them; otherwise fall back to random
+                this.nodesData = data.nodes.map(n => ({
+                    ...n,
+                    x: n.x !== undefined ? n.x * scaleX : Math.random() * width,
+                    y: n.y !== undefined ? n.y * scaleY : Math.random() * height,
+                    fx: null,  // Not fixed initially
+                    fy: null
+                }));
+
+                // Check if we have precomputed layout
+                const hasPrecomputedLayout = data.nodes.some(n => n.x !== undefined && n.y !== undefined);
+
+                const nodeMap = {};
+                this.nodesData.forEach((n, i) => nodeMap[n.id] = i);
+
+                this.linksData = (data.edges || [])
+                    .filter(e => nodeMap[e.source] !== undefined && nodeMap[e.target] !== undefined)
+                    .map(e => ({
+                        source: this.nodesData[nodeMap[e.source]],
+                        target: this.nodesData[nodeMap[e.target]],
+                        cross_partition: e.cross_partition,
+                        type: e.type || 'dependency'
+                    }));
+
+                // Get force values from sliders
+                const repulsion = parseInt(document.getElementById('forceRepulsion').value);
+                const linkDist = parseInt(document.getElementById('forceLinkDist').value);
+                const linkStr = parseFloat(document.getElementById('forceLinkStr').value);
+                const centerGrav = parseFloat(document.getElementById('forceCenterGravity').value);
+                const collision = parseInt(document.getElementById('forceCollision').value);
+
+                // Create D3 simulation with reduced intensity if we have precomputed layout
+                this.simulation = d3.forceSimulation(this.nodesData)
+                    .force('charge', d3.forceManyBody().strength(hasPrecomputedLayout ? repulsion * 0.3 : repulsion))
+                    .force('link', d3.forceLink(this.linksData).distance(linkDist).strength(hasPrecomputedLayout ? linkStr * 0.3 : linkStr))
+                    .force('center', d3.forceCenter(width / 2, height / 2).strength(hasPrecomputedLayout ? 0 : centerGrav))
+                    .force('collision', d3.forceCollide().radius(d => (d.size || 5) + collision))
+                    .alphaDecay(hasPrecomputedLayout ? 0.05 : 0.0228);  // Faster decay with precomputed layout
+
+                // With precomputed layout, stop simulation quickly after minor adjustments
+                if (hasPrecomputedLayout) {
+                    this.simulation.alpha(0.3);  // Lower initial energy
+                    // Auto-stop after 50 ticks
+                    let tickCount = 0;
+                    this.simulation.on('tick.autoStop', () => {
+                        tickCount++;
+                        if (tickCount >= 50) {
+                            this.simulation.stop();
+                            this.simulation.on('tick.autoStop', null);
+                            document.getElementById('simToggleBtn').textContent = '▶';
+                        }
+                    });
+                }
+
+                // Create SVG with zoom
+                this.svgEl = d3.select(svg)
+                    .attr('width', width)
+                    .attr('height', height)
+                    .attr('viewBox', `0 0 ${width} ${height}`);
+
+                // Add defs for arrow markers
+                const defs = this.svgEl.append('defs');
+                defs.append('marker')
+                    .attr('id', 'arrow-partition')
+                    .attr('viewBox', '0 -5 10 10')
+                    .attr('refX', 12)
+                    .attr('refY', 0)
+                    .attr('markerWidth', 6)
+                    .attr('markerHeight', 6)
+                    .attr('orient', 'auto')
+                    .append('path')
+                    .attr('d', 'M0,-5L10,0L0,5')
+                    .attr('fill', '#999');
+
+                defs.append('marker')
+                    .attr('id', 'arrow-cross')
+                    .attr('viewBox', '0 -5 10 10')
+                    .attr('refX', 12)
+                    .attr('refY', 0)
+                    .attr('markerWidth', 6)
+                    .attr('markerHeight', 6)
+                    .attr('orient', 'auto')
+                    .append('path')
+                    .attr('d', 'M0,-5L10,0L0,5')
+                    .attr('fill', 'var(--accent-red)');
+
+                // Setup zoom with label visibility based on zoom level
+                this.currentZoom = 1;
+                this.zoom = d3.zoom()
+                    .scaleExtent([0.1, 4])
+                    .on('zoom', (event) => {
+                        this.graphGroup.attr('transform', event.transform);
+                        this.currentZoom = event.transform.k;
+                        this.updateLabelVisibility();
+                    });
+
+                this.svgEl.call(this.zoom);
+
+                // Create main group
+                this.graphGroup = this.svgEl.append('g').attr('class', 'graph-content');
+
+                // Links
+                this.linkElements = this.graphGroup.append('g')
+                    .attr('class', 'links-layer')
+                    .selectAll('line')
+                    .data(this.linksData)
+                    .enter().append('line')
+                    .attr('class', d => d.cross_partition ? 'partition-link cross-partition' : 'partition-link')
+                    .attr('marker-end', d => d.cross_partition ? 'url(#arrow-cross)' : 'url(#arrow-partition)')
+                    .on('mouseover', (event, d) => this.showLinkTooltip(event, d))
+                    .on('mouseout', () => this.hideTooltipTab());
+
+                // Nodes
+                this.nodeElements = this.graphGroup.append('g')
+                    .attr('class', 'nodes-layer')
+                    .selectAll('circle')
+                    .data(this.nodesData)
+                    .enter().append('circle')
+                    .attr('class', 'partition-node')
+                    .attr('r', d => Math.max(3, Math.min(12, (d.size || 5))))
+                    .attr('fill', d => d.color || '#95a5a6')
+                    .attr('stroke', '#fff')
+                    .attr('stroke-width', 1)
+                    .call(d3.drag()
+                        .on('start', (event, d) => {
+                            if (!event.active) this.simulation.alphaTarget(0.3).restart();
+                            d.fx = d.x;
+                            d.fy = d.y;
+                        })
+                        .on('drag', (event, d) => {
+                            d.fx = event.x;
+                            d.fy = event.y;
+                        })
+                        .on('end', (event, d) => {
+                            if (!event.active) this.simulation.alphaTarget(0);
+                            d.fx = null;
+                            d.fy = null;
+                        })
+                    )
+                    .on('mouseover', (event, d) => this.showNodeTooltip(event, d))
+                    .on('mouseout', () => this.hideTooltipTab())
+                    .on('click', (event, d) => this.showClassPreview(d.id));
+
+                // Labels - create for ALL nodes, visibility controlled by zoom
+                this.labelElements = this.graphGroup.append('g')
+                    .attr('class', 'labels-layer')
+                    .selectAll('text')
+                    .data(this.nodesData)
+                    .enter().append('text')
+                    .attr('class', 'node-label')
+                    .attr('text-anchor', 'middle')
+                    .attr('dy', d => (d.size || 5) + 12)
+                    .text(d => d.label || d.id.split('.').pop())
+                    .style('opacity', 0);  // Start hidden, shown on zoom
+
+                // Tick function
+                this.simulation.on('tick', () => {
+                    this.linkElements
+                        .attr('x1', d => d.source.x)
+                        .attr('y1', d => d.source.y)
+                        .attr('x2', d => d.target.x)
+                        .attr('y2', d => d.target.y);
+
+                    this.nodeElements
+                        .attr('cx', d => d.x)
+                        .attr('cy', d => d.y);
+
+                    this.labelElements
+                        .attr('x', d => d.x)
+                        .attr('y', d => d.y);
+                });
+
+                // Build legend
+                this.buildLegendTab(data);
+            },
+
+            buildLegendTab(data) {
+                const legend = document.getElementById('partitionLegendTab');
+                const colorMap = this.buildColorMap(data);
+
+                let html = '<div class="legend-items">';
+                for (const label of Object.keys(data.summary || {})) {
+                    const color = colorMap[label] || '#95a5a6';
+                    html += `<div class="legend-item"><span class="legend-color" style="background: ${color}"></span><span>${label}</span></div>`;
+                }
+                html += `<div class="legend-item"><span class="legend-color" style="background: var(--accent-red)"></span><span>Cross-Partition</span></div>`;
+                html += '</div>';
+
+                legend.innerHTML = html;
+
+                // Build filter buttons
+                this.buildFilterButtons(data);
+            },
+
+            buildFilterButtons(data) {
+                const filterBar = document.getElementById('partitionFilterBar');
+                const buttonsContainer = document.getElementById('partitionFilterButtons');
+                const colorMap = this.buildColorMap(data);
+
+                if (!data.summary || Object.keys(data.summary).length === 0) {
+                    filterBar.style.display = 'none';
+                    return;
+                }
+
+                filterBar.style.display = 'flex';
+                let html = '';
+
+                for (const [label, count] of Object.entries(data.summary || {})) {
+                    const color = colorMap[label] || '#95a5a6';
+                    // Buttons start visible (no 'hidden' class) - click to hide
+                    html += `<button class="filter-btn" data-partition="${label}" style="--btn-color: ${color};" onclick="partitionerApp.togglePartitionFilter('${label}')">${label} (${count})</button>`;
+                }
+
+                buttonsContainer.innerHTML = html;
+
+                // Reset filter state for new graph - all partitions visible by default
+                this.hiddenPartitions.clear();
+                this.searchTerm = '';
+                this.showConnections = true;
+                const connCheckbox = document.getElementById('showConnectionsTab');
+                if (connCheckbox) connCheckbox.checked = true;
+            },
+
+            showNodeTooltip(event, d) {
+                const tooltip = document.getElementById('partitionTooltipTab');
+                const inDeps = this.linksData.filter(l => l.target.id === d.id).length;
+                const outDeps = this.linksData.filter(l => l.source.id === d.id).length;
+
+                tooltip.innerHTML = `
+                    <div class="tooltip-title">${d.label || d.id.split('.').pop()}</div>
+                    <div class="tooltip-fqn">${d.id}</div>
+                    <div class="tooltip-details">
+                        <div><strong>Partition:</strong> ${d.partition}</div>
+                        <div><strong>Confidence:</strong> ${((d.confidence || 0) * 100).toFixed(0)}%</div>
+                        <div><strong>LOC:</strong> ${d.loc || 'N/A'}</div>
+                        <div><strong>In/Out:</strong> ${inDeps} / ${outDeps}</div>
+                    </div>
+                `;
+
+                tooltip.style.display = 'block';
+                tooltip.style.left = (event.offsetX + 15) + 'px';
+                tooltip.style.top = (event.offsetY + 15) + 'px';
+            },
+
+            showLinkTooltip(event, d) {
+                const tooltip = document.getElementById('partitionTooltipTab');
+                tooltip.innerHTML = `
+                    <div class="tooltip-title">${d.cross_partition ? 'Cross-Partition Edge' : 'Internal Edge'}</div>
+                    <div class="tooltip-details">
+                        <div><strong>From:</strong> ${d.source.id?.split('.').pop() || 'N/A'}</div>
+                        <div><strong>To:</strong> ${d.target.id?.split('.').pop() || 'N/A'}</div>
+                        <div><strong>Type:</strong> ${d.type || 'dependency'}</div>
+                    </div>
+                `;
+
+                tooltip.style.display = 'block';
+                tooltip.style.left = (event.offsetX + 15) + 'px';
+                tooltip.style.top = (event.offsetY + 15) + 'px';
+            },
+
+            hideTooltipTab() {
+                document.getElementById('partitionTooltipTab').style.display = 'none';
+            },
+
+            // Zoom controls
+            zoomIn() {
+                if (this.svgEl && this.zoom) {
+                    this.svgEl.transition().duration(300).call(this.zoom.scaleBy, 1.3);
+                }
+            },
+
+            zoomOut() {
+                if (this.svgEl && this.zoom) {
+                    this.svgEl.transition().duration(300).call(this.zoom.scaleBy, 0.7);
+                }
+            },
+
+            resetZoom() {
+                if (this.svgEl && this.zoom) {
+                    this.svgEl.transition().duration(300).call(this.zoom.transform, d3.zoomIdentity);
+                }
+            },
+
+            fitToView() {
+                if (!this.nodesData || this.nodesData.length === 0 || !this.svgEl) return;
+
+                const bounds = {
+                    minX: d3.min(this.nodesData, d => d.x) - 50,
+                    maxX: d3.max(this.nodesData, d => d.x) + 50,
+                    minY: d3.min(this.nodesData, d => d.y) - 50,
+                    maxY: d3.max(this.nodesData, d => d.y) + 50
+                };
+
+                const container = document.getElementById('partitionGraphVizContainer');
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+
+                const graphWidth = bounds.maxX - bounds.minX;
+                const graphHeight = bounds.maxY - bounds.minY;
+                const scale = 0.9 / Math.max(graphWidth / width, graphHeight / height);
+                const translateX = (width - scale * (bounds.minX + bounds.maxX)) / 2;
+                const translateY = (height - scale * (bounds.minY + bounds.maxY)) / 2;
+
+                this.svgEl.transition().duration(750)
+                    .call(this.zoom.transform, d3.zoomIdentity
+                        .translate(translateX, translateY)
+                        .scale(scale));
+            },
+
+            // Force tuning
+            updateForces() {
+                // Update display values
+                document.getElementById('forceRepulsionVal').textContent = document.getElementById('forceRepulsion').value;
+                document.getElementById('forceLinkDistVal').textContent = document.getElementById('forceLinkDist').value;
+                document.getElementById('forceLinkStrVal').textContent = document.getElementById('forceLinkStr').value;
+                document.getElementById('forceCenterGravityVal').textContent = document.getElementById('forceCenterGravity').value;
+                document.getElementById('forceCollisionVal').textContent = document.getElementById('forceCollision').value;
+
+                if (!this.simulation) return;
+
+                const repulsion = parseInt(document.getElementById('forceRepulsion').value);
+                const linkDist = parseInt(document.getElementById('forceLinkDist').value);
+                const linkStr = parseFloat(document.getElementById('forceLinkStr').value);
+                const centerGrav = parseFloat(document.getElementById('forceCenterGravity').value);
+                const collision = parseInt(document.getElementById('forceCollision').value);
+
+                this.simulation
+                    .force('charge', d3.forceManyBody().strength(repulsion))
+                    .force('link', d3.forceLink(this.linksData).distance(linkDist).strength(linkStr))
+                    .force('collision', d3.forceCollide().radius(d => (d.size || 5) + collision));
+
+                // Update center force
+                const container = document.getElementById('partitionGraphVizContainer');
+                this.simulation.force('center', d3.forceCenter(container.clientWidth / 2, container.clientHeight / 2).strength(centerGrav));
+
+                this.simulation.alpha(0.5).restart();
+            },
+
+            applyForcePreset(preset) {
+                const presets = {
+                    separated: { repulsion: -300, linkDist: 120, linkStr: 0.1, centerGrav: 0.05, collision: 15 },
+                    clustered: { repulsion: -30, linkDist: 20, linkStr: 0.8, centerGrav: 0.3, collision: 2 },
+                    balanced: { repulsion: -100, linkDist: 50, linkStr: 0.3, centerGrav: 0.1, collision: 5 }
+                };
+
+                const p = presets[preset];
+                if (!p) return;
+
+                document.getElementById('forceRepulsion').value = p.repulsion;
+                document.getElementById('forceLinkDist').value = p.linkDist;
+                document.getElementById('forceLinkStr').value = p.linkStr;
+                document.getElementById('forceCenterGravity').value = p.centerGrav;
+                document.getElementById('forceCollision').value = p.collision;
+
+                this.updateForces();
+            },
+
+            reheatSimulation() {
+                if (this.simulation) {
+                    this.simulation.alpha(1).restart();
+                }
+            },
+
+            toggleSimulationTab() {
+                if (!this.simulation) return;
+                const btn = document.getElementById('simToggleBtn');
+                if (this.simulation.alpha() > 0.001) {
+                    this.simulation.stop();
+                    btn.innerHTML = '&#9654;'; // Play icon
+                } else {
+                    this.simulation.alpha(0.3).restart();
+                    btn.innerHTML = '&#9208;'; // Pause icon
+                }
+            },
+
+            toggleCrossPartitionTab() {
+                const showCrossOnly = document.getElementById('showCrossOnlyTab').checked;
+                if (this.linkElements) {
+                    this.linkElements.style('display', d => {
+                        if (showCrossOnly) return d.cross_partition ? '' : 'none';
+                        return '';
+                    });
+                }
+            },
+
+            toggleLabels() {
+                this.updateLabelVisibility();
+            },
+
+            // Labels are visible only when zoomed in (zoom level > 1.5) or if manually enabled
+            updateLabelVisibility() {
+                const showLabelsCheckbox = document.getElementById('showLabelsTab');
+                const manualShow = showLabelsCheckbox?.checked;
+                const zoomShow = (this.currentZoom || 1) > 1.2;
+
+                if (this.labelElements) {
+                    this.labelElements.style('opacity', (manualShow || zoomShow) ? 1 : 0);
+                    // Only show labels for nodes that pass the filter
+                    this.labelElements.each((d, i, nodes) => {
+                        const visible = this.isNodeVisible(d);
+                        d3.select(nodes[i]).style('display', visible && (manualShow || zoomShow) ? '' : 'none');
+                    });
+                }
+            },
+
+            // Filter state - hiddenPartitions contains partitions that are HIDDEN (not shown)
+            hiddenPartitions: new Set(),
+            searchTerm: '',
+            showConnections: true,
+
+            isNodeVisible(node) {
+                // Filter by partition - if in hiddenPartitions, don't show
+                if (this.hiddenPartitions.has(node.partition)) {
+                    return false;
+                }
+                // Filter by search term
+                if (this.searchTerm) {
+                    const searchLower = this.searchTerm.toLowerCase();
+                    const name = (node.label || node.id || '').toLowerCase();
+                    if (!name.includes(searchLower)) {
+                        return false;
+                    }
+                }
+                return true;
+            },
+
+            togglePartitionFilter(partition) {
+                // Toggle: if hidden, show it; if shown, hide it
+                if (this.hiddenPartitions.has(partition)) {
+                    this.hiddenPartitions.delete(partition);
+                } else {
+                    this.hiddenPartitions.add(partition);
+                }
+
+                // Update button state - 'active' class means HIDDEN (dimmed)
+                const btn = document.querySelector(`.filter-btn[data-partition="${partition}"]`);
+                if (btn) btn.classList.toggle('hidden', this.hiddenPartitions.has(partition));
+
+                this.applyFilters();
+            },
+
+            toggleConnections() {
+                this.showConnections = document.getElementById('showConnectionsTab').checked;
+                this.applyFilters();
+            },
+
+            setSearchTerm(term) {
+                this.searchTerm = term;
+                this.applyFilters();
+            },
+
+            clearFilters() {
+                this.hiddenPartitions.clear();
+                this.searchTerm = '';
+
+                // Clear search input
+                const searchInput = document.getElementById('partitionSearchInput');
+                if (searchInput) searchInput.value = '';
+
+                // Remove hidden class from all filter buttons (show all)
+                document.querySelectorAll('.filter-btn.hidden').forEach(btn => btn.classList.remove('hidden'));
+
+                // Reset connections checkbox
+                const connCheckbox = document.getElementById('showConnectionsTab');
+                if (connCheckbox) {
+                    connCheckbox.checked = true;
+                    this.showConnections = true;
+                }
+
+                this.applyFilters();
+            },
+
+            applyFilters() {
+                if (!this.nodeElements || !this.linkElements) return;
+
+                // Update node visibility
+                this.nodeElements.style('opacity', d => this.isNodeVisible(d) ? 1 : 0.1);
+                this.nodeElements.style('pointer-events', d => this.isNodeVisible(d) ? 'all' : 'none');
+
+                // Update link visibility - show if both nodes are visible AND connections enabled
+                this.linkElements.style('opacity', d => {
+                    if (!this.showConnections) return 0;
+                    const sourceVisible = this.isNodeVisible(d.source);
+                    const targetVisible = this.isNodeVisible(d.target);
+                    return (sourceVisible && targetVisible) ? 1 : 0.05;
+                });
+                this.linkElements.style('pointer-events', this.showConnections ? 'all' : 'none');
+
+                // Update labels
+                this.updateLabelVisibility();
+            },
+
+            toggleFullscreenTab() {
+                const panel = document.querySelector('.partitioner-panel');
+                panel.classList.toggle('fullscreen');
+            },
+
+            // Export SVG/PNG
+            exportSVG() {
+                if (!this.svgEl) {
+                    alert('No graph to export. Run partition analysis first.');
+                    return;
+                }
+
+                const svgNode = this.svgEl.node();
+                const svgData = new XMLSerializer().serializeToString(svgNode);
+                const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `partition_graph_${Date.now()}.svg`;
+                link.click();
+                URL.revokeObjectURL(url);
+            },
+
+            exportPNG() {
+                if (!this.svgEl) {
+                    alert('No graph to export. Run partition analysis first.');
+                    return;
+                }
+
+                const svgNode = this.svgEl.node();
+                const svgData = new XMLSerializer().serializeToString(svgNode);
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+
+                const container = document.getElementById('partitionGraphVizContainer');
+                canvas.width = container.clientWidth * 2; // Higher res
+                canvas.height = container.clientHeight * 2;
+
+                img.onload = () => {
+                    ctx.fillStyle = '#1e1e2e'; // Dark background
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    const link = document.createElement('a');
+                    link.href = canvas.toDataURL('image/png');
+                    link.download = `partition_graph_${Date.now()}.png`;
+                    link.click();
+                };
+
+                img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+            },
+
+            async exportResultsTab(format) {
+                if (!this.projectPath) return;
+
+                try {
+                    const url = `/api/ast/partition/export?path=${encodeURIComponent(this.projectPath)}&format=${format}`;
+                    const resp = await fetch(url);
+                    if (!resp.ok) throw new Error(await resp.text());
+
+                    const data = await resp.json();
+
+                    if (format === 'json') {
+                        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = `partition_${Date.now()}.json`;
+                        link.click();
+                    } else if (format === 'csv') {
+                        const blob = new Blob([data.csv], { type: 'text/csv' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = data.filename || `partition_${Date.now()}.csv`;
+                        link.click();
+                    }
+                } catch (e) {
+                    console.error('Export error:', e);
+                    alert('Export failed: ' + e.message);
+                }
+            },
+
+            // File preview state
+            previewLines: [],
+
+            // File preview (like Audit tab)
+            async showClassPreview(fqn) {
+                const node = this.partitionData?.nodes?.find(n => n.id === fqn);
+                const assignment = this.partitionData?.assignments?.[fqn];
+                if (!node || !assignment) return;
+
+                const previewPane = document.getElementById('partitionerPreviewPane');
+                previewPane.style.display = 'block';
+
+                document.getElementById('previewFileName').textContent = fqn.split('.').pop() + '.java';
+                document.getElementById('previewPartition').textContent = assignment.label;
+                document.getElementById('previewConfidence').textContent = ((assignment.confidence || 0) * 100).toFixed(0) + '%';
+
+                // Evidence
+                const evidenceEl = document.getElementById('previewEvidence');
+                const evidenceHtml = (assignment.evidence || []).map(e =>
+                    `<div class="evidence-item"><span class="evidence-type">${e.type || 'rule'}</span> ${e.details}</div>`
+                ).join('');
+                evidenceEl.innerHTML = evidenceHtml || '<em>No evidence details</em>';
+
+                // Try to load file content and compute LOC
+                const codeEl = document.getElementById('previewCode');
+                const locEl = document.getElementById('previewLOC');
+                const slider = document.getElementById('previewLineSlider');
+                const lineInput = document.getElementById('previewLineInput');
+
+                if (node.file) {
+                    try {
+                        const resp = await fetch(`/api/audit/file-content?path=${encodeURIComponent(node.file)}`);
+                        if (resp.ok) {
+                            const data = await resp.json();
+                            const content = data.content || '';
+                            this.previewLines = content.split('\n');
+                            const totalLines = this.previewLines.length;
+                            const nonEmptyLines = this.previewLines.filter(l => l.trim()).length;
+                            locEl.textContent = `${totalLines} (${nonEmptyLines} non-empty)`;
+
+                            // Setup line navigation
+                            slider.max = totalLines;
+                            slider.value = 1;
+                            lineInput.max = totalLines;
+                            lineInput.value = 1;
+                            document.getElementById('previewLineNum').textContent = '1';
+
+                            // Show content with line numbers
+                            this.renderCodeWithLineNumbers(1);
+                        } else {
+                            codeEl.textContent = '// Could not load file content';
+                            locEl.textContent = node.loc || 'N/A';
+                            slider.max = 1;
+                        }
+                    } catch (e) {
+                        codeEl.textContent = '// Error loading file: ' + e.message;
+                        locEl.textContent = node.loc || 'N/A';
+                        slider.max = 1;
+                    }
+                } else {
+                    codeEl.textContent = '// File path not available';
+                    locEl.textContent = node.loc || 'N/A';
+                    slider.max = 1;
+                }
+            },
+
+            renderCodeWithLineNumbers(startLine) {
+                const codeEl = document.getElementById('previewCode');
+                const container = document.getElementById('previewBodyContainer');
+                const targetLine = parseInt(startLine);
+
+                // Show lines with line numbers, with target line having an ID for scrolling
+                const visibleLines = this.previewLines.map((line, i) => {
+                    const lineNum = i + 1;
+                    const paddedNum = String(lineNum).padStart(4, ' ');
+                    const isTarget = lineNum === targetLine;
+                    const highlight = isTarget ? ' class="highlighted-line"' : '';
+                    const lineId = isTarget ? ' id="targetLine"' : '';
+                    return `<span class="code-line"${lineId}${highlight}><span class="line-num">${paddedNum}</span>  ${this.escapeHtml(line)}</span>`;
+                }).join('\n');
+
+                codeEl.innerHTML = visibleLines;
+
+                // Scroll to the target line element
+                const targetEl = document.getElementById('targetLine');
+                if (targetEl && container) {
+                    // Use scrollIntoView for reliable scrolling
+                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            },
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            },
+
+            goToLine(lineNum) {
+                const line = Math.max(1, Math.min(this.previewLines.length, parseInt(lineNum) || 1));
+                document.getElementById('previewLineSlider').value = line;
+                document.getElementById('previewLineInput').value = line;
+                document.getElementById('previewLineNum').textContent = line;
+                this.renderCodeWithLineNumbers(line);
+            },
+
+            closePreview() {
+                document.getElementById('partitionerPreviewPane').style.display = 'none';
             }
         };
 
@@ -4983,6 +7068,34 @@
                 document.getElementById('settingWeightDocCoverage').value = 0.15;
                 document.getElementById('settingWeightTestCoverage').value = 0.2;
                 this.updateWeightTotal();
+                // Reset service patterns to combined defaults
+                this.loadPatternPreset('combined');
+                document.getElementById('settingPatternPreset').value = 'combined';
+            },
+
+            // Service pattern presets
+            servicePatternPresets: {
+                iowizme: {
+                    servicePatterns: 'SK\\d{2}\nSC\\d{2}\nSG\\d{2}',
+                    packagePatterns: 'fr\\.iowizmi\\.iok\\.sk\nfr\\.iowizmi\\.iok\\.sc\nfr\\.iowizmi\\.iok\\.sg\nfr\\.iowizmi\\.ui\\.\nfr\\.iowizmi\\.service\\.'
+                },
+                sias_grdf: {
+                    servicePatterns: 'spre\\d{2}(?:ws)?\nsprebpm(?:ws)?\nspremail\ns[A-Z][a-zA-Z]+',
+                    packagePatterns: 'com\\.grdf\\..*\\.ws\\.spre\ncom\\.grdf\\..*\\.jms\\.spre\ncom\\.grdf\\..*\\.jms\\.traitementmasse'
+                },
+                combined: {
+                    servicePatterns: 'SK\\d{2}\nSC\\d{2}\nSG\\d{2}\nspre\\d{2}(?:ws)?\nsprebpm(?:ws)?\nspremail',
+                    packagePatterns: 'fr\\.iowizmi\\.iok\\.sk\nfr\\.iowizmi\\.iok\\.sc\nfr\\.iowizmi\\.iok\\.sg\ncom\\.grdf\\..*\\.ws\\.spre\ncom\\.grdf\\..*\\.jms\\.spre'
+                }
+            },
+
+            loadPatternPreset(presetName) {
+                const preset = presetName || document.getElementById('settingPatternPreset').value;
+                if (!preset || !this.servicePatternPresets[preset]) return;
+
+                const patterns = this.servicePatternPresets[preset];
+                document.getElementById('settingServicePatterns').value = patterns.servicePatterns;
+                document.getElementById('settingPackagePatterns').value = patterns.packagePatterns;
             },
 
             async saveSettings() {
@@ -4991,6 +7104,12 @@
                     alert('Please select a project first');
                     return;
                 }
+
+                // Parse service patterns (split by newlines, filter empty)
+                const servicePatterns = document.getElementById('settingServicePatterns').value
+                    .split('\n').map(p => p.trim()).filter(p => p);
+                const packagePatterns = document.getElementById('settingPackagePatterns').value
+                    .split('\n').map(p => p.trim()).filter(p => p);
 
                 const config = {
                     thresholds: {
@@ -5004,6 +7123,10 @@
                         complexity: parseFloat(document.getElementById('settingWeightComplexity').value),
                         doc_coverage: parseFloat(document.getElementById('settingWeightDocCoverage').value),
                         test_coverage: parseFloat(document.getElementById('settingWeightTestCoverage').value),
+                    },
+                    service_patterns: {
+                        component_patterns: servicePatterns,
+                        package_patterns: packagePatterns,
                     }
                 };
 
@@ -8806,6 +10929,11 @@ pre { margin: 0; font-size: 13px; line-height: 1.5; }
             reasoningApp.refresh();
             // Also refresh agent config to update Planner/Worker/Verifier display
             agentSettingsApp.loadConfig();
+        });
+
+        // Sync project path when switching to partitioner tab
+        document.querySelector('.nav-tab[data-tab="partitioner"]').addEventListener('click', () => {
+            partitionerApp.onTabActivate();
         });
 
         // Override app.saveSettings to handle unified model configuration

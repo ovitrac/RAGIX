@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.51.0
+# RAGIX v0.55.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
@@ -15,7 +15,7 @@
 
 ---
 
-**Version:** 0.51.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Version:** 0.55.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 **Updated:** 2025-12-11
 
 ---
@@ -42,39 +42,85 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 
 ---
 
-## **What's New in v0.51.0**
+## **What's New in v0.55.0**
 
 | Feature | Description |
 |---------|-------------|
-| **Robust Project Discovery** | Python-based discovery for multi-module Java projects (SIAS: 1137 files) |
-| **Improved Type Safety** | Fixed javalang type annotations with forward references |
-| **Code Tracker API Tests** | Professional test suite for tracker endpoints with 89% pass rate |
-| **Partitioner Core Engine** | Codebase partitioning module for v0.55 feature preparation |
-| **v0.55 Plan** | Detailed specification for Partitioner with force-directed visualization |
+| **Codebase Partitioner** | Separate Java codebases into logical applications (App A, App B, Shared, Dead Code) |
+| **Force-Directed Visualization** | D3.js molecular physics simulation for partition clustering |
+| **Multi-Format Export** | JSON, CSV, XLSX exports with file paths, methods, and line numbers |
+| **Evidence Chains** | Full traceability of classification decisions (fingerprint, graph propagation) |
+| **Preset Configurations** | SIAS/TICC, Generic Two Apps, Generic Three Apps patterns |
+| **Cross-Partition Analysis** | Identify coupling points between applications for refactoring |
 
-### v0.51.0 Highlights (Latest)
+### v0.55.0 Highlights (Latest)
+
+- **SIAS/GRDF Service Detection** — Enterprise Java audit for multi-module projects
+  - **SIAS patterns**: `spre##`, `sprebpm`, `spremail`, `s[ActionName]` task operations
+  - **Multi-module Maven support**: Auto-detect `app-pre-main/sat-pre-echange/src/` structures
+  - **Service pattern presets**: IOWIZME (SK/SC/SG), SIAS/GRDF (spre##), Combined
+  - **Configurable patterns**: Audit Settings UI with regex pattern configuration
+
+- **MDS/Partition-Based Graph Layout** — Precomputed positions for large codebases
+  - **MDS layout**: Classical multidimensional scaling using eigendecomposition for small graphs (<500 nodes)
+  - **Partition-based layout**: Fast O(n) circular layout for large graphs (>500 nodes like SIAS 17K)
+  - **Auto-stop simulation**: D3.js simulation stabilizes quickly with precomputed positions
+  - **Memory optimization**: Reduced animation overhead for enterprise codebases
+
+- **Audit Settings Enhancement** — Service Detection Patterns section
+  - **Service ID Patterns**: Configurable regex patterns (one per line)
+  - **Package Patterns**: Java package patterns for component detection
+  - **Presets dropdown**: Quick selection of IOWIZME, SIAS/GRDF, or Combined patterns
+  - **Risk weights**: Configurable weights for age, volatility, complexity, coverage
+
+- **Partition Graph Improvements**
+  - **Label visibility**: All node labels visible at max zoom with text-shadow outline
+  - **Line slider**: Smooth scrolling to target line in code preview using `scrollIntoView()`
+  - **Filter toggle**: Show/hide connections between partitions
+  - **DEAD_CODE color**: Distinct styling for unreachable code nodes
+
+- **Dedicated Partitioner Tab** — Full-featured partition analysis interface
+  - Independent navigation tab for clarity and focus
+  - Two-column layout: Configuration panel + Visualization
+  - Project path selector with folder browser
+  - Compact application configuration with color dots
+
+- **Force-Directed Visualization** — Physics-based graph for natural clustering
+  - D3.js force simulation with charge, link, center, collision forces
+  - **Zoom/Pan controls**: Zoom in/out, reset view, fit to view buttons
+  - **Force tuning sliders**: Repulsion, Link Distance, Link Strength, Center Gravity, Collision
+  - **Force presets**: Separated, Clustered, Balanced for quick adjustments
+  - Node/edge tooltips with detailed information (FQN, partition, LOC, dependencies)
+  - Arrow markers on edges showing direction
+  - Labels toggle for node names
+
+- **Export System** — Multi-format outputs for refactoring
+  - **SVG export**: Vector graphics for documentation and presentations
+  - **PNG export**: High-resolution raster image (2x resolution)
+  - JSON: Full partition data with metadata, evidence, cross-partition analysis
+  - CSV: Spreadsheet-ready format with FQN, partition, confidence, file, LOC
+
+- **File Preview Pane** — Audit-style code inspection
+  - Slide-in preview panel with file content
+  - Evidence chain display showing classification reasons
+  - LOC, partition, confidence metrics at a glance
+
+- **Configuration Features**
+  - Preset selector: SIAS/TICC, Generic Two Apps, Generic Three Apps
+  - Dynamic application cards with pattern inputs (comma/newline separated)
+  - Shared patterns configuration
+  - Advanced options: Propagation iterations, Confidence threshold
+
+- **API Endpoints** — RESTful interface for automation
+  - `POST /api/ast/partition` — Run partition analysis with configuration
+  - `GET /api/ast/partition/presets` — Get preset configurations
+  - `GET /api/ast/partition/export` — Export results in various formats
+
+### v0.51.0 Highlights
 
 - **Project Discovery** — Robust Python-based discovery for enterprise codebases
-  - Multi-module Java project support (finds common ancestor for >3 src directories)
-  - Correct file counting across all modules (SIAS: 1137 files vs previous 6)
-  - Multiple source patterns: `src/`, `source/`, `Sources/`, `java/`
-  - JSON output for automation and testing
-
-- **Type Safety Improvements** — Fixed all javalang type annotations
-  - Forward references using string annotations avoid NameError when javalang unavailable
-  - Affected: `Import`, `JavaNode`, `MethodDeclaration`, `ConstructorDeclaration`, `FieldDeclaration`, `FormalParameter`
-
-- **Code Tracker Test Suite** — Professional API testing
-  - Tests for outliers, complexity, dead code, coupling endpoints
-  - Validation of entropy, Gini, zone classification
-  - Response time verification (<30s threshold)
-  - JSON reports generated per project
-
-- **Partitioner Core** — Preparation for v0.55 feature
-  - `ragix_audit/partitioner.py` with `CodebasePartitioner` engine
-  - Evidence chains for classification traceability
-  - Application fingerprint matching
-  - SIAS/TICC preset configuration
+- **Type Safety** — Fixed javalang type annotations with forward references
+- **Code Tracker Tests** — Professional test suite (89% pass rate)
 
 ### v0.50.0 Highlights
 

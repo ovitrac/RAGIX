@@ -26,8 +26,12 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Get version from ragix_core
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RAGIX_VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' "$SCRIPT_DIR/ragix_core/version.py" 2>/dev/null || echo "0.55.0")
+
 echo -e "${CYAN}======================================================================${NC}"
-echo -e "${CYAN}  RAGIX v0.7 - LLM Backend Real Integration Test${NC}"
+echo -e "${CYAN}  RAGIX v${RAGIX_VERSION} - LLM Backend Real Integration Test${NC}"
 echo -e "${CYAN}======================================================================${NC}"
 echo ""
 

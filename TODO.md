@@ -1,83 +1,145 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-12-11 (v0.51.0 - Project Discovery & Partitioner Core)
+**Updated:** 2025-12-11 (v0.55.0 - Codebase Partitioner)
 **Reference:** See `PLAN_v0.30_REASONING.md` for full implementation plan
 **Review:** See `REVIEW_current_reasoning_towardsv0.30.md` for colleague feedback
-**Current:** v0.51.0 - Stabilization & v0.55 Preparation (see `PLAN_v0.55.md` for Partitioner feature)
+**Current:** v0.55.0 - Codebase Partitioner with Force-Directed Visualization
+
+---
+
+## Session Completed (2025-12-11 - v0.55.0 Sprint 2: SIAS/GRDF Audit)
+
+### SIAS Service Detection & Audit Improvements
+
+| Task | Status |
+|------|--------|
+| **SIAS Service Patterns** - `spre##`, `sprebpm`, `spremail`, `s[ActionName]` detection | ✅ Done |
+| **Multi-Module Maven Support** - Auto-detect `app-pre-main/.../src/` structures | ✅ Done |
+| **Service Pattern Presets** - IOWIZME, SIAS/GRDF, Combined in Audit Settings | ✅ Done |
+| **Audit Settings UI** - Service Detection Patterns section with textarea inputs | ✅ Done |
+| **ID Normalization** - Uppercase IDs for consistency (service_detector ↔ timeline) | ✅ Done |
+| **MDS Graph Layout** - Eigendecomposition-based positioning for small graphs | ✅ Done |
+| **Partition-Based Layout** - O(n) circular layout for large graphs (>500 nodes) | ✅ Done |
+| **Auto-Stop Simulation** - D3.js stabilization with precomputed positions | ✅ Done |
+| **Label Visibility Fix** - All labels visible at max zoom with text-shadow | ✅ Done |
+| **Line Slider Fix** - `scrollIntoView()` for smooth code navigation | ✅ Done |
+| **Risk Analysis Fix** - Services now match timeline IDs for risk scoring | ✅ Done |
+
+**Key Files Created/Modified:**
+- `ragix_audit/component_mapper.py` - SIAS patterns (spre##, JMS, TASK types)
+- `ragix_audit/service_detector.py` - SIAS annotations, multi-module path handling
+- `ragix_audit/partitioner.py` - `compute_layout()`, MDS, partition-based layout
+- `ragix_web/routers/audit.py` - `_get_source_path()` helper for multi-module projects
+- `ragix_web/static/index.html` - Service patterns UI, presets, label fixes, line slider
+- `ragix_web/static/style.css` - Textarea styling, label text-shadow
+
+**Results:**
+- SIAS: 46 services detected (was 0), 26 with risk scores
+- IOWIZME: 27 services (unchanged, still working)
+- Partition analysis: 0.28s for 17K nodes (was timing out)
+
+---
+
+## Session Completed (2025-12-11 - v0.55.0 Sprint 1: Partitioner)
+
+### Codebase Partitioner Feature
+
+| Task | Status |
+|------|--------|
+| **Partitioner API Endpoints** - POST /api/ast/partition, GET /presets, GET /export | ✅ Done |
+| **Partitioner Section UI** - Config panel with application cards, patterns, shared patterns | ✅ Done |
+| **Preset Configurations** - SIAS/TICC, Generic Two Apps, Generic Three Apps | ✅ Done |
+| **Force-Directed Visualization** - D3.js physics simulation with partition clustering | ✅ Done |
+| **Accordion Class Lists** - Expandable groups by partition with class details | ✅ Done |
+| **Export System** - JSON, CSV, XLSX formats with file paths, confidence, evidence | ✅ Done |
+| **Cross-Partition Detection** - Red-highlighted edges between different partitions | ✅ Done |
+| **Interactive Graph** - Drag nodes, pause/resume simulation, tooltips, legend | ✅ Done |
+| **Summary Statistics** - Total classes, coverage, cross-partition edges, coupling density | ✅ Done |
+| **Version Update** - Bumped to v0.55.0 | ✅ Done |
+
+**Key Files Created/Modified:**
+- `ragix_web/server.py` - Added Partitioner API (partition, presets, export endpoints)
+- `ragix_web/static/index.html` - Added Partitioner section with config, graph, accordion
+- `ragix_web/static/style.css` - Added 600+ lines of Partitioner CSS styles
+- `ragix_audit/partitioner.py` - Core engine with fingerprint matching, graph propagation
+- `ragix_core/version.py` - Updated to 0.55.0
+- `README.md` - Updated with v0.55.0 features
+- `PLAN_v0.55.md` - Detailed specification document
+
+**API Endpoints:**
+- `POST /api/ast/partition` - Run partition analysis with configuration
+- `GET /api/ast/partition/status` - Check partitioner availability
+- `GET /api/ast/partition/presets` - Get preset configurations
+- `GET /api/ast/partition/export` - Export results in JSON/CSV/XLSX
+
+**UI Components:**
+- Partitioner card in AST visualizations section
+- Configuration panel with dynamic application cards
+- Textarea inputs for patterns (package, class, keyword)
+- Shared patterns configuration
+- Advanced options (propagation iterations, confidence threshold)
+- Summary statistics bar with badges
+- Force-directed D3.js graph with zoom/pan
+- Accordion class lists sorted by partition size
+- Export buttons (JSON, CSV, XLSX)
+
+---
+
+## Missing Steps for v0.55 Completion
+
+### Service Pattern Configuration Backend
+
+| Task | Priority | Status |
+|------|----------|--------|
+| **Backend API for Service Patterns** - POST /api/audit/config with `service_patterns` | High | Pending |
+| **Runtime Pattern Reload** - Apply custom patterns without restart | High | Pending |
+| **Pattern Validation** - Validate regex patterns before saving | Medium | Pending |
+| **Pattern Export/Import** - Save/load pattern configurations as JSON | Low | Pending |
+
+### Audit Tab Polish
+
+| Task | Priority | Status |
+|------|----------|--------|
+| **Services Table Sorting** - Sort by ID, Type, Files, Risk, Age | Medium | Pending |
+| **Services Filter** - Filter by type (service/screen/general), risk level | Medium | Pending |
+| **Risk Badge Colors** - Color-coded risk badges (green/yellow/orange/red) | Medium | Pending |
+| **Age Display** - Show age in years/months for services | Low | Pending |
+| **Category Display** - Show lifecycle category (NEW/ACTIVE/MATURE/LEGACY) | Low | Pending |
+
+### Testing & Validation
+
+| Task | Priority | Status |
+|------|----------|--------|
+| **SIAS Full Audit Test** - End-to-end test with all 46 services | High | Pending |
+| **IOWIZME Regression Test** - Verify SK/SC/SG detection unchanged | High | Pending |
+| **Pattern Preset Validation** - Test all presets generate expected results | Medium | Pending |
+
+---
+
+## Roadmap: v0.60 - RAG Partition Integration
+
+### Planned Features
+
+| Task | Priority | Status |
+|------|----------|--------|
+| **RAG Partition Metadata** - Add partition tags to vector store chunks | High | Pending |
+| **Partition Filter in Search** - Filter RAG results by partition | High | Pending |
+| **Chat Partition Context** - Include partition info in AI context | Medium | Pending |
+| **Automated Pattern Discovery** - ML-based fingerprint suggestion | Low | Planned |
+| **Migration Planning** - Generate refactoring roadmap from partitions | Low | Planned |
 
 ---
 
 ## Session Completed (2025-12-11 - v0.51.0)
 
-### Project Discovery & Partitioner Preparation
+### Project Discovery & Type Safety
 
 | Task | Status |
 |------|--------|
 | **Python Project Discovery** - Robust multi-module Java project discovery | ✅ Done |
 | **Common Ancestor Detection** - Find common parent for >3 src directories | ✅ Done |
-| **Correct File Counting** - Sum Java files across all modules | ✅ Done |
 | **Type Annotation Fixes** - Forward references for javalang types | ✅ Done |
-| **Code Tracker Test Suite** - Professional API test suite | ✅ Done |
-| **Test Assertion Fixes** - Match server response format (entropy.structural, inequality.gini) | ✅ Done |
-| **Partitioner Core Engine** - `ragix_audit/partitioner.py` with evidence chains | ✅ Done |
-| **v0.55 Plan Document** - Detailed specification for Partitioner feature | ✅ Done |
-| **Version Update** - Bumped to v0.51.0 | ✅ Done |
-
-**Key Files Created/Modified:**
-- `tests/audit/discover_projects.py` - NEW: Python project discovery with JSON output
-- `tests/audit/run_audit_tests.sh` - Updated to use Python discovery
-- `tests/audit/test_tracker_api.py` - Fixed test assertions for server response format
-- `ragix_core/ast_java.py` - Fixed all javalang type annotations using forward references
-- `ragix_audit/partitioner.py` - NEW: Core partitioning engine with evidence chains
-- `PLAN_v0.55.md` - NEW: Detailed specification for Partitioner feature
-- `ragix_core/version.py` - Updated to 0.51.0
-
-**Type Annotations Fixed:**
-- `_convert_compilation_unit()` - `tree: "CompilationUnit"`
-- `_convert_import()` - `imp: "Import"`
-- `_convert_member()` - `node: "JavaNode"`
-- `_convert_method()` - `node: "MethodDeclaration"`
-- `_convert_constructor()` - `node: "ConstructorDeclaration"`
-- `_convert_field()` - `node: "FieldDeclaration"`
-- `_convert_parameter()` - `param: "FormalParameter"`
-- `_extract_calls()` - `node: "MethodDeclaration"`
-
-**Test Results (IOWIZME):**
-- 8/9 tests passing (89%)
-- Outliers: 10 files
-- Complex methods: 14
-- Dead code candidates: 4094
-- Coupling packages: 225
-
----
-
-## Roadmap: v0.55 - Codebase Partitioner
-
-**Reference:** See `PLAN_v0.55.md` for detailed specification
-
-### Partitioner Feature
-
-| Task | Priority | Status |
-|------|----------|--------|
-| **Partitioner Tab UI** - New tab in AST section for partitioning | High | Pending |
-| **Force-Directed Visualization** - D3.js molecular physics simulation | High | Pending |
-| **Partition Labels** - APP_A, APP_B, SHARED, DEAD_CODE, UNKNOWN | High | Pending |
-| **Evidence Chains** - Classification traceability (fingerprint, neighbor, shared) | High | Pending |
-| **Export Formats** - JSON, CSV, XLSX with line numbers and methods | High | Pending |
-| **RAG Integration** - Partition tags in global vector store metadata | High | Pending |
-| **Cross-Partition Coupling** - Analyze dependencies between partitions | Medium | Pending |
-| **Batch Analysis** - Process large codebases efficiently | Medium | Pending |
-
-### v0.55 Implementation Phases
-
-| Phase | Description | Effort | Status |
-|-------|-------------|--------|--------|
-| **Phase 1** - Core Backend | Integrate partitioner.py with server API | 2 days | Pending |
-| **Phase 2** - Basic UI | Partitioner tab with config and results tables | 2 days | Pending |
-| **Phase 3** - Force-Directed Viz | D3.js molecular visualization | 3 days | Pending |
-| **Phase 4** - Export System | JSON/CSV/XLSX generators | 1 day | Pending |
-| **Phase 5** - RAG Integration | Partition metadata in vector store | 2 days | Pending |
-| **Phase 6** - Polish & Testing | Documentation and test suite | 2 days | Pending |
+| **Code Tracker Test Suite** - Professional API test suite (89% pass rate) | ✅ Done |
 
 ---
 

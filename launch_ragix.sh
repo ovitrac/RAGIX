@@ -33,6 +33,16 @@ set -e
 ENV_NAME="ragix-env"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Get version from ragix_core/version.py
+get_version() {
+    if [ -f "$SCRIPT_DIR/ragix_core/version.py" ]; then
+        grep -oP '__version__\s*=\s*"\K[^"]+' "$SCRIPT_DIR/ragix_core/version.py" 2>/dev/null || echo "0.55.0"
+    else
+        echo "0.55.0"
+    fi
+}
+RAGIX_VERSION=$(get_version)
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -51,7 +61,7 @@ print_banner() {
     echo ""
     echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║${NC}                                                                  ${CYAN}║${NC}"
-    echo -e "${CYAN}║${NC}   ${BOLD}${GREEN}RAGIX${NC} v0.7 — Retrieval-Augmented Generative IX Agent           ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}   ${BOLD}${GREEN}RAGIX${NC} v${RAGIX_VERSION} — Retrieval-Augmented Generative IX Agent        ${CYAN}║${NC}"
     echo -e "${CYAN}║${NC}                                                                  ${CYAN}║${NC}"
     echo -e "${CYAN}║${NC}   ${MAGENTA}Sovereign • Local-First • Unix-RAG Patterns${NC}                    ${CYAN}║${NC}"
     echo -e "${CYAN}║${NC}                                                                  ${CYAN}║${NC}"

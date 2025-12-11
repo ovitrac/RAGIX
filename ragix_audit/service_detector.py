@@ -184,9 +184,15 @@ class ServiceDetector:
 
     # Annotation patterns for service detection
     ANNOTATION_PATTERNS = [
+        # IOWIZME: SK/SC/SG patterns
         re.compile(r'@Service\s*\(\s*["\']?(SK|SC|SG)\d{2}["\']?\s*\)', re.IGNORECASE),
         re.compile(r'@Component\s*\(\s*["\']?(SK|SC|SG)\d{2}["\']?\s*\)', re.IGNORECASE),
         re.compile(r'@Named\s*\(\s*["\']?(SK|SC|SG)\d{2}["\']?\s*\)', re.IGNORECASE),
+        # SIAS: spre## patterns (e.g., @Service("spre28ws"), @Component(value = "spre13"))
+        re.compile(r'@Service\s*\(\s*["\']?(spre\d{2}(?:ws)?|sprebpm(?:ws)?|spremail)["\']?\s*\)', re.IGNORECASE),
+        re.compile(r'@Component\s*\(\s*(?:value\s*=\s*)?["\']?(spre\d{2}(?:ws)?|sprebpm(?:ws)?|spremail)["\']?\s*\)', re.IGNORECASE),
+        # SIAS: s[ActionName] patterns for task operations
+        re.compile(r'@Component\s*\(\s*(?:value\s*=\s*)?["\'](s[A-Z][a-zA-Z]+)["\']\s*\)', re.IGNORECASE),
     ]
 
     # Service name patterns in comments/docs
@@ -194,6 +200,15 @@ class ServiceDetector:
         re.compile(r'Service\s+(?:Key\s+)?(SK\d{2})\s*[-:]\s*(.+?)(?:\n|$)', re.IGNORECASE),
         re.compile(r'Screen\s+(?:Code\s+)?(SC\d{2})\s*[-:]\s*(.+?)(?:\n|$)', re.IGNORECASE),
         re.compile(r'(S[KCG]\d{2})\s*[-:=]\s*["\'"]?([^"\'"\n]{5,50})["\'"]?', re.IGNORECASE),
+        # SIAS: spre## service patterns
+        re.compile(r'(spre\d{2}(?:ws)?)\s*[-:=]\s*["\'"]?([^"\'"\n]{5,50})["\'"]?', re.IGNORECASE),
+    ]
+
+    # SIAS-specific component patterns for broader detection
+    SIAS_COMPONENT_PATTERNS = [
+        re.compile(r'\b(spre\d{2}(?:ws)?)\b', re.IGNORECASE),
+        re.compile(r'\b(sprebpm(?:ws)?)\b', re.IGNORECASE),
+        re.compile(r'\b(spremail)\b', re.IGNORECASE),
     ]
 
     def __init__(
@@ -268,7 +283,16 @@ class ServiceDetector:
     def _detect_from_filesystem(self):
         """Detect services from filesystem patterns."""
         # Use ComponentMapper for initial detection
-        src_path = self.project_path / "src" if (self.project_path / "src").exists() else self.project_path
+        # Handle multi-module Maven projects
+        src_path = self.project_path / "src"
+        if src_path.exists():
+            java_in_src = list(src_path.rglob("*.java"))[:1]
+            if not java_in_src:
+                src_path = self.project_path
+        else:
+            src_path = self.project_path
+
+        logger.info(f"Filesystem scan from: {src_path}")
         components = self.mapper.scan_directory(src_path)
 
         for comp_id, comp in components.items():
@@ -373,8 +397,18 @@ class ServiceDetector:
 
     def _detect_from_content(self):
         """Analyze file content for annotations and documentation."""
-        # Scan Java files for annotations
-        src_path = self.project_path / "src" if (self.project_path / "src").exists() else self.project_path
+        # Determine source path - handle multi-module Maven projects
+        src_path = self.project_path / "src"
+        if src_path.exists():
+            # Check if src has Java files directly
+            java_in_src = list(src_path.rglob("*.java"))[:1]
+            if not java_in_src:
+                # Multi-module project: scan from root
+                src_path = self.project_path
+        else:
+            src_path = self.project_path
+
+        logger.info(f"Scanning Java files from: {src_path}")
 
         for java_file in src_path.rglob("*.java"):
             try:
@@ -396,18 +430,30 @@ class ServiceDetector:
         # Check for @Service, @Component annotations
         for pattern in self.ANNOTATION_PATTERNS:
             for match in pattern.finditer(content):
-                comp_id = match.group(1).upper() + match.group(0)[-3:-1]
+                # Extract the component ID from the captured group
+                comp_id = match.group(1)
+                # _get_or_create_service handles normalization
+
                 comp_type = self._id_to_type(comp_id)
 
                 svc = self._get_or_create_service(comp_id, comp_type)
                 svc.annotations.append(match.group(0))
                 svc.add_source(DetectionSource.CONTENT_ANNOTATION)
 
+        # Also check for SIAS patterns in file content (directory structure patterns)
+        for pattern in self.SIAS_COMPONENT_PATTERNS:
+            for match in pattern.finditer(content):
+                comp_id = match.group(1)  # Will be uppercased in _get_or_create_service
+                comp_type = self._id_to_type(comp_id)
+
+                svc = self._get_or_create_service(comp_id, comp_type)
+                svc.add_source(DetectionSource.CONTENT_ANNOTATION)
+
         # Check for Javadoc @since tags
         since_pattern = re.compile(r'@since\s+[Vv]?(\d+(?:\.\d+)*)', re.IGNORECASE)
         for match in since_pattern.finditer(content):
             version = match.group(1)
-            # Associate with any service in this file
+            # Associate with any service in this file - SK/SC/SG patterns
             comp_pattern = re.compile(r'\b(SK|SC|SG)\d{2}\b', re.IGNORECASE)
             for comp_match in comp_pattern.finditer(content):
                 comp_id = comp_match.group(0).upper()
@@ -417,6 +463,17 @@ class ServiceDetector:
                 if not svc.doc_version:
                     svc.doc_version = f"V{version}"
                 svc.add_source(DetectionSource.CONTENT_JAVADOC)
+
+            # Also check SIAS patterns
+            for sias_pattern in self.SIAS_COMPONENT_PATTERNS:
+                for comp_match in sias_pattern.finditer(content):
+                    comp_id = comp_match.group(1)  # Will be uppercased
+                    comp_type = self._id_to_type(comp_id)
+
+                    svc = self._get_or_create_service(comp_id, comp_type)
+                    if not svc.doc_version:
+                        svc.doc_version = f"V{version}"
+                    svc.add_source(DetectionSource.CONTENT_JAVADOC)
 
     def _analyze_doc_content(self, content: str):
         """Analyze documentation for service names and descriptions."""
@@ -432,6 +489,7 @@ class ServiceDetector:
 
     def _get_or_create_service(self, comp_id: str, comp_type: ComponentType) -> DetectedService:
         """Get existing service or create new one."""
+        # Normalize all IDs to uppercase for consistency with ComponentMapper/TimelineScanner
         comp_id = comp_id.upper()
         if comp_id not in self.services:
             self.services[comp_id] = DetectedService(id=comp_id, type=comp_type)
@@ -439,6 +497,18 @@ class ServiceDetector:
 
     def _id_to_type(self, comp_id: str) -> ComponentType:
         """Convert component ID prefix to type."""
+        comp_lower = comp_id.lower()
+
+        # SIAS patterns
+        if comp_lower.startswith('spre'):
+            if 'ws' in comp_lower:
+                return ComponentType.SERVICE  # Web service
+            return ComponentType.SERVICE  # JMS or general service
+        if comp_lower.startswith('s') and len(comp_id) > 4 and comp_id[1].isupper():
+            # SIAS task operations like sAffecterTache
+            return ComponentType.SERVICE
+
+        # IOWIZME patterns
         prefix = comp_id[:2].upper()
         if prefix == "SK":
             return ComponentType.SERVICE

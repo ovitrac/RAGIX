@@ -2,7 +2,7 @@
 RAGIX Web Interface - Streamlit Application
 ============================================
 
-A sovereign, local-first web interface for RAGIX v0.7.1.
+A sovereign, local-first web interface for RAGIX.
 All processing happens locally - no data leaves your machine.
 
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-11-26
@@ -23,12 +23,18 @@ from pathlib import Path
 from typing import Optional, Dict, List, Any
 from datetime import datetime
 
+# Import version from centralized source
+try:
+    from ragix_core.version import __version__ as RAGIX_VERSION
+except ImportError:
+    RAGIX_VERSION = "0.55.0"  # Fallback
+
 # =============================================================================
 # Page Configuration
 # =============================================================================
 
 st.set_page_config(
-    page_title="RAGIX v0.7",
+    page_title=f"RAGIX v{RAGIX_VERSION}",
     page_icon="🔍",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -180,7 +186,7 @@ def format_size(size_bytes: int) -> str:
 
 with st.sidebar:
     st.markdown("# 🔍 RAGIX")
-    st.markdown("**v0.7** — Sovereign AI Assistant")
+    st.markdown(f"**v{RAGIX_VERSION}** — Sovereign AI Assistant")
 
     st.markdown("---")
 
@@ -813,8 +819,8 @@ elif page == "📊 Monitor":
 elif page == "ℹ️ About":
     st.title("ℹ️ About RAGIX")
 
-    st.markdown("""
-    ## RAGIX v0.7
+    st.markdown(f"""
+    ## RAGIX v{RAGIX_VERSION}
 
     **Retrieval-Augmented Generative Interactive eXecution Agent**
 
@@ -889,9 +895,9 @@ elif page == "ℹ️ About":
 
 st.markdown("---")
 st.markdown(
-    "<div style='text-align: center; color: #666;'>"
-    "🔍 RAGIX v0.7 | 🟢 Sovereign | 🔒 100% Local | "
-    "<a href='https://github.com/ovitrac/RAGIX'>GitHub</a>"
-    "</div>",
+    f"<div style='text-align: center; color: #666;'>"
+    f"🔍 RAGIX v{RAGIX_VERSION} | 🟢 Sovereign | 🔒 100% Local | "
+    f"<a href='https://github.com/ovitrac/RAGIX'>GitHub</a>"
+    f"</div>",
     unsafe_allow_html=True,
 )

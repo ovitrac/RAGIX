@@ -336,6 +336,10 @@ class D3Renderer:
 
         for i, sym in enumerate(symbols):
             node_index[sym.qualified_name] = i
+            # Compute LOC from start/end lines if available
+            loc = 0
+            if sym.location and sym.location.line and sym.location.end_line:
+                loc = sym.location.end_line - sym.location.line + 1
             nodes.append({
                 "id": sym.qualified_name,
                 "name": sym.name,
@@ -343,6 +347,8 @@ class D3Renderer:
                 "visibility": sym.visibility.value,
                 "file": str(sym.location.file) if sym.location.file else None,
                 "line": sym.location.line,
+                "end_line": sym.location.end_line if sym.location.end_line else None,
+                "loc": loc,
                 "color": _get_color(sym.node_type, self.config.color_scheme),
             })
 

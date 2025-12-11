@@ -354,7 +354,9 @@ from .ast_python import PythonASTBackend, get_python_backend
 # Import Java backend to auto-register it (requires javalang)
 try:
     from .ast_java import JavaASTBackend, get_java_backend, is_java_available
-except ImportError:
+except (ImportError, NameError) as e:
+    # ImportError: javalang not installed
+    # NameError: javalang types not available (e.g., CompilationUnit)
     JavaASTBackend = None
     get_java_backend = lambda: None
     is_java_available = lambda: False

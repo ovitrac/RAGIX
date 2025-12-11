@@ -19,9 +19,11 @@ logger = logging.getLogger(__name__)
 
 class ComponentType(Enum):
     """Type of business component."""
-    SERVICE = "service"      # SK01-SK14: Service Keys
+    SERVICE = "service"      # SK01-SK14: Service Keys / SIAS: spre##, sprebpm
     SCREEN = "screen"        # SC01-SC08: Screen Codes
     GENERAL = "general"      # SG01+: General Services
+    JMS = "jms"              # SIAS: JMS handlers (spre## in jms dir)
+    TASK = "task"            # SIAS: s[ActionName] task operations
     UNKNOWN = "unknown"      # Unclassified
 
 
@@ -69,6 +71,11 @@ class ComponentMapper:
         # General Services (SG01+)
         r'\bSG[0-9]{2}\b': ComponentType.GENERAL,
         r'\bsg[0-9]{2}\b': ComponentType.GENERAL,
+
+        # SIAS: spre## services (e.g., spre13, spre28ws)
+        r'\bspre[0-9]{2}(?:ws)?\b': ComponentType.SERVICE,
+        r'\bsprebpm(?:ws)?\b': ComponentType.SERVICE,
+        r'\bspremail\b': ComponentType.SERVICE,
     }
 
     # Package patterns for component detection
@@ -78,6 +85,10 @@ class ComponentMapper:
         r'fr\.iowizmi\.iok\.sg': ComponentType.GENERAL,
         r'fr\.iowizmi\.ui\.': ComponentType.SCREEN,
         r'fr\.iowizmi\.service\.': ComponentType.SERVICE,
+        # SIAS: GRDF service patterns
+        r'com\.grdf\..*\.ws\.spre': ComponentType.SERVICE,
+        r'com\.grdf\..*\.jms\.spre': ComponentType.JMS,
+        r'com\.grdf\..*\.jms\.traitementmasse': ComponentType.TASK,
     }
 
     def __init__(self):
@@ -259,12 +270,20 @@ def detect_component_id(text: str) -> Optional[str]:
     """
     Quick utility to extract a single component ID from text.
 
-    Returns the first SK/SC/SG pattern found, or None.
+    Returns the first SK/SC/SG/spre pattern found, or None.
     """
+    # Try SK/SC/SG patterns first
     pattern = re.compile(r'\b(SK|SC|SG)[0-9]{2}\b', re.IGNORECASE)
     match = pattern.search(text)
     if match:
         return match.group(0).upper()
+
+    # Try SIAS spre patterns
+    spre_pattern = re.compile(r'\b(spre[0-9]{2}(?:ws)?|sprebpm(?:ws)?|spremail)\b', re.IGNORECASE)
+    match = spre_pattern.search(text)
+    if match:
+        return match.group(0).lower()  # SIAS uses lowercase
+
     return None
 
 

@@ -549,7 +549,12 @@ class VectorStore:
             logger.info(f"Cleared collection: {collection_name}")
             return True
         except Exception as e:
-            logger.error(f"Failed to clear collection {collection_name}: {e}")
+            # Collection may not exist yet on first indexing - this is expected
+            err_str = str(e).lower()
+            if "does not exist" in err_str or "not found" in err_str:
+                logger.debug(f"Collection {collection_name} does not exist (ok on first run)")
+            else:
+                logger.warning(f"Failed to clear collection {collection_name}: {e}")
             return False
 
     def clear_all(self) -> bool:
