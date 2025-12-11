@@ -101,7 +101,7 @@ class JavaASTBackend(ASTBackend):
 
     def _convert_compilation_unit(
         self,
-        tree: CompilationUnit,
+        tree: "CompilationUnit",  # String annotation to avoid NameError when javalang unavailable
         path: Path,
     ) -> ASTNode:
         """Convert CompilationUnit to ASTNode."""
@@ -149,7 +149,7 @@ class JavaASTBackend(ASTBackend):
 
         return module_node
 
-    def _convert_import(self, imp: Import, path: Path) -> ASTNode:
+    def _convert_import(self, imp: "Import", path: Path) -> ASTNode:
         """Convert an import declaration."""
         import_path = imp.path
         is_static = imp.static
@@ -173,7 +173,7 @@ class JavaASTBackend(ASTBackend):
 
     def _convert_type_declaration(
         self,
-        node: Union[ClassDeclaration, InterfaceDeclaration, EnumDeclaration, AnnotationDeclaration],
+        node: "Union[ClassDeclaration, InterfaceDeclaration, EnumDeclaration, AnnotationDeclaration]",
         path: Path,
         scope: List[str],
     ) -> Optional[ASTNode]:
@@ -247,7 +247,7 @@ class JavaASTBackend(ASTBackend):
 
     def _convert_member(
         self,
-        node: JavaNode,
+        node: "JavaNode",
         path: Path,
         scope: List[str],
     ) -> Optional[ASTNode]:
@@ -270,7 +270,7 @@ class JavaASTBackend(ASTBackend):
 
     def _convert_method(
         self,
-        node: MethodDeclaration,
+        node: "MethodDeclaration",
         path: Path,
         scope: List[str],
     ) -> ASTNode:
@@ -318,7 +318,7 @@ class JavaASTBackend(ASTBackend):
 
     def _convert_constructor(
         self,
-        node: ConstructorDeclaration,
+        node: "ConstructorDeclaration",
         path: Path,
         scope: List[str],
     ) -> ASTNode:
@@ -355,7 +355,7 @@ class JavaASTBackend(ASTBackend):
 
     def _convert_field(
         self,
-        node: FieldDeclaration,
+        node: "FieldDeclaration",
         path: Path,
         scope: List[str],
     ) -> ASTNode:
@@ -396,7 +396,7 @@ class JavaASTBackend(ASTBackend):
 
     def _convert_parameter(
         self,
-        param: FormalParameter,
+        param: "FormalParameter",
         path: Path,
     ) -> ASTNode:
         """Convert a method parameter."""
@@ -524,7 +524,7 @@ class JavaASTBackend(ASTBackend):
 
         return doc if has_real_content else None
 
-    def _extract_calls(self, node: MethodDeclaration) -> List[str]:
+    def _extract_calls(self, node: "MethodDeclaration") -> List[str]:
         """Extract method calls from a method body."""
         calls = []
 

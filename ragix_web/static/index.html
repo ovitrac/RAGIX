@@ -2484,6 +2484,151 @@
 
                     <div id="astResults" style="margin-top: 20px;"></div>
 
+                    <!-- Code Tracker Section (v0.5) -->
+                    <div id="codeTrackerSection" class="code-tracker-section" style="display: none;">
+                        <div class="tracker-header">
+                            <h3><span class="tracker-icon">&#128269;</span> Code Tracker</h3>
+                            <div class="tracker-actions">
+                                <button class="btn btn-sm" onclick="astApp.refreshTracker()">Refresh</button>
+                                <button class="btn btn-sm btn-icon" onclick="astApp.toggleTrackerFullscreen()" title="Fullscreen">&#9974;</button>
+                            </div>
+                        </div>
+
+                        <!-- Statistics Summary -->
+                        <div class="tracker-stats" id="trackerStats">
+                            <div class="tracker-stat-row">
+                                <div class="tracker-stat-card">
+                                    <div class="tracker-stat-label">Structural Entropy</div>
+                                    <div class="tracker-stat-value" id="trackerEntropy">-</div>
+                                    <div class="tracker-stat-sub" id="trackerEntropyPct">-</div>
+                                </div>
+                                <div class="tracker-stat-card">
+                                    <div class="tracker-stat-label">Gini Coefficient</div>
+                                    <div class="tracker-stat-value" id="trackerGini">-</div>
+                                    <div class="tracker-stat-sub">0=equal, 1=concentrated</div>
+                                </div>
+                                <div class="tracker-stat-card">
+                                    <div class="tracker-stat-label">CR-4 (Top 4)</div>
+                                    <div class="tracker-stat-value" id="trackerCR4">-</div>
+                                    <div class="tracker-stat-sub">Code concentration</div>
+                                </div>
+                                <div class="tracker-stat-card">
+                                    <div class="tracker-stat-label">Zone of Pain</div>
+                                    <div class="tracker-stat-value tracker-stat-warning" id="trackerPainZone">-</div>
+                                    <div class="tracker-stat-sub">Rigid packages</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tracker Tabs -->
+                        <div class="tracker-tabs">
+                            <button class="tracker-tab active" data-tracker="outliers" onclick="astApp.switchTrackerTab('outliers')">
+                                <span class="tab-icon">&#9888;</span> Outliers <span class="tracker-badge" id="trackerOutlierCount">0</span>
+                            </button>
+                            <button class="tracker-tab" data-tracker="complexity" onclick="astApp.switchTrackerTab('complexity')">
+                                <span class="tab-icon">&#128200;</span> High Complexity <span class="tracker-badge" id="trackerComplexCount">0</span>
+                            </button>
+                            <button class="tracker-tab" data-tracker="deadcode" onclick="astApp.switchTrackerTab('deadcode')">
+                                <span class="tab-icon">&#128683;</span> Dead Code <span class="tracker-badge" id="trackerDeadCount">0</span>
+                            </button>
+                            <button class="tracker-tab" data-tracker="coupling" onclick="astApp.switchTrackerTab('coupling')">
+                                <span class="tab-icon">&#128279;</span> Coupling Issues <span class="tracker-badge" id="trackerCouplingCount">0</span>
+                            </button>
+                        </div>
+
+                        <!-- Tracker Content -->
+                        <div class="tracker-content" id="trackerContent">
+                            <!-- Outliers Tab -->
+                            <div class="tracker-panel active" id="trackerOutliers">
+                                <div class="tracker-filter-row">
+                                    <select id="outlierTypeFilter" onchange="astApp.filterOutliers()">
+                                        <option value="all">All Outliers</option>
+                                        <option value="size">File Size (LOC)</option>
+                                        <option value="complexity">Complexity (CC)</option>
+                                        <option value="methods">Method Count</option>
+                                    </select>
+                                    <input type="text" id="outlierSearchFilter" placeholder="Filter by file name..." oninput="astApp.filterOutliers()">
+                                </div>
+                                <div class="tracker-list" id="outliersList">
+                                    <div class="tracker-empty">No outliers detected. Run analysis first.</div>
+                                </div>
+                            </div>
+
+                            <!-- High Complexity Tab -->
+                            <div class="tracker-panel" id="trackerComplexity">
+                                <div class="tracker-filter-row">
+                                    <select id="complexityLevelFilter" onchange="astApp.filterComplexity()">
+                                        <option value="all">All Levels</option>
+                                        <option value="very">Very Complex (CC > 20)</option>
+                                        <option value="complex">Complex (CC 11-20)</option>
+                                        <option value="moderate">Moderate (CC 6-10)</option>
+                                    </select>
+                                    <input type="text" id="complexitySearchFilter" placeholder="Filter by method name..." oninput="astApp.filterComplexity()">
+                                </div>
+                                <div class="tracker-list" id="complexityList">
+                                    <div class="tracker-empty">No high complexity methods found.</div>
+                                </div>
+                            </div>
+
+                            <!-- Dead Code Tab -->
+                            <div class="tracker-panel" id="trackerDeadcode">
+                                <div class="tracker-filter-row">
+                                    <select id="deadcodeTypeFilter" onchange="astApp.filterDeadcode()">
+                                        <option value="all">All Dead Code</option>
+                                        <option value="class">Unreachable Classes</option>
+                                        <option value="method">Unused Methods</option>
+                                        <option value="package">Orphan Packages</option>
+                                    </select>
+                                    <input type="text" id="deadcodeSearchFilter" placeholder="Filter by name..." oninput="astApp.filterDeadcode()">
+                                </div>
+                                <div class="tracker-list" id="deadcodeList">
+                                    <div class="tracker-empty">No dead code candidates found.</div>
+                                </div>
+                            </div>
+
+                            <!-- Coupling Issues Tab -->
+                            <div class="tracker-panel" id="trackerCoupling">
+                                <div class="tracker-filter-row">
+                                    <select id="couplingTypeFilter" onchange="astApp.filterCoupling()">
+                                        <option value="all">All Issues</option>
+                                        <option value="pain">Zone of Pain</option>
+                                        <option value="sdp">SDP Violations</option>
+                                        <option value="high-ce">High Efferent (Ce > 10)</option>
+                                    </select>
+                                    <input type="text" id="couplingSearchFilter" placeholder="Filter by package..." oninput="astApp.filterCoupling()">
+                                </div>
+                                <div class="tracker-list" id="couplingList">
+                                    <div class="tracker-empty">No coupling issues found.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- File Viewer Modal for Code Tracker -->
+                    <div id="trackerFileModal" class="tracker-file-modal" style="display: none;">
+                        <div class="tracker-file-content">
+                            <div class="tracker-file-header">
+                                <div class="tracker-file-path" id="trackerFilePath">file.java</div>
+                                <div class="tracker-file-actions">
+                                    <button class="btn btn-sm" onclick="astApp.openInEditor()" title="Open in editor">&#128221;</button>
+                                    <button class="btn btn-sm btn-icon" onclick="astApp.closeTrackerFile()">&#10005;</button>
+                                </div>
+                            </div>
+                            <div class="tracker-file-info" id="trackerFileInfo">
+                                <span class="info-badge">LOC: <strong id="trackerFileLOC">0</strong></span>
+                                <span class="info-badge">CC: <strong id="trackerFileCC">0</strong></span>
+                                <span class="info-badge">Methods: <strong id="trackerFileMethods">0</strong></span>
+                            </div>
+                            <div class="tracker-file-body" id="trackerFileBody">
+                                <pre><code id="trackerFileCode"></code></pre>
+                            </div>
+                            <div class="tracker-file-methods" id="trackerFileMethods">
+                                <h4>Methods in this file</h4>
+                                <div class="methods-list" id="trackerMethodsList"></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Embedded Visualization Area (with fullscreen and resize support) -->
                     <div id="vizContainer" class="viz-container" style="display: none;">
                         <div class="viz-header">
@@ -3702,6 +3847,8 @@
                 }
                 this.projectPath = path;
                 this.showMetrics(path);
+                // Also load tracker data (v0.5)
+                this.loadTrackerData();
             },
 
             async showMetrics(path) {
@@ -3919,6 +4066,339 @@
                 if (frame.src && frame.src !== 'about:blank') {
                     window.open(frame.src, '_blank');
                 }
+            },
+
+            // =============================================================
+            // Code Tracker (v0.5)
+            // =============================================================
+            trackerData: {
+                outliers: [],
+                complexity: [],
+                deadcode: [],
+                coupling: [],
+                stats: null
+            },
+            trackerFullscreen: false,
+            currentTrackerFile: null,
+
+            async loadTrackerData() {
+                const path = this.getPath();
+                if (!path) return;
+
+                try {
+                    // Fetch tracker data from new API endpoint
+                    const response = await fetch(`/api/ast/tracker?path=${encodeURIComponent(path)}`);
+                    if (!response.ok) throw new Error(await response.text());
+
+                    const data = await response.json();
+                    this.trackerData = data;
+
+                    // Show the tracker section
+                    document.getElementById('codeTrackerSection').style.display = 'block';
+
+                    // Update stats
+                    this.updateTrackerStats(data.stats);
+
+                    // Update badge counts
+                    document.getElementById('trackerOutlierCount').textContent = data.outliers?.length || 0;
+                    document.getElementById('trackerComplexCount').textContent = data.complexity?.length || 0;
+                    document.getElementById('trackerDeadCount').textContent = data.deadcode?.length || 0;
+                    document.getElementById('trackerCouplingCount').textContent = data.coupling?.length || 0;
+
+                    // Render initial tab
+                    this.renderOutliers();
+
+                } catch (e) {
+                    console.error('Failed to load tracker data:', e);
+                }
+            },
+
+            updateTrackerStats(stats) {
+                if (!stats) return;
+
+                // Entropy
+                const entropy = stats.entropy || {};
+                document.getElementById('trackerEntropy').textContent =
+                    entropy.structural ? entropy.structural.toFixed(2) + ' bits' : '-';
+                document.getElementById('trackerEntropyPct').textContent =
+                    entropy.structural_pct ? entropy.structural_pct + '% of max' : '-';
+
+                // Inequality
+                const ineq = stats.inequality || {};
+                document.getElementById('trackerGini').textContent =
+                    ineq.gini !== undefined ? ineq.gini.toFixed(3) : '-';
+                document.getElementById('trackerCR4').textContent =
+                    ineq.cr4 !== undefined ? ineq.cr4.toFixed(1) + '%' : '-';
+
+                // Coupling zones
+                const zones = stats.zones || {};
+                document.getElementById('trackerPainZone').textContent =
+                    zones.pain !== undefined ? zones.pain : '-';
+            },
+
+            switchTrackerTab(tabName) {
+                // Update tab buttons
+                document.querySelectorAll('.tracker-tab').forEach(tab => {
+                    tab.classList.toggle('active', tab.dataset.tracker === tabName);
+                });
+
+                // Update panels
+                document.querySelectorAll('.tracker-panel').forEach(panel => {
+                    panel.classList.remove('active');
+                });
+
+                const panelId = {
+                    'outliers': 'trackerOutliers',
+                    'complexity': 'trackerComplexity',
+                    'deadcode': 'trackerDeadcode',
+                    'coupling': 'trackerCoupling'
+                }[tabName];
+
+                document.getElementById(panelId)?.classList.add('active');
+
+                // Render the appropriate content
+                if (tabName === 'outliers') this.renderOutliers();
+                else if (tabName === 'complexity') this.renderComplexity();
+                else if (tabName === 'deadcode') this.renderDeadcode();
+                else if (tabName === 'coupling') this.renderCoupling();
+            },
+
+            renderOutliers() {
+                const list = document.getElementById('outliersList');
+                const items = this.trackerData.outliers || [];
+                const filter = document.getElementById('outlierTypeFilter')?.value || 'all';
+                const search = document.getElementById('outlierSearchFilter')?.value?.toLowerCase() || '';
+
+                const filtered = items.filter(item => {
+                    if (filter !== 'all' && item.type !== filter) return false;
+                    if (search && !item.file.toLowerCase().includes(search)) return false;
+                    return true;
+                });
+
+                if (filtered.length === 0) {
+                    list.innerHTML = '<div class="tracker-empty">No outliers match the current filter.</div>';
+                    return;
+                }
+
+                list.innerHTML = filtered.map(item => `
+                    <div class="tracker-item" onclick="astApp.openTrackerFile('${this.escapeHtml(item.file)}', ${item.line || 0})">
+                        <div class="tracker-item-icon outlier">&#9888;</div>
+                        <div class="tracker-item-content">
+                            <div class="tracker-item-title">${this.escapeHtml(item.name || item.file.split('/').pop())}</div>
+                            <div class="tracker-item-subtitle">${this.escapeHtml(item.file)}</div>
+                        </div>
+                        <div class="tracker-item-metrics">
+                            <span class="tracker-metric ${item.severity || ''}">${item.type}: ${item.value}</span>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            renderComplexity() {
+                const list = document.getElementById('complexityList');
+                const items = this.trackerData.complexity || [];
+                const filter = document.getElementById('complexityLevelFilter')?.value || 'all';
+                const search = document.getElementById('complexitySearchFilter')?.value?.toLowerCase() || '';
+
+                const filtered = items.filter(item => {
+                    if (filter === 'very' && item.cc <= 20) return false;
+                    if (filter === 'complex' && (item.cc <= 10 || item.cc > 20)) return false;
+                    if (filter === 'moderate' && (item.cc <= 5 || item.cc > 10)) return false;
+                    if (search && !item.method.toLowerCase().includes(search)) return false;
+                    return true;
+                });
+
+                if (filtered.length === 0) {
+                    list.innerHTML = '<div class="tracker-empty">No high complexity methods match the filter.</div>';
+                    return;
+                }
+
+                list.innerHTML = filtered.map(item => `
+                    <div class="tracker-item" onclick="astApp.openTrackerFile('${this.escapeHtml(item.file)}', ${item.line || 0})">
+                        <div class="tracker-item-icon complexity">&#128200;</div>
+                        <div class="tracker-item-content">
+                            <div class="tracker-item-title">${this.escapeHtml(item.method)}</div>
+                            <div class="tracker-item-subtitle">${this.escapeHtml(item.file)}</div>
+                        </div>
+                        <div class="tracker-item-metrics">
+                            <span class="tracker-metric ${item.cc > 20 ? 'high' : item.cc > 10 ? 'medium' : 'low'}">CC: ${item.cc}</span>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            renderDeadcode() {
+                const list = document.getElementById('deadcodeList');
+                const items = this.trackerData.deadcode || [];
+                const filter = document.getElementById('deadcodeTypeFilter')?.value || 'all';
+                const search = document.getElementById('deadcodeSearchFilter')?.value?.toLowerCase() || '';
+
+                const filtered = items.filter(item => {
+                    if (filter !== 'all' && item.type !== filter) return false;
+                    if (search && !item.name.toLowerCase().includes(search)) return false;
+                    return true;
+                });
+
+                if (filtered.length === 0) {
+                    list.innerHTML = '<div class="tracker-empty">No dead code candidates match the filter.</div>';
+                    return;
+                }
+
+                list.innerHTML = filtered.map(item => {
+                    const hasFile = item.file && item.file.length > 0;
+                    const fileDisplay = hasFile ? item.file.split('/').pop() : 'No file';
+                    const clickHandler = hasFile ? `onclick="astApp.openTrackerFile('${this.escapeHtml(item.file)}', ${item.line || 0})"` : '';
+                    const itemClass = hasFile ? 'tracker-item' : 'tracker-item no-file';
+
+                    return `
+                    <div class="${itemClass}" ${clickHandler}>
+                        <div class="tracker-item-icon deadcode">&#128683;</div>
+                        <div class="tracker-item-content">
+                            <div class="tracker-item-title">${this.escapeHtml(item.name)}</div>
+                            <div class="tracker-item-subtitle">${hasFile ? this.escapeHtml(fileDisplay) + ' - ' : ''}${item.reason || item.type}</div>
+                        </div>
+                        <div class="tracker-item-metrics">
+                            <span class="tracker-metric">${item.type}</span>
+                            <span class="tracker-metric ${item.confidence > 0.7 ? 'high' : 'medium'}">${Math.round(item.confidence * 100)}%</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            },
+
+            renderCoupling() {
+                const list = document.getElementById('couplingList');
+                const items = this.trackerData.coupling || [];
+                const filter = document.getElementById('couplingTypeFilter')?.value || 'all';
+                const search = document.getElementById('couplingSearchFilter')?.value?.toLowerCase() || '';
+
+                const filtered = items.filter(item => {
+                    if (filter === 'pain' && item.zone !== 'pain') return false;
+                    if (filter === 'sdp' && item.type !== 'sdp') return false;
+                    if (filter === 'high-ce' && item.ce <= 10) return false;
+                    if (search && !item.package.toLowerCase().includes(search)) return false;
+                    return true;
+                });
+
+                if (filtered.length === 0) {
+                    list.innerHTML = '<div class="tracker-empty">No coupling issues match the filter.</div>';
+                    return;
+                }
+
+                list.innerHTML = filtered.map(item => `
+                    <div class="tracker-item" onclick="astApp.showPackageDetails('${this.escapeHtml(item.package)}')">
+                        <div class="tracker-item-icon coupling">&#128279;</div>
+                        <div class="tracker-item-content">
+                            <div class="tracker-item-title">${this.escapeHtml(item.package)}</div>
+                            <div class="tracker-item-subtitle">${item.zone_label || item.type}</div>
+                        </div>
+                        <div class="tracker-item-metrics">
+                            <span class="tracker-metric">Ca: ${item.ca}</span>
+                            <span class="tracker-metric">Ce: ${item.ce}</span>
+                            <span class="tracker-metric ${item.distance > 0.3 ? 'high' : item.distance > 0.15 ? 'medium' : 'low'}">D: ${item.distance?.toFixed(2) || '-'}</span>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            filterOutliers() { this.renderOutliers(); },
+            filterComplexity() { this.renderComplexity(); },
+            filterDeadcode() { this.renderDeadcode(); },
+            filterCoupling() { this.renderCoupling(); },
+
+            async openTrackerFile(filePath, line) {
+                if (!filePath) return;
+
+                try {
+                    const response = await fetch(`/api/ast/file-view?path=${encodeURIComponent(filePath)}`);
+                    if (!response.ok) throw new Error(await response.text());
+
+                    const data = await response.json();
+                    this.currentTrackerFile = data;
+
+                    // Update modal
+                    document.getElementById('trackerFilePath').textContent = filePath;
+                    document.getElementById('trackerFileLOC').textContent = data.loc || 0;
+                    document.getElementById('trackerFileCC').textContent = data.avg_cc?.toFixed(1) || '-';
+                    document.getElementById('trackerFileMethods').textContent = data.method_count || 0;
+
+                    // Render code with line numbers and highlighting
+                    const codeEl = document.getElementById('trackerFileCode');
+                    const lines = (data.content || '').split('\n');
+                    codeEl.innerHTML = lines.map((lineText, idx) => {
+                        const lineNum = idx + 1;
+                        const isHighlighted = line && lineNum >= line - 2 && lineNum <= line + 10;
+                        return `<span class="code-line ${isHighlighted ? 'highlighted' : ''}" id="code-line-${lineNum}"><span class="code-line-number">${lineNum}</span>${this.escapeHtml(lineText)}</span>`;
+                    }).join('\n');
+
+                    // Render methods list
+                    const methodsEl = document.getElementById('trackerMethodsList');
+                    const methods = data.methods || [];
+                    methodsEl.innerHTML = methods.map(m => `
+                        <span class="method-chip ${m.line === line ? 'highlight' : ''}"
+                              onclick="astApp.scrollToLine(${m.line})"
+                              title="CC: ${m.cc || 1}, Line: ${m.line}">
+                            ${this.escapeHtml(m.name)} (${m.cc || 1})
+                        </span>
+                    `).join('');
+
+                    // Show modal
+                    document.getElementById('trackerFileModal').style.display = 'flex';
+
+                    // Scroll to highlighted line
+                    if (line) {
+                        setTimeout(() => this.scrollToLine(line), 100);
+                    }
+
+                } catch (e) {
+                    console.error('Failed to open file:', e);
+                    alert('Failed to open file: ' + e.message);
+                }
+            },
+
+            scrollToLine(line) {
+                const lineEl = document.getElementById(`code-line-${line}`);
+                if (lineEl) {
+                    lineEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            },
+
+            closeTrackerFile() {
+                document.getElementById('trackerFileModal').style.display = 'none';
+                this.currentTrackerFile = null;
+            },
+
+            openInEditor() {
+                if (this.currentTrackerFile?.path) {
+                    // Try to open in VS Code or default editor
+                    window.open(`vscode://file/${this.currentTrackerFile.path}`, '_blank');
+                }
+            },
+
+            showPackageDetails(packageName) {
+                // Could show package details in a modal - for now just log
+                console.log('Package details:', packageName);
+                alert(`Package: ${packageName}\n\nSee Technical Audit Report for full coupling analysis.`);
+            },
+
+            refreshTracker() {
+                this.loadTrackerData();
+            },
+
+            toggleTrackerFullscreen() {
+                const section = document.getElementById('codeTrackerSection');
+                if (!section) return;
+
+                this.trackerFullscreen = !this.trackerFullscreen;
+                section.classList.toggle('fullscreen', this.trackerFullscreen);
+                document.body.style.overflow = this.trackerFullscreen ? 'hidden' : '';
+            },
+
+            escapeHtml(str) {
+                if (!str) return '';
+                return str.replace(/&/g, '&amp;')
+                          .replace(/</g, '&lt;')
+                          .replace(/>/g, '&gt;')
+                          .replace(/"/g, '&quot;');
             }
         };
 

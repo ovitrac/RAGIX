@@ -86,11 +86,21 @@ class ProjectRAGContext:
             content = result.content
 
             # Truncate if needed
-            remaining = max_chars - char_count - 100  # Reserve space for formatting
+            remaining = max_chars - char_count - 150  # Reserve space for formatting
             if len(content) > remaining:
                 content = content[:remaining] + "..."
 
-            chunk_text = f"\n### [{i}] {citation}\n```\n{content}\n```\n"
+            # Add code complexity stats for code chunks (useful for AI reasoning)
+            stats_note = ""
+            if result.is_code:
+                cc = result.cc_estimate
+                if cc > 10:
+                    stats_note = f" ⚠️ **HIGH COMPLEXITY** (CC={cc})"
+                elif cc > 5:
+                    stats_note = f" ⚡ Moderate complexity (CC={cc})"
+                # Note: Low complexity (CC<=5) is not mentioned to reduce noise
+
+            chunk_text = f"\n### [{i}] {citation}{stats_note}\n```\n{content}\n```\n"
             parts.append(chunk_text)
             char_count += len(chunk_text)
 
@@ -392,6 +402,37 @@ class RAGProject:
             top_k=top_k,
             collection=CollectionType.DOCS,
         )
+
+    def query_complex_code(
+        self,
+        query_text: str,
+        top_k: int = 10,
+        min_complexity: int = 5,
+    ) -> List[SearchResult]:
+        """
+        Query code chunks with high complexity.
+
+        Useful for finding complex code that may need refactoring.
+
+        Args:
+            query_text: Search query
+            top_k: Number of results
+            min_complexity: Minimum CC threshold (default 5)
+
+        Returns:
+            List of SearchResult for complex code chunks
+        """
+        # Query code with is_complex filter
+        results = self.query(
+            query_text=query_text,
+            top_k=top_k * 2,  # Get more to filter
+            collection=CollectionType.CODE,
+            filters={"is_complex": True},
+        )
+        # Filter and sort by complexity
+        filtered = [r for r in results if r.cc_estimate >= min_complexity]
+        filtered.sort(key=lambda r: -r.cc_estimate)
+        return filtered[:top_k]
 
     def search_concept(
         self,

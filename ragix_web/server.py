@@ -3855,6 +3855,326 @@ async def chord_visualization(
 
 
 # =============================================================================
+# Code Tracker API (v0.5)
+# =============================================================================
+
+@app.get("/api/ast/tracker")
+async def get_tracker_data(path: str, use_cache: bool = True):
+    """
+    Get code tracker data: outliers, complexity hotspots, dead code candidates, coupling issues.
+
+    This endpoint combines statistical analysis from ragix_audit modules to provide
+    interactive exploration of code quality issues.
+    """
+    if not AST_AVAILABLE:
+        raise HTTPException(status_code=503, detail="AST analysis not available")
+
+    target_path = Path(path).expanduser()
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+
+    try:
+        from ragix_core.code_metrics import calculate_metrics_from_graph
+
+        # Build graph - disable cache to ensure full metrics computation
+        graph_obj = build_dependency_graph([target_path], patterns=None, use_cache=False)
+        metrics = calculate_metrics_from_graph(graph_obj)
+
+        # Convert graph object to dict using D3Renderer
+        config = VizConfig()
+        renderer = D3Renderer(config)
+        graph = renderer.to_dict(graph_obj)
+
+        # Initialize result structure
+        result = {
+            "outliers": [],
+            "complexity": [],
+            "deadcode": [],
+            "coupling": [],
+            "stats": {
+                "entropy": {},
+                "inequality": {},
+                "zones": {}
+            }
+        }
+
+        # Process file metrics for outliers and complexity
+        file_locs = []
+        all_methods = []
+
+        for fm in metrics.file_metrics:
+            loc = fm.code_lines
+            file_locs.append(loc)
+
+            # Check for file-level outliers (size)
+            if loc > 300:  # Files over 300 LOC are outliers
+                result["outliers"].append({
+                    "file": fm.path,
+                    "name": Path(fm.path).name,
+                    "type": "size",
+                    "value": loc,
+                    "severity": "high" if loc > 500 else "medium",
+                    "line": 1
+                })
+
+            # Collect method complexity from class_metrics
+            for cm in fm.class_metrics:
+                for mm in cm.method_metrics:
+                    cc = mm.cyclomatic_complexity
+                    line = getattr(mm, 'line', 1)
+                    all_methods.append({
+                        "file": fm.path,
+                        "method": mm.name,
+                        "cc": cc,
+                        "line": line
+                    })
+
+                    # High complexity methods
+                    if cc > 5:
+                        result["complexity"].append({
+                            "file": fm.path,
+                            "method": mm.name,
+                            "cc": cc,
+                            "line": line
+                        })
+
+            # Also check function_metrics (non-class methods)
+            for mm in fm.function_metrics:
+                cc = mm.cyclomatic_complexity
+                line = getattr(mm, 'line', 1)
+                all_methods.append({
+                    "file": fm.path,
+                    "method": mm.name,
+                    "cc": cc,
+                    "line": line
+                })
+
+                if cc > 5:
+                    result["complexity"].append({
+                        "file": fm.path,
+                        "method": mm.name,
+                        "cc": cc,
+                        "line": line
+                    })
+
+        # Sort complexity by CC descending
+        result["complexity"].sort(key=lambda x: x["cc"], reverse=True)
+
+        # Compute statistical metrics
+        try:
+            from ragix_audit.entropy import normalized_entropy, compute_inequality_metrics
+            from ragix_audit.coupling import CouplingComputer, ZoneType
+            import math
+
+            # Entropy - convert list to dict for entropy calculation
+            if file_locs:
+                # Create dict from list (file index -> LOC)
+                file_sizes_dict = {f"file_{i}": loc for i, loc in enumerate(file_locs) if loc > 0}
+                if file_sizes_dict:
+                    entropy, norm_entropy = normalized_entropy(file_sizes_dict)
+                    result["stats"]["entropy"] = {
+                        "structural": round(entropy, 3),
+                        "structural_pct": round(norm_entropy * 100, 1)
+                    }
+
+                # Inequality
+                ineq = compute_inequality_metrics(file_locs)
+                result["stats"]["inequality"] = {
+                    "gini": round(ineq.gini, 3),
+                    "cr4": round(ineq.cr4, 1),
+                    "hhi": round(ineq.herfindahl, 3)
+                }
+
+            # Coupling analysis
+            # Build dependency graph from graph data
+            dependencies = {}
+            package_classes = {}
+            nodes_list = graph.get("nodes", [])
+
+            for node in nodes_list:
+                node_id = node.get("id", "")
+                pkg = node_id.rsplit(".", 1)[0] if "." in node_id else "default"
+
+                if pkg not in dependencies:
+                    dependencies[pkg] = set()
+                if pkg not in package_classes:
+                    package_classes[pkg] = {"total": 0, "abstract": 0, "interfaces": 0}
+
+                package_classes[pkg]["total"] += 1
+
+            # In D3 format, source/target are indices
+            for link in graph.get("links", []):
+                source_idx = link.get("source", 0)
+                target_idx = link.get("target", 0)
+
+                # Get node IDs from indices
+                if isinstance(source_idx, int) and isinstance(target_idx, int):
+                    if source_idx < len(nodes_list) and target_idx < len(nodes_list):
+                        source = nodes_list[source_idx].get("id", "")
+                        target = nodes_list[target_idx].get("id", "")
+                    else:
+                        continue
+                else:
+                    source = str(source_idx)
+                    target = str(target_idx)
+
+                src_pkg = source.rsplit(".", 1)[0] if "." in source else "default"
+                tgt_pkg = target.rsplit(".", 1)[0] if "." in target else "default"
+
+                if src_pkg != tgt_pkg:
+                    if src_pkg not in dependencies:
+                        dependencies[src_pkg] = set()
+                    dependencies[src_pkg].add(tgt_pkg)
+
+            if dependencies:
+                try:
+                    coupling_computer = CouplingComputer()
+                    analysis = coupling_computer.compute_from_graph(dependencies, package_classes)
+
+                    result["stats"]["zones"] = {
+                        "pain": analysis.packages_in_pain,
+                        "useless": analysis.packages_useless,
+                        "main_sequence": analysis.packages_on_sequence,
+                        "balanced": analysis.packages_balanced
+                    }
+
+                    # Add coupling issues
+                    zone_labels = {
+                        ZoneType.ZONE_OF_PAIN: "Zone of Pain - Rigid",
+                        ZoneType.ZONE_OF_USELESSNESS: "Zone of Uselessness",
+                        ZoneType.MAIN_SEQUENCE: "Main Sequence",
+                        ZoneType.BALANCED: "Balanced"
+                    }
+
+                    for pkg_name, pkg in analysis.packages.items():
+                        if pkg.zone in (ZoneType.ZONE_OF_PAIN, ZoneType.ZONE_OF_USELESSNESS) or pkg.distance > 0.3:
+                            zone_str = pkg.zone.value if hasattr(pkg.zone, 'value') else str(pkg.zone)
+                            result["coupling"].append({
+                                "package": pkg_name,
+                                "type": "coupling",
+                                "zone": zone_str.split(".")[-1] if "." in zone_str else zone_str,
+                                "zone_label": zone_labels.get(pkg.zone, "Unknown"),
+                                "ca": pkg.ca,
+                                "ce": pkg.ce,
+                                "instability": pkg.instability,
+                                "abstractness": pkg.abstractness,
+                                "distance": pkg.distance
+                            })
+
+                    # Sort by distance descending
+                    result["coupling"].sort(key=lambda x: x.get("distance", 0), reverse=True)
+                except Exception as coupling_err:
+                    logger.warning(f"Coupling analysis error: {coupling_err}")
+
+        except ImportError as e:
+            logger.warning(f"Could not compute advanced metrics: {e}")
+
+        # Dead code candidates (simplified heuristic)
+        # Classes with no incoming dependencies and not entry points
+        nodes = graph.get("nodes", [])
+        incoming_deps = set()
+
+        # In D3 format, source/target are indices into nodes array
+        for link in graph.get("links", []):
+            target_idx = link.get("target", 0)
+            if isinstance(target_idx, int) and target_idx < len(nodes):
+                incoming_deps.add(target_idx)
+
+        for idx, node in enumerate(nodes):
+            node_id = node.get("id", "")
+            if idx not in incoming_deps:
+                # No incoming dependencies - potential dead code
+                # Skip common entry point patterns
+                if not node_id or any(p in node_id.lower() for p in ["main", "application", "controller", "test", "config"]):
+                    continue
+
+                # Get file path and line from node (D3 nodes include file info)
+                node_file = node.get("file", "") or ""
+                node_line = node.get("line", 0) or 0
+                node_type = node.get("type", "class") or "class"
+
+                result["deadcode"].append({
+                    "name": node_id,
+                    "type": node_type,
+                    "file": node_file,
+                    "reason": "No incoming dependencies",
+                    "confidence": 0.6,
+                    "line": node_line
+                })
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Tracker error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ast/file-view")
+async def get_file_view(path: str):
+    """
+    Get file content with metrics for the code tracker viewer.
+
+    Returns file content, line count, methods, and complexity metrics.
+    """
+    file_path = Path(path).expanduser()
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {path}")
+
+    if not file_path.is_file():
+        raise HTTPException(status_code=400, detail=f"Not a file: {path}")
+
+    try:
+        # Read file content
+        try:
+            content = file_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            content = file_path.read_text(encoding="latin-1")
+
+        lines = content.split("\n")
+        loc = len([l for l in lines if l.strip() and not l.strip().startswith("//")])
+
+        # Try to get method metrics
+        methods = []
+        avg_cc = 1.0
+
+        # Simple regex-based method detection for Java
+        import re
+        method_pattern = re.compile(
+            r'(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?'
+            r'(?:[\w<>\[\],\s]+)\s+(\w+)\s*\([^)]*\)\s*(?:throws\s+[\w,\s]+)?\s*\{'
+        )
+
+        for i, line in enumerate(lines, 1):
+            match = method_pattern.search(line)
+            if match:
+                method_name = match.group(1)
+                if method_name not in ("if", "for", "while", "switch", "catch"):
+                    methods.append({
+                        "name": method_name,
+                        "line": i,
+                        "cc": 1  # Would need real CC computation
+                    })
+
+        if methods:
+            avg_cc = sum(m.get("cc", 1) for m in methods) / len(methods)
+
+        return {
+            "path": str(file_path),
+            "content": content,
+            "loc": loc,
+            "line_count": len(lines),
+            "method_count": len(methods),
+            "methods": methods,
+            "avg_cc": avg_cc
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
 # Agents & Workflows API
 # =============================================================================
 

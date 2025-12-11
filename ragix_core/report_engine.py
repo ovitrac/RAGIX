@@ -11,7 +11,10 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-
 
 import html
 import json
+import logging
 from abc import ABC, abstractmethod
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -906,6 +909,244 @@ TECHNICAL_AUDIT_TEMPLATE = """
         </section>
         {% endif %}
 
+        {% if statistical_analysis %}
+        <section class="report-section">
+            <h2 class="section-title">Statistical Analysis</h2>
+
+            <!-- Entropy Metrics -->
+            <div class="section-content">
+                <h3 style="margin: 15px 0 10px;">Distribution Metrics</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-name">Structural Entropy</div>
+                        <div class="metric-value">{{ statistical_analysis.entropy.structural | round(2) }} bits</div>
+                        <div style="font-size: 10px; color: #666;">{{ statistical_analysis.entropy.structural_pct }}% of max</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-name">Gini Coefficient</div>
+                        <div class="metric-value">{{ statistical_analysis.inequality.gini | round(3) }}</div>
+                        <div style="font-size: 10px; color: #666;">0=equal, 1=concentrated</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-name">CR-4 (Top 4 Share)</div>
+                        <div class="metric-value">{{ statistical_analysis.inequality.cr4 }}%</div>
+                        <div style="font-size: 10px; color: #666;">Code concentration</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-name">Herfindahl Index</div>
+                        <div class="metric-value">{{ statistical_analysis.inequality.hhi | round(3) }}</div>
+                        <div style="font-size: 10px; color: #666;">&lt;0.15=competitive</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 15px; padding: 12px; background: #f8f9fa; border-radius: 6px; font-size: 12px;">
+                    <strong>Interpretation:</strong> {{ statistical_analysis.entropy.interpretation }}
+                </div>
+            </div>
+
+            <!-- File Size Distribution -->
+            {% if statistical_analysis.file_size %}
+            <div class="section-content" style="margin-top: 20px;">
+                <h3 style="margin: 15px 0 10px;">File Size Distribution (LOC)</h3>
+                <table class="data-table">
+                    <tr>
+                        <th>Metric</th>
+                        <th>Min</th>
+                        <th>Q1 (25%)</th>
+                        <th>Median</th>
+                        <th>Q3 (75%)</th>
+                        <th>Max</th>
+                        <th>Mean ± σ</th>
+                    </tr>
+                    <tr>
+                        <td>LOC</td>
+                        <td>{{ statistical_analysis.file_size.min }}</td>
+                        <td>{{ statistical_analysis.file_size.q1 }}</td>
+                        <td><strong>{{ statistical_analysis.file_size.median }}</strong></td>
+                        <td>{{ statistical_analysis.file_size.q3 }}</td>
+                        <td>{{ statistical_analysis.file_size.max }}</td>
+                        <td>{{ statistical_analysis.file_size.mean }} ± {{ statistical_analysis.file_size.std }}</td>
+                    </tr>
+                </table>
+                <div style="margin-top: 10px; font-size: 11px; color: #666;">
+                    <strong>Shape:</strong> Skewness = {{ statistical_analysis.file_size.skewness }} ({{ statistical_analysis.file_size.skew_interp }}),
+                    Kurtosis = {{ statistical_analysis.file_size.kurtosis }} |
+                    <strong>Outliers:</strong> {{ statistical_analysis.file_size.outlier_count }} files ({{ statistical_analysis.file_size.outlier_pct }}%)
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Complexity Distribution -->
+            {% if statistical_analysis.complexity %}
+            <div class="section-content" style="margin-top: 20px;">
+                <h3 style="margin: 15px 0 10px;">Complexity Distribution (CC per method)</h3>
+                <table class="data-table">
+                    <tr>
+                        <th>Metric</th>
+                        <th>Min</th>
+                        <th>Q1 (25%)</th>
+                        <th>Median</th>
+                        <th>Q3 (75%)</th>
+                        <th>Max</th>
+                        <th>Mean ± σ</th>
+                    </tr>
+                    <tr>
+                        <td>CC</td>
+                        <td>{{ statistical_analysis.complexity.min }}</td>
+                        <td>{{ statistical_analysis.complexity.q1 }}</td>
+                        <td><strong>{{ statistical_analysis.complexity.median }}</strong></td>
+                        <td>{{ statistical_analysis.complexity.q3 }}</td>
+                        <td>{{ statistical_analysis.complexity.max }}</td>
+                        <td>{{ statistical_analysis.complexity.mean }} ± {{ statistical_analysis.complexity.std }}</td>
+                    </tr>
+                </table>
+                <div style="margin-top: 10px; font-size: 11px; color: #666;">
+                    <strong>Shape:</strong> Skewness = {{ statistical_analysis.complexity.skewness }} ({{ statistical_analysis.complexity.skew_interp }}),
+                    Kurtosis = {{ statistical_analysis.complexity.kurtosis }} |
+                    <strong>Outliers:</strong> {{ statistical_analysis.complexity.outlier_count }} methods ({{ statistical_analysis.complexity.outlier_pct }}%)
+                </div>
+            </div>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        {% if coupling_analysis %}
+        <section class="report-section">
+            <h2 class="section-title">Coupling & Instability Analysis</h2>
+
+            <!-- Summary metrics -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-name">Packages Analyzed</div>
+                    <div class="metric-value">{{ coupling_analysis.total_packages }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-name">Avg Instability (I)</div>
+                    <div class="metric-value">{{ coupling_analysis.avg_instability }}</div>
+                    <div style="font-size: 10px; color: #666;">0=stable, 1=unstable</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-name">Avg Abstractness (A)</div>
+                    <div class="metric-value">{{ coupling_analysis.avg_abstractness }}</div>
+                    <div style="font-size: 10px; color: #666;">0=concrete, 1=abstract</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-name">Avg Distance (D)</div>
+                    <div class="metric-value">{{ coupling_analysis.avg_distance }}</div>
+                    <div style="font-size: 10px; color: #666;">0=optimal</div>
+                </div>
+            </div>
+
+            <!-- Zone distribution -->
+            <div class="section-content" style="margin-top: 20px;">
+                <h3 style="margin: 15px 0 10px;">A-I Plane Zone Distribution</h3>
+                <div class="metrics-grid" style="grid-template-columns: repeat(4, 1fr);">
+                    <div class="metric-card" style="background: #fee2e2;">
+                        <div class="metric-name">Zone of Pain</div>
+                        <div class="metric-value" style="color: #dc2626;">{{ coupling_analysis.zones.pain }}</div>
+                        <div style="font-size: 9px; color: #666;">Rigid, hard to extend</div>
+                    </div>
+                    <div class="metric-card" style="background: #fef3c7;">
+                        <div class="metric-name">Zone of Uselessness</div>
+                        <div class="metric-value" style="color: #d97706;">{{ coupling_analysis.zones.useless }}</div>
+                        <div style="font-size: 9px; color: #666;">Unused abstractions</div>
+                    </div>
+                    <div class="metric-card" style="background: #d1fae5;">
+                        <div class="metric-name">Main Sequence</div>
+                        <div class="metric-value" style="color: #059669;">{{ coupling_analysis.zones.main_sequence }}</div>
+                        <div style="font-size: 9px; color: #666;">Optimal balance</div>
+                    </div>
+                    <div class="metric-card" style="background: #dbeafe;">
+                        <div class="metric-name">Balanced</div>
+                        <div class="metric-value" style="color: #2563eb;">{{ coupling_analysis.zones.balanced }}</div>
+                        <div style="font-size: 9px; color: #666;">Acceptable</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Package details table -->
+            {% if coupling_analysis.packages %}
+            <div class="section-content" style="margin-top: 20px;">
+                <h3 style="margin: 15px 0 10px;">Package Metrics (sorted by Distance)</h3>
+                <table class="data-table">
+                    <tr>
+                        <th>Package</th>
+                        <th>Ca</th>
+                        <th>Ce</th>
+                        <th>I</th>
+                        <th>A</th>
+                        <th>D</th>
+                        <th>Zone</th>
+                    </tr>
+                    {% for pkg in coupling_analysis.packages[:20] %}
+                    <tr>
+                        <td><code style="font-size: 10px;">{{ pkg.name }}</code></td>
+                        <td>{{ pkg.ca }}</td>
+                        <td>{{ pkg.ce }}</td>
+                        <td>{{ pkg.instability }}</td>
+                        <td>{{ pkg.abstractness }}</td>
+                        <td>
+                            {% if pkg.distance > 0.3 %}
+                            <span style="color: #dc2626; font-weight: bold;">{{ pkg.distance }}</span>
+                            {% elif pkg.distance > 0.15 %}
+                            <span style="color: #d97706;">{{ pkg.distance }}</span>
+                            {% else %}
+                            <span style="color: #059669;">{{ pkg.distance }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if pkg.zone == 'pain' %}
+                            <span class="severity-badge severity-high">Pain</span>
+                            {% elif pkg.zone == 'useless' %}
+                            <span class="severity-badge severity-medium">Useless</span>
+                            {% elif pkg.zone == 'main_sequence' %}
+                            <span class="severity-badge severity-info">Optimal</span>
+                            {% else %}
+                            <span class="severity-badge severity-low">OK</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- SDP Violations -->
+            {% if coupling_analysis.sdp_violations %}
+            <div class="section-content" style="margin-top: 20px;">
+                <h3 style="margin: 15px 0 10px; color: #dc2626;">⚠ Stable Dependencies Principle Violations</h3>
+                <p style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                    SDP: Depend in the direction of stability. Stable packages should not depend on unstable ones.
+                </p>
+                <table class="data-table">
+                    <tr>
+                        <th>Source (stable)</th>
+                        <th>I</th>
+                        <th>→</th>
+                        <th>Target (unstable)</th>
+                        <th>I</th>
+                        <th>Δ</th>
+                        <th>Severity</th>
+                    </tr>
+                    {% for v in coupling_analysis.sdp_violations[:10] %}
+                    <tr>
+                        <td><code style="font-size: 10px;">{{ v.source }}</code></td>
+                        <td>{{ v.source_i }}</td>
+                        <td>→</td>
+                        <td><code style="font-size: 10px;">{{ v.target }}</code></td>
+                        <td>{{ v.target_i }}</td>
+                        <td>{{ v.delta }}</td>
+                        <td>
+                            <span class="severity-badge severity-{{ v.severity }}">{{ v.severity }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+            {% endif %}
+        </section>
+        {% endif %}
+
         <section class="report-section">
             <h2 class="section-title">All Findings</h2>
             <div class="findings-list">
@@ -1369,6 +1610,12 @@ class TechnicalAuditGenerator(BaseReportGenerator):
         # Component analysis (SK/SC/SG) - uses ragix_audit module
         component_analysis = self._get_component_analysis(data)
 
+        # Statistical analysis (v0.5) - entropy, inequality, distributions
+        statistical_analysis = self._get_statistical_analysis(data, component_analysis)
+
+        # Coupling analysis (v0.5) - Ca/Ce/I/A/D metrics
+        coupling_analysis = self._get_coupling_analysis(data)
+
         return template.render(
             config=data.config,
             date=data.config.date.strftime("%Y-%m-%d") if data.config.date else datetime.now().strftime("%Y-%m-%d"),
@@ -1381,7 +1628,9 @@ class TechnicalAuditGenerator(BaseReportGenerator):
             files_analysis=files_analysis,
             maven=data.maven,
             sonar=data.sonar,
-            component_analysis=component_analysis
+            component_analysis=component_analysis,
+            statistical_analysis=statistical_analysis,
+            coupling_analysis=coupling_analysis
         )
 
     def _enrich_summary(self, summary: Dict[str, Any]) -> Dict[str, Any]:
@@ -1706,6 +1955,253 @@ class TechnicalAuditGenerator(BaseReportGenerator):
             "UNKNOWN": "info",
         }
         return mapping.get(risk_level, "info")
+
+    def _get_statistical_analysis(
+        self,
+        data: ReportData,
+        component_analysis: Optional[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Compute statistical analysis including entropy, inequality, and distributions.
+
+        Returns dict with: entropy, inequality, file_size, complexity
+        """
+        try:
+            from ragix_audit import DistributionStats
+            from ragix_audit.entropy import (
+                shannon_entropy, compute_inequality_metrics, interpret_entropy
+            )
+            import math
+
+            result = {
+                "entropy": {},
+                "inequality": {},
+                "file_size": None,
+                "complexity": None,
+            }
+
+            # --- Entropy and inequality from component analysis ---
+            if component_analysis and component_analysis.get("components"):
+                # Build component size dict from file_count (LOC not available here)
+                component_sizes = {}
+                for comp in component_analysis["components"]:
+                    component_sizes[comp["id"]] = comp["file_count"]
+
+                if component_sizes:
+                    h_struct = shannon_entropy({k: float(v) for k, v in component_sizes.items()})
+                    max_h = math.log2(len(component_sizes)) if len(component_sizes) > 1 else 1
+                    h_pct = round(h_struct / max_h * 100, 1) if max_h > 0 else 0
+
+                    result["entropy"]["structural"] = round(h_struct, 3)
+                    result["entropy"]["structural_pct"] = h_pct
+                    result["entropy"]["max_entropy"] = round(max_h, 3)
+                    result["entropy"]["interpretation"] = interpret_entropy(h_struct, max_h, "code distribution")
+
+                    # Inequality metrics
+                    ineq = compute_inequality_metrics([float(v) for v in component_sizes.values()])
+                    result["inequality"]["gini"] = round(ineq.gini, 3)
+                    result["inequality"]["cr4"] = round(ineq.cr4 * 100, 1)
+                    result["inequality"]["hhi"] = round(ineq.herfindahl, 3)
+
+            # --- File size distribution from metrics ---
+            if data.metrics and data.metrics.file_metrics:
+                file_locs = [float(fm.code_lines) for fm in data.metrics.file_metrics if fm.code_lines > 0]
+                if file_locs:
+                    stats = DistributionStats.from_values(file_locs)
+                    result["file_size"] = self._stats_to_dict(stats, "files")
+
+            # --- Complexity distribution from metrics ---
+            if data.metrics and data.metrics.file_metrics:
+                complexities = []
+                for fm in data.metrics.file_metrics:
+                    for cm in getattr(fm, 'class_metrics', []):
+                        for mm in getattr(cm, 'method_metrics', []):
+                            cc = getattr(mm, 'cyclomatic_complexity', 1)
+                            complexities.append(float(cc))
+                    for func in getattr(fm, 'function_metrics', []):
+                        cc = getattr(func, 'cyclomatic_complexity', 1)
+                        complexities.append(float(cc))
+
+                if complexities:
+                    stats = DistributionStats.from_values(complexities)
+                    result["complexity"] = self._stats_to_dict(stats, "methods")
+
+            # Check if we have any meaningful data
+            if not result["entropy"] and not result["file_size"]:
+                return None
+
+            return result
+
+        except ImportError as e:
+            logger.warning(f"Statistics modules not available: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"Error computing statistical analysis: {e}")
+            return None
+
+    def _stats_to_dict(self, stats: "DistributionStats", unit: str) -> Dict[str, Any]:
+        """Convert DistributionStats to template-ready dict."""
+        # Skewness interpretation
+        if abs(stats.skewness) < 0.5:
+            skew_interp = "symmetric"
+        elif stats.skewness > 0:
+            skew_interp = "right-skewed"
+        else:
+            skew_interp = "left-skewed"
+
+        outlier_pct = round(stats.outlier_count / stats.count * 100, 1) if stats.count > 0 else 0
+
+        return {
+            "count": stats.count,
+            "min": round(stats.min, 1),
+            "max": round(stats.max, 1),
+            "q1": round(stats.q1, 1),
+            "median": round(stats.median, 1),
+            "q3": round(stats.q3, 1),
+            "mean": round(stats.mean, 1),
+            "std": round(stats.std, 1),
+            "skewness": round(stats.skewness, 2),
+            "kurtosis": round(stats.kurtosis, 2),
+            "skew_interp": skew_interp,
+            "outlier_count": stats.outlier_count,
+            "outlier_pct": outlier_pct,
+        }
+
+    def _get_coupling_analysis(self, data: ReportData) -> Optional[Dict[str, Any]]:
+        """
+        Compute coupling analysis from dependency graph.
+
+        Returns dict with: total_packages, avg metrics, zones, packages, sdp_violations
+        """
+        try:
+            from ragix_audit.coupling import CouplingComputer, ZoneType
+
+            # Need dependency data from metrics
+            if not data.metrics:
+                return None
+
+            # Build dependency graph from imports
+            dependencies: Dict[str, set] = {}
+            package_classes: Dict[str, Dict[str, int]] = {}
+
+            for fm in data.metrics.file_metrics:
+                # Extract package from file path
+                pkg = self._extract_package_name(fm.path)
+                if not pkg:
+                    continue
+
+                # Initialize package
+                if pkg not in dependencies:
+                    dependencies[pkg] = set()
+                if pkg not in package_classes:
+                    package_classes[pkg] = {"total": 0, "abstract": 0, "interfaces": 0}
+
+                # Count classes
+                for cm in getattr(fm, 'class_metrics', []):
+                    package_classes[pkg]["total"] += 1
+                    # Check if abstract (heuristic: class name contains Abstract or is interface)
+                    class_name = getattr(cm, 'name', '')
+                    if 'Abstract' in class_name or class_name.startswith('I') and len(class_name) > 1 and class_name[1].isupper():
+                        package_classes[pkg]["abstract"] += 1
+                    if 'Interface' in class_name or (class_name.startswith('I') and len(class_name) > 1):
+                        package_classes[pkg]["interfaces"] += 1
+
+                # Extract imports as dependencies
+                # This is a simplified approach - real implementation would parse imports
+                # For now, use file path structure to infer dependencies
+                for cm in getattr(fm, 'class_metrics', []):
+                    # Check for common dependency patterns in class/method names
+                    for mm in getattr(cm, 'method_metrics', []):
+                        method_name = getattr(mm, 'name', '')
+                        # Look for typical service/repository patterns
+                        if 'Service' in method_name or 'Repository' in method_name:
+                            # Infer dependency to service/repository package
+                            if 'service' in fm.path.lower():
+                                dependencies[pkg].add(pkg.replace('.service', '.repository'))
+                            elif 'controller' in fm.path.lower():
+                                dependencies[pkg].add(pkg.replace('.controller', '.service'))
+
+            if not dependencies:
+                return None
+
+            # Compute coupling metrics
+            computer = CouplingComputer()
+            analysis = computer.compute_from_graph(dependencies, package_classes)
+
+            # Format for template
+            packages_list = []
+            for pkg_name, pkg in sorted(analysis.packages.items(), key=lambda x: x[1].distance, reverse=True):
+                zone_map = {
+                    ZoneType.ZONE_OF_PAIN: "pain",
+                    ZoneType.ZONE_OF_USELESSNESS: "useless",
+                    ZoneType.MAIN_SEQUENCE: "main_sequence",
+                    ZoneType.BALANCED: "balanced",
+                }
+                packages_list.append({
+                    "name": pkg_name,
+                    "ca": pkg.ca,
+                    "ce": pkg.ce,
+                    "instability": round(pkg.instability, 2),
+                    "abstractness": round(pkg.abstractness, 2),
+                    "distance": round(pkg.distance, 2),
+                    "zone": zone_map.get(pkg.zone, "balanced"),
+                })
+
+            # Format SDP violations
+            sdp_list = []
+            for v in analysis.sdp_violations[:15]:
+                sdp_list.append({
+                    "source": v.source_package,
+                    "source_i": round(v.source_instability, 2),
+                    "target": v.target_package,
+                    "target_i": round(v.target_instability, 2),
+                    "delta": round(v.delta, 2),
+                    "severity": v.severity,
+                })
+
+            return {
+                "total_packages": analysis.total_packages,
+                "avg_instability": round(analysis.avg_instability, 2),
+                "avg_abstractness": round(analysis.avg_abstractness, 2),
+                "avg_distance": round(analysis.avg_distance, 2),
+                "zones": {
+                    "pain": analysis.packages_in_pain,
+                    "useless": analysis.packages_useless,
+                    "main_sequence": analysis.packages_on_sequence,
+                    "balanced": analysis.packages_balanced,
+                },
+                "packages": packages_list,
+                "sdp_violations": sdp_list,
+            }
+
+        except ImportError as e:
+            logger.warning(f"Coupling module not available: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"Error computing coupling analysis: {e}")
+            return None
+
+    def _extract_package_name(self, file_path: str) -> Optional[str]:
+        """Extract Java package name from file path."""
+        from pathlib import Path
+        p = Path(file_path)
+
+        # Look for src/main/java or similar patterns
+        parts = p.parts
+        try:
+            # Find java source root
+            for marker in ['java', 'src', 'main']:
+                if marker in parts:
+                    idx = parts.index(marker)
+                    # Package is everything after marker until filename
+                    pkg_parts = parts[idx + 1:-1]
+                    if pkg_parts:
+                        return '.'.join(pkg_parts)
+        except (ValueError, IndexError):
+            pass
+
+        # Fallback: use parent directory
+        return p.parent.name if p.parent.name else None
 
 
 class ComplianceReportGenerator(BaseReportGenerator):

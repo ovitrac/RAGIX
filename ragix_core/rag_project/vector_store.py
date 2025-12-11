@@ -61,6 +61,22 @@ class SearchResult:
     def kind(self) -> str:
         return self.metadata.get("kind", "unknown")
 
+    # Code complexity stats (available for code chunks)
+    @property
+    def cc_estimate(self) -> int:
+        """Estimated cyclomatic complexity of this chunk."""
+        return self.metadata.get("cc_estimate", 1)
+
+    @property
+    def is_complex(self) -> bool:
+        """True if this chunk has high complexity (CC > 5)."""
+        return self.metadata.get("is_complex", False)
+
+    @property
+    def is_code(self) -> bool:
+        """True if this is a code chunk."""
+        return self.kind.startswith("code_")
+
     def get_citation(self) -> str:
         """Get citation string for this result."""
         if self.line_start and self.line_end:

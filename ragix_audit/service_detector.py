@@ -88,6 +88,7 @@ class DetectedService:
         return {
             "id": self.id,
             "type": self.type.value,
+            "service_type": self.type.value,  # Alias for compatibility with audit router
             "name": self.name,
             "description": self.description,
             "sources": [s.value for s in self.sources],

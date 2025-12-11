@@ -37,6 +37,29 @@ __all__ = [
     "detect_services",
     # Reports
     "AuditReportGenerator",
+    # Statistics (v0.5)
+    "DistributionStats",
+    "ComponentStats",
+    "CodebaseStats",
+    "StatisticsComputer",
+    # Entropy (v0.5)
+    "EntropyMetrics",
+    "EntropyComputer",
+    "shannon_entropy",
+    "gini_coefficient",
+    # Coupling (v0.5)
+    "PackageCoupling",
+    "CouplingAnalysis",
+    "CouplingComputer",
+    "SDPViolation",
+    "PropagationAnalysis",
+    "compute_propagation_factor",
+    # Dead Code Detection (v0.5)
+    "DeadCodeDetector",
+    "DeadCodeAnalysis",
+    "EntryPointDetector",
+    "EntryPoint",
+    "DeadCodeCandidate",
 ]
 
 # Lazy imports to avoid circular dependencies
@@ -59,4 +82,20 @@ def __getattr__(name):
     elif name == "AuditReportGenerator":
         from ragix_audit.reports import AuditReportGenerator
         return AuditReportGenerator
+    # Statistics (v0.5)
+    elif name in ("DistributionStats", "ComponentStats", "CodebaseStats", "StatisticsComputer"):
+        from ragix_audit.statistics import DistributionStats, ComponentStats, CodebaseStats, StatisticsComputer
+        return locals()[name]
+    # Entropy (v0.5)
+    elif name in ("EntropyMetrics", "EntropyComputer", "shannon_entropy", "gini_coefficient"):
+        from ragix_audit.entropy import EntropyMetrics, EntropyComputer, shannon_entropy, gini_coefficient
+        return locals()[name]
+    # Coupling (v0.5)
+    elif name in ("PackageCoupling", "CouplingAnalysis", "CouplingComputer", "SDPViolation", "PropagationAnalysis", "compute_propagation_factor"):
+        from ragix_audit.coupling import PackageCoupling, CouplingAnalysis, CouplingComputer, SDPViolation, PropagationAnalysis, compute_propagation_factor
+        return locals()[name]
+    # Dead Code Detection (v0.5)
+    elif name in ("DeadCodeDetector", "DeadCodeAnalysis", "EntryPointDetector", "EntryPoint", "DeadCodeCandidate"):
+        from ragix_audit.dead_code import DeadCodeDetector, DeadCodeAnalysis, EntryPointDetector, EntryPoint, DeadCodeCandidate
+        return locals()[name]
     raise AttributeError(f"module 'ragix_audit' has no attribute '{name}'")

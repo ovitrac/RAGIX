@@ -1,9 +1,123 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-12-10 (v0.40.0 - Project RAG UI Enhancements)
+**Updated:** 2025-12-11 (v0.51.0 - Project Discovery & Partitioner Core)
 **Reference:** See `PLAN_v0.30_REASONING.md` for full implementation plan
 **Review:** See `REVIEW_current_reasoning_towardsv0.30.md` for colleague feedback
-**Next Major:** v0.5 - Code Audit Capabilities (see `FORREVIEW_AUDIT.md`)
+**Current:** v0.51.0 - Stabilization & v0.55 Preparation (see `PLAN_v0.55.md` for Partitioner feature)
+
+---
+
+## Session Completed (2025-12-11 - v0.51.0)
+
+### Project Discovery & Partitioner Preparation
+
+| Task | Status |
+|------|--------|
+| **Python Project Discovery** - Robust multi-module Java project discovery | ✅ Done |
+| **Common Ancestor Detection** - Find common parent for >3 src directories | ✅ Done |
+| **Correct File Counting** - Sum Java files across all modules | ✅ Done |
+| **Type Annotation Fixes** - Forward references for javalang types | ✅ Done |
+| **Code Tracker Test Suite** - Professional API test suite | ✅ Done |
+| **Test Assertion Fixes** - Match server response format (entropy.structural, inequality.gini) | ✅ Done |
+| **Partitioner Core Engine** - `ragix_audit/partitioner.py` with evidence chains | ✅ Done |
+| **v0.55 Plan Document** - Detailed specification for Partitioner feature | ✅ Done |
+| **Version Update** - Bumped to v0.51.0 | ✅ Done |
+
+**Key Files Created/Modified:**
+- `tests/audit/discover_projects.py` - NEW: Python project discovery with JSON output
+- `tests/audit/run_audit_tests.sh` - Updated to use Python discovery
+- `tests/audit/test_tracker_api.py` - Fixed test assertions for server response format
+- `ragix_core/ast_java.py` - Fixed all javalang type annotations using forward references
+- `ragix_audit/partitioner.py` - NEW: Core partitioning engine with evidence chains
+- `PLAN_v0.55.md` - NEW: Detailed specification for Partitioner feature
+- `ragix_core/version.py` - Updated to 0.51.0
+
+**Type Annotations Fixed:**
+- `_convert_compilation_unit()` - `tree: "CompilationUnit"`
+- `_convert_import()` - `imp: "Import"`
+- `_convert_member()` - `node: "JavaNode"`
+- `_convert_method()` - `node: "MethodDeclaration"`
+- `_convert_constructor()` - `node: "ConstructorDeclaration"`
+- `_convert_field()` - `node: "FieldDeclaration"`
+- `_convert_parameter()` - `param: "FormalParameter"`
+- `_extract_calls()` - `node: "MethodDeclaration"`
+
+**Test Results (IOWIZME):**
+- 8/9 tests passing (89%)
+- Outliers: 10 files
+- Complex methods: 14
+- Dead code candidates: 4094
+- Coupling packages: 225
+
+---
+
+## Roadmap: v0.55 - Codebase Partitioner
+
+**Reference:** See `PLAN_v0.55.md` for detailed specification
+
+### Partitioner Feature
+
+| Task | Priority | Status |
+|------|----------|--------|
+| **Partitioner Tab UI** - New tab in AST section for partitioning | High | Pending |
+| **Force-Directed Visualization** - D3.js molecular physics simulation | High | Pending |
+| **Partition Labels** - APP_A, APP_B, SHARED, DEAD_CODE, UNKNOWN | High | Pending |
+| **Evidence Chains** - Classification traceability (fingerprint, neighbor, shared) | High | Pending |
+| **Export Formats** - JSON, CSV, XLSX with line numbers and methods | High | Pending |
+| **RAG Integration** - Partition tags in global vector store metadata | High | Pending |
+| **Cross-Partition Coupling** - Analyze dependencies between partitions | Medium | Pending |
+| **Batch Analysis** - Process large codebases efficiently | Medium | Pending |
+
+### v0.55 Implementation Phases
+
+| Phase | Description | Effort | Status |
+|-------|-------------|--------|--------|
+| **Phase 1** - Core Backend | Integrate partitioner.py with server API | 2 days | Pending |
+| **Phase 2** - Basic UI | Partitioner tab with config and results tables | 2 days | Pending |
+| **Phase 3** - Force-Directed Viz | D3.js molecular visualization | 3 days | Pending |
+| **Phase 4** - Export System | JSON/CSV/XLSX generators | 1 day | Pending |
+| **Phase 5** - RAG Integration | Partition metadata in vector store | 2 days | Pending |
+| **Phase 6** - Polish & Testing | Documentation and test suite | 2 days | Pending |
+
+---
+
+## Session Completed (2025-12-11 - v0.50.0)
+
+### Code Tracker & RAG Stats Integration
+
+| Task | Status |
+|------|--------|
+| **Code Tracker UI** - Interactive tracker in AST tab for outliers, complexity, dead code, coupling | ✅ Done |
+| **Tracker Stats** - Entropy, Gini, zones summary with colored badges | ✅ Done |
+| **File Viewer Modal** - Open tracked files with line highlighting | ✅ Done |
+| **Tab Navigation** - Outliers, High Complexity, Dead Code, Coupling Issues tabs | ✅ Done |
+| **Search/Filter** - Search across tracked items with real-time filter | ✅ Done |
+| **RAG Stats Integration** - CC stats added to file and chunk metadata during indexing | ✅ Done |
+| **Chunk Complexity** - `estimate_chunk_complexity()` for cross-language CC estimation | ✅ Done |
+| **File Stats** - `compute_file_stats_for_rag()` for LOC, CC, outlier detection | ✅ Done |
+| **SearchResult Properties** - `cc_estimate`, `is_complex`, `is_code` accessors | ✅ Done |
+| **Chat Context Enrichment** - Complexity warnings in AI context (⚠️ HIGH, ⚡ Moderate) | ✅ Done |
+| **Query Complex Code API** - `query_complex_code()` method for finding high-CC chunks | ✅ Done |
+| **Non-Code Handling** - Documents skip stats computation (appropriate behavior) | ✅ Done |
+
+**Key Files Created/Modified:**
+- `ragix_core/code_metrics.py` - Added `estimate_chunk_complexity()`, `compute_file_stats_for_rag()`
+- `ragix_core/rag_project/worker.py` - Stats injection during indexing
+- `ragix_core/rag_project/vector_store.py` - `SearchResult` CC properties
+- `ragix_core/rag_project/api.py` - `query_complex_code()`, `format_for_prompt()` with CC warnings
+- `ragix_web/server.py` - `/api/ast/tracker` and `/api/ast/file-view` endpoints
+- `ragix_web/static/index.html` - Code Tracker HTML section (~150 lines)
+- `ragix_web/static/style.css` - Code Tracker CSS (~460 lines)
+
+**Statistics Available:**
+- Entropy: Shannon entropy (bits), normalized entropy (0-100%)
+- Concentration: Gini coefficient, CR-4, Herfindahl index
+- Coupling: Ca (afferent), Ce (efferent), I (instability), A (abstractness), D (distance)
+- Zones: Pain, Uselessness, Main Sequence, Balanced counts
+
+**Test Projects:**
+- IOWIZME: 10 outliers, 14 complex methods, 4094 dead code candidates, 225 coupling issues
+- SIAS: Available for testing (see `tests/audit/`)
 
 ---
 

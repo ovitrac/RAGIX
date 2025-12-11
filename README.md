@@ -2,11 +2,11 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.40.0
+# RAGIX v0.51.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
-**A Sovereign Multi-Agent Orchestration Platform with AST Analysis**
+**A Sovereign Multi-Agent Orchestration Platform with AST Analysis & Code Audit**
 **Unix-Native · Fully Local · Production-Ready · Claude-Compatible**
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
@@ -15,8 +15,8 @@
 
 ---
 
-**Version:** 0.40.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Updated:** 2025-12-10
+**Version:** 0.51.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Updated:** 2025-12-11
 
 ---
 
@@ -42,19 +42,68 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 
 ---
 
-## **What's New in v0.40.0**
+## **What's New in v0.51.0**
 
 | Feature | Description |
 |---------|-------------|
-| **Project RAG Settings** | Configurable settings for concepts, graph physics, and search |
-| **File Viewer Modal** | Rich file preview with chunk highlighting and navigation |
-| **Markdown Rendering** | Beautiful Markdown display with colored headings and styled text |
-| **XML/HTML Syntax Highlighting** | Syntax-colored display for XML, HTML, and POM files |
-| **Chunk Navigation** | ◀ ▶ navigation between chunks with position indicator |
-| **Graph Fullscreen Fix** | Concept Explorer graph properly spans vertical space |
-| **Index Statistics** | Colored badges showing files, chunks, code, and docs counts |
+| **Robust Project Discovery** | Python-based discovery for multi-module Java projects (SIAS: 1137 files) |
+| **Improved Type Safety** | Fixed javalang type annotations with forward references |
+| **Code Tracker API Tests** | Professional test suite for tracker endpoints with 89% pass rate |
+| **Partitioner Core Engine** | Codebase partitioning module for v0.55 feature preparation |
+| **v0.55 Plan** | Detailed specification for Partitioner with force-directed visualization |
 
-### v0.40.0 Highlights (Latest)
+### v0.51.0 Highlights (Latest)
+
+- **Project Discovery** — Robust Python-based discovery for enterprise codebases
+  - Multi-module Java project support (finds common ancestor for >3 src directories)
+  - Correct file counting across all modules (SIAS: 1137 files vs previous 6)
+  - Multiple source patterns: `src/`, `source/`, `Sources/`, `java/`
+  - JSON output for automation and testing
+
+- **Type Safety Improvements** — Fixed all javalang type annotations
+  - Forward references using string annotations avoid NameError when javalang unavailable
+  - Affected: `Import`, `JavaNode`, `MethodDeclaration`, `ConstructorDeclaration`, `FieldDeclaration`, `FormalParameter`
+
+- **Code Tracker Test Suite** — Professional API testing
+  - Tests for outliers, complexity, dead code, coupling endpoints
+  - Validation of entropy, Gini, zone classification
+  - Response time verification (<30s threshold)
+  - JSON reports generated per project
+
+- **Partitioner Core** — Preparation for v0.55 feature
+  - `ragix_audit/partitioner.py` with `CodebasePartitioner` engine
+  - Evidence chains for classification traceability
+  - Application fingerprint matching
+  - SIAS/TICC preset configuration
+
+### v0.50.0 Highlights
+
+- **Code Tracker** — Interactive navigation for code quality issues
+  - Tabs: Outliers (files > 300 LOC), High Complexity (CC > 5), Dead Code, Coupling Issues
+  - File viewer modal with line-level highlighting
+  - Filterable search across all categories
+  - Stats summary: entropy, Gini coefficient, zone classification
+
+- **RAG Stats Integration** — Code metrics flow into AI context
+  - `FileMetadata.extra` populated with LOC, CC, outlier flag during indexing
+  - `ChunkMetadata.extra` stores per-chunk complexity (CC estimate)
+  - `SearchResult.cc_estimate`, `is_complex`, `is_code` properties
+  - Chat context shows complexity warnings: ⚠️ HIGH COMPLEXITY (CC>10), ⚡ Moderate (CC>5)
+  - Documents (markdown, docx, html) skip complexity stats (appropriate for non-code)
+
+- **Entropy & Coupling Metrics** — Quantitative codebase health
+  - Shannon entropy for code distribution: $H = -\sum p_i \log_2 p_i$
+  - Normalized entropy, Gini coefficient, CR-4, Herfindahl index
+  - Martin's coupling metrics: Ca (afferent), Ce (efferent), Instability $I = Ce/(Ca+Ce)$
+  - Abstractness $A = N_{abstract}/N_{total}$, Distance $D = |A+I-1|$
+  - Zone classification: Pain, Uselessness, Main Sequence, Balanced
+
+- **Dead Code Detection** — Find unreachable code
+  - Entry point discovery (Spring annotations, main methods, JMS listeners)
+  - BFS reachability from all entry points
+  - Orphan package detection (no incoming dependencies)
+
+### v0.40.0 Highlights
 
 - **Project RAG Enhancements** — Complete settings and file preview system
   - Settings modal: Max concepts, min hits filter, graph physics, search limits

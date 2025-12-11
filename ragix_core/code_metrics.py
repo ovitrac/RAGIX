@@ -729,3 +729,137 @@ def calculate_metrics_from_graph(graph: DependencyGraph) -> ProjectMetrics:
             metrics.file_metrics.append(file_metrics)
 
     return metrics
+
+
+# =============================================================================
+# Lightweight Code Stats for RAG Integration
+# =============================================================================
+
+def estimate_chunk_complexity(code: str, language_hint: str = "") -> Dict[str, Any]:
+    """
+    Estimate code complexity metrics for a chunk of code.
+
+    Uses heuristic pattern matching that works across languages.
+    Designed for RAG integration where full AST parsing is not practical.
+
+    Args:
+        code: Raw code text (chunk content)
+        language_hint: Language hint (e.g., "java", "python", "javascript")
+
+    Returns:
+        Dictionary with:
+            - cc_estimate: Estimated cyclomatic complexity
+            - loc: Lines of code
+            - decision_points: Count of decision keywords found
+            - is_complex: True if CC estimate > 5
+            - complexity_level: "low", "moderate", "high", "very_high"
+    """
+    lines = code.split("\n")
+    loc = len([l for l in lines if l.strip() and not l.strip().startswith(("#", "//", "/*", "*"))])
+
+    # Decision point patterns (cross-language heuristics)
+    decision_patterns = [
+        r'\bif\b', r'\belse\s+if\b', r'\belif\b',
+        r'\bfor\b', r'\bwhile\b', r'\bdo\b',
+        r'\bswitch\b', r'\bcase\b',
+        r'\bcatch\b', r'\bexcept\b',
+        r'\b\?\s*:', r'\?\?',  # Ternary and null coalescing
+        r'\band\b', r'\bor\b', r'\&\&', r'\|\|',
+        r'\btry\b',
+        r'\bmatch\b', r'\bwhen\b',  # Kotlin/Scala/Rust match
+    ]
+
+    decision_count = 0
+    code_lower = code.lower()
+    for pattern in decision_patterns:
+        matches = re.findall(pattern, code_lower, re.IGNORECASE)
+        decision_count += len(matches)
+
+    # Estimate CC: 1 base + decision points
+    cc_estimate = 1 + decision_count
+
+    # Determine complexity level
+    if cc_estimate <= 5:
+        level = "low"
+    elif cc_estimate <= 10:
+        level = "moderate"
+    elif cc_estimate <= 20:
+        level = "high"
+    else:
+        level = "very_high"
+
+    return {
+        "cc_estimate": cc_estimate,
+        "loc": loc,
+        "decision_points": decision_count,
+        "is_complex": cc_estimate > 5,
+        "complexity_level": level,
+    }
+
+
+def compute_file_stats_for_rag(file_path: Path, content: str, language: str = "") -> Dict[str, Any]:
+    """
+    Compute file-level statistics suitable for RAG metadata.
+
+    Args:
+        file_path: Path to the file
+        content: File content
+        language: Language hint
+
+    Returns:
+        Dictionary with file stats for FileMetadata.extra
+    """
+    lines = content.split("\n")
+    total_lines = len(lines)
+
+    # Count line types (simplified)
+    code_lines = 0
+    comment_lines = 0
+    blank_lines = 0
+
+    in_multiline = False
+    for line in lines:
+        stripped = line.strip()
+
+        # Track multiline comments
+        if "/*" in stripped or '"""' in stripped or "'''" in stripped:
+            in_multiline = not in_multiline
+            comment_lines += 1
+            continue
+        if "*/" in stripped:
+            in_multiline = False
+            comment_lines += 1
+            continue
+
+        if in_multiline:
+            comment_lines += 1
+        elif not stripped:
+            blank_lines += 1
+        elif stripped.startswith(("#", "//", "*")):
+            comment_lines += 1
+        else:
+            code_lines += 1
+
+    # Estimate complexity
+    complexity_info = estimate_chunk_complexity(content, language)
+
+    # Count definitions (heuristic)
+    class_count = len(re.findall(r'\b(?:class|interface|enum)\s+\w+', content))
+    method_count = len(re.findall(
+        r'\b(?:def|function|func|fun)\s+\w+|'
+        r'(?:public|private|protected)\s+(?:static\s+)?(?:\w+\s+)+\w+\s*\(',
+        content
+    ))
+
+    return {
+        "total_lines": total_lines,
+        "code_lines": code_lines,
+        "comment_lines": comment_lines,
+        "blank_lines": blank_lines,
+        "cc_estimate": complexity_info["cc_estimate"],
+        "is_complex": complexity_info["is_complex"],
+        "complexity_level": complexity_info["complexity_level"],
+        "class_count": class_count,
+        "method_count": method_count,
+        "is_outlier": code_lines > 300,  # Large file indicator
+    }

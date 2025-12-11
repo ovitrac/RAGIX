@@ -34,6 +34,9 @@ from .ingest import FileIngester, IngestResult, extract_tags, is_code_file, File
 from .vector_store import VectorStore, CollectionType
 from .graph import KnowledgeGraph, GraphNode, GraphEdge, EdgeType
 
+# Code metrics for RAG integration
+from ..code_metrics import estimate_chunk_complexity, compute_file_stats_for_rag
+
 logger = logging.getLogger(__name__)
 
 # =============================================================================
@@ -333,6 +336,18 @@ class IndexingWorker:
         # Determine if code
         is_code = file_meta.kind.startswith("code_")
 
+        # Compute file-level stats for RAG metadata (code files only)
+        if is_code:
+            try:
+                file_stats = compute_file_stats_for_rag(
+                    Path(file_meta.path),
+                    content,
+                    file_meta.language or ""
+                )
+                file_meta.extra.update(file_stats)
+            except Exception as e:
+                logger.debug(f"Could not compute stats for {file_meta.path}: {e}")
+
         # Chunk the content
         chunks = self.chunker.chunk(content, is_code=is_code)
 
@@ -357,6 +372,27 @@ class IndexingWorker:
             # Extract tags
             tags = extract_tags(chunk.content, file_meta.path, FileKind(file_meta.kind))
 
+            # Compute chunk-level complexity (for code chunks)
+            chunk_extra = {}
+            chunk_cc = 1  # Default complexity
+            chunk_is_complex = False
+            if is_code:
+                try:
+                    chunk_stats = estimate_chunk_complexity(
+                        chunk.content,
+                        file_meta.language or ""
+                    )
+                    chunk_extra = {
+                        "cc_estimate": chunk_stats["cc_estimate"],
+                        "loc": chunk_stats["loc"],
+                        "is_complex": chunk_stats["is_complex"],
+                        "complexity_level": chunk_stats["complexity_level"],
+                    }
+                    chunk_cc = chunk_stats["cc_estimate"]
+                    chunk_is_complex = chunk_stats["is_complex"]
+                except Exception:
+                    pass
+
             # Create chunk metadata
             chunk_meta = ChunkMetadata(
                 chunk_id=chunk_id,
@@ -370,11 +406,12 @@ class IndexingWorker:
                 kind=file_meta.kind,
                 tags=tags,
                 text_preview=chunk.text_preview,
+                extra=chunk_extra,
             )
             chunk_metadatas.append(chunk_meta)
 
-            # Prepare for vector store
-            chunk_dicts.append({
+            # Prepare for vector store (include CC for filtering)
+            chunk_dict = {
                 "chunk_id": chunk_id,
                 "content": chunk.content,
                 "file_path": file_meta.path,
@@ -384,7 +421,12 @@ class IndexingWorker:
                 "kind": file_meta.kind,
                 "chunk_index": chunk.chunk_index,
                 "tags": tags,
-            })
+            }
+            # Add CC fields for ChromaDB filtering (flat fields required)
+            if is_code:
+                chunk_dict["cc_estimate"] = chunk_cc
+                chunk_dict["is_complex"] = chunk_is_complex
+            chunk_dicts.append(chunk_dict)
 
             # Add chunk to graph
             chunk_node = GraphNode.chunk_node(
