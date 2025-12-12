@@ -1729,6 +1729,327 @@
             font-size: 12px;
             color: var(--text-secondary);
         }
+
+        /* Partitioner Panel - Full Height Layout */
+        .partitioner-panel {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 120px);
+            overflow: hidden;
+        }
+        .partitioner-tab-header {
+            flex-shrink: 0;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .partitioner-project-section {
+            flex-shrink: 0;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* Main Layout with Collapsible Sidebar */
+        .partitioner-main-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Collapsible Config Panel */
+        .partitioner-config-panel {
+            width: 320px;
+            min-width: 280px;
+            max-width: 400px;
+            flex-shrink: 0;
+            overflow-y: auto;
+            border-right: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            transition: width 0.3s, margin-left 0.3s;
+            position: relative;
+        }
+        .partitioner-config-panel.collapsed {
+            width: 0;
+            min-width: 0;
+            margin-left: -1px;
+            overflow: hidden;
+        }
+        .config-toggle-btn {
+            position: absolute;
+            right: -24px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 48px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-left: none;
+            border-radius: 0 6px 6px 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+        .config-toggle-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+        .partitioner-config-panel.collapsed .config-toggle-btn {
+            right: -24px;
+        }
+
+        /* Right Viz Panel - Flexible Height with Resizer */
+        .partitioner-viz-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 400px;
+        }
+
+        /* Graph Container - Resizable */
+        .graph-viz-container {
+            flex: 1;
+            min-height: 200px;
+            position: relative;
+            background: var(--bg-primary);
+            overflow: hidden;
+        }
+
+        /* Vertical Resizer between Graph and Results */
+        .partitioner-v-resizer {
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            cursor: ns-resize;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .partitioner-v-resizer:hover {
+            background: var(--accent-blue);
+        }
+        .partitioner-v-resizer::after {
+            content: '⋯';
+            color: var(--text-secondary);
+            font-size: 14px;
+            letter-spacing: 2px;
+        }
+
+        /* Results Panel - Resizable Height */
+        .partitioner-results-panel {
+            height: 250px;
+            min-height: 100px;
+            max-height: 60vh;
+            overflow-y: auto;
+            border-top: none;
+            background: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+
+        /* Partitioner Preview Pane - Resizable/Draggable */
+        .partitioner-preview-pane,
+        #partitionerPreviewPane {
+            position: fixed;
+            right: 20px;
+            top: 80px;
+            width: 650px;
+            height: calc(100vh - 100px);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            z-index: 1000;
+            min-width: 400px;
+            min-height: 300px;
+            flex-direction: column !important;
+            overflow: hidden !important;
+        }
+        /* Only apply flex when visible */
+        #partitionerPreviewPane[style*="block"] {
+            display: flex !important;
+        }
+        .partitioner-preview-pane .preview-controls,
+        #partitionerPreviewPane > .preview-controls {
+            flex: 0 0 auto !important;
+        }
+        .partitioner-preview-pane .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            border-radius: 8px 8px 0 0;
+            cursor: move;
+            flex-shrink: 0;
+        }
+        .partitioner-preview-pane .preview-header h4 {
+            margin: 0;
+            font-size: 13px;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 400px;
+        }
+        .partitioner-preview-pane .preview-info {
+            display: flex;
+            gap: 12px;
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        .partitioner-preview-pane .info-badge {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        .partitioner-preview-pane .info-badge strong {
+            color: var(--text-primary);
+        }
+        .partitioner-preview-pane .preview-evidence {
+            padding: 6px 12px;
+            font-size: 10px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            max-height: 60px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        .partitioner-preview-pane .preview-search {
+            display: flex;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        .partitioner-preview-pane .preview-search input {
+            flex: 1;
+            padding: 4px 8px;
+            font-size: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+        .partitioner-preview-pane .preview-search button {
+            padding: 4px 8px;
+            font-size: 11px;
+        }
+        .partitioner-preview-pane .preview-search .search-info {
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            min-width: 60px;
+        }
+        .partitioner-preview-pane .preview-line-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        .partitioner-preview-pane .preview-line-nav label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        .partitioner-preview-pane .preview-line-nav input[type="range"] {
+            flex: 1;
+        }
+        /* Match file-viewer-body pattern exactly */
+        .partitioner-preview-pane .preview-body,
+        #previewBodyContainer {
+            flex: 1 1 0 !important;
+            min-height: 0 !important;
+            max-height: 100% !important;
+            overflow: auto !important;
+            padding: 0 !important;
+        }
+        .partitioner-preview-pane .preview-body pre {
+            margin: 0;
+            padding: 0;
+            font-family: 'Fira Code', 'Monaco', 'Menlo', monospace;
+            font-size: 11px;
+            line-height: 14px;
+            tab-size: 4;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+        .partitioner-preview-pane .preview-body code {
+            display: block;
+            width: max-content;
+            min-width: 100%;
+        }
+        .partitioner-preview-pane .code-line {
+            display: block;
+            padding: 0;
+            height: 14px;
+            line-height: 14px;
+            white-space: nowrap;
+            overflow: visible;
+            box-sizing: border-box;
+        }
+        .partitioner-preview-pane .code-line.highlighted-line {
+            background: rgba(59, 130, 246, 0.25);
+            border-left: 3px solid var(--accent-blue);
+            margin-left: -3px;
+        }
+        .partitioner-preview-pane .code-line.search-match {
+            background: rgba(234, 179, 8, 0.2);
+        }
+        .partitioner-preview-pane .line-num {
+            color: var(--text-secondary);
+            opacity: 0.4;
+            user-select: none;
+            min-width: 40px;
+            display: inline-block;
+        }
+        .partitioner-preview-pane .search-highlight {
+            background: rgba(234, 179, 8, 0.5);
+            border-radius: 2px;
+        }
+        /* Scrollbar styling for preview body */
+        .partitioner-preview-pane .preview-body::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+        .partitioner-preview-pane .preview-body::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+        }
+        .partitioner-preview-pane .preview-body::-webkit-scrollbar-thumb {
+            background: var(--text-secondary);
+            border-radius: 6px;
+            border: 2px solid var(--bg-tertiary);
+        }
+        .partitioner-preview-pane .preview-body::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-blue);
+        }
+        .partitioner-preview-pane .preview-resize-handle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            cursor: nwse-resize;
+            background: linear-gradient(135deg, transparent 40%, var(--text-secondary) 40%, var(--text-secondary) 45%, transparent 45%, transparent 55%, var(--text-secondary) 55%, var(--text-secondary) 60%, transparent 60%, transparent 70%, var(--text-secondary) 70%, var(--text-secondary) 75%, transparent 75%);
+            opacity: 0.5;
+            border-radius: 0 0 8px 0;
+            z-index: 10;
+        }
+        .partitioner-preview-pane .preview-resize-handle:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -2476,18 +2797,6 @@
                         </div>
                     </div>
 
-                    <h3 style="margin-top: 24px;">Codebase Partitioning <span class="badge-new">v0.55</span></h3>
-                    <div class="viz-cards">
-                        <div class="viz-card viz-card-featured" onclick="astApp.openPartitioner()">
-                            <h3><span class="viz-icon">&#9995;</span> Partitioner</h3>
-                            <p>Separate codebase into logical applications (App A, App B, Shared, Dead Code) with force-directed visualization.</p>
-                        </div>
-                        <div class="viz-card" onclick="astApp.openPartitioner()">
-                            <h3><span class="viz-icon">&#128202;</span> Export Results</h3>
-                            <p>Export partition assignments in JSON, CSV, or XLSX format with file paths and line numbers.</p>
-                        </div>
-                    </div>
-
                     <h3 style="margin-top: 24px;">Build & Quality Tools</h3>
                     <div class="viz-cards">
                         <div class="viz-card" onclick="astApp.openMaven()">
@@ -2659,166 +2968,6 @@
                             <div class="tracker-file-methods" id="trackerFileMethods">
                                 <h4>Methods in this file</h4>
                                 <div class="methods-list" id="trackerMethodsList"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Codebase Partitioner Section (v0.55) -->
-                    <div id="partitionerSection" class="partitioner-section" style="display: none;">
-                        <div class="partitioner-header">
-                            <h3><span class="partitioner-icon">&#129513;</span> Codebase Partitioner</h3>
-                            <div class="partitioner-actions">
-                                <button class="btn btn-sm" onclick="partitionerApp.runPartition()">Run Partition</button>
-                                <button class="btn btn-sm btn-icon" onclick="partitionerApp.toggleFullscreen()" title="Fullscreen">&#9974;</button>
-                            </div>
-                        </div>
-
-                        <!-- Configuration Panel -->
-                        <div class="partitioner-config" id="partitionerConfig">
-                            <div class="config-row">
-                                <label>Preset:</label>
-                                <select id="partitionPreset" onchange="partitionerApp.loadPreset()">
-                                    <option value="">Custom Configuration</option>
-                                    <option value="sias_ticc">SIAS/TICC (GRDF Pattern)</option>
-                                    <option value="generic_two_apps">Generic Two Apps</option>
-                                    <option value="generic_three_apps">Generic Three Apps</option>
-                                </select>
-                                <button class="btn btn-sm" onclick="partitionerApp.addApplication()">+ Add App</button>
-                            </div>
-
-                            <!-- Application Configurations -->
-                            <div class="applications-config" id="applicationsConfig">
-                                <!-- App A -->
-                                <div class="app-config-card" data-app-index="0">
-                                    <div class="app-config-header">
-                                        <input type="text" class="app-name-input" value="APP_A" placeholder="App Name">
-                                        <input type="color" class="app-color-input" value="#3498db" title="App Color">
-                                        <button class="btn btn-sm btn-icon btn-danger" onclick="partitionerApp.removeApplication(0)" title="Remove">&#10005;</button>
-                                    </div>
-                                    <div class="app-patterns">
-                                        <div class="pattern-group">
-                                            <label>Package Patterns:</label>
-                                            <textarea class="pattern-input package-patterns" placeholder="*app_a*&#10;*module_a*&#10;*service_a*" rows="3"></textarea>
-                                        </div>
-                                        <div class="pattern-group">
-                                            <label>Class Patterns:</label>
-                                            <textarea class="pattern-input class-patterns" placeholder="*AppA*&#10;*ModuleA*" rows="2"></textarea>
-                                        </div>
-                                        <div class="pattern-group">
-                                            <label>Keywords:</label>
-                                            <textarea class="pattern-input keyword-patterns" placeholder="app_a&#10;module_a" rows="2"></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- App B -->
-                                <div class="app-config-card" data-app-index="1">
-                                    <div class="app-config-header">
-                                        <input type="text" class="app-name-input" value="APP_B" placeholder="App Name">
-                                        <input type="color" class="app-color-input" value="#e74c3c" title="App Color">
-                                        <button class="btn btn-sm btn-icon btn-danger" onclick="partitionerApp.removeApplication(1)" title="Remove">&#10005;</button>
-                                    </div>
-                                    <div class="app-patterns">
-                                        <div class="pattern-group">
-                                            <label>Package Patterns:</label>
-                                            <textarea class="pattern-input package-patterns" placeholder="*app_b*&#10;*module_b*&#10;*service_b*" rows="3"></textarea>
-                                        </div>
-                                        <div class="pattern-group">
-                                            <label>Class Patterns:</label>
-                                            <textarea class="pattern-input class-patterns" placeholder="*AppB*&#10;*ModuleB*" rows="2"></textarea>
-                                        </div>
-                                        <div class="pattern-group">
-                                            <label>Keywords:</label>
-                                            <textarea class="pattern-input keyword-patterns" placeholder="app_b&#10;module_b" rows="2"></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Shared Patterns -->
-                            <div class="shared-config">
-                                <label>Shared Patterns (common libraries, utilities):</label>
-                                <textarea id="sharedPatterns" class="pattern-input" rows="2" placeholder="*common*&#10;*util*&#10;*shared*&#10;*dto*&#10;*entity*">*common*
-*util*
-*shared*
-*dto*
-*entity*
-*model*
-*config*</textarea>
-                            </div>
-
-                            <!-- Advanced Options -->
-                            <div class="advanced-options">
-                                <details>
-                                    <summary>Advanced Options</summary>
-                                    <div class="option-row">
-                                        <label>Propagation Iterations:</label>
-                                        <input type="number" id="propagationIterations" value="5" min="1" max="20">
-                                    </div>
-                                    <div class="option-row">
-                                        <label>Confidence Threshold:</label>
-                                        <input type="number" id="confidenceThreshold" value="0.6" min="0" max="1" step="0.1">
-                                    </div>
-                                </details>
-                            </div>
-                        </div>
-
-                        <!-- Results Summary -->
-                        <div class="partitioner-summary" id="partitionerSummary" style="display: none;">
-                            <div class="summary-stats">
-                                <div class="summary-stat">
-                                    <span class="stat-label">Total Classes</span>
-                                    <span class="stat-value" id="partTotalClasses">-</span>
-                                </div>
-                                <div class="summary-stat">
-                                    <span class="stat-label">Coverage</span>
-                                    <span class="stat-value" id="partCoverage">-</span>
-                                </div>
-                                <div class="summary-stat">
-                                    <span class="stat-label">Cross-Partition</span>
-                                    <span class="stat-value" id="partCrossEdges">-</span>
-                                </div>
-                                <div class="summary-stat">
-                                    <span class="stat-label">Coupling</span>
-                                    <span class="stat-value" id="partCoupling">-</span>
-                                </div>
-                            </div>
-                            <div class="partition-badges" id="partitionBadges">
-                                <!-- Dynamically generated badges -->
-                            </div>
-                        </div>
-
-                        <!-- Force-Directed Visualization -->
-                        <div class="partitioner-graph" id="partitionerGraph">
-                            <div class="graph-controls">
-                                <button class="btn btn-sm" onclick="partitionerApp.resetGraph()">Reset View</button>
-                                <button class="btn btn-sm" onclick="partitionerApp.toggleSimulation()">Pause/Resume</button>
-                                <label class="control-label">
-                                    <input type="checkbox" id="showCrossOnly" onchange="partitionerApp.toggleCrossPartition()">
-                                    Show Cross-Partition Only
-                                </label>
-                            </div>
-                            <div class="graph-container" id="partitionGraphContainer">
-                                <svg id="partitionGraphSvg"></svg>
-                            </div>
-                            <div class="graph-legend" id="partitionLegend">
-                                <!-- Dynamically generated legend -->
-                            </div>
-                        </div>
-
-                        <!-- Class Lists (Accordion) -->
-                        <div class="partitioner-lists" id="partitionerLists">
-                            <div class="lists-header">
-                                <h4>Class Assignments</h4>
-                                <div class="export-buttons">
-                                    <button class="btn btn-sm" onclick="partitionerApp.exportResults('json')">Export JSON</button>
-                                    <button class="btn btn-sm" onclick="partitionerApp.exportResults('csv')">Export CSV</button>
-                                    <button class="btn btn-sm" onclick="partitionerApp.exportResults('xlsx')">Export XLSX</button>
-                                </div>
-                            </div>
-                            <div class="partition-accordion" id="partitionAccordion">
-                                <!-- Dynamically generated accordions for each partition -->
-                                <div class="partition-empty">Run partition analysis to see results.</div>
                             </div>
                         </div>
                     </div>
@@ -3207,8 +3356,9 @@ com\.grdf\..*\.jms\.spre</textarea>
 
                     <!-- Two-Column Layout: Config + Graph -->
                     <div class="partitioner-main-layout">
-                        <!-- Left: Configuration Panel -->
-                        <div class="partitioner-config-panel">
+                        <!-- Left: Configuration Panel (Collapsible) -->
+                        <div class="partitioner-config-panel" id="partitionerConfigPanel">
+                            <button class="config-toggle-btn" onclick="partitionerApp.toggleConfigPanel()" title="Toggle Configuration Panel">&#9664;</button>
                             <div class="config-section">
                                 <div class="config-section-header">
                                     <h3>Configuration</h3>
@@ -3406,43 +3556,63 @@ com\.grdf\..*\.jms\.spre</textarea>
                                 <!-- Tooltip -->
                                 <div class="partition-tooltip-tab" id="partitionTooltipTab" style="display: none;"></div>
                             </div>
-                        </div>
-                    </div>
 
-                    <!-- Bottom: Results Panel (Accordion + Export) -->
-                    <div class="partitioner-results-panel" id="partitionerResultsPanel" style="display: none;">
-                        <div class="results-header">
-                            <h3>Class Assignments</h3>
-                            <div class="export-buttons">
-                                <button class="btn btn-sm" onclick="partitionerApp.exportResultsTab('json')">Export JSON</button>
-                                <button class="btn btn-sm" onclick="partitionerApp.exportResultsTab('csv')">Export CSV</button>
+                            <!-- Vertical Resizer -->
+                            <div class="partitioner-v-resizer" id="partitionerVResizer" style="display: none;"
+                                 onmousedown="partitionerApp.startVResize(event)"></div>
+
+                            <!-- Bottom: Results Panel (Accordion + Export) -->
+                            <div class="partitioner-results-panel" id="partitionerResultsPanel" style="display: none;">
+                                <div class="results-header">
+                                    <h3>Class Assignments</h3>
+                                    <div class="export-buttons">
+                                        <button class="btn btn-sm" onclick="partitionerApp.exportResultsTab('json')">Export JSON</button>
+                                        <button class="btn btn-sm" onclick="partitionerApp.exportResultsTab('csv')">Export CSV</button>
+                                    </div>
+                                </div>
+                                <div class="results-accordion" id="partitionAccordionTab">
+                                    <div class="partition-empty">Run partition analysis to see results.</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="results-accordion" id="partitionAccordionTab">
-                            <div class="partition-empty">Run partition analysis to see results.</div>
-                        </div>
                     </div>
 
-                    <!-- File Preview Pane (like Audit tab) -->
+                    <!-- File Preview Pane (Draggable/Resizable) -->
                     <div class="partitioner-preview-pane" id="partitionerPreviewPane" style="display: none;">
-                        <div class="preview-header">
-                            <h4 id="previewFileName">File Preview</h4>
-                            <button class="btn btn-icon btn-sm" onclick="partitionerApp.closePreview()">&#10005;</button>
+                        <!-- Fixed controls wrapper - never scrolls -->
+                        <div class="preview-controls">
+                            <div class="preview-header" id="previewDragHandle">
+                                <h4 id="previewFileName">File Preview</h4>
+                                <div style="display: flex; gap: 4px;">
+                                    <button class="btn btn-icon btn-sm" onclick="partitionerApp.closePreview()" title="Close">&#10005;</button>
+                                </div>
+                            </div>
+                            <div class="preview-info">
+                                <span class="info-badge">LOC: <strong id="previewLOC">0</strong></span>
+                                <span class="info-badge">Partition: <strong id="previewPartition">-</strong></span>
+                                <span class="info-badge">Confidence: <strong id="previewConfidence">-</strong></span>
+                            </div>
+                            <div class="preview-evidence" id="previewEvidence"></div>
+                            <div class="preview-search">
+                                <input type="text" id="previewSearchInput" placeholder="Search in code..."
+                                       onkeydown="if(event.key==='Enter') partitionerApp.searchInCode()">
+                                <button class="btn btn-sm" onclick="partitionerApp.searchInCode()">Find</button>
+                                <button class="btn btn-sm" onclick="partitionerApp.searchNext()">Next</button>
+                                <button class="btn btn-sm" onclick="partitionerApp.searchPrev()">Prev</button>
+                                <span class="search-info" id="previewSearchInfo"></span>
+                            </div>
+                            <div class="preview-line-nav">
+                                <label>Line: <span id="previewLineNum">1</span> / <span id="previewTotalLines">0</span></label>
+                                <input type="range" id="previewLineSlider" min="1" max="1" value="1" oninput="partitionerApp.goToLine(this.value, true)">
+                                <input type="number" id="previewLineInput" min="1" value="1" style="width: 60px;" onchange="partitionerApp.goToLine(this.value, true)">
+                            </div>
                         </div>
-                        <div class="preview-info">
-                            <span class="info-badge">LOC: <strong id="previewLOC">0</strong></span>
-                            <span class="info-badge">Partition: <strong id="previewPartition">-</strong></span>
-                            <span class="info-badge">Confidence: <strong id="previewConfidence">-</strong></span>
-                        </div>
-                        <div class="preview-evidence" id="previewEvidence"></div>
-                        <div class="preview-line-nav">
-                            <label>Line: <span id="previewLineNum">1</span></label>
-                            <input type="range" id="previewLineSlider" min="1" max="1" value="1" oninput="partitionerApp.goToLine(this.value)">
-                            <input type="number" id="previewLineInput" min="1" value="1" style="width: 60px;" onchange="partitionerApp.goToLine(this.value)">
-                        </div>
+                        <!-- Scrollable code body -->
                         <div class="preview-body" id="previewBodyContainer">
                             <pre><code id="previewCode"></code></pre>
                         </div>
+                        <!-- Resize handle -->
+                        <div class="preview-resize-handle" id="previewResizeHandle" title="Drag to resize"></div>
                     </div>
                 </div>
             </div>
@@ -4469,16 +4639,6 @@ com\.grdf\..*\.jms\.spre</textarea>
                 this.showViz(`/api/ast/cycles/page?path=${encodeURIComponent(path)}`, 'Cycles Detection');
             },
 
-            openPartitioner() {
-                const path = this.getPath();
-                if (!path) { alert('Please enter a project path first'); return; }
-                // Show the partitioner section
-                document.getElementById('partitionerSection').style.display = 'block';
-                document.getElementById('partitionerSection').scrollIntoView({ behavior: 'smooth' });
-                // Initialize partitioner app
-                partitionerApp.init(path);
-            },
-
             openMaven() {
                 const path = this.getPath();
                 if (!path) { alert('Please enter a project path first'); return; }
@@ -4910,12 +5070,6 @@ com\.grdf\..*\.jms\.spre</textarea>
             simulation: null,
             presets: {},
 
-            async init(path) {
-                this.projectPath = path;
-                // Load presets
-                await this.loadPresets();
-            },
-
             async loadPresets() {
                 try {
                     const resp = await fetch('/api/ast/partition/presets');
@@ -4925,548 +5079,6 @@ com\.grdf\..*\.jms\.spre</textarea>
                     }
                 } catch (e) {
                     console.error('Failed to load partition presets:', e);
-                }
-            },
-
-            loadPreset() {
-                const presetSelect = document.getElementById('partitionPreset');
-                const presetName = presetSelect.value;
-
-                if (!presetName || !this.presets[presetName]) {
-                    return;
-                }
-
-                const preset = this.presets[presetName];
-                const config = preset.config;
-
-                // Clear existing app cards
-                const appsContainer = document.getElementById('applicationsConfig');
-                appsContainer.innerHTML = '';
-
-                // Create app cards from preset
-                config.applications.forEach((app, index) => {
-                    this.createAppCard(appsContainer, app, index);
-                });
-
-                // Update shared patterns
-                document.getElementById('sharedPatterns').value = config.shared_patterns.join('\n');
-
-                // Update advanced options
-                if (config.propagation_iterations) {
-                    document.getElementById('propagationIterations').value = config.propagation_iterations;
-                }
-                if (config.confidence_threshold) {
-                    document.getElementById('confidenceThreshold').value = config.confidence_threshold;
-                }
-            },
-
-            createAppCard(container, appData, index) {
-                const card = document.createElement('div');
-                card.className = 'app-config-card';
-                card.dataset.appIndex = index;
-
-                card.innerHTML = `
-                    <div class="app-config-header">
-                        <input type="text" class="app-name-input" value="${appData.app_id || 'APP_' + (index + 1)}" placeholder="App Name">
-                        <input type="color" class="app-color-input" value="${appData.color || '#3498db'}" title="App Color">
-                        <button class="btn btn-sm btn-icon btn-danger" onclick="partitionerApp.removeApplication(${index})" title="Remove">&#10005;</button>
-                    </div>
-                    <div class="app-patterns">
-                        <div class="pattern-group">
-                            <label>Package Patterns:</label>
-                            <textarea class="pattern-input package-patterns" placeholder="*app*" rows="3">${(appData.package_patterns || []).join('\n')}</textarea>
-                        </div>
-                        <div class="pattern-group">
-                            <label>Class Patterns:</label>
-                            <textarea class="pattern-input class-patterns" placeholder="*Class*" rows="2">${(appData.class_patterns || []).join('\n')}</textarea>
-                        </div>
-                        <div class="pattern-group">
-                            <label>Keywords:</label>
-                            <textarea class="pattern-input keyword-patterns" placeholder="keyword" rows="2">${(appData.keyword_patterns || []).join('\n')}</textarea>
-                        </div>
-                    </div>
-                `;
-
-                container.appendChild(card);
-            },
-
-            addApplication() {
-                const container = document.getElementById('applicationsConfig');
-                const existingCards = container.querySelectorAll('.app-config-card');
-                const newIndex = existingCards.length;
-
-                const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'];
-                const color = colors[newIndex % colors.length];
-
-                this.createAppCard(container, {
-                    app_id: 'APP_' + String.fromCharCode(65 + newIndex),
-                    color: color,
-                    package_patterns: [],
-                    class_patterns: [],
-                    keyword_patterns: []
-                }, newIndex);
-            },
-
-            removeApplication(index) {
-                const cards = document.querySelectorAll('.app-config-card');
-                if (cards.length <= 2) {
-                    alert('At least 2 applications are required for partitioning.');
-                    return;
-                }
-                if (cards[index]) {
-                    cards[index].remove();
-                }
-            },
-
-            getConfig() {
-                const applications = [];
-                const cards = document.querySelectorAll('.app-config-card');
-
-                cards.forEach(card => {
-                    const appId = card.querySelector('.app-name-input').value.trim() || 'APP';
-                    const color = card.querySelector('.app-color-input').value;
-
-                    const parsePatterns = (textarea) => {
-                        return textarea.value.split('\n')
-                            .map(s => s.trim())
-                            .filter(s => s.length > 0);
-                    };
-
-                    applications.push({
-                        app_id: appId,
-                        color: color,
-                        package_patterns: parsePatterns(card.querySelector('.package-patterns')),
-                        class_patterns: parsePatterns(card.querySelector('.class-patterns')),
-                        keyword_patterns: parsePatterns(card.querySelector('.keyword-patterns')),
-                        annotation_patterns: [],
-                        entry_point_patterns: []
-                    });
-                });
-
-                const sharedPatterns = document.getElementById('sharedPatterns').value.split('\n')
-                    .map(s => s.trim())
-                    .filter(s => s.length > 0);
-
-                return {
-                    applications: applications,
-                    shared_patterns: sharedPatterns,
-                    propagation_iterations: parseInt(document.getElementById('propagationIterations').value) || 5,
-                    confidence_threshold: parseFloat(document.getElementById('confidenceThreshold').value) || 0.6
-                };
-            },
-
-            async runPartition() {
-                if (!this.projectPath) {
-                    alert('No project path set');
-                    return;
-                }
-
-                const config = this.getConfig();
-
-                // Show loading state
-                const accordion = document.getElementById('partitionAccordion');
-                accordion.innerHTML = '<div class="partition-empty">Running partition analysis...</div>';
-
-                try {
-                    const resp = await fetch('/api/ast/partition', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            path: this.projectPath,
-                            config: config
-                        })
-                    });
-
-                    if (!resp.ok) {
-                        const error = await resp.text();
-                        throw new Error(error);
-                    }
-
-                    const data = await resp.json();
-                    this.partitionData = data;
-
-                    // Show summary
-                    this.displaySummary(data);
-
-                    // Build accordion
-                    this.displayAccordion(data);
-
-                    // Build graph
-                    this.buildGraph(data);
-
-                } catch (e) {
-                    console.error('Partition error:', e);
-                    accordion.innerHTML = `<div class="partition-empty" style="color: var(--accent-red);">Error: ${e.message}</div>`;
-                }
-            },
-
-            displaySummary(data) {
-                const summary = document.getElementById('partitionerSummary');
-                summary.style.display = 'block';
-
-                document.getElementById('partTotalClasses').textContent = data.total_classes || 0;
-                document.getElementById('partCoverage').textContent = ((data.coverage || 0) * 100).toFixed(1) + '%';
-                document.getElementById('partCrossEdges').textContent = data.cross_partition_edges || 0;
-                document.getElementById('partCoupling').textContent = ((data.coupling_density || 0) * 100).toFixed(2) + '%';
-
-                // Build badges
-                const badgesEl = document.getElementById('partitionBadges');
-                const colorMap = {
-                    'UNKNOWN': '#95a5a6',
-                    'SHARED': '#9b59b6',
-                    'DEAD_CODE': '#2c3e50'
-                };
-
-                // Get colors from config
-                if (data.config && data.config.applications) {
-                    data.config.applications.forEach(app => {
-                        colorMap[app.app_id] = app.color;
-                    });
-                }
-
-                let badgesHtml = '';
-                for (const [label, count] of Object.entries(data.summary || {})) {
-                    const color = colorMap[label] || '#95a5a6';
-                    badgesHtml += `
-                        <div class="partition-badge">
-                            <span class="badge-color" style="background: ${color}"></span>
-                            <span>${label}</span>
-                            <span class="badge-count">${count}</span>
-                        </div>
-                    `;
-                }
-                badgesEl.innerHTML = badgesHtml;
-            },
-
-            displayAccordion(data) {
-                const accordion = document.getElementById('partitionAccordion');
-
-                // Group by partition
-                const groups = {};
-                for (const [fqn, assignment] of Object.entries(data.assignments || {})) {
-                    const label = assignment.label;
-                    if (!groups[label]) groups[label] = [];
-                    groups[label].push({ fqn, ...assignment });
-                }
-
-                // Color map
-                const colorMap = {
-                    'UNKNOWN': '#95a5a6',
-                    'SHARED': '#9b59b6',
-                    'DEAD_CODE': '#2c3e50'
-                };
-                if (data.config && data.config.applications) {
-                    data.config.applications.forEach(app => {
-                        colorMap[app.app_id] = app.color;
-                    });
-                }
-
-                // Sort by count
-                const sorted = Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
-
-                let html = '';
-                sorted.forEach(([label, classes]) => {
-                    const color = colorMap[label] || '#95a5a6';
-                    html += `
-                        <div class="accordion-item">
-                            <div class="accordion-header" onclick="partitionerApp.toggleAccordion(this)">
-                                <div class="accordion-title">
-                                    <span class="accordion-color" style="background: ${color}"></span>
-                                    <span>${label} (${classes.length} classes)</span>
-                                </div>
-                                <span class="accordion-arrow">&#9654;</span>
-                            </div>
-                            <div class="accordion-content">
-                                <div class="class-list">
-                                    ${classes.slice(0, 100).map(c => `
-                                        <div class="class-item" onclick="partitionerApp.showClassDetails('${c.fqn}')" title="${c.fqn}">
-                                            <span class="class-name">${c.fqn.split('.').pop()}</span>
-                                            <span class="class-confidence ${c.confidence > 0.8 ? 'high' : c.confidence > 0.5 ? 'medium' : 'low'}">${(c.confidence * 100).toFixed(0)}%</span>
-                                        </div>
-                                    `).join('')}
-                                    ${classes.length > 100 ? `<div class="class-item" style="color: var(--text-secondary); font-style: italic;">...and ${classes.length - 100} more</div>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-
-                accordion.innerHTML = html || '<div class="partition-empty">No results</div>';
-            },
-
-            toggleAccordion(header) {
-                const item = header.parentElement;
-                item.classList.toggle('open');
-            },
-
-            showClassDetails(fqn) {
-                // Find node in data
-                const node = this.partitionData?.nodes?.find(n => n.id === fqn);
-                const assignment = this.partitionData?.assignments?.[fqn];
-
-                if (!node || !assignment) return;
-
-                // Simple alert for now, could be a modal
-                let details = `Class: ${fqn}\n`;
-                details += `Partition: ${assignment.label}\n`;
-                details += `Confidence: ${(assignment.confidence * 100).toFixed(1)}%\n`;
-                details += `File: ${node.file || 'N/A'}\n`;
-                details += `LOC: ${node.loc || 'N/A'}\n\n`;
-                details += `Evidence:\n`;
-                (assignment.evidence || []).forEach(e => {
-                    details += `  - ${e.details}\n`;
-                });
-
-                alert(details);
-            },
-
-            buildGraph(data) {
-                const container = document.getElementById('partitionGraphContainer');
-                const svg = document.getElementById('partitionGraphSvg');
-
-                // Clear previous
-                svg.innerHTML = '';
-
-                if (!data.nodes || data.nodes.length === 0) {
-                    return;
-                }
-
-                const width = container.clientWidth;
-                const height = container.clientHeight || 400;
-
-                // Create D3 simulation
-                const nodes = data.nodes.map(n => ({
-                    ...n,
-                    x: Math.random() * width,
-                    y: Math.random() * height
-                }));
-
-                const nodeMap = {};
-                nodes.forEach((n, i) => nodeMap[n.id] = i);
-
-                const links = (data.edges || [])
-                    .filter(e => nodeMap[e.source] !== undefined && nodeMap[e.target] !== undefined)
-                    .map(e => ({
-                        source: nodeMap[e.source],
-                        target: nodeMap[e.target],
-                        cross_partition: e.cross_partition
-                    }));
-
-                // D3 force simulation
-                this.simulation = d3.forceSimulation(nodes)
-                    .force('charge', d3.forceManyBody().strength(-30))
-                    .force('link', d3.forceLink(links).distance(30).strength(0.3))
-                    .force('center', d3.forceCenter(width / 2, height / 2))
-                    .force('collision', d3.forceCollide().radius(d => (d.size || 5) + 2));
-
-                // Create SVG elements
-                const svgEl = d3.select(svg)
-                    .attr('width', width)
-                    .attr('height', height);
-
-                // Links
-                const link = svgEl.append('g')
-                    .selectAll('line')
-                    .data(links)
-                    .enter().append('line')
-                    .attr('class', d => d.cross_partition ? 'partition-link cross-partition' : 'partition-link');
-
-                // Nodes
-                const node = svgEl.append('g')
-                    .selectAll('circle')
-                    .data(nodes)
-                    .enter().append('circle')
-                    .attr('class', 'partition-node')
-                    .attr('r', d => Math.max(3, Math.min(12, (d.size || 5))))
-                    .attr('fill', d => d.color || '#95a5a6')
-                    .call(d3.drag()
-                        .on('start', (event, d) => {
-                            if (!event.active) this.simulation.alphaTarget(0.3).restart();
-                            d.fx = d.x;
-                            d.fy = d.y;
-                        })
-                        .on('drag', (event, d) => {
-                            d.fx = event.x;
-                            d.fy = event.y;
-                        })
-                        .on('end', (event, d) => {
-                            if (!event.active) this.simulation.alphaTarget(0);
-                            d.fx = null;
-                            d.fy = null;
-                        })
-                    )
-                    .on('mouseover', (event, d) => {
-                        this.showTooltip(event, d);
-                    })
-                    .on('mouseout', () => {
-                        this.hideTooltip();
-                    });
-
-                // Labels (only for larger nodes)
-                const labels = svgEl.append('g')
-                    .selectAll('text')
-                    .data(nodes.filter(n => (n.size || 5) > 8))
-                    .enter().append('text')
-                    .attr('class', 'node-label')
-                    .attr('text-anchor', 'middle')
-                    .attr('dy', d => (d.size || 5) + 12)
-                    .text(d => d.label || d.id.split('.').pop());
-
-                // Update positions
-                this.simulation.on('tick', () => {
-                    link
-                        .attr('x1', d => nodes[d.source.index || d.source].x)
-                        .attr('y1', d => nodes[d.source.index || d.source].y)
-                        .attr('x2', d => nodes[d.target.index || d.target].x)
-                        .attr('y2', d => nodes[d.target.index || d.target].y);
-
-                    node
-                        .attr('cx', d => d.x)
-                        .attr('cy', d => d.y);
-
-                    labels
-                        .attr('x', d => d.x)
-                        .attr('y', d => d.y);
-                });
-
-                // Build legend
-                this.buildLegend(data);
-            },
-
-            buildLegend(data) {
-                const legend = document.getElementById('partitionLegend');
-
-                const colorMap = {
-                    'UNKNOWN': '#95a5a6',
-                    'SHARED': '#9b59b6',
-                    'DEAD_CODE': '#2c3e50'
-                };
-                if (data.config && data.config.applications) {
-                    data.config.applications.forEach(app => {
-                        colorMap[app.app_id] = app.color;
-                    });
-                }
-
-                let html = '';
-                for (const label of Object.keys(data.summary || {})) {
-                    const color = colorMap[label] || '#95a5a6';
-                    html += `
-                        <div class="legend-item">
-                            <span class="legend-color" style="background: ${color}"></span>
-                            <span>${label}</span>
-                        </div>
-                    `;
-                }
-
-                // Add cross-partition indicator
-                html += `
-                    <div class="legend-item">
-                        <span class="legend-color" style="background: var(--accent-red)"></span>
-                        <span>Cross-Partition Edge</span>
-                    </div>
-                `;
-
-                legend.innerHTML = html;
-            },
-
-            showTooltip(event, d) {
-                let tooltip = document.querySelector('.partition-tooltip');
-                if (!tooltip) {
-                    tooltip = document.createElement('div');
-                    tooltip.className = 'partition-tooltip';
-                    document.body.appendChild(tooltip);
-                }
-
-                tooltip.innerHTML = `
-                    <div class="tooltip-title">${d.label || d.id.split('.').pop()}</div>
-                    <div class="tooltip-info">
-                        <div>Partition: ${d.partition}</div>
-                        <div>Confidence: ${(d.confidence * 100).toFixed(0)}%</div>
-                        <div>LOC: ${d.loc || 'N/A'}</div>
-                        <div>Package: ${d.package || 'N/A'}</div>
-                    </div>
-                `;
-
-                tooltip.style.display = 'block';
-                tooltip.style.left = (event.pageX + 10) + 'px';
-                tooltip.style.top = (event.pageY + 10) + 'px';
-            },
-
-            hideTooltip() {
-                const tooltip = document.querySelector('.partition-tooltip');
-                if (tooltip) {
-                    tooltip.style.display = 'none';
-                }
-            },
-
-            resetGraph() {
-                if (this.simulation) {
-                    this.simulation.alpha(1).restart();
-                }
-            },
-
-            toggleSimulation() {
-                if (!this.simulation) return;
-
-                if (this.simulation.alpha() > 0.001) {
-                    this.simulation.stop();
-                } else {
-                    this.simulation.alpha(0.3).restart();
-                }
-            },
-
-            toggleCrossPartition() {
-                const showCrossOnly = document.getElementById('showCrossOnly').checked;
-                const links = document.querySelectorAll('.partition-link');
-
-                links.forEach(link => {
-                    if (showCrossOnly) {
-                        link.style.display = link.classList.contains('cross-partition') ? '' : 'none';
-                    } else {
-                        link.style.display = '';
-                    }
-                });
-            },
-
-            toggleFullscreen() {
-                const section = document.getElementById('partitionerSection');
-                section.classList.toggle('fullscreen');
-            },
-
-            async exportResults(format) {
-                if (!this.projectPath) return;
-
-                try {
-                    const url = `/api/ast/partition/export?path=${encodeURIComponent(this.projectPath)}&format=${format}`;
-                    const resp = await fetch(url);
-
-                    if (!resp.ok) {
-                        throw new Error(await resp.text());
-                    }
-
-                    const data = await resp.json();
-
-                    if (format === 'json') {
-                        // Download JSON
-                        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                        const link = document.createElement('a');
-                        link.href = URL.createObjectURL(blob);
-                        link.download = `partition_${Date.now()}.json`;
-                        link.click();
-                    } else if (format === 'csv') {
-                        // Download CSV
-                        const blob = new Blob([data.csv], { type: 'text/csv' });
-                        const link = document.createElement('a');
-                        link.href = URL.createObjectURL(blob);
-                        link.download = data.filename || `partition_${Date.now()}.csv`;
-                        link.click();
-                    } else if (format === 'xlsx') {
-                        // For XLSX, download the JSON data - client can use xlsx library
-                        alert('XLSX export: Use the JSON export and convert using a spreadsheet tool.');
-                    }
-                } catch (e) {
-                    console.error('Export error:', e);
-                    alert('Export failed: ' + e.message);
                 }
             },
 
@@ -5711,7 +5323,8 @@ com\.grdf\..*\.jms\.spre</textarea>
                     // Build force-directed graph with zoom
                     this.buildGraphTab(data);
 
-                    // Show results panel
+                    // Show results panel and resizer
+                    document.getElementById('partitionerVResizer').style.display = 'flex';
                     document.getElementById('partitionerResultsPanel').style.display = 'block';
 
                 } catch (e) {
@@ -5785,6 +5398,11 @@ com\.grdf\..*\.jms\.spre</textarea>
                 });
 
                 accordion.innerHTML = html || '<div class="partition-empty">No results</div>';
+            },
+
+            toggleAccordion(header) {
+                const item = header.parentElement;
+                item.classList.toggle('open');
             },
 
             buildGraphTab(data) {
@@ -6423,6 +6041,13 @@ com\.grdf\..*\.jms\.spre</textarea>
                             lineInput.max = totalLines;
                             lineInput.value = 1;
                             document.getElementById('previewLineNum').textContent = '1';
+                            document.getElementById('previewTotalLines').textContent = totalLines;
+
+                            // Clear search state
+                            this.searchMatches = [];
+                            this.searchCurrentIndex = -1;
+                            document.getElementById('previewSearchInput').value = '';
+                            document.getElementById('previewSearchInfo').textContent = '';
 
                             // Show content with line numbers
                             this.renderCodeWithLineNumbers(1);
@@ -6448,23 +6073,26 @@ com\.grdf\..*\.jms\.spre</textarea>
                 const container = document.getElementById('previewBodyContainer');
                 const targetLine = parseInt(startLine);
 
-                // Show lines with line numbers, with target line having an ID for scrolling
+                // Show lines with line numbers
                 const visibleLines = this.previewLines.map((line, i) => {
                     const lineNum = i + 1;
                     const paddedNum = String(lineNum).padStart(4, ' ');
                     const isTarget = lineNum === targetLine;
-                    const highlight = isTarget ? ' class="highlighted-line"' : '';
-                    const lineId = isTarget ? ' id="targetLine"' : '';
-                    return `<span class="code-line"${lineId}${highlight}><span class="line-num">${paddedNum}</span>  ${this.escapeHtml(line)}</span>`;
-                }).join('\n');
+                    const highlight = isTarget ? ' highlighted-line' : '';
+                    const searchMatch = this.searchMatches.includes(lineNum) ? ' search-match' : '';
+                    return `<span class="code-line${highlight}${searchMatch}" data-line="${lineNum}"><span class="line-num">${paddedNum}</span>  ${this.escapeHtml(line)}</span>`;
+                }).join(''); // No newlines between block elements to ensure exact line height
 
                 codeEl.innerHTML = visibleLines;
 
-                // Scroll to the target line element
-                const targetEl = document.getElementById('targetLine');
-                if (targetEl && container) {
-                    // Use scrollIntoView for reliable scrolling
-                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Scroll to target line using direct calculation
+                if (container && targetLine > 0) {
+                    const lineHeight = 14; // Fixed 14px line height (11px font + spacing)
+                    const targetOffset = (targetLine - 1) * lineHeight;
+                    const containerHeight = container.clientHeight;
+                    // Position target line about 1/3 from top
+                    const scrollPos = Math.max(0, targetOffset - containerHeight / 3);
+                    container.scrollTop = scrollPos;
                 }
             },
 
@@ -6474,18 +6102,243 @@ com\.grdf\..*\.jms\.spre</textarea>
                 return div.innerHTML;
             },
 
-            goToLine(lineNum) {
+            goToLine(lineNum, shouldRender = false) {
                 const line = Math.max(1, Math.min(this.previewLines.length, parseInt(lineNum) || 1));
                 document.getElementById('previewLineSlider').value = line;
                 document.getElementById('previewLineInput').value = line;
                 document.getElementById('previewLineNum').textContent = line;
-                this.renderCodeWithLineNumbers(line);
+
+                // Re-render handles scrolling, so only scroll manually if not rendering
+                if (shouldRender) {
+                    this.renderCodeWithLineNumbers(line);
+                } else {
+                    const container = document.getElementById('previewBodyContainer');
+                    if (container) {
+                        const lineHeight = 14; // Fixed 14px line height (11px font + spacing)
+                        const targetOffset = (line - 1) * lineHeight;
+                        const containerHeight = container.clientHeight;
+                        const scrollPos = Math.max(0, targetOffset - containerHeight / 3);
+                        container.scrollTop = scrollPos;
+                    }
+                }
             },
 
             closePreview() {
                 document.getElementById('partitionerPreviewPane').style.display = 'none';
+            },
+
+            // =================================================================
+            // Config Panel Toggle
+            // =================================================================
+            toggleConfigPanel() {
+                const panel = document.getElementById('partitionerConfigPanel');
+                const btn = panel.querySelector('.config-toggle-btn');
+                panel.classList.toggle('collapsed');
+                btn.innerHTML = panel.classList.contains('collapsed') ? '&#9654;' : '&#9664;';
+            },
+
+            // =================================================================
+            // Vertical Resizer for Graph/Results
+            // =================================================================
+            vResizing: false,
+            vResizeStartY: 0,
+            vResizeStartHeight: 0,
+
+            startVResize(e) {
+                e.preventDefault();
+                this.vResizing = true;
+                this.vResizeStartY = e.clientY;
+                const resultsPanel = document.getElementById('partitionerResultsPanel');
+                this.vResizeStartHeight = resultsPanel.offsetHeight;
+                document.addEventListener('mousemove', this.doVResize.bind(this));
+                document.addEventListener('mouseup', this.stopVResize.bind(this));
+                document.body.style.cursor = 'ns-resize';
+                document.body.style.userSelect = 'none';
+            },
+
+            doVResize(e) {
+                if (!this.vResizing) return;
+                const delta = this.vResizeStartY - e.clientY;
+                const resultsPanel = document.getElementById('partitionerResultsPanel');
+                const newHeight = Math.max(100, Math.min(window.innerHeight * 0.6, this.vResizeStartHeight + delta));
+                resultsPanel.style.height = newHeight + 'px';
+            },
+
+            stopVResize() {
+                this.vResizing = false;
+                document.removeEventListener('mousemove', this.doVResize.bind(this));
+                document.removeEventListener('mouseup', this.stopVResize.bind(this));
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            },
+
+            // =================================================================
+            // Preview Pane Dragging
+            // =================================================================
+            previewDragging: false,
+            previewDragStartX: 0,
+            previewDragStartY: 0,
+            previewStartLeft: 0,
+            previewStartTop: 0,
+
+            initPreviewDrag() {
+                const handle = document.getElementById('previewDragHandle');
+                const pane = document.getElementById('partitionerPreviewPane');
+                const body = document.getElementById('previewBodyContainer');
+                const resizeHandle = document.getElementById('previewResizeHandle');
+                if (!handle || !pane) return;
+
+                // Drag by header
+                handle.addEventListener('mousedown', (e) => {
+                    if (e.target.tagName === 'BUTTON') return;
+                    this.previewDragging = true;
+                    this.previewDragStartX = e.clientX;
+                    this.previewDragStartY = e.clientY;
+                    const rect = pane.getBoundingClientRect();
+                    this.previewStartLeft = rect.left;
+                    this.previewStartTop = rect.top;
+                    document.addEventListener('mousemove', this.doPreviewDrag.bind(this));
+                    document.addEventListener('mouseup', this.stopPreviewDrag.bind(this));
+                    e.preventDefault();
+                });
+
+                // Resize by corner handle
+                if (resizeHandle) {
+                    resizeHandle.addEventListener('mousedown', (e) => {
+                        this.previewResizing = true;
+                        this.previewResizeStartX = e.clientX;
+                        this.previewResizeStartY = e.clientY;
+                        this.previewResizeStartW = pane.offsetWidth;
+                        this.previewResizeStartH = pane.offsetHeight;
+                        document.addEventListener('mousemove', this.doPreviewResize.bind(this));
+                        document.addEventListener('mouseup', this.stopPreviewResize.bind(this));
+                        document.body.style.cursor = 'nwse-resize';
+                        document.body.style.userSelect = 'none';
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                }
+
+                // Sync slider with scroll position
+                if (body) {
+                    body.addEventListener('scroll', () => {
+                        if (!this.previewLines || this.previewLines.length === 0) return;
+                        const lineHeight = 14; // Fixed 14px line height (11px font + spacing)
+                        const currentLine = Math.floor(body.scrollTop / lineHeight) + 1;
+                        const clampedLine = Math.max(1, Math.min(this.previewLines.length, currentLine));
+                        document.getElementById('previewLineSlider').value = clampedLine;
+                        document.getElementById('previewLineInput').value = clampedLine;
+                        document.getElementById('previewLineNum').textContent = clampedLine;
+                    });
+                }
+            },
+
+            // Preview resize
+            previewResizing: false,
+            previewResizeStartX: 0,
+            previewResizeStartY: 0,
+            previewResizeStartW: 0,
+            previewResizeStartH: 0,
+
+            doPreviewResize(e) {
+                if (!this.previewResizing) return;
+                const pane = document.getElementById('partitionerPreviewPane');
+                const deltaX = e.clientX - this.previewResizeStartX;
+                const deltaY = e.clientY - this.previewResizeStartY;
+                const newW = Math.max(400, this.previewResizeStartW + deltaX);
+                const newH = Math.max(300, this.previewResizeStartH + deltaY);
+                pane.style.width = newW + 'px';
+                pane.style.height = newH + 'px';
+            },
+
+            stopPreviewResize() {
+                this.previewResizing = false;
+                document.removeEventListener('mousemove', this.doPreviewResize.bind(this));
+                document.removeEventListener('mouseup', this.stopPreviewResize.bind(this));
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            },
+
+            doPreviewDrag(e) {
+                if (!this.previewDragging) return;
+                const pane = document.getElementById('partitionerPreviewPane');
+                const deltaX = e.clientX - this.previewDragStartX;
+                const deltaY = e.clientY - this.previewDragStartY;
+                const newLeft = Math.max(0, Math.min(window.innerWidth - 100, this.previewStartLeft + deltaX));
+                const newTop = Math.max(0, Math.min(window.innerHeight - 100, this.previewStartTop + deltaY));
+                pane.style.left = newLeft + 'px';
+                pane.style.top = newTop + 'px';
+                pane.style.right = 'auto';
+            },
+
+            stopPreviewDrag() {
+                this.previewDragging = false;
+                document.removeEventListener('mousemove', this.doPreviewDrag.bind(this));
+                document.removeEventListener('mouseup', this.stopPreviewDrag.bind(this));
+            },
+
+            // =================================================================
+            // Code Search
+            // =================================================================
+            searchMatches: [],
+            searchCurrentIndex: -1,
+            searchTerm: '',
+
+            searchInCode() {
+                const input = document.getElementById('previewSearchInput');
+                const term = input.value.trim();
+                if (!term || !this.previewLines) {
+                    this.searchMatches = [];
+                    this.searchCurrentIndex = -1;
+                    document.getElementById('previewSearchInfo').textContent = '';
+                    this.renderCodeWithLineNumbers(parseInt(document.getElementById('previewLineNum').textContent) || 1);
+                    return;
+                }
+
+                this.searchTerm = term;
+                this.searchMatches = [];
+                const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+
+                this.previewLines.forEach((line, i) => {
+                    if (regex.test(line)) {
+                        this.searchMatches.push(i + 1);
+                    }
+                });
+
+                if (this.searchMatches.length > 0) {
+                    this.searchCurrentIndex = 0;
+                    // Re-render to show search highlights, then scroll
+                    this.renderCodeWithLineNumbers(this.searchMatches[0]);
+                    document.getElementById('previewSearchInfo').textContent = `1/${this.searchMatches.length}`;
+                } else {
+                    this.searchCurrentIndex = -1;
+                    document.getElementById('previewSearchInfo').textContent = '0/0';
+                    // Re-render to clear highlights
+                    this.renderCodeWithLineNumbers(1);
+                }
+            },
+
+            searchNext() {
+                if (this.searchMatches.length === 0) return;
+                this.searchCurrentIndex = (this.searchCurrentIndex + 1) % this.searchMatches.length;
+                this.goToLine(this.searchMatches[this.searchCurrentIndex], true);
+                document.getElementById('previewSearchInfo').textContent =
+                    `${this.searchCurrentIndex + 1}/${this.searchMatches.length}`;
+            },
+
+            searchPrev() {
+                if (this.searchMatches.length === 0) return;
+                this.searchCurrentIndex = (this.searchCurrentIndex - 1 + this.searchMatches.length) % this.searchMatches.length;
+                this.goToLine(this.searchMatches[this.searchCurrentIndex], true);
+                document.getElementById('previewSearchInfo').textContent =
+                    `${this.searchCurrentIndex + 1}/${this.searchMatches.length}`;
             }
         };
+
+        // Initialize preview drag after DOM ready
+        document.addEventListener('DOMContentLoaded', () => {
+            partitionerApp.initPreviewDrag();
+        });
 
         // =================================================================
         // Audit Application (v0.4)

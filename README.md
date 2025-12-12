@@ -77,7 +77,7 @@ All processing happens **100% on your machine**. Not a single token leaves it.
   - **Label visibility**: All node labels visible at max zoom with text-shadow outline
   - **Line slider**: Smooth scrolling to target line in code preview using `scrollIntoView()`
   - **Filter toggle**: Show/hide connections between partitions
-  - **DEAD_CODE color**: Distinct styling for unreachable code nodes
+  - **DEAD_CODE color**: Distinct styling for isolated classes (no callers AND no callees)
 
 - **Dedicated Partitioner Tab** — Full-featured partition analysis interface
   - Independent navigation tab for clarity and focus
@@ -144,10 +144,10 @@ All processing happens **100% on your machine**. Not a single token leaves it.
   - Abstractness $A = N_{abstract}/N_{total}$, Distance $D = |A+I-1|$
   - Zone classification: Pain, Uselessness, Main Sequence, Balanced
 
-- **Dead Code Detection** — Find unreachable code
-  - Entry point discovery (Spring annotations, main methods, JMS listeners)
-  - BFS reachability from all entry points
-  - Orphan package detection (no incoming dependencies)
+- **Dead Code Detection** — Find completely isolated classes
+  - Strict criteria: no callers AND no callees (not just missing callers)
+  - Entry point exemptions: Controllers, Tests, Main classes always live
+  - Reflection-aware: classes with outgoing deps are likely DI-managed
 
 ### v0.40.0 Highlights
 

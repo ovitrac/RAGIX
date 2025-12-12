@@ -267,9 +267,11 @@ class CodebasePartitioner:
                 package=package,
                 class_name=class_name,
                 file_path=node.get("file", ""),
+                annotations=node.get("annotations", []),
                 is_interface=node.get("type") == "interface",
                 is_abstract="abstract" in node.get("modifiers", []),
                 is_enum=node.get("type") == "enum",
+                methods=node.get("methods", []),
                 loc=node.get("loc", 0)
             )
             self.add_class(class_info)
@@ -373,30 +375,67 @@ class CodebasePartitioner:
         """
         Detect dead code candidates.
 
-        Dead code = classes with no incoming dependencies and not entry points.
+        Dead code = classes that are COMPLETELY ISOLATED:
+        - No incoming dependencies (nobody calls them)
+        - No outgoing dependencies (they don't call anything)
+        - Not an entry point pattern
+
+        A class that has outgoing deps but no incoming is likely still used
+        via reflection (Spring DI, JPA, etc.) - those are NOT dead code.
         """
         dead = set()
 
+        # Entry point patterns - these are NEVER dead code
+        entry_class_patterns = [
+            # Web/REST
+            "*Controller", "*RestController", "*Resource", "*Endpoint",
+            "*Servlet", "*Filter", "*Handler",
+            # Application entry
+            "*Main", "*Application", "*Bootstrap", "*Launcher", "*Runner",
+            # Test classes
+            "*Test", "*Tests", "*TestCase", "*Spec", "*IT",
+        ]
+
         for fqn, class_info in self.classes.items():
-            # Has incoming dependencies?
             incoming = len(self.reverse_deps.get(fqn, set()))
-            if incoming > self.config.dead_code_threshold:
+            outgoing = len(self.dependencies.get(fqn, set()))
+
+            # Has any connections? -> Not dead
+            if incoming > self.config.dead_code_threshold or outgoing > 0:
                 continue
 
-            # Is it an entry point? (controllers, main classes, etc.)
+            # Completely isolated - check if it's an entry point
             is_entry = False
+
+            # 1. Check application-specific entry points
             for app in self.config.applications:
                 for pattern in app.entry_point_patterns:
                     if self._match_pattern(class_info.class_name, pattern):
                         is_entry = True
                         break
-
-            # Common entry point patterns
-            entry_patterns = ["*Controller", "*Main", "*Application", "*Servlet", "*Filter"]
-            for pattern in entry_patterns:
-                if self._match_pattern(class_info.class_name, pattern):
-                    is_entry = True
+                if is_entry:
                     break
+
+            # 2. Check common entry point patterns
+            if not is_entry:
+                for pattern in entry_class_patterns:
+                    if self._match_pattern(class_info.class_name, pattern):
+                        is_entry = True
+                        break
+
+            # 3. Check annotations for entry points
+            if not is_entry and hasattr(class_info, 'annotations') and class_info.annotations:
+                entry_annotations = [
+                    "*Controller", "*RestController", "*SpringBootApplication",
+                    "*Test", "*RunWith", "*SpringBootTest",
+                ]
+                for ann in class_info.annotations:
+                    for pattern in entry_annotations:
+                        if self._match_pattern(ann, pattern):
+                            is_entry = True
+                            break
+                    if is_entry:
+                        break
 
             if not is_entry:
                 dead.add(fqn)
@@ -502,8 +541,8 @@ class CodebasePartitioner:
                 confidence=0.8,
                 evidence=[Evidence(
                     method="analysis:dead_code",
-                    weight=0.8,
-                    details="No incoming dependencies and not an entry point"
+                    weight=0.9,
+                    details="Completely isolated: no callers and no callees"
                 )]
             )
 
