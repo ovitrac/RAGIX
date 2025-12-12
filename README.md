@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.55.0
+# RAGIX v0.58.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
@@ -15,8 +15,8 @@
 
 ---
 
-**Version:** 0.55.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Updated:** 2025-12-11
+**Version:** 0.58.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Updated:** 2025-12-12
 
 ---
 
@@ -42,18 +42,52 @@ All processing happens **100% on your machine**. Not a single token leaves it.
 
 ---
 
-## **What's New in v0.55.0**
+## **What's New in v0.58.0**
 
 | Feature | Description |
 |---------|-------------|
-| **Codebase Partitioner** | Separate Java codebases into logical applications (App A, App B, Shared, Dead Code) |
-| **Force-Directed Visualization** | D3.js molecular physics simulation for partition clustering |
-| **Multi-Format Export** | JSON, CSV, XLSX exports with file paths, methods, and line numbers |
-| **Evidence Chains** | Full traceability of classification decisions (fingerprint, graph propagation) |
-| **Preset Configurations** | SIAS/TICC, Generic Two Apps, Generic Three Apps patterns |
-| **Cross-Partition Analysis** | Identify coupling points between applications for refactoring |
+| **Search Filter with Button** | Apply search filter via button/Enter instead of real-time keystroke filtering |
+| **Accordion Pagination** | Navigate large class lists with "◀ Less / More ▶" buttons (50 per page) |
+| **Dynamic Filtered Counts** | Accordion titles show "X of Y classes" when search is active |
+| **Config Panel Toggle** | Hide/show configuration panel with ◀/▶ button for more graph space |
+| **Labels Auto-Zoom** | Checkbox now correctly controls "auto on zoom" behavior |
+| **Fullscreen Fix** | Partitioner fullscreen mode now fills entire viewport without gaps |
 
-### v0.55.0 Highlights (Latest)
+### v0.58.0 Highlights (Latest)
+
+- **Partitioner UI Polish** — Enhanced user experience for large codebases
+  - **Search filter button**: Click "Filter" or press Enter instead of filtering on each keystroke
+  - **Accordion pagination**: Navigate through classes 50 at a time with "◀ Less / More ▶" buttons
+  - **Dynamic titles**: Accordion shows "SIAS (150 of 6821 classes)" when search is active
+  - **Config panel toggle**: Hide/show left panel with ◀/▶ button to maximize graph area
+  - **Labels checkbox fix**: "Labels (auto on zoom)" now correctly shows labels only when zoomed
+  - **Fullscreen fix**: Panel fills entire viewport with no gaps at bottom
+
+### v0.57.0 Highlights
+
+- **Graph Propagation Algorithm** — Multi-phase directional propagation for better partition classification
+  - **Directional weighting**: Forward deps (what I import) weighted 0.7, reverse deps (who imports me) weighted 0.3
+  - **Package cohesion bonus**: Same-package neighbors get +0.2 weight bonus
+  - **Multi-phase thresholds**: Phase 1 (Core) 0.8, Phase 2 (Near) 0.6, Phase 3 (Far) 0.4
+  - **Confidence decay**: Each propagation iteration reduces max confidence by 0.05
+  - **Convergence detection**: Stop when < 1% of nodes change per iteration
+  - **Minimum votes**: Require at least 2 neighbor votes to assign a label
+
+- **Partitioner UI Enhancements** — Full algorithm parameter exposure
+  - **Graph Propagation Algorithm** section in configuration panel
+  - **Directional Weighting** group: Forward/Reverse weight sliders
+  - **Package Cohesion** group: Cohesion bonus configuration
+  - **Multi-Phase Thresholds** group: Core/Near/Far threshold tuning
+  - **Convergence** group: Decay rate, convergence %, min votes
+
+### v0.56.0 Highlights
+
+- **Improved Dead Code Detection** — Strict isolated class detection
+  - Dead code now requires BOTH no callers AND no callees (not just missing callers)
+  - Entry point exemptions: Controllers, Tests, Main classes always live
+  - Reflection-aware: classes with outgoing deps are likely DI-managed
+
+### v0.55.0 Highlights
 
 - **SIAS/GRDF Service Detection** — Enterprise Java audit for multi-module projects
   - **SIAS patterns**: `spre##`, `sprebpm`, `spremail`, `s[ActionName]` task operations

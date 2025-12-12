@@ -4290,8 +4290,18 @@ async def run_partition(request: PartitionRequest):
                 applications=apps,
                 shared_patterns=request.config.get("shared_patterns", PartitionConfig().shared_patterns),
                 dead_code_threshold=request.config.get("dead_code_threshold", 0.0),
-                propagation_iterations=request.config.get("propagation_iterations", 5),
+                propagation_iterations=request.config.get("propagation_iterations", 10),
                 confidence_threshold=request.config.get("confidence_threshold", 0.6),
+                # Graph Propagation Algorithm parameters
+                forward_weight=request.config.get("forward_weight", 0.7),
+                reverse_weight=request.config.get("reverse_weight", 0.3),
+                package_cohesion_bonus=request.config.get("package_cohesion_bonus", 0.2),
+                confidence_decay=request.config.get("confidence_decay", 0.05),
+                phase1_threshold=request.config.get("phase1_threshold", 0.8),
+                phase2_threshold=request.config.get("phase2_threshold", 0.6),
+                phase3_threshold=request.config.get("phase3_threshold", 0.4),
+                convergence_threshold=request.config.get("convergence_threshold", 0.01),
+                min_votes_required=request.config.get("min_votes_required", 2),
             )
 
         # Run partitioning

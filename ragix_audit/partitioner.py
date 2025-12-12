@@ -130,6 +130,29 @@ class ApplicationFingerprint:
 class PartitionConfig:
     """
     Configuration for codebase partitioning.
+
+    Graph Propagation Algorithm Parameters:
+    ----------------------------------------
+    The algorithm uses multi-phase directional propagation to classify classes:
+
+    Phase 1 (Core): High-confidence fingerprint matches only
+    Phase 2 (Near): Propagate from cores using weighted neighbor voting
+    Phase 3 (Far):  Fill remaining UNKNOWN with lower threshold
+
+    Directional Weighting:
+    - forward_weight: Weight for outgoing deps (what I import) - stronger signal
+    - reverse_weight: Weight for incoming deps (who imports me) - weaker signal
+
+    Package Cohesion:
+    - package_cohesion_bonus: Extra weight for same-package neighbors
+
+    Confidence Decay:
+    - confidence_decay: Reduction per propagation hop (prevents over-propagation)
+
+    Multi-Phase Thresholds:
+    - phase1_threshold: Core identification (fingerprints only)
+    - phase2_threshold: Near propagation
+    - phase3_threshold: Far propagation (fill remaining)
     """
     applications: List[ApplicationFingerprint] = field(default_factory=list)
     shared_patterns: List[str] = field(default_factory=lambda: [
@@ -137,8 +160,31 @@ class PartitionConfig:
         "*dto*", "*entity*", "*model*", "*mapper*", "*config*"
     ])
     dead_code_threshold: float = 0.0  # Min incoming deps to not be dead
-    propagation_iterations: int = 5
+    propagation_iterations: int = 10  # Max iterations per phase
+
+    # Legacy parameter (kept for compatibility, use phase thresholds instead)
     confidence_threshold: float = 0.6
+
+    # === Graph Propagation Algorithm Parameters ===
+
+    # Directional weighting: forward deps (imports) vs reverse deps (callers)
+    forward_weight: float = 0.7   # Weight for classes I depend on (strong signal)
+    reverse_weight: float = 0.3   # Weight for classes that depend on me (weaker)
+
+    # Package cohesion: same-package neighbors get bonus weight
+    package_cohesion_bonus: float = 0.2  # Added to neighbor weight if same package
+
+    # Confidence decay per propagation hop
+    confidence_decay: float = 0.05  # Subtracted from confidence each iteration
+
+    # Multi-phase propagation thresholds
+    phase1_threshold: float = 0.8  # Core identification (high confidence)
+    phase2_threshold: float = 0.6  # Near propagation (medium confidence)
+    phase3_threshold: float = 0.4  # Far propagation (low confidence, fill gaps)
+
+    # Convergence settings
+    convergence_threshold: float = 0.01  # Stop when < 1% nodes change
+    min_votes_required: int = 2  # Minimum neighbor votes to assign label
 
     @classmethod
     def default_two_apps(cls, app_a: str = "APP_A", app_b: str = "APP_B") -> "PartitionConfig":
@@ -166,7 +212,17 @@ class PartitionConfig:
             "shared_patterns": self.shared_patterns,
             "dead_code_threshold": self.dead_code_threshold,
             "propagation_iterations": self.propagation_iterations,
-            "confidence_threshold": self.confidence_threshold
+            "confidence_threshold": self.confidence_threshold,
+            # Graph Propagation Algorithm parameters
+            "forward_weight": self.forward_weight,
+            "reverse_weight": self.reverse_weight,
+            "package_cohesion_bonus": self.package_cohesion_bonus,
+            "confidence_decay": self.confidence_decay,
+            "phase1_threshold": self.phase1_threshold,
+            "phase2_threshold": self.phase2_threshold,
+            "phase3_threshold": self.phase3_threshold,
+            "convergence_threshold": self.convergence_threshold,
+            "min_votes_required": self.min_votes_required,
         }
 
 
@@ -444,55 +500,189 @@ class CodebasePartitioner:
 
     def _propagate_labels(self):
         """
-        Propagate labels using neighbor majority voting.
+        Multi-phase directional graph propagation algorithm.
 
-        Classes inherit the majority label of their neighbors.
+        This algorithm propagates partition labels through the dependency graph
+        using weighted voting with the following features:
+
+        1. DIRECTIONAL WEIGHTING:
+           - Forward deps (what I import): weighted by config.forward_weight (default 0.7)
+           - Reverse deps (who imports me): weighted by config.reverse_weight (default 0.3)
+           Rationale: "What code I use" is a stronger signal of my partition than
+           "who uses my code" (which could be shared utilities).
+
+        2. PACKAGE COHESION:
+           - Neighbors in the same Java package get a bonus weight
+           - Controlled by config.package_cohesion_bonus (default 0.2)
+           Rationale: Classes in the same package are architecturally related.
+
+        3. MULTI-PHASE THRESHOLDS:
+           - Phase 1: config.phase1_threshold (0.8) - only high-confidence assignments
+           - Phase 2: config.phase2_threshold (0.6) - medium confidence propagation
+           - Phase 3: config.phase3_threshold (0.4) - fill remaining gaps
+           Rationale: Propagate from confident cores outward, reducing false positives.
+
+        4. CONFIDENCE DECAY:
+           - Each propagation iteration reduces max achievable confidence
+           - Controlled by config.confidence_decay (default 0.05)
+           Rationale: Distant nodes should have lower confidence than direct matches.
+
+        5. CONVERGENCE DETECTION:
+           - Stops when < convergence_threshold (1%) of nodes change
+           - Prevents unnecessary iterations on stable graphs
+        """
+        total_nodes = len(self.classes)
+        if total_nodes == 0:
+            return
+
+        # Multi-phase propagation with decreasing thresholds
+        phases = [
+            ("core", self.config.phase1_threshold),
+            ("near", self.config.phase2_threshold),
+            ("far", self.config.phase3_threshold),
+        ]
+
+        for phase_name, threshold in phases:
+            self._run_propagation_phase(phase_name, threshold, total_nodes)
+
+    def _run_propagation_phase(self, phase_name: str, threshold: float, total_nodes: int):
+        """
+        Run a single propagation phase with the given threshold.
+
+        Args:
+            phase_name: Name of the phase for logging/evidence
+            threshold: Minimum confidence required to assign a label
+            total_nodes: Total number of nodes (for convergence calculation)
         """
         for iteration in range(self.config.propagation_iterations):
             changes = 0
 
+            # Apply confidence decay based on iteration
+            iteration_decay = iteration * self.config.confidence_decay
+            effective_max_confidence = max(0.5, 1.0 - iteration_decay)
+
             for fqn in self.classes:
                 assignment = self.assignments.get(fqn)
-                if not assignment or assignment.label not in ("UNKNOWN",):
+                if not assignment or assignment.label != "UNKNOWN":
                     continue
 
-                # Collect neighbor labels
-                neighbors = set()
-                neighbors.update(self.dependencies.get(fqn, set()))
-                neighbors.update(self.reverse_deps.get(fqn, set()))
-
-                if not neighbors:
+                class_info = self.classes.get(fqn)
+                if not class_info:
                     continue
 
-                # Count votes
-                votes = defaultdict(float)
-                for neighbor in neighbors:
-                    neighbor_assignment = self.assignments.get(neighbor)
-                    if neighbor_assignment and neighbor_assignment.label not in ("UNKNOWN", "DEAD_CODE"):
-                        votes[neighbor_assignment.label] += neighbor_assignment.confidence
+                # Compute weighted votes from neighbors
+                votes = self._compute_weighted_votes(fqn, class_info)
 
                 if not votes:
                     continue
 
+                # Check minimum votes requirement
+                total_vote_count = sum(1 for v in votes.values() if v > 0)
+                if total_vote_count < self.config.min_votes_required:
+                    continue
+
                 # Find winner
                 winner = max(votes.keys(), key=lambda k: votes[k])
-                total_votes = sum(votes.values())
-                confidence = votes[winner] / total_votes if total_votes > 0 else 0
+                total_weight = sum(votes.values())
+                raw_confidence = votes[winner] / total_weight if total_weight > 0 else 0
 
-                if confidence >= self.config.confidence_threshold:
+                # Apply confidence decay
+                confidence = min(raw_confidence, effective_max_confidence)
+
+                if confidence >= threshold:
                     assignment.label = winner
                     assignment.confidence = confidence
-                    assignment.votes = dict(votes)
+                    assignment.votes = {k: round(v, 3) for k, v in votes.items()}
                     assignment.evidence.append(Evidence(
-                        method="graph:neighbor_majority",
+                        method=f"graph:propagation_{phase_name}",
                         weight=confidence,
-                        details=f"Iteration {iteration+1}: {len(neighbors)} neighbors voted {winner} ({confidence:.1%})"
+                        details=f"Phase {phase_name}, iter {iteration+1}: "
+                                f"{total_vote_count} voters → {winner} ({confidence:.1%})"
                     ))
                     changes += 1
 
-            logger.debug(f"Propagation iteration {iteration+1}: {changes} changes")
-            if changes == 0:
+            # Convergence check
+            change_ratio = changes / total_nodes if total_nodes > 0 else 0
+            logger.debug(f"Propagation {phase_name} iter {iteration+1}: "
+                        f"{changes} changes ({change_ratio:.1%})")
+
+            if changes == 0 or change_ratio < self.config.convergence_threshold:
                 break
+
+    def _compute_weighted_votes(self, fqn: str, class_info: ClassInfo) -> Dict[str, float]:
+        """
+        Compute weighted votes from neighbors using directional weighting and package cohesion.
+
+        The voting weight for each neighbor is calculated as:
+            weight = base_direction_weight × neighbor_confidence × (1 + package_bonus)
+
+        Where:
+            - base_direction_weight: forward_weight for imports, reverse_weight for callers
+            - neighbor_confidence: the neighbor's classification confidence
+            - package_bonus: package_cohesion_bonus if same package, else 0
+
+        Args:
+            fqn: Fully qualified name of the class to classify
+            class_info: ClassInfo for the class
+
+        Returns:
+            Dictionary of {label: weighted_vote_total}
+        """
+        votes: Dict[str, float] = defaultdict(float)
+
+        # Forward dependencies (classes I import) - stronger signal
+        forward_deps = self.dependencies.get(fqn, set())
+        for dep_fqn in forward_deps:
+            self._add_neighbor_vote(
+                votes, dep_fqn, class_info.package,
+                self.config.forward_weight, "forward"
+            )
+
+        # Reverse dependencies (classes that import me) - weaker signal
+        reverse_deps = self.reverse_deps.get(fqn, set())
+        for dep_fqn in reverse_deps:
+            self._add_neighbor_vote(
+                votes, dep_fqn, class_info.package,
+                self.config.reverse_weight, "reverse"
+            )
+
+        return dict(votes)
+
+    def _add_neighbor_vote(
+        self,
+        votes: Dict[str, float],
+        neighbor_fqn: str,
+        my_package: str,
+        direction_weight: float,
+        direction: str
+    ):
+        """
+        Add a neighbor's vote with appropriate weighting.
+
+        Args:
+            votes: Vote accumulator dictionary
+            neighbor_fqn: FQN of the voting neighbor
+            my_package: Package of the class being classified
+            direction_weight: Base weight for this direction (forward/reverse)
+            direction: "forward" or "reverse" (for debugging)
+        """
+        neighbor_assignment = self.assignments.get(neighbor_fqn)
+        if not neighbor_assignment:
+            return
+        if neighbor_assignment.label in ("UNKNOWN", "DEAD_CODE"):
+            return
+
+        neighbor_info = self.classes.get(neighbor_fqn)
+        neighbor_package = neighbor_info.package if neighbor_info else ""
+
+        # Calculate vote weight
+        weight = direction_weight * neighbor_assignment.confidence
+
+        # Apply package cohesion bonus if same package
+        if my_package and neighbor_package and my_package == neighbor_package:
+            weight *= (1.0 + self.config.package_cohesion_bonus)
+
+        votes[neighbor_assignment.label] += weight
 
     def _detect_shared(self):
         """

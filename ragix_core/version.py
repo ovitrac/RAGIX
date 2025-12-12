@@ -11,16 +11,16 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-
 # RAGIX Version - Single Source of Truth
 # =============================================================================
 
-__version__ = "0.56.0"
+__version__ = "0.58.0"
 
 # Semantic versioning components
 VERSION_MAJOR = 0
-VERSION_MINOR = 56
+VERSION_MINOR = 58
 VERSION_PATCH = 0
 VERSION_SUFFIX = ""  # e.g., "alpha", "beta", "rc1", ""
 
 # Build metadata
-BUILD_DATE = "2025-12-12"  # v0.56.0 - Improved dead code detection, partitioner UI
+BUILD_DATE = "2025-12-12"  # v0.58.0 - Partitioner UI polish: search filter, accordion pagination, config panel toggle
 BUILD_AUTHOR = "Olivier Vitrac, PhD, HDR"
 BUILD_EMAIL = "olivier.vitrac@adservio.fr"
 BUILD_ORG = "Adservio"

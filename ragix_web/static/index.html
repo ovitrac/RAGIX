@@ -1734,8 +1734,19 @@
         .partitioner-panel {
             display: flex;
             flex-direction: column;
-            height: calc(100vh - 120px);
+            flex: 1;
+            min-height: 0;
             overflow: hidden;
+        }
+        .partitioner-panel.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 9999;
+            background: var(--bg-primary);
+            height: 100vh !important;
         }
         .partitioner-tab-header {
             flex-shrink: 0;
@@ -1771,8 +1782,12 @@
         .partitioner-config-panel.collapsed {
             width: 0;
             min-width: 0;
-            margin-left: -1px;
-            overflow: hidden;
+            margin-left: 0;
+            overflow: visible;  /* Allow toggle button to be visible */
+            border-right: none;
+        }
+        .partitioner-config-panel.collapsed > *:not(.config-toggle-btn) {
+            display: none;  /* Hide content but keep toggle button */
         }
         .config-toggle-btn {
             position: absolute;
@@ -1799,6 +1814,91 @@
         }
         .partitioner-config-panel.collapsed .config-toggle-btn {
             right: -24px;
+            left: auto;
+        }
+
+        /* Graph Propagation Algorithm Options */
+        .advanced-options-tab {
+            margin-top: 10px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            padding: 0;
+        }
+        .advanced-options-tab summary {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 12px;
+            color: var(--text-secondary);
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .advanced-options-tab summary::before {
+            content: '▶';
+            font-size: 10px;
+            transition: transform 0.2s;
+        }
+        .advanced-options-tab[open] summary::before {
+            transform: rotate(90deg);
+        }
+        .advanced-options-tab[open] {
+            padding-bottom: 10px;
+        }
+        .option-description {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin: 0 12px 10px;
+            padding: 0;
+            font-style: italic;
+        }
+        .option-group {
+            margin: 8px 12px;
+            padding: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+        .option-group h4 {
+            margin: 0 0 4px 0;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .option-hint {
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin: 0 0 8px 0;
+            display: block;
+        }
+        .option-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .option-row:last-child {
+            margin-bottom: 0;
+        }
+        .option-row label {
+            flex: 1;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        .option-row input[type="number"] {
+            width: 60px;
+            padding: 4px 6px;
+            font-size: 11px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-primary);
+            text-align: right;
+        }
+        .option-row input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent-blue);
         }
 
         /* Right Viz Panel - Flexible Height with Resizer */
@@ -2049,6 +2149,62 @@
         }
         .partitioner-preview-pane .preview-resize-handle:hover {
             opacity: 1;
+        }
+
+        /* Accordion Filter Sync - Hide partition sections when filtered in graph */
+        .accordion-item.partition-filtered {
+            display: none;
+        }
+
+        /* Partition Pagination Controls */
+        .partition-pagination {
+            padding: 8px 12px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+        }
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        .pagination-info {
+            font-size: 12px;
+            color: var(--text-secondary);
+            min-width: 100px;
+            text-align: center;
+        }
+        .pagination-controls .btn {
+            font-size: 11px;
+            padding: 4px 10px;
+        }
+        .pagination-controls .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Author Footer - Minimal fixed footer */
+        .author-footer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 16px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        .author-footer .separator {
+            opacity: 0.5;
+        }
+        .author-footer a {
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+        .author-footer a:hover {
+            color: var(--accent-blue);
         }
     </style>
 </head>
@@ -3471,11 +3627,73 @@ com\.grdf\..*\.jms\.spre</textarea>
                                     <summary>Advanced Options</summary>
                                     <div class="option-row">
                                         <label>Propagation Iterations:</label>
-                                        <input type="number" id="propagationIterationsTab" value="5" min="1" max="20">
+                                        <input type="number" id="propagationIterationsTab" value="10" min="1" max="30" title="Max iterations per phase">
                                     </div>
                                     <div class="option-row">
                                         <label>Confidence Threshold:</label>
-                                        <input type="number" id="confidenceThresholdTab" value="0.6" min="0" max="1" step="0.1">
+                                        <input type="number" id="confidenceThresholdTab" value="0.6" min="0" max="1" step="0.1" title="Legacy threshold (use phase thresholds below)">
+                                    </div>
+                                </details>
+
+                                <!-- Graph Propagation Algorithm -->
+                                <details class="advanced-options-tab">
+                                    <summary>Graph Propagation Algorithm</summary>
+                                    <p class="option-description">Multi-phase directional propagation for partition classification.</p>
+
+                                    <div class="option-group">
+                                        <h4>Directional Weighting</h4>
+                                        <p class="option-hint">Forward (imports) vs Reverse (callers) weight</p>
+                                        <div class="option-row">
+                                            <label>Forward Weight:</label>
+                                            <input type="number" id="forwardWeightTab" value="0.7" min="0" max="1" step="0.1" title="Weight for classes I import (stronger signal)">
+                                        </div>
+                                        <div class="option-row">
+                                            <label>Reverse Weight:</label>
+                                            <input type="number" id="reverseWeightTab" value="0.3" min="0" max="1" step="0.1" title="Weight for classes that import me (weaker signal)">
+                                        </div>
+                                    </div>
+
+                                    <div class="option-group">
+                                        <h4>Package Cohesion</h4>
+                                        <p class="option-hint">Bonus for same-package neighbors</p>
+                                        <div class="option-row">
+                                            <label>Cohesion Bonus:</label>
+                                            <input type="number" id="packageCohesionBonusTab" value="0.2" min="0" max="1" step="0.05" title="Extra weight for neighbors in same package">
+                                        </div>
+                                    </div>
+
+                                    <div class="option-group">
+                                        <h4>Multi-Phase Thresholds</h4>
+                                        <p class="option-hint">Confidence required at each propagation phase</p>
+                                        <div class="option-row">
+                                            <label>Phase 1 (Core):</label>
+                                            <input type="number" id="phase1ThresholdTab" value="0.8" min="0" max="1" step="0.05" title="High-confidence core identification">
+                                        </div>
+                                        <div class="option-row">
+                                            <label>Phase 2 (Near):</label>
+                                            <input type="number" id="phase2ThresholdTab" value="0.6" min="0" max="1" step="0.05" title="Medium-confidence propagation">
+                                        </div>
+                                        <div class="option-row">
+                                            <label>Phase 3 (Far):</label>
+                                            <input type="number" id="phase3ThresholdTab" value="0.4" min="0" max="1" step="0.05" title="Low-confidence gap filling">
+                                        </div>
+                                    </div>
+
+                                    <div class="option-group">
+                                        <h4>Convergence</h4>
+                                        <p class="option-hint">Early stopping and quality controls</p>
+                                        <div class="option-row">
+                                            <label>Confidence Decay:</label>
+                                            <input type="number" id="confidenceDecayTab" value="0.05" min="0" max="0.2" step="0.01" title="Confidence reduction per iteration">
+                                        </div>
+                                        <div class="option-row">
+                                            <label>Convergence %:</label>
+                                            <input type="number" id="convergenceThresholdTab" value="0.01" min="0" max="0.1" step="0.01" title="Stop when less than this % of nodes change">
+                                        </div>
+                                        <div class="option-row">
+                                            <label>Min Votes:</label>
+                                            <input type="number" id="minVotesRequiredTab" value="2" min="1" max="10" step="1" title="Minimum neighbor votes required">
+                                        </div>
                                     </div>
                                 </details>
 
@@ -3517,7 +3735,9 @@ com\.grdf\..*\.jms\.spre</textarea>
                                     Connections
                                 </label>
                                 <span class="toolbar-divider"></span>
-                                <input type="text" id="partitionSearchInput" placeholder="Search classes..." class="toolbar-search" oninput="partitionerApp.setSearchTerm(this.value)">
+                                <input type="text" id="partitionSearchInput" placeholder="Search classes..." class="toolbar-search" onkeydown="if(event.key==='Enter') partitionerApp.applySearchFilter()">
+                                <button class="btn btn-sm" onclick="partitionerApp.applySearchFilter()" title="Apply filter">Filter</button>
+                                <button class="btn btn-sm btn-icon" onclick="partitionerApp.clearSearchFilter()" title="Clear filter">&#10005;</button>
                             </div>
 
                             <!-- Graph Toolbar -->
@@ -3537,7 +3757,7 @@ com\.grdf\..*\.jms\.spre</textarea>
                                         Cross-partition only
                                     </label>
                                     <label class="toolbar-checkbox">
-                                        <input type="checkbox" id="showLabelsTab" onchange="partitionerApp.toggleLabels()">
+                                        <input type="checkbox" id="showLabelsTab" checked onchange="partitionerApp.toggleLabels()">
                                         Labels (auto on zoom)
                                     </label>
                                 </div>
@@ -5277,8 +5497,18 @@ com\.grdf\..*\.jms\.spre</textarea>
                 return {
                     applications: applications,
                     shared_patterns: sharedPatterns,
-                    propagation_iterations: parseInt(document.getElementById('propagationIterationsTab').value) || 5,
-                    confidence_threshold: parseFloat(document.getElementById('confidenceThresholdTab').value) || 0.6
+                    propagation_iterations: parseInt(document.getElementById('propagationIterationsTab').value) || 10,
+                    confidence_threshold: parseFloat(document.getElementById('confidenceThresholdTab').value) || 0.6,
+                    // Graph Propagation Algorithm parameters
+                    forward_weight: parseFloat(document.getElementById('forwardWeightTab').value) || 0.7,
+                    reverse_weight: parseFloat(document.getElementById('reverseWeightTab').value) || 0.3,
+                    package_cohesion_bonus: parseFloat(document.getElementById('packageCohesionBonusTab').value) || 0.2,
+                    confidence_decay: parseFloat(document.getElementById('confidenceDecayTab').value) || 0.05,
+                    phase1_threshold: parseFloat(document.getElementById('phase1ThresholdTab').value) || 0.8,
+                    phase2_threshold: parseFloat(document.getElementById('phase2ThresholdTab').value) || 0.6,
+                    phase3_threshold: parseFloat(document.getElementById('phase3ThresholdTab').value) || 0.4,
+                    convergence_threshold: parseFloat(document.getElementById('convergenceThresholdTab').value) || 0.01,
+                    min_votes_required: parseInt(document.getElementById('minVotesRequiredTab').value) || 2,
                 };
             },
 
@@ -5360,6 +5590,8 @@ com\.grdf\..*\.jms\.spre</textarea>
 
             displayAccordionTab(data) {
                 const accordion = document.getElementById('partitionAccordionTab');
+
+                // Group classes by partition label
                 const groups = {};
                 for (const [fqn, assignment] of Object.entries(data.assignments || {})) {
                     const label = assignment.label;
@@ -5367,30 +5599,38 @@ com\.grdf\..*\.jms\.spre</textarea>
                     groups[label].push({ fqn, ...assignment });
                 }
 
-                const colorMap = this.buildColorMap(data);
+                // Store for pagination
+                this.partitionClasses = groups;
+                this.partitionColorMap = this.buildColorMap(data);
+
+                // Reset page counters
+                this.partitionPages = {};
+                Object.keys(groups).forEach(label => {
+                    this.partitionPages[label] = 0;
+                });
+
+                // Sort partitions by class count (largest first)
                 const sorted = Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
 
                 let html = '';
                 sorted.forEach(([label, classes]) => {
-                    const color = colorMap[label] || '#95a5a6';
+                    const color = this.partitionColorMap[label] || '#95a5a6';
+                    const safeLabel = label.replace(/'/g, "\\'");
                     html += `
-                        <div class="accordion-item">
+                        <div class="accordion-item" data-partition="${label}">
                             <div class="accordion-header" onclick="partitionerApp.toggleAccordion(this)">
                                 <div class="accordion-title">
                                     <span class="accordion-color" style="background: ${color}"></span>
-                                    <span>${label} (${classes.length} classes)</span>
+                                    <span id="accordionTitle_${safeLabel}">${label} (${classes.length} classes)</span>
                                 </div>
                                 <span class="accordion-arrow">&#9654;</span>
                             </div>
                             <div class="accordion-content">
-                                <div class="class-list">
-                                    ${classes.slice(0, 100).map(c => `
-                                        <div class="class-item" onclick="partitionerApp.showClassPreview('${c.fqn}')" title="${c.fqn}">
-                                            <span class="class-name">${c.fqn.split('.').pop()}</span>
-                                            <span class="class-confidence ${c.confidence > 0.8 ? 'high' : c.confidence > 0.5 ? 'medium' : 'low'}">${(c.confidence * 100).toFixed(0)}%</span>
-                                        </div>
-                                    `).join('')}
-                                    ${classes.length > 100 ? `<div class="class-item more-indicator">...and ${classes.length - 100} more</div>` : ''}
+                                <div class="class-list" id="classList_${safeLabel}">
+                                    <!-- Classes rendered by renderPartitionPage -->
+                                </div>
+                                <div class="partition-pagination" id="pagination_${safeLabel}">
+                                    <!-- Pagination controls rendered by renderPartitionPage -->
                                 </div>
                             </div>
                         </div>
@@ -5398,6 +5638,107 @@ com\.grdf\..*\.jms\.spre</textarea>
                 });
 
                 accordion.innerHTML = html || '<div class="partition-empty">No results</div>';
+
+                // Render initial page for each partition
+                Object.keys(groups).forEach(label => {
+                    this.renderPartitionPage(label);
+                });
+            },
+
+            renderPartitionPage(partitionLabel) {
+                const allClasses = this.partitionClasses[partitionLabel] || [];
+
+                // Filter by search term if present
+                let filteredClasses = allClasses;
+                if (this.searchTerm) {
+                    const searchLower = this.searchTerm.toLowerCase();
+                    filteredClasses = allClasses.filter(c => {
+                        const name = (c.fqn || '').toLowerCase();
+                        return name.includes(searchLower);
+                    });
+                }
+
+                const page = this.partitionPages[partitionLabel] || 0;
+                const perPage = this.classesPerPage;
+                const totalClasses = filteredClasses.length;
+                const totalPages = Math.ceil(totalClasses / perPage);
+
+                // Adjust page if out of bounds after filtering
+                const validPage = Math.min(page, Math.max(0, totalPages - 1));
+                if (validPage !== page) {
+                    this.partitionPages[partitionLabel] = validPage;
+                }
+
+                const start = validPage * perPage;
+                const end = Math.min(start + perPage, totalClasses);
+                const pageClasses = filteredClasses.slice(start, end);
+
+                const safeLabel = partitionLabel.replace(/'/g, "\\'");
+                const classListEl = document.getElementById(`classList_${safeLabel}`);
+                const paginationEl = document.getElementById(`pagination_${safeLabel}`);
+                const titleEl = document.getElementById(`accordionTitle_${safeLabel}`);
+
+                if (!classListEl) return;
+
+                // Update accordion title with filtered count
+                if (titleEl) {
+                    const totalAll = allClasses.length;
+                    if (this.searchTerm && totalClasses !== totalAll) {
+                        titleEl.textContent = `${partitionLabel} (${totalClasses} of ${totalAll} classes)`;
+                    } else {
+                        titleEl.textContent = `${partitionLabel} (${totalAll} classes)`;
+                    }
+                }
+
+                // Render class items (or "no matches" message)
+                if (pageClasses.length > 0) {
+                    classListEl.innerHTML = pageClasses.map(c => `
+                        <div class="class-item" onclick="partitionerApp.showClassPreview('${c.fqn.replace(/'/g, "\\'")}')" title="${c.fqn}">
+                            <span class="class-name">${c.fqn.split('.').pop()}</span>
+                            <span class="class-confidence ${c.confidence > 0.8 ? 'high' : c.confidence > 0.5 ? 'medium' : 'low'}">${(c.confidence * 100).toFixed(0)}%</span>
+                        </div>
+                    `).join('');
+                } else {
+                    classListEl.innerHTML = `<div class="class-item no-matches">No classes match "${this.searchTerm}"</div>`;
+                }
+
+                // Render pagination controls if needed
+                if (paginationEl && totalClasses > perPage) {
+                    const canPrev = validPage > 0;
+                    const canNext = end < totalClasses;
+                    paginationEl.innerHTML = `
+                        <div class="pagination-controls">
+                            <button class="btn btn-sm" onclick="partitionerApp.changePartitionPage('${safeLabel}', -1)" ${canPrev ? '' : 'disabled'}>
+                                ◀ Less
+                            </button>
+                            <span class="pagination-info">
+                                ${totalClasses > 0 ? `${start + 1}-${end} of ${totalClasses}` : '0 matches'}
+                            </span>
+                            <button class="btn btn-sm" onclick="partitionerApp.changePartitionPage('${safeLabel}', 1)" ${canNext ? '' : 'disabled'}>
+                                More ▶
+                            </button>
+                        </div>
+                    `;
+                } else if (paginationEl) {
+                    // Show count even without pagination when search is active
+                    if (this.searchTerm && totalClasses > 0) {
+                        paginationEl.innerHTML = `<div class="pagination-info" style="padding: 4px 0; text-align: center;">${totalClasses} match${totalClasses !== 1 ? 'es' : ''}</div>`;
+                    } else {
+                        paginationEl.innerHTML = '';
+                    }
+                }
+            },
+
+            changePartitionPage(partitionLabel, delta) {
+                const classes = this.partitionClasses[partitionLabel] || [];
+                const totalPages = Math.ceil(classes.length / this.classesPerPage);
+                const currentPage = this.partitionPages[partitionLabel] || 0;
+                const newPage = currentPage + delta;
+
+                if (newPage >= 0 && newPage < totalPages) {
+                    this.partitionPages[partitionLabel] = newPage;
+                    this.renderPartitionPage(partitionLabel);
+                }
             },
 
             toggleAccordion(header) {
@@ -5809,18 +6150,24 @@ com\.grdf\..*\.jms\.spre</textarea>
                 this.updateLabelVisibility();
             },
 
-            // Labels are visible only when zoomed in (zoom level > 1.5) or if manually enabled
+            // Labels visibility logic:
+            // - Checkbox checked (default): "auto on zoom" mode - labels only visible when zoomed > 1.2
+            // - Checkbox unchecked: labels always visible
             updateLabelVisibility() {
                 const showLabelsCheckbox = document.getElementById('showLabelsTab');
-                const manualShow = showLabelsCheckbox?.checked;
-                const zoomShow = (this.currentZoom || 1) > 1.2;
+                const autoZoomMode = showLabelsCheckbox?.checked;  // true = auto zoom mode
+                const zoomLevel = this.currentZoom || 1;
+                const isZoomedIn = zoomLevel > 1.2;
+
+                // If autoZoomMode (checked), only show when zoomed; otherwise always show
+                const showLabels = autoZoomMode ? isZoomedIn : true;
 
                 if (this.labelElements) {
-                    this.labelElements.style('opacity', (manualShow || zoomShow) ? 1 : 0);
+                    this.labelElements.style('opacity', showLabels ? 1 : 0);
                     // Only show labels for nodes that pass the filter
                     this.labelElements.each((d, i, nodes) => {
                         const visible = this.isNodeVisible(d);
-                        d3.select(nodes[i]).style('display', visible && (manualShow || zoomShow) ? '' : 'none');
+                        d3.select(nodes[i]).style('display', visible && showLabels ? '' : 'none');
                     });
                 }
             },
@@ -5829,6 +6176,12 @@ com\.grdf\..*\.jms\.spre</textarea>
             hiddenPartitions: new Set(),
             searchTerm: '',
             showConnections: true,
+
+            // Accordion pagination state
+            classesPerPage: 50,
+            partitionClasses: {},      // { partitionLabel: [classes] }
+            partitionPages: {},        // { partitionLabel: currentPage }
+            partitionColorMap: {},     // Cached color map
 
             isNodeVisible(node) {
                 // Filter by partition - if in hiddenPartitions, don't show
@@ -5871,6 +6224,21 @@ com\.grdf\..*\.jms\.spre</textarea>
                 this.applyFilters();
             },
 
+            applySearchFilter() {
+                const searchInput = document.getElementById('partitionSearchInput');
+                if (searchInput) {
+                    this.searchTerm = searchInput.value;
+                    this.applyFilters();
+                }
+            },
+
+            clearSearchFilter() {
+                const searchInput = document.getElementById('partitionSearchInput');
+                if (searchInput) searchInput.value = '';
+                this.searchTerm = '';
+                this.applyFilters();
+            },
+
             clearFilters() {
                 this.hiddenPartitions.clear();
                 this.searchTerm = '';
@@ -5893,6 +6261,9 @@ com\.grdf\..*\.jms\.spre</textarea>
             },
 
             applyFilters() {
+                // Always sync accordion class list with graph filters (works even without graph)
+                this.applyAccordionFilters();
+
                 if (!this.nodeElements || !this.linkElements) return;
 
                 // Update node visibility
@@ -5910,6 +6281,22 @@ com\.grdf\..*\.jms\.spre</textarea>
 
                 // Update labels
                 this.updateLabelVisibility();
+            },
+
+            applyAccordionFilters() {
+                // Filter accordion items based on hiddenPartitions
+                const accordionItems = document.querySelectorAll('#partitionAccordionTab .accordion-item[data-partition]');
+                accordionItems.forEach(item => {
+                    const partition = item.getAttribute('data-partition');
+                    const isHidden = this.hiddenPartitions.has(partition);
+                    item.classList.toggle('partition-filtered', isHidden);
+                });
+
+                // Re-render all partition pages to apply search filter
+                // This updates class lists based on current searchTerm
+                Object.keys(this.partitionClasses).forEach(label => {
+                    this.renderPartitionPage(label);
+                });
             },
 
             toggleFullscreenTab() {
