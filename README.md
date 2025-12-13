@@ -31,8 +31,10 @@
 
 ---
 
-▶️ **Watch the full 3-minute audit demo on YouTube:**  https://youtu.be/vDHI70ZPnDE
+▶️ <strong>Watch the full audit demo on YouTube:</strong>
+<a href="https://youtu.be/vDHI70ZPnDE">https://youtu.be/vDHI70ZPnDE</a>
 
+---
 
 
 ## Why RAGIX?
