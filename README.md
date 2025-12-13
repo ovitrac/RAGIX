@@ -20,23 +20,6 @@
 
 ---
 
-<video src="assets/ragix-demo-loop.mp4"
-       autoplay
-       loop
-       muted
-       playsinline
-       controls
-       width="960">
-</video>
-
----
-
-▶️ <strong>Watch the full audit demo on YouTube:</strong>
-<a href="https://youtu.be/vDHI70ZPnDE">https://youtu.be/vDHI70ZPnDE</a>
-
----
-
-
 ## Why RAGIX?
 
 **RAGIX** is a **sovereign, fully-local platform** that transforms local LLMs into disciplined software engineering assistants. Unlike cloud-based AI coding tools, RAGIX:
@@ -48,6 +31,20 @@
 
 > **Make local LLMs behave like disciplined software engineers.**
 > Without hallucinated facts, without remote calls, without blind trust.
+
+
+<video src="https://github.com/user-attachments/assets/601670ed-2fa9-4dc6-a6e2-c23b9cde090b"
+       autoplay
+       loop
+       muted
+       playsinline
+       controls
+       width="960">
+</video>
+
+▶️ <strong>Watch the full audit demo on YouTube:</strong>
+<a href="https://youtu.be/vDHI70ZPnDE">https://youtu.be/vDHI70ZPnDE</a>
+
 
 ---
 
