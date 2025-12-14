@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.58.0
+# RAGIX v0.60.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
