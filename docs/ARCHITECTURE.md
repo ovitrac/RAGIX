@@ -346,7 +346,7 @@ sequenceDiagram
 
 ```
 ┌─────────────────────────────────────────┐
-│           User's System                  │
+│           User's System                 │
 │  ┌───────────────────────────────────┐  │
 │  │        RAGIX Process              │  │
 │  │  ┌─────────────────────────────┐  │  │
@@ -357,7 +357,7 @@ sequenceDiagram
 │  │  │  ✅ Command execution       │  │  │
 │  │  │  ✅ File creation           │  │  │
 │  │  └─────────────────────────────┘  │  │
-│  │                                    │  │
+│  │                                   │  │
 │  │  ❌ Outside sandbox: blocked      │  │
 │  │  ❌ Dangerous commands: blocked   │  │
 │  └───────────────────────────────────┘  │
