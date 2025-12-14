@@ -1,6 +1,6 @@
 # secrets
 keys/
-audit/
+tests/audit/
 uploads/
 
 # Byte-compiled / optimized / DLL files
