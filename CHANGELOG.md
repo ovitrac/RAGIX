@@ -6,6 +6,117 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.60.0 — MCP Enhancement, KOAS Parallel Execution & System Tools (2025-12-14)
+
+### Highlights
+
+**RAGIX MCP server gains 5 new tools, parallel KOAS execution, and comprehensive system introspection for industrial-scale code auditing.**
+
+| Feature | Status |
+|---------|--------|
+| MCP Server v0.8.0 | ✅ 22 tools total |
+| Parallel KOAS | ✅ koas_run(parallel=True) |
+| AST Tools | ✅ ragix_ast_scan, ragix_ast_metrics |
+| Model Management | ✅ ragix_models_list, ragix_model_info |
+| System Info | ✅ ragix_system_info (GPU, CPU, memory) |
+| French i18n | ✅ Proper UTF-8 diacritics |
+| Test Suite | ✅ 18 new MCP tests |
+
+### New MCP Tools (v0.8.0)
+
+#### `ragix_ast_scan(path, language, include_private)`
+Extract AST symbols from source code with fallback to Python AST:
+- Classes, methods, functions, fields
+- Symbol visibility tracking
+- Multi-language support (auto-detection)
+
+#### `ragix_ast_metrics(path, language)`
+Compute code quality metrics:
+- Total files, LOC, avg LOC/file
+- Complexity hotspots identification
+- Basic metrics fallback when ragix-ast unavailable
+
+#### `ragix_models_list()`
+List available Ollama models:
+- Model name, size, family
+- Recommended model selection
+- Current model indicator
+
+#### `ragix_model_info(model)`
+Detailed model information:
+- Parameter count, quantization
+- Context length
+- Capability inference (text, code, vision)
+
+#### `ragix_system_info()`
+Comprehensive system introspection:
+- Platform (OS, Python version)
+- CPU (cores, architecture)
+- Memory (total, available)
+- GPU (CUDA availability, devices, memory)
+- Disk usage
+- Ollama status
+
+### KOAS Enhancement
+
+#### Parallel Execution
+`koas_run` now supports parallel kernel execution:
+```python
+koas_run(workspace, parallel=True, workers=4)
+```
+- Dependency-aware batching
+- Stage-by-stage parallelization
+- Duration tracking in response
+
+#### French Report Fixes
+Fixed UTF-8 diacritics in French audit reports:
+- Méthodologie, Synthèse Exécutive, Complexité
+- 50+ translation strings corrected
+- Templates and drift analysis updated
+
+### Claude Code Slash Commands
+
+New and updated commands in `.claude/commands/`:
+- `/koas-audit` — Updated with `--parallel` option
+- `/ragix-system` — System info and deployment check
+- `/ragix-models` — Model management and selection
+
+### Test Suite
+
+New `tests/test_mcp_server.py` with 18 tests:
+- AST scan/metrics tests
+- Model list/info tests
+- System info tests
+- KOAS parallel parameter tests
+- Tool availability validation
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `MCP/ragix_mcp_server.py` | +400 lines, 5 new tools |
+| `ragix_kernels/audit/report/i18n.py` | UTF-8 fixes |
+| `ragix_kernels/audit/report/templates.py` | UTF-8 fixes |
+| `ragix_kernels/audit/section_drift.py` | UTF-8 fixes |
+| `tests/test_mcp_server.py` | New, 18 tests |
+| `.claude/commands/*.md` | New/updated |
+| `pyproject.toml` | Version 0.60.0 |
+
+### Performance
+
+Industrial-scale audit capability:
+- **60K LOC Java project**: 3.4s full audit (parallel)
+- **Stage 1**: ~2.1s (data collection)
+- **Stage 2**: ~0.5s (analysis)
+- **Stage 3**: ~0.02s (reporting)
+- **Throughput**: 3-20 codebases/hour depending on size
+
+### Migration from v0.59.0
+
+No breaking changes. New MCP tools available immediately.
+
+---
+
 ## v0.10.1 — Advanced Visualization & Live Explorer (2025-11-27)
 
 ### Highlights

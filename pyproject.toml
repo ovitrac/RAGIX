@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ragix"
-version = "0.21.0"
+version = "0.60.0"
 description = "RAGIX - Retrieval-Augmented Generative Interactive eXecution Agent"
 authors = [
     {name = "Olivier Vitrac", email = "olivier.vitrac@adservio.fr"}
@@ -36,7 +36,8 @@ ci = ["pyyaml>=6.0"]
 wasm = ["wasmtime>=14.0.0"]
 ast = ["javalang>=0.13.0", "jsonschema>=4.17.0"]
 reports = ["jinja2>=3.1.0", "weasyprint>=60.0"]
-all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports]"]
+koas = ["ragix[ast]"]  # KOAS kernels require AST tools
+all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports,koas]"]
 
 [project.scripts]
 ragix = "ragix_core.cli:main"
@@ -47,6 +48,7 @@ ragix-batch = "ragix_unix.batch_cli:main"
 ragix-vault = "ragix_unix.vault_cli:main"
 ragix-wasp = "ragix_unix.wasp_cli:main"
 ragix-ast = "ragix_unix.ast_cli:main"
+ragix-koas = "ragix_kernels.orchestrator:main"
 
 [project.urls]
 Homepage = "https://github.com/ovitrac/RAGIX"
@@ -54,7 +56,7 @@ Repository = "https://github.com/ovitrac/RAGIX"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["ragix_core*", "ragix_unix*", "ragix_web*", "ragix_audit*", "wasp_tools*"]
+include = ["ragix_core*", "ragix_unix*", "ragix_web*", "ragix_audit*", "ragix_kernels*", "wasp_tools*"]
 exclude = ["tests*", "MCP*"]
 
 [tool.ruff]
