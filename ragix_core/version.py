@@ -11,16 +11,16 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-
 # RAGIX Version - Single Source of Truth
 # =============================================================================
 
-__version__ = "0.60.0"
+__version__ = "0.61.0"
 
 # Semantic versioning components
 VERSION_MAJOR = 0
-VERSION_MINOR = 60
+VERSION_MINOR = 61
 VERSION_PATCH = 0
 VERSION_SUFFIX = ""  # e.g., "alpha", "beta", "rc1", ""
 
 # Build metadata
-BUILD_DATE = "2025-12-14"  # v0.60.0 - MCP Enhancement, KOAS Parallel Execution & System Tools
+BUILD_DATE = "2025-12-16"  # v0.61.0 - Volumetry Kernels & Security Network Audit Design
 BUILD_AUTHOR = "Olivier Vitrac, PhD, HDR"
 BUILD_EMAIL = "olivier.vitrac@adservio.fr"
 BUILD_ORG = "Adservio"

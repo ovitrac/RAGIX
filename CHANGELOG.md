@@ -6,6 +6,74 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.61.0 — Volumetry Kernels & Security Network Audit Design (2025-12-16)
+
+### Highlights
+
+**KOAS gains volumetry-aware audit kernels for production workload analysis, plus design for security network audit kernels.**
+
+| Feature | Status |
+|---------|--------|
+| Volumetry Kernel | ✅ Stage 1 — Operational data ingestion |
+| Module Grouper Kernel | ✅ Stage 1 — File grouping by module |
+| Risk Matrix Kernel | ✅ Stage 2 — Volumetry-weighted risk |
+| Security Network Design | 📋 9 kernels designed |
+
+### New KOAS Kernels
+
+#### `volumetry` (Stage 1)
+Ingest operational volumetry data:
+- Flow definitions (volume/day, peak patterns)
+- Module-to-flow mapping
+- Incident tracking
+- Normalized scores (0-10 scale)
+
+```yaml
+# Example volumetry.yaml
+flows:
+  - name: SIAS
+    volume_day: 4_000_000
+    peak_hour: 5
+    peak_window: "00:00-10:00"
+```
+
+#### `module_group` (Stage 1)
+Group files into functional modules:
+- Regex-based path extraction
+- Maven/Gradle multi-module support
+- Aggregated metrics (LOC, classes, methods)
+
+#### `risk_matrix` (Stage 2)
+Volumetry-weighted risk assessment:
+- Formula: `Risk = (LOC × 0.25) + (Complexity × 0.25) + (Volumetry × 0.50)`
+- Critical path identification
+- Incident-based risk boosting
+
+### Security Network Audit Design
+
+New kernel collection designed for network security audits:
+
+| Kernel | Stage | Purpose |
+|--------|-------|---------|
+| `net_discover` | 1 | Asset enumeration (nmap, arp-scan) |
+| `port_scan` | 1 | Service detection |
+| `dns_enum` | 1 | DNS analysis |
+| `config_parse` | 1 | Firewall/router config parsing |
+| `vuln_assess` | 2 | CVE mapping (nuclei) |
+| `ssl_analysis` | 2 | TLS/certificate audit (testssl.sh) |
+| `compliance` | 2 | CIS/NIST/PCI-DSS checks |
+| `risk_network` | 2 | Network risk scoring |
+| `section_security` | 3 | Security report generation |
+
+**Design document:** `docs/developer/SECURITY_NETWORK_KERNELS_DESIGN.md`
+
+### Documentation
+
+- `docs/developer/VOLUMETRY_KERNELS_DESIGN.md` — Volumetry kernel architecture
+- `docs/KOAS.md` — Updated with volumetry integration
+
+---
+
 ## v0.60.0 — MCP Enhancement, KOAS Parallel Execution & System Tools (2025-12-14)
 
 ### Highlights

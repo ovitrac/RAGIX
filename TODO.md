@@ -1,9 +1,50 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-12-11 (v0.55.0 - Codebase Partitioner)
+**Updated:** 2025-12-16 (v0.61.0 - Volumetry Kernels)
 **Reference:** See `PLAN_v0.30_REASONING.md` for full implementation plan
 **Review:** See `REVIEW_current_reasoning_towardsv0.30.md` for colleague feedback
-**Current:** v0.55.0 - Codebase Partitioner with Force-Directed Visualization
+**Current:** v0.61.0 - Volumetry Kernels & Security Network Audit Design
+
+---
+
+## Session Completed (2025-12-16 - v0.61.0: Volumetry Kernels)
+
+### New KOAS Kernels for Volumetry-Aware Audit
+
+| Task | Status |
+|------|--------|
+| **Volumetry Kernel** - Stage 1, operational data ingestion | ✅ Done |
+| **Module Grouper Kernel** - Stage 1, file grouping by module | ✅ Done |
+| **Risk Matrix Kernel** - Stage 2, volumetry-weighted risk | ✅ Done |
+| **IOWIZME Test Data** - volumetry.yaml with 4M SIAS messages | ✅ Done |
+| **Design Document** - VOLUMETRY_KERNELS_DESIGN.md | ✅ Done |
+
+**Pending (Code Audit):**
+
+| Task | Status |
+|------|--------|
+| **Code Pattern Kernel** - Stage 2, DTO/Listener/Utils categorization | 🔲 Pending |
+| **Load Model Kernel** - Stage 2, async/sync capacity estimation | 🔲 Pending |
+| **Section Architecture Kernel** - Stage 3, architecture recommendations | 🔲 Pending |
+
+### Security Network Audit Kernels (Design Phase)
+
+| Task | Status |
+|------|--------|
+| **Design Document** - SECURITY_NETWORK_KERNELS_DESIGN.md | ✅ Done |
+| **9 Kernels Designed** - net_discover, port_scan, dns_enum, etc. | 📋 Design |
+
+**Next Steps:**
+1. Discuss tool dependencies (nmap, testssl.sh, nuclei)
+2. Implement Stage 1 discovery kernels
+3. Implement Stage 2 analysis kernels
+
+**Key Files Created:**
+- `ragix_kernels/audit/volumetry.py` - Volumetry data collection
+- `ragix_kernels/audit/module_group.py` - File-to-module grouping
+- `ragix_kernels/audit/risk_matrix.py` - Volumetry-weighted risk matrix
+- `docs/developer/VOLUMETRY_KERNELS_DESIGN.md` - Volumetry kernels design
+- `docs/developer/SECURITY_NETWORK_KERNELS_DESIGN.md` - Security kernels design
 
 ---
 
