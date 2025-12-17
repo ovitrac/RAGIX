@@ -1,0 +1,39 @@
+# Local Network Security Scan
+# Example: Discover hosts and services on local network
+#
+# Usage:
+#   cd examples/security/local_network
+#   python -m ragix_kernels.orchestrator run -w .
+
+name: "Local Network Scan"
+description: "Discover hosts and services on local network"
+
+stages:
+  1:
+    # Host discovery
+    net_discover:
+      enabled: true
+      options:
+        methods:
+          - ping
+        timeout: 120
+
+    # Port scanning
+    port_scan:
+      enabled: true
+      options:
+        ports: "top20"          # Quick scan
+        scan_type: "connect"    # No root required
+        service_detection: true
+        timeout: 180
+
+  2:
+    # Risk assessment
+    risk_network:
+      enabled: true
+      options:
+        weights:
+          vulnerabilities: 0.40
+          ssl_issues: 0.20
+          exposure: 0.25
+          dns_issues: 0.15

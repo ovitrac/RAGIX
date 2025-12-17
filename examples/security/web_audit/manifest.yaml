@@ -1,0 +1,78 @@
+# Web Application Security Audit
+# Example: Comprehensive web security assessment
+#
+# Usage:
+#   cd examples/security/web_audit
+#   python -m ragix_kernels.orchestrator run -w .
+
+name: "Web Application Security Audit"
+description: "Comprehensive web security assessment"
+
+stages:
+  1:
+    # Port scanning for web services
+    port_scan:
+      enabled: true
+      options:
+        ports: "web"            # HTTP/HTTPS ports
+        scan_type: "connect"
+        service_detection: true
+        timeout: 180
+
+    # DNS enumeration
+    dns_enum:
+      enabled: true
+      options:
+        record_types:
+          - A
+          - AAAA
+          - MX
+          - NS
+          - TXT
+        check_zone_transfer: true
+        check_dnssec: true
+
+  2:
+    # SSL/TLS analysis
+    ssl_analysis:
+      enabled: true
+      options:
+        check_certificates: true
+        check_ciphers: true
+        check_vulnerabilities: true
+        timeout: 30
+
+    # Vulnerability scanning
+    vuln_assess:
+      enabled: true
+      options:
+        templates:
+          - cves
+          - misconfiguration
+          - exposed-panels
+        severity: "medium"
+        rate_limit: 50
+        timeout: 300
+        template_path: "~/nuclei-templates"
+
+    # Web application scanning
+    web_scan:
+      enabled: true
+      options:
+        scanners:
+          - nikto
+        scan_mode: "quick"
+        timeout: 300
+
+    # Risk aggregation
+    risk_network:
+      enabled: true
+
+  3:
+    # Generate report
+    section_security:
+      enabled: true
+      options:
+        output_format: "markdown"
+        include_executive_summary: true
+        include_remediation_plan: true

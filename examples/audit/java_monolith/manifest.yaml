@@ -1,0 +1,67 @@
+# Java Monolith Analysis
+# Large-scale Java codebase analysis and decomposition recommendations
+#
+# Usage:
+#   cd examples/audit/java_monolith
+#   python -m ragix_kernels.orchestrator run -w .
+
+name: "Java Monolith Analysis"
+description: "Analyze monolithic Java application for refactoring candidates"
+
+config:
+  log_level: info
+
+stages:
+  # Stage 1: Data Collection
+  1:
+    # Module grouping by package structure
+    module_group:
+      enabled: true
+      options:
+        # Structure definition file
+        modules_file: "data/structure.yaml"
+
+        # Grouping patterns for layer detection
+        patterns:
+          - "controller"
+          - "service"
+          - "repository"
+          - "model"
+          - "dto"
+          - "util"
+          - "config"
+          - "exception"
+
+        # Include inter-layer dependencies
+        analyze_dependencies: true
+
+  # Stage 2: Analysis
+  2:
+    # Risk matrix for complexity hotspots
+    risk_matrix:
+      enabled: true
+      options:
+        # Weights for monolith analysis
+        weights:
+          loc: 0.35           # Code size is important
+          complexity: 0.45    # Complexity is primary concern
+          dependencies: 0.20  # Internal coupling
+
+        # Risk thresholds for Java
+        thresholds:
+          critical: 7.0
+          high: 5.0
+          medium: 3.0
+          low: 1.5
+
+        # Identify refactoring candidates
+        identify_refactoring_candidates: true
+
+        # Detect god classes
+        god_class_threshold:
+          loc: 1000
+          methods: 50
+          complexity: 30
+
+        # Generate decomposition recommendations
+        generate_decomposition_plan: true

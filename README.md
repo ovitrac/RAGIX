@@ -115,7 +115,7 @@ ragix-ast matrix ./src --level package    # DSM with cycle detection
 | **Risk Matrix** | Visual risk assessment with configurable weights |
 | **Drift Tracking** | Monitor code changes over time |
 | **Dead Code Detection** | Find isolated classes (no callers AND no callees) |
-| **Service Detection** | Enterprise patterns (SIAS/GRDF, IOWIZME) |
+| **Service Detection** | Enterprise patterns (SIAS, IOWIZME) |
 | **Compliance Reports** | PDF/HTML audit reports |
 
 ### 🧩 **Codebase Partitioner**
@@ -421,6 +421,26 @@ Full API documentation: [docs/API_REFERENCE.md](docs/API_REFERENCE.md)
 | `workflow_example.py` | Multi-agent workflow |
 | `test_llm_backends.sh` | Backend comparison |
 
+### 🔒 **Security Examples** (`examples/security/`)
+
+| Example | Description |
+|---------|-------------|
+| `local_network/` | Network discovery & port scanning |
+| `web_audit/` | Web application security audit |
+| `compliance_check/` | ANSSI/NIST/CIS compliance |
+| `config_audit/` | Firewall configuration analysis |
+| `run_security_demo.sh` | Interactive security demo |
+
+### 📊 **Audit Examples** (`examples/audit/`)
+
+| Example | Description |
+|---------|-------------|
+| `volumetry_analysis/` | Risk weighted by traffic (IOWIZME 4M msg/day) |
+| `microservices/` | Service catalog & dependency analysis |
+| `java_monolith/` | Complexity hotspots & refactoring |
+| `full_audit/` | Comprehensive system audit |
+| `run_audit_demo.sh` | Interactive audit demo |
+
 Full CLI reference: [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md)
 
 ---
@@ -471,13 +491,16 @@ pytest tests/ --cov=ragix_core --cov-report=html
 
 See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
-**Latest: v0.58.0** (2025-12-12)
-- Partitioner UI polish: search filter, accordion pagination, config panel toggle, fullscreen fix
+**Latest: v0.61.0** (2025-12-17)
+- **KOAS Security Kernels**: 10 security assessment kernels (net_discover, port_scan, dns_enum, ssl_analysis, vuln_assess, web_scan, compliance, config_parse, risk_network, section_security)
+- **Compliance Framework**: ANSSI (Guide d'hygiène informatique), NIST CSF, CIS Controls v8
+- **Interactive Demos**: Security and Audit demo scripts with menus
+- **IOWIZME Examples**: Volumetry-weighted risk analysis based on real 4M msg/day patterns
 
 **Recent highlights:**
+- v0.60.0: KOAS Volumetry Kernels for traffic-weighted risk assessment
+- v0.58.0: Partitioner UI polish with search filter and accordion pagination
 - v0.57.0: Graph Propagation Algorithm with multi-phase directional propagation
-- v0.56.0: Improved dead code detection (strict isolated class criteria)
-- v0.55.0: SIAS/GRDF service detection, MDS graph layout, dedicated Partitioner tab
 
 ---
 

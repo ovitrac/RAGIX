@@ -1,0 +1,12 @@
+{
+  "stage": 1,
+  "timestamp": "2025-12-17T12:40:21.516852",
+  "kernels": [
+    {
+      "name": "config_parse",
+      "success": true,
+      "summary": "Config Parse: 2 devices, 19 rules (16 permit, 3 deny). Findings: 2 critical, 10 high, 1 medium.",
+      "execution_time_ms": 0
+    }
+  ]
+}

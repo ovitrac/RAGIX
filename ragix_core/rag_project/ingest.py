@@ -619,7 +619,7 @@ def extract_tags(content: str, file_path: str, kind: FileKind) -> List[str]:
     Extract tags from content for knowledge graph.
 
     Looks for patterns like:
-        - SK02, SC04, SG01 (GRDF service codes)
+        - SK02, SC04, SG01 (IOWIZME service codes)
         - Class names, function names
         - Keywords from file path
 

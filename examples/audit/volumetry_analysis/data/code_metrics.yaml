@@ -1,0 +1,153 @@
+# IOWIZME Code Metrics
+# Simulated metrics based on real codebase analysis
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-17
+
+modules:
+  # Shared library - highest risk due to widespread usage
+  - name: "iog-support-commons"
+    path: "iog-support-commons-master"
+    metrics:
+      loc: 13290
+      classes: 156
+      methods: 1245
+      avg_complexity: 8.5
+      max_complexity: 45
+      test_coverage: 0.62
+      javadoc_coverage: 0.45
+    dependencies:
+      - "spring-core"
+      - "apache-commons"
+      - "slf4j"
+    dependents:
+      - "iow-ech-sias"
+      - "iow-ioc-sc02"
+      - "iow-iok-sk01"
+      - "iow-iok-sk04"
+      - "iow-iog-models"
+    patterns:
+      utilities: 45
+      helpers: 32
+      validators: 28
+      formatters: 15
+
+  # Gateway module - entry point
+  - name: "iow-ech-sias"
+    path: "iow-ech-sias-master"
+    metrics:
+      loc: 1430
+      classes: 18
+      methods: 145
+      avg_complexity: 12.3
+      max_complexity: 38
+      test_coverage: 0.78
+      javadoc_coverage: 0.65
+    dependencies:
+      - "iog-support-commons"
+      - "iow-iog-models"
+      - "spring-ws"
+    dependents: []
+    patterns:
+      endpoints: 8
+      handlers: 6
+      transformers: 4
+
+  # Orchestration module
+  - name: "iow-ioc-sc02"
+    path: "iow-ioc-sc02-master"
+    metrics:
+      loc: 1570
+      classes: 22
+      methods: 178
+      avg_complexity: 15.2
+      max_complexity: 42
+      test_coverage: 0.71
+      javadoc_coverage: 0.58
+    dependencies:
+      - "iog-support-commons"
+      - "iow-iog-models"
+      - "spring-integration"
+    dependents:
+      - "iow-ech-sias"
+    patterns:
+      routers: 5
+      aggregators: 3
+      splitters: 4
+      orchestrators: 6
+
+  # Business logic module
+  - name: "iow-iok-sk01"
+    path: "iow-iok-sk01-master"
+    metrics:
+      loc: 990
+      classes: 14
+      methods: 112
+      avg_complexity: 18.5
+      max_complexity: 52
+      test_coverage: 0.82
+      javadoc_coverage: 0.72
+    dependencies:
+      - "iog-support-commons"
+      - "iow-iog-models"
+    dependents:
+      - "iow-ioc-sc02"
+    patterns:
+      services: 8
+      processors: 4
+      calculators: 2
+
+  # Batch processing module - large but low traffic
+  - name: "iow-iok-sk04"
+    path: "iow-iok-sk04-master"
+    metrics:
+      loc: 14350
+      classes: 189
+      methods: 1567
+      avg_complexity: 6.2
+      max_complexity: 28
+      test_coverage: 0.55
+      javadoc_coverage: 0.38
+    dependencies:
+      - "iog-support-commons"
+      - "iow-iog-models"
+      - "spring-batch"
+    dependents: []
+    patterns:
+      jobs: 25
+      steps: 78
+      readers: 22
+      writers: 24
+      processors: 40
+
+  # Data models module
+  - name: "iow-iog-models"
+    path: "iow-iog-models-master"
+    metrics:
+      loc: 4500
+      classes: 245
+      methods: 890
+      avg_complexity: 2.1
+      max_complexity: 8
+      test_coverage: 0.45
+      javadoc_coverage: 0.82
+    dependencies:
+      - "jackson"
+      - "lombok"
+    dependents:
+      - "iow-ech-sias"
+      - "iow-ioc-sc02"
+      - "iow-iok-sk01"
+      - "iow-iok-sk04"
+    patterns:
+      dtos: 156
+      entities: 45
+      enums: 28
+      mappers: 16
+
+# Summary statistics
+summary:
+  total_loc: 36130
+  total_classes: 644
+  total_methods: 4137
+  avg_complexity: 10.5
+  weighted_complexity: 12.8  # Weighted by volumetry

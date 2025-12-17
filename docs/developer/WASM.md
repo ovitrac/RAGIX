@@ -101,7 +101,7 @@ Your current demos are terminal-based with Python + Ollama. WASM is the natural 
 
 This gives you:
 
-- A *zero-install* RAGIX that runs in the browser (useful for demos, training, GRDF-style audits).
+- A *zero-install* RAGIX that runs in the browser (useful for demos, training, enterprise-style audits).
 - Full control over what files are exposed (good for sensitive repos).
 - The same RAGIX mindset: Unix-RAG + structured edits + logging (you can even persist logs in `localStorage`).
 

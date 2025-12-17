@@ -1,0 +1,17 @@
+# Web Application Audit Targets
+#
+# IMPORTANT: Only scan websites you are authorized to test!
+
+targets:
+  # Use localhost for safe testing
+  - "127.0.0.1"
+
+  # Or specify your test targets:
+  # - "testphp.vulnweb.com"    # Acunetix test site (authorized for testing)
+  # - "demo.testfire.net"      # IBM test site (authorized for testing)
+  # - "your-staging-site.com"  # Your staging environment
+
+# Domains for DNS enumeration
+domains:
+  # - "example.com"
+  # - "your-domain.com"

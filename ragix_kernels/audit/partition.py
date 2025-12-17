@@ -27,7 +27,7 @@ class PartitionKernel(Kernel):
     Partition codebase into logical applications.
 
     This kernel uses the graph propagation algorithm to classify
-    classes into application groups (SIAS, TICC, GRDF, etc.) or
+    classes into application groups (SIAS, TICC, etc.) or
     identify them as shared code, unknown, or dead code.
 
     Configuration options:

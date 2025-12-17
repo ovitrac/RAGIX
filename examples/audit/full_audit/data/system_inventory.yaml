@@ -1,0 +1,235 @@
+# IOWIZME Full System Inventory
+# Complete system inventory for comprehensive audit
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-17
+
+# =============================================================================
+# Application Portfolio
+# =============================================================================
+applications:
+  # Core Integration Platform
+  - name: "IOWIZME Integration Platform"
+    id: "iowizme-core"
+    criticality: "critical"
+    business_owner: "Integration Team"
+    technical_owner: "Platform Engineering"
+    components:
+      - "iow-ech-sias"
+      - "iow-ioc-sc02"
+      - "iow-iok-sk01"
+      - "iow-iok-sk04"
+      - "iog-support-commons"
+      - "iow-iog-models"
+
+  # Supporting Applications
+  - name: "Configuration Management"
+    id: "config-mgmt"
+    criticality: "high"
+    components:
+      - "spring-cloud-config"
+      - "eureka-server"
+
+  - name: "Monitoring Stack"
+    id: "monitoring"
+    criticality: "medium"
+    components:
+      - "prometheus"
+      - "grafana"
+      - "alertmanager"
+
+# =============================================================================
+# Infrastructure Inventory
+# =============================================================================
+infrastructure:
+  # Production Environment
+  production:
+    kubernetes:
+      cluster: "iowizme-prod-cluster"
+      version: "1.28"
+      nodes: 12
+      namespaces:
+        - "iowizme-prod"
+        - "monitoring"
+        - "logging"
+
+    databases:
+      - name: "PostgreSQL Primary"
+        type: "postgresql"
+        version: "15.4"
+        host: "db-primary.internal"
+        port: 5432
+        size_gb: 850
+        replication: "streaming"
+
+      - name: "PostgreSQL Replica"
+        type: "postgresql"
+        version: "15.4"
+        host: "db-replica.internal"
+        port: 5432
+        role: "read-replica"
+
+    messaging:
+      - name: "Kafka Cluster"
+        type: "kafka"
+        version: "3.5"
+        brokers: 5
+        topics: 42
+        daily_messages: 15000000
+
+    cache:
+      - name: "Redis Cluster"
+        type: "redis"
+        version: "7.2"
+        nodes: 6
+        memory_gb: 64
+
+  # Disaster Recovery
+  disaster_recovery:
+    location: "DR Site"
+    rpo_hours: 1
+    rto_hours: 4
+    replication: "async"
+
+# =============================================================================
+# Code Repositories
+# =============================================================================
+repositories:
+  - name: "iog-support-commons"
+    url: "git@gitlab.internal:iowizme/iog-support-commons.git"
+    branch: "master"
+    language: "Java"
+    build_tool: "Maven"
+    ci_cd: "GitLab CI"
+    metrics:
+      loc: 13290
+      classes: 156
+      test_coverage: 0.62
+
+  - name: "iow-ech-sias"
+    url: "git@gitlab.internal:iowizme/iow-ech-sias.git"
+    branch: "master"
+    language: "Java"
+    build_tool: "Maven"
+    ci_cd: "GitLab CI"
+    metrics:
+      loc: 1430
+      classes: 18
+      test_coverage: 0.78
+
+  - name: "iow-ioc-sc02"
+    url: "git@gitlab.internal:iowizme/iow-ioc-sc02.git"
+    branch: "master"
+    language: "Java"
+    build_tool: "Maven"
+    ci_cd: "GitLab CI"
+    metrics:
+      loc: 1570
+      classes: 22
+      test_coverage: 0.71
+
+  - name: "iow-iok-sk01"
+    url: "git@gitlab.internal:iowizme/iow-iok-sk01.git"
+    branch: "master"
+    language: "Java"
+    build_tool: "Maven"
+    ci_cd: "GitLab CI"
+    metrics:
+      loc: 990
+      classes: 14
+      test_coverage: 0.82
+
+  - name: "iow-iok-sk04"
+    url: "git@gitlab.internal:iowizme/iow-iok-sk04.git"
+    branch: "master"
+    language: "Java"
+    build_tool: "Maven"
+    ci_cd: "GitLab CI"
+    metrics:
+      loc: 14350
+      classes: 189
+      test_coverage: 0.55
+
+  - name: "iow-iog-models"
+    url: "git@gitlab.internal:iowizme/iow-iog-models.git"
+    branch: "master"
+    language: "Java"
+    build_tool: "Maven"
+    ci_cd: "GitLab CI"
+    metrics:
+      loc: 4500
+      classes: 245
+      test_coverage: 0.45
+
+# =============================================================================
+# Team Structure
+# =============================================================================
+teams:
+  - name: "Platform Engineering"
+    size: 8
+    responsibilities:
+      - "Infrastructure"
+      - "CI/CD"
+      - "Kubernetes"
+    modules:
+      - "iog-support-commons"
+
+  - name: "Integration Team"
+    size: 6
+    responsibilities:
+      - "Message routing"
+      - "External interfaces"
+    modules:
+      - "iow-ech-sias"
+      - "iow-ioc-sc02"
+
+  - name: "Business Logic Team"
+    size: 5
+    responsibilities:
+      - "Core processing"
+      - "Business rules"
+    modules:
+      - "iow-iok-sk01"
+
+  - name: "Batch Processing Team"
+    size: 4
+    responsibilities:
+      - "Batch jobs"
+      - "Scheduled tasks"
+    modules:
+      - "iow-iok-sk04"
+
+  - name: "Data Team"
+    size: 3
+    responsibilities:
+      - "Data models"
+      - "Database"
+    modules:
+      - "iow-iog-models"
+
+# =============================================================================
+# SLA and Business Context
+# =============================================================================
+business_context:
+  sla:
+    availability: 99.9
+    max_response_time_ms: 500
+    max_processing_time_ms: 2000
+    support_hours: "24x7"
+
+  peak_periods:
+    - name: "Morning Peak"
+      time: "05:00-07:00 UTC"
+      multiplier: 3.5
+
+    - name: "End of Month"
+      days: [28, 29, 30, 31, 1]
+      multiplier: 2.0
+
+    - name: "Year End"
+      period: "December 15 - January 5"
+      multiplier: 1.5
+
+  compliance:
+    - "GDPR"
+    - "SOC 2 Type II"
+    - "ISO 27001"

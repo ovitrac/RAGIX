@@ -1,0 +1,38 @@
+# Sample iptables configuration for testing
+# This is an example with intentional issues for demonstration
+
+*filter
+:INPUT DROP [0:0]
+:FORWARD DROP [0:0]
+:OUTPUT ACCEPT [0:0]
+
+# Allow loopback
+-A INPUT -i lo -j ACCEPT
+-A OUTPUT -o lo -j ACCEPT
+
+# Allow established connections
+-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+# Allow SSH from anywhere (could be restricted)
+-A INPUT -p tcp --dport 22 -j ACCEPT
+
+# ISSUE: Telnet allowed (dangerous!)
+-A INPUT -p tcp --dport 23 -j ACCEPT
+
+# Allow HTTP/HTTPS
+-A INPUT -p tcp --dport 80 -j ACCEPT
+-A INPUT -p tcp --dport 443 -j ACCEPT
+
+# ISSUE: MySQL exposed to all (should be restricted)
+-A INPUT -p tcp --dport 3306 -j ACCEPT
+
+# ISSUE: Any-to-any rule (too permissive)
+-A INPUT -s 0.0.0.0/0 -d 0.0.0.0/0 -j ACCEPT
+
+# Allow ICMP ping
+-A INPUT -p icmp --icmp-type echo-request -j ACCEPT
+
+# Log dropped packets
+-A INPUT -j LOG --log-prefix "DROPPED: "
+
+COMMIT

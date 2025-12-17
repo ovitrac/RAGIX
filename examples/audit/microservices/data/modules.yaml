@@ -1,0 +1,230 @@
+# Microservices Architecture Definition
+# Based on IOWIZME/SIAS decomposition patterns
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-17
+
+# =============================================================================
+# Service Catalog
+# =============================================================================
+services:
+  # API Gateway Layer
+  - name: "api-gateway"
+    type: "gateway"
+    layer: "edge"
+    description: "API Gateway and request routing"
+    technology: "Spring Cloud Gateway"
+    port: 8080
+    metrics:
+      loc: 850
+      classes: 12
+      complexity: 8
+    dependencies:
+      - "auth-service"
+      - "rate-limiter"
+
+  # Authentication Service
+  - name: "auth-service"
+    type: "service"
+    layer: "security"
+    description: "Authentication and authorization"
+    technology: "Spring Security + JWT"
+    port: 8081
+    metrics:
+      loc: 2200
+      classes: 28
+      complexity: 15
+    dependencies:
+      - "user-service"
+      - "redis-cache"
+
+  # Message Gateway (SIAS equivalent)
+  - name: "message-gateway"
+    type: "gateway"
+    layer: "integration"
+    description: "External message ingestion (SIAS pattern)"
+    technology: "Spring Integration"
+    port: 8082
+    metrics:
+      loc: 1430
+      classes: 18
+      complexity: 12
+    dependencies:
+      - "message-router"
+      - "shared-models"
+    volumetry:
+      daily_volume: 4000000
+      peak_hour: 5
+      peak_rate: 1000
+
+  # Message Router (SC02 equivalent)
+  - name: "message-router"
+    type: "service"
+    layer: "orchestration"
+    description: "Message routing and orchestration"
+    technology: "Apache Camel"
+    port: 8083
+    metrics:
+      loc: 1570
+      classes: 22
+      complexity: 15
+    dependencies:
+      - "business-processor"
+      - "shared-models"
+      - "event-bus"
+    volumetry:
+      daily_volume: 4000000
+      peak_hour: 5
+      peak_rate: 1000
+
+  # Business Processor (SK01 equivalent)
+  - name: "business-processor"
+    type: "service"
+    layer: "business"
+    description: "Core business logic processing"
+    technology: "Spring Boot"
+    port: 8084
+    metrics:
+      loc: 990
+      classes: 14
+      complexity: 18
+    dependencies:
+      - "data-service"
+      - "shared-libs"
+      - "shared-models"
+    volumetry:
+      daily_volume: 4000000
+      peak_hour: 5
+      peak_rate: 1000
+
+  # Batch Processor (SK04 equivalent)
+  - name: "batch-processor"
+    type: "service"
+    layer: "batch"
+    description: "Batch and scheduled processing"
+    technology: "Spring Batch"
+    port: 8085
+    metrics:
+      loc: 14350
+      classes: 189
+      complexity: 6
+    dependencies:
+      - "data-service"
+      - "shared-libs"
+    volumetry:
+      daily_volume: 10000
+      batch_schedule: "0 2 * * *"
+
+  # Data Service
+  - name: "data-service"
+    type: "service"
+    layer: "persistence"
+    description: "Data access and persistence"
+    technology: "Spring Data JPA"
+    port: 8086
+    metrics:
+      loc: 3200
+      classes: 45
+      complexity: 5
+    dependencies:
+      - "postgresql"
+      - "shared-models"
+
+  # Shared Libraries (Commons equivalent)
+  - name: "shared-libs"
+    type: "library"
+    layer: "shared"
+    description: "Common utilities and helpers"
+    technology: "Java Library"
+    metrics:
+      loc: 13290
+      classes: 156
+      complexity: 8
+    dependencies: []
+    dependents:
+      - "message-gateway"
+      - "message-router"
+      - "business-processor"
+      - "batch-processor"
+      - "data-service"
+
+  # Shared Models (DTOs)
+  - name: "shared-models"
+    type: "library"
+    layer: "shared"
+    description: "Data transfer objects and models"
+    technology: "Java + Lombok"
+    metrics:
+      loc: 4500
+      classes: 245
+      complexity: 2
+    dependencies: []
+    dependents:
+      - "message-gateway"
+      - "message-router"
+      - "business-processor"
+      - "data-service"
+
+# =============================================================================
+# Infrastructure Services
+# =============================================================================
+infrastructure:
+  - name: "redis-cache"
+    type: "cache"
+    technology: "Redis"
+
+  - name: "postgresql"
+    type: "database"
+    technology: "PostgreSQL 15"
+
+  - name: "event-bus"
+    type: "messaging"
+    technology: "Apache Kafka"
+
+  - name: "config-server"
+    type: "config"
+    technology: "Spring Cloud Config"
+
+  - name: "service-registry"
+    type: "discovery"
+    technology: "Eureka"
+
+# =============================================================================
+# Communication Patterns
+# =============================================================================
+communication:
+  synchronous:
+    - from: "api-gateway"
+      to: "auth-service"
+      protocol: "REST"
+
+    - from: "message-gateway"
+      to: "message-router"
+      protocol: "REST"
+
+    - from: "business-processor"
+      to: "data-service"
+      protocol: "REST"
+
+  asynchronous:
+    - from: "message-router"
+      to: "business-processor"
+      protocol: "Kafka"
+      topic: "business-events"
+
+    - from: "business-processor"
+      to: "batch-processor"
+      protocol: "Kafka"
+      topic: "batch-triggers"
+
+# =============================================================================
+# Deployment Configuration
+# =============================================================================
+deployment:
+  kubernetes:
+    namespace: "iowizme-prod"
+    replicas:
+      message-gateway: 3
+      message-router: 2
+      business-processor: 2
+      batch-processor: 1
+      data-service: 2

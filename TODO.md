@@ -1,9 +1,62 @@
 # TODO — RAGIX Roadmap
 
-**Updated:** 2025-12-16 (v0.61.0 - Volumetry Kernels)
+**Updated:** 2025-12-17 (v0.61.0 - Security Kernels & Interactive Demos)
 **Reference:** See `PLAN_v0.30_REASONING.md` for full implementation plan
 **Review:** See `REVIEW_current_reasoning_towardsv0.30.md` for colleague feedback
-**Current:** v0.61.0 - Volumetry Kernels & Security Network Audit Design
+**Current:** v0.61.0 - Security Kernels, Compliance Framework, Interactive Demos
+
+---
+
+## Session Completed (2025-12-17 - v0.61.0: Security Kernels & Demos)
+
+### KOAS Security Kernels (10 kernels implemented)
+
+| Task | Status |
+|------|--------|
+| **net_discover** - Stage 1, network asset enumeration | ✅ Done |
+| **port_scan** - Stage 1, service detection | ✅ Done |
+| **dns_enum** - Stage 1, DNS analysis | ✅ Done |
+| **config_parse** - Stage 1, firewall config parsing | ✅ Done |
+| **ssl_analysis** - Stage 2, TLS/certificate audit | ✅ Done |
+| **vuln_assess** - Stage 2, vulnerability assessment | ✅ Done |
+| **web_scan** - Stage 2, web app scanning (nikto, ZAP) | ✅ Done |
+| **compliance** - Stage 2, ANSSI/NIST/CIS compliance | ✅ Done |
+| **risk_network** - Stage 2, network risk scoring | ✅ Done |
+| **section_security** - Stage 3, security report | ✅ Done |
+
+### Compliance Framework
+
+| Task | Status |
+|------|--------|
+| **ANSSI** - Guide d'hygiène informatique (42 rules) | ✅ Done |
+| **NIST CSF** - 5 functions, control mapping | ✅ Done |
+| **CIS Controls v8** - 18 controls, IG1/IG2/IG3 | ✅ Done |
+
+### Security Examples (`examples/security/`)
+
+| Task | Status |
+|------|--------|
+| **local_network/** - Network scanning demo | ✅ Done |
+| **web_audit/** - Web application audit | ✅ Done |
+| **compliance_check/** - ANSSI/NIST/CIS compliance | ✅ Done |
+| **config_audit/** - Firewall config analysis | ✅ Done |
+| **run_security_demo.sh** - Interactive demo script | ✅ Done |
+
+### Audit Examples (`examples/audit/`)
+
+| Task | Status |
+|------|--------|
+| **volumetry_analysis/** - IOWIZME volumetry data | ✅ Done |
+| **microservices/** - Service catalog & dependencies | ✅ Done |
+| **java_monolith/** - Complexity & refactoring | ✅ Done |
+| **full_audit/** - Comprehensive system audit | ✅ Done |
+| **run_audit_demo.sh** - Interactive demo script | ✅ Done |
+
+**Key Files Created:**
+- `ragix_kernels/security/*.py` - 10 security kernels
+- `examples/security/` - 4 workspaces + demo script
+- `examples/audit/` - 4 workspaces + demo script
+- `docs/developer/SECURITY_NETWORK_KERNELS_DESIGN.md` - Design document
 
 ---
 
@@ -27,28 +80,15 @@
 | **Load Model Kernel** - Stage 2, async/sync capacity estimation | 🔲 Pending |
 | **Section Architecture Kernel** - Stage 3, architecture recommendations | 🔲 Pending |
 
-### Security Network Audit Kernels (Design Phase)
-
-| Task | Status |
-|------|--------|
-| **Design Document** - SECURITY_NETWORK_KERNELS_DESIGN.md | ✅ Done |
-| **9 Kernels Designed** - net_discover, port_scan, dns_enum, etc. | 📋 Design |
-
-**Next Steps:**
-1. Discuss tool dependencies (nmap, testssl.sh, nuclei)
-2. Implement Stage 1 discovery kernels
-3. Implement Stage 2 analysis kernels
-
 **Key Files Created:**
 - `ragix_kernels/audit/volumetry.py` - Volumetry data collection
 - `ragix_kernels/audit/module_group.py` - File-to-module grouping
 - `ragix_kernels/audit/risk_matrix.py` - Volumetry-weighted risk matrix
 - `docs/developer/VOLUMETRY_KERNELS_DESIGN.md` - Volumetry kernels design
-- `docs/developer/SECURITY_NETWORK_KERNELS_DESIGN.md` - Security kernels design
 
 ---
 
-## Session Completed (2025-12-11 - v0.55.0 Sprint 2: SIAS/GRDF Audit)
+## Session Completed (2025-12-11 - v0.55.0 Sprint 2: SIAS Audit)
 
 ### SIAS Service Detection & Audit Improvements
 
@@ -56,7 +96,7 @@
 |------|--------|
 | **SIAS Service Patterns** - `spre##`, `sprebpm`, `spremail`, `s[ActionName]` detection | ✅ Done |
 | **Multi-Module Maven Support** - Auto-detect `app-pre-main/.../src/` structures | ✅ Done |
-| **Service Pattern Presets** - IOWIZME, SIAS/GRDF, Combined in Audit Settings | ✅ Done |
+| **Service Pattern Presets** - IOWIZME, SIAS, Combined in Audit Settings | ✅ Done |
 | **Audit Settings UI** - Service Detection Patterns section with textarea inputs | ✅ Done |
 | **ID Normalization** - Uppercase IDs for consistency (service_detector ↔ timeline) | ✅ Done |
 | **MDS Graph Layout** - Eigendecomposition-based positioning for small graphs | ✅ Done |
@@ -1185,7 +1225,7 @@ find . -name "*.md" -type f -exec wc -l {} + | grep -v " total$" | sort -n | tai
 **Technical Details:**
 - Large Graph Mode threshold: 5000 nodes
 - Package search: case-insensitive, `|` for OR
-- Tested on GRDF codebase (18,210 nodes)
+- Tested on enterprise codebase (18,210 nodes)
 
 ---
 

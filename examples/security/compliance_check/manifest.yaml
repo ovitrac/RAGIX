@@ -1,0 +1,87 @@
+# Compliance Assessment
+# Example: Evaluate against ANSSI, NIST CSF, and CIS Controls
+#
+# Usage:
+#   cd examples/security/compliance_check
+#   python -m ragix_kernels.orchestrator run -w .
+
+name: "Compliance Assessment"
+description: "Security compliance evaluation against ANSSI, NIST, and CIS"
+
+stages:
+  1:
+    # Host discovery
+    net_discover:
+      enabled: true
+      options:
+        methods:
+          - ping
+        timeout: 120
+
+    # Service detection
+    port_scan:
+      enabled: true
+      options:
+        ports: "top100"
+        scan_type: "connect"
+        service_detection: true
+
+    # DNS security
+    dns_enum:
+      enabled: true
+      options:
+        record_types:
+          - A
+          - MX
+          - NS
+          - TXT
+          - SOA
+        check_zone_transfer: true
+        check_dnssec: true
+
+  2:
+    # SSL/TLS compliance
+    ssl_analysis:
+      enabled: true
+      options:
+        check_certificates: true
+        check_ciphers: true
+        check_vulnerabilities: true
+
+    # Vulnerability assessment (for compliance)
+    vuln_assess:
+      enabled: true
+      options:
+        templates:
+          - cves
+          - misconfiguration
+          - default-logins
+        severity: "low"
+        rate_limit: 50
+        timeout: 300
+        template_path: "~/nuclei-templates"
+
+    # Compliance evaluation
+    compliance:
+      enabled: true
+      options:
+        frameworks:
+          - anssi    # Primary: French ANSSI
+          - nist     # NIST Cybersecurity Framework
+          - cis      # CIS Controls v8
+        anssi_level: "standard"
+        include_recommendations: true
+
+    # Risk scoring
+    risk_network:
+      enabled: true
+
+  3:
+    # Compliance report
+    section_security:
+      enabled: true
+      options:
+        output_format: "markdown"
+        include_executive_summary: true
+        include_remediation_plan: true
+        language: "en"

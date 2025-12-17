@@ -1,0 +1,22 @@
+# Compliance Check Targets
+#
+# IMPORTANT: Only scan systems you are authorized to test!
+
+targets:
+  # Use localhost for safe testing
+  - "127.0.0.1"
+
+  # Or specify your infrastructure:
+  # - "192.168.1.0/24"
+  # - "server1.example.com"
+  # - "server2.example.com"
+
+domains:
+  # For DNS compliance checks
+  # - "example.com"
+  # - "your-domain.com"
+
+exclude: []
+
+methods:
+  - ping

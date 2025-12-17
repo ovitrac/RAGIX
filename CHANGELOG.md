@@ -6,18 +6,86 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
-## v0.61.0 — Volumetry Kernels & Security Network Audit Design (2025-12-16)
+## v0.61.0 — Security Kernels & Interactive Demos (2025-12-17)
 
 ### Highlights
 
-**KOAS gains volumetry-aware audit kernels for production workload analysis, plus design for security network audit kernels.**
+**KOAS gains 10 security assessment kernels with compliance frameworks (ANSSI/NIST/CIS) and comprehensive interactive examples.**
 
 | Feature | Status |
 |---------|--------|
-| Volumetry Kernel | ✅ Stage 1 — Operational data ingestion |
-| Module Grouper Kernel | ✅ Stage 1 — File grouping by module |
-| Risk Matrix Kernel | ✅ Stage 2 — Volumetry-weighted risk |
-| Security Network Design | 📋 9 kernels designed |
+| Security Kernels | ✅ 10 kernels implemented |
+| Compliance Framework | ✅ ANSSI, NIST CSF, CIS Controls v8 |
+| Security Examples | ✅ 4 workspaces with demo script |
+| Audit Examples | ✅ 4 IOWIZME-based workspaces |
+| Interactive Demos | ✅ Menu-driven bash scripts |
+
+### New Security Kernels (`ragix_kernels/security/`)
+
+| Kernel | Stage | Purpose |
+|--------|-------|---------|
+| `net_discover` | 1 | Network asset enumeration (nmap, arp-scan) |
+| `port_scan` | 1 | Service and port detection |
+| `dns_enum` | 1 | DNS analysis and subdomain enumeration |
+| `config_parse` | 1 | Firewall config parsing (iptables, Cisco, pfSense) |
+| `ssl_analysis` | 2 | TLS/certificate audit (testssl.sh) |
+| `vuln_assess` | 2 | CVE mapping and vulnerability assessment |
+| `web_scan` | 2 | Web application scanning (nikto, ZAP) |
+| `compliance` | 2 | ANSSI/NIST/CIS compliance checking |
+| `risk_network` | 2 | Network risk scoring |
+| `section_security` | 3 | Security report generation |
+
+### Compliance Framework
+
+**ANSSI (Primary):**
+- Guide d'hygiène informatique (42 rules)
+- TLS/SSL best practices
+- French regulatory compliance
+
+**NIST CSF:**
+- 5 functions: Identify, Protect, Detect, Respond, Recover
+- Control mapping
+
+**CIS Controls v8:**
+- 18 controls
+- Implementation groups (IG1, IG2, IG3)
+
+### Security Examples (`examples/security/`)
+
+```
+examples/security/
+├── run_security_demo.sh     # Interactive demo with menu
+├── local_network/           # Network scanning demo
+├── web_audit/              # Web application audit
+├── compliance_check/       # ANSSI/NIST/CIS compliance
+└── config_audit/           # Firewall config analysis
+```
+
+### Audit Examples (`examples/audit/`)
+
+Based on IOWIZME/SIAS enterprise architecture (4M messages/day):
+
+```
+examples/audit/
+├── run_audit_demo.sh        # Interactive demo with 5 options
+├── volumetry_analysis/      # Risk weighted by traffic volume
+├── microservices/           # Service catalog & dependencies
+├── java_monolith/           # Complexity & refactoring
+└── full_audit/              # Comprehensive system audit
+```
+
+### Interactive Demo Features
+
+Both demos (`run_security_demo.sh`, `run_audit_demo.sh`) provide:
+- ASCII art banners and color-coded output
+- Prerequisites checking
+- Command-line options (`--help`, `--all`, `-1` to `-5`)
+- Interactive menus
+- Dependency graphs and risk matrices in ASCII
+
+### Previous v0.61.0 (2025-12-16)
+
+**Volumetry Kernels (retained):**
 
 ### New KOAS Kernels
 
@@ -199,7 +267,7 @@ No breaking changes. New MCP tools available immediately.
 | Standalone Radial Server | ✅ FastAPI live app |
 | AST API Endpoints | ✅ 8 new REST endpoints |
 
-### Tested on Production Codebase (GRDF)
+### Tested on Production Codebase (Enterprise Client)
 
 - **1,315 Java files** analyzed
 - **18,210 symbols** extracted

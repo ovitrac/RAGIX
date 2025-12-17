@@ -1,0 +1,56 @@
+# IOWIZME Volumetry-Weighted Risk Analysis
+# Demonstrates risk scoring weighted by operational traffic
+#
+# Usage:
+#   cd examples/audit/volumetry_analysis
+#   python -m ragix_kernels.orchestrator run -w .
+
+name: "IOWIZME Volumetry Analysis"
+description: "Risk assessment weighted by operational traffic volume"
+
+config:
+  log_level: info
+
+stages:
+  # Stage 1: Data Collection
+  1:
+    # Parse volumetry data
+    volumetry:
+      enabled: true
+      options:
+        # Volumetry data file
+        volumetry_file: "data/volumetry.yaml"
+
+        # Normalization settings
+        normalize_scores: true
+        max_daily_volume: 10000000
+
+        # Include incident history in scoring
+        include_incidents: true
+        incident_weight: 0.1
+
+  # Stage 2: Analysis
+  2:
+    # Risk matrix calculation
+    risk_matrix:
+      enabled: true
+      options:
+        # Risk factor weights
+        weights:
+          loc: 0.25           # Code size (25%)
+          complexity: 0.25    # Cyclomatic complexity (25%)
+          volumetry: 0.50     # Traffic volume (50% - primary factor)
+
+        # Risk level thresholds
+        thresholds:
+          critical: 8.0
+          high: 6.0
+          medium: 4.0
+          low: 2.0
+
+        # Code metrics source
+        code_metrics_file: "data/code_metrics.yaml"
+
+        # Output options
+        identify_critical_path: true
+        generate_recommendations: true

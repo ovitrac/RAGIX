@@ -1,0 +1,51 @@
+# Microservices Architecture Analysis
+# Module grouping and dependency analysis
+#
+# Usage:
+#   cd examples/audit/microservices
+#   python -m ragix_kernels.orchestrator run -w .
+
+name: "Microservices Architecture Analysis"
+description: "Analyze microservices structure, dependencies, and risk"
+
+config:
+  log_level: info
+
+stages:
+  # Stage 1: Data Collection
+  1:
+    # Module grouping
+    module_group:
+      enabled: true
+      options:
+        # Module definitions file
+        modules_file: "data/modules.yaml"
+
+        # Grouping patterns for auto-detection
+        patterns:
+          - "([^/]+)-service"
+          - "([^/]+)-gateway"
+          - "shared-([^/]+)"
+
+        # Include dependencies in analysis
+        analyze_dependencies: true
+
+  # Stage 2: Analysis
+  2:
+    # Risk matrix with volumetry weighting
+    risk_matrix:
+      enabled: true
+      options:
+        weights:
+          loc: 0.30
+          complexity: 0.20
+          volumetry: 0.35
+          dependencies: 0.15   # Services with many dependents = higher risk
+
+        thresholds:
+          critical: 8.0
+          high: 6.0
+          medium: 4.0
+          low: 2.0
+
+        identify_critical_path: true

@@ -1,0 +1,183 @@
+# IOWIZME/SIAS Volumetry Data
+# Real-world traffic patterns for enterprise integration platform
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-17
+
+# =============================================================================
+# Message Flows
+# =============================================================================
+flows:
+  # Primary SIAS Gateway
+  - name: "SIAS Message Ingestion"
+    source: "external_partners"
+    target: "iow-ech-sias"
+    volume_per_day: 4000000
+    peak_hour: 5              # 05:00 UTC
+    peak_multiplier: 3.5      # 500-1000 msg/sec at peak
+    message_size_bytes: 2048
+    protocol: "SOAP/XML"
+    sla_ms: 500
+    description: "Primary SIAS message gateway - 4M messages/day"
+
+  # Internal orchestration flow
+  - name: "SC02 Orchestration"
+    source: "iow-ech-sias"
+    target: "iow-ioc-sc02"
+    volume_per_day: 4000000
+    peak_hour: 5
+    peak_multiplier: 3.5
+    description: "Message routing and orchestration"
+
+  # Business logic processing
+  - name: "SK01 Processing"
+    source: "iow-ioc-sc02"
+    target: "iow-iok-sk01"
+    volume_per_day: 4000000
+    peak_hour: 5
+    peak_multiplier: 3.5
+    description: "Core business logic execution"
+
+  # Shared library calls (aggregated)
+  - name: "Commons Library Usage"
+    source: "iow-iok-sk01"
+    target: "iog-support-commons"
+    volume_per_day: 4011500
+    peak_hour: 5
+    peak_multiplier: 3.5
+    description: "Utility and helper calls from all modules"
+
+  # Model transformations
+  - name: "DTO Transformations"
+    source: "iow-ech-sias"
+    target: "iow-iog-models"
+    volume_per_day: 4011500
+    peak_hour: 5
+    peak_multiplier: 3.5
+    description: "Data model mapping and validation"
+
+  # Secondary flow: SK04 batch processing
+  - name: "SK04 Batch Input"
+    source: "scheduler"
+    target: "iow-iok-sk04"
+    volume_per_day: 10000
+    peak_hour: 2              # 02:00 UTC (night batch)
+    peak_multiplier: 1.0
+    description: "Nightly batch processing"
+
+  # API Gateway (if applicable)
+  - name: "REST API Gateway"
+    source: "mobile_apps"
+    target: "iow-api-gateway"
+    volume_per_day: 500000
+    peak_hour: 12
+    peak_multiplier: 2.0
+    description: "Mobile and web API requests"
+
+# =============================================================================
+# Batch Jobs
+# =============================================================================
+batches:
+  - name: "Daily Reconciliation"
+    module: "iow-iok-sk04"
+    schedule: "0 2 * * *"     # 02:00 daily
+    volume_per_run: 50000
+    duration_minutes: 45
+    cpu_intensive: true
+    description: "End-of-day reconciliation batch"
+
+  - name: "Weekly Report Generation"
+    module: "iow-iok-sk04"
+    schedule: "0 3 * * 0"     # 03:00 Sunday
+    volume_per_run: 200000
+    duration_minutes: 120
+    memory_intensive: true
+    description: "Weekly business reports"
+
+  - name: "Monthly Archive"
+    module: "iow-iok-sk04"
+    schedule: "0 1 1 * *"     # 01:00 1st of month
+    volume_per_run: 5000000
+    duration_minutes: 240
+    io_intensive: true
+    description: "Monthly data archival"
+
+  - name: "Hourly Health Check"
+    module: "iog-support-commons"
+    schedule: "0 * * * *"     # Every hour
+    volume_per_run: 100
+    duration_minutes: 1
+    description: "System health monitoring"
+
+# =============================================================================
+# Historical Incidents (affect risk scoring)
+# =============================================================================
+incidents:
+  - date: "2024-11-15"
+    module: "iow-ech-sias"
+    severity: "high"
+    duration_hours: 2
+    messages_affected: 150000
+    root_cause: "Connection pool exhaustion under peak load"
+    resolution: "Increased pool size, added circuit breaker"
+
+  - date: "2024-10-22"
+    module: "iog-support-commons"
+    severity: "critical"
+    duration_hours: 4
+    messages_affected: 500000
+    root_cause: "Memory leak in string concatenation"
+    resolution: "StringBuilder refactoring"
+
+  - date: "2024-09-08"
+    module: "iow-iok-sk01"
+    severity: "medium"
+    duration_hours: 1
+    messages_affected: 30000
+    root_cause: "Slow database query"
+    resolution: "Added index, query optimization"
+
+  - date: "2024-08-15"
+    module: "iow-ioc-sc02"
+    severity: "high"
+    duration_hours: 3
+    messages_affected: 200000
+    root_cause: "Deadlock in routing logic"
+    resolution: "Async processing implementation"
+
+# =============================================================================
+# SLA Requirements
+# =============================================================================
+sla:
+  # Response time requirements
+  response_time:
+    p50_ms: 100
+    p95_ms: 300
+    p99_ms: 500
+    max_ms: 2000
+
+  # Availability requirements
+  availability:
+    target_percent: 99.9
+    maintenance_window: "Sunday 02:00-04:00 UTC"
+
+  # Throughput requirements
+  throughput:
+    min_per_second: 100
+    target_per_second: 500
+    burst_per_second: 1000
+
+# =============================================================================
+# Infrastructure Context
+# =============================================================================
+infrastructure:
+  environment: "production"
+  replicas:
+    iow-ech-sias: 3
+    iow-ioc-sc02: 2
+    iow-iok-sk01: 2
+    iow-iok-sk04: 1
+
+  resources:
+    cpu_cores: 32
+    memory_gb: 128
+    storage_tb: 10

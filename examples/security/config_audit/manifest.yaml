@@ -1,0 +1,25 @@
+# Firewall Configuration Audit
+# Example: Analyze firewall/router configurations for security issues
+#
+# Usage:
+#   cd examples/security/config_audit
+#   python -m ragix_kernels.orchestrator run -w . -s 1 -k config_parse
+
+name: "Firewall Configuration Audit"
+description: "Analyze firewall rules for misconfigurations and security issues"
+
+stages:
+  1:
+    # Configuration parser
+    config_parse:
+      enabled: true
+      options:
+        # Directory containing config files
+        config_dir: "data/configs"
+
+        # Auto-detect config type (iptables, cisco_ios, cisco_asa, pfsense, fortigate)
+        config_type: "auto"
+
+        # Analysis options
+        analyze_rules: true
+        check_best_practices: true

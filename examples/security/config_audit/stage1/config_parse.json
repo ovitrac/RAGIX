@@ -1,0 +1,363 @@
+{
+  "_meta": {
+    "kernel_name": "config_parse",
+    "kernel_version": "1.0.0",
+    "execution_time_ms": 0,
+    "input_hash": "3353822e8773747e",
+    "timestamp": "2025-12-17T12:40:21.516352",
+    "success": true
+  },
+  "data": {
+    "devices": [
+      {
+        "name": "sample_iptables",
+        "type": "linux_firewall",
+        "config_type": "iptables",
+        "filename": "data/configs/sample_iptables.rules"
+      },
+      {
+        "name": "DEMO-ROUTER",
+        "type": "cisco_router",
+        "config_type": "cisco_ios",
+        "filename": "data/configs/sample_cisco.cfg"
+      }
+    ],
+    "rules": [
+      {
+        "type": "policy",
+        "table": "filter",
+        "chain": "INPUT",
+        "action": "deny",
+        "raw": ":INPUT DROP [0:0]"
+      },
+      {
+        "type": "policy",
+        "table": "filter",
+        "chain": "FORWARD",
+        "action": "deny",
+        "raw": ":FORWARD DROP [0:0]"
+      },
+      {
+        "type": "policy",
+        "table": "filter",
+        "chain": "OUTPUT",
+        "action": "permit",
+        "raw": ":OUTPUT ACCEPT [0:0]"
+      },
+      {
+        "type": "rule",
+        "table": "filter",
+        "chain": "INPUT",
+        "source": "any",
+        "destination": "any",
+        "protocol": "any",
+        "port": null,
+        "action": "permit",
+        "raw": "-A INPUT -i lo -j ACCEPT"
+      },
+      {
+        "type": "rule",
+        "table": "filter",
+        "chain": "OUTPUT",
+        "source": "any",
+        "destination": "any",
+        "protocol": "any",
+        "port": null,
+        "action": "permit",
+        "raw": "-A OUTPUT -o lo -j ACCEPT"
+      },
+      {
+        "type": "rule",
+        "table": "filter",
+        "chain": "INPUT",
+        "source": "any",
+        "destination": "any",
+        "protocol": "any",
+        "port": null,
+        "action": "permit",
+        "raw": "-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT"
+      },
+      {
+        "type": "rule",
+        "table": "filter",
+        "chain": "INPUT",
+        "source": "any",
+        "destination": "any",
+        "protocol": "tcp",
+        "port": "22",
+        "action": "permit",
+        "raw": "-A INPUT -p tcp --dport 22 -j ACCEPT"
+      },
+      {
+        "type": "rule",
+        "table": "filter",
+        "chain": "INPUT",
+        "source": "any",
+        "destination": "any",
+        "protocol": "tcp",
+        "port": "23",
+        "action": "permit",
+        "raw": "-A INPUT -p tcp --dport 23 -j ACCEPT"
+      },
+      {
+        "type": "rule",
+        "table": "filter",
+        "chain": "INPUT",
+        "source": "any",
+        "destination": "any",
+        "protocol": "tcp",
+        "port": "80",
+        "action": "permit",
+        "raw": "-A INPUT -p tcp --dport 80 -j ACCEPT"
+      },
+      {
+        "type": "rule",
+        "table": "filter",
+        "chain": "INPUT",
+        "source": "any",
+        "destination": "any",
+        "protocol": "tcp",
+        "port": "443",
+        "action": "permit",
+        "raw": "-A INPUT -p tcp --dport 443 -j ACCEPT"
+      },
+      {
+        "type": "rule",
+        "table": "filter",
+        "chain": "INPUT",
+        "source": "any",
+        "destination": "any",
+        "protocol": "tcp",
+        "port": "3306",
+        "action": "permit",
+        "raw": "-A INPUT -p tcp --dport 3306 -j ACCEPT"
+      },
+      {
+        "type": "rule",
+        "table": "filter",
+        "chain": "INPUT",
+        "source": "0.0.0.0/0",
+        "destination": "0.0.0.0/0",
+        "protocol": "any",
+        "port": null,
+        "action": "permit",
+        "raw": "-A INPUT -s 0.0.0.0/0 -d 0.0.0.0/0 -j ACCEPT"
+      },
+      {
+        "type": "rule",
+        "table": "filter",
+        "chain": "INPUT",
+        "source": "any",
+        "destination": "any",
+        "protocol": "icmp",
+        "port": null,
+        "action": "permit",
+        "raw": "-A INPUT -p icmp --icmp-type echo-request -j ACCEPT"
+      },
+      {
+        "type": "rule",
+        "table": "filter",
+        "chain": "INPUT",
+        "source": "any",
+        "destination": "any",
+        "protocol": "any",
+        "port": null,
+        "action": "permit",
+        "raw": "-A INPUT -j LOG --log-prefix \"DROPPED: \""
+      },
+      {
+        "type": "acl",
+        "acl_name": "100",
+        "action": "permit",
+        "raw": "access-list 100 permit ip any any",
+        "source": "any",
+        "destination": "any",
+        "protocol": "any"
+      },
+      {
+        "type": "acl",
+        "acl_name": "101",
+        "action": "permit",
+        "raw": "access-list 101 permit tcp any any eq 23",
+        "source": "any",
+        "destination": "any",
+        "protocol": "any"
+      },
+      {
+        "type": "acl",
+        "acl_name": "102",
+        "action": "deny",
+        "raw": "access-list 102 deny tcp any any eq 23",
+        "source": "any",
+        "destination": "any",
+        "protocol": "any"
+      },
+      {
+        "type": "acl",
+        "acl_name": "102",
+        "action": "permit",
+        "raw": "access-list 102 permit tcp any any eq 22",
+        "source": "any",
+        "destination": "any",
+        "protocol": "any"
+      },
+      {
+        "type": "acl",
+        "acl_name": "103",
+        "action": "permit",
+        "raw": "access-list 103 permit tcp any any eq 21",
+        "source": "any",
+        "destination": "any",
+        "protocol": "any"
+      }
+    ],
+    "findings": [
+      {
+        "type": "dangerous_port",
+        "severity": "critical",
+        "config_file": "data/configs/sample_iptables.rules",
+        "rule": "-A INPUT -p tcp --dport 23 -j ACCEPT",
+        "port": 23,
+        "service": "telnet",
+        "description": "Rule permits access to dangerous service: telnet (port 23)",
+        "recommendation": "Block or restrict access to telnet"
+      },
+      {
+        "type": "best_practice",
+        "check": "no_telnet",
+        "severity": "critical",
+        "config_file": "data/configs/sample_iptables.rules",
+        "rule": "-A INPUT -p tcp --dport 23 -j ACCEPT",
+        "description": "Telnet access is permitted",
+        "recommendation": "Disable telnet and use SSH instead"
+      },
+      {
+        "type": "any_to_any",
+        "severity": "high",
+        "config_file": "data/configs/sample_iptables.rules",
+        "rule": "-A INPUT -i lo -j ACCEPT",
+        "description": "Rule permits any-to-any traffic",
+        "recommendation": "Restrict source and destination to specific networks"
+      },
+      {
+        "type": "any_to_any",
+        "severity": "high",
+        "config_file": "data/configs/sample_iptables.rules",
+        "rule": "-A OUTPUT -o lo -j ACCEPT",
+        "description": "Rule permits any-to-any traffic",
+        "recommendation": "Restrict source and destination to specific networks"
+      },
+      {
+        "type": "any_to_any",
+        "severity": "high",
+        "config_file": "data/configs/sample_iptables.rules",
+        "rule": "-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT",
+        "description": "Rule permits any-to-any traffic",
+        "recommendation": "Restrict source and destination to specific networks"
+      },
+      {
+        "type": "any_to_any",
+        "severity": "high",
+        "config_file": "data/configs/sample_iptables.rules",
+        "rule": "-A INPUT -p tcp --dport 22 -j ACCEPT",
+        "description": "Rule permits any-to-any traffic",
+        "recommendation": "Restrict source and destination to specific networks"
+      },
+      {
+        "type": "any_to_any",
+        "severity": "high",
+        "config_file": "data/configs/sample_iptables.rules",
+        "rule": "-A INPUT -p tcp --dport 23 -j ACCEPT",
+        "description": "Rule permits any-to-any traffic",
+        "recommendation": "Restrict source and destination to specific networks"
+      },
+      {
+        "type": "any_to_any",
+        "severity": "high",
+        "config_file": "data/configs/sample_iptables.rules",
+        "rule": "-A INPUT -p tcp --dport 80 -j ACCEPT",
+        "description": "Rule permits any-to-any traffic",
+        "recommendation": "Restrict source and destination to specific networks"
+      },
+      {
+        "type": "any_to_any",
+        "severity": "high",
+        "config_file": "data/configs/sample_iptables.rules",
+        "rule": "-A INPUT -p tcp --dport 443 -j ACCEPT",
+        "description": "Rule permits any-to-any traffic",
+        "recommendation": "Restrict source and destination to specific networks"
+      },
+      {
+        "type": "any_to_any",
+        "severity": "high",
+        "config_file": "data/configs/sample_iptables.rules",
+        "rule": "-A INPUT -p tcp --dport 3306 -j ACCEPT",
+        "description": "Rule permits any-to-any traffic",
+        "recommendation": "Restrict source and destination to specific networks"
+      },
+      {
+        "type": "any_to_any",
+        "severity": "high",
+        "config_file": "data/configs/sample_iptables.rules",
+        "rule": "-A INPUT -p icmp --icmp-type echo-request -j ACCEPT",
+        "description": "Rule permits any-to-any traffic",
+        "recommendation": "Restrict source and destination to specific networks"
+      },
+      {
+        "type": "any_to_any",
+        "severity": "high",
+        "config_file": "data/configs/sample_iptables.rules",
+        "rule": "-A INPUT -j LOG --log-prefix \"DROPPED: \"",
+        "description": "Rule permits any-to-any traffic",
+        "recommendation": "Restrict source and destination to specific networks"
+      },
+      {
+        "type": "dangerous_port",
+        "severity": "medium",
+        "config_file": "data/configs/sample_iptables.rules",
+        "rule": "-A INPUT -p tcp --dport 3306 -j ACCEPT",
+        "port": 3306,
+        "service": "mysql",
+        "description": "Rule permits access to dangerous service: mysql (port 3306)",
+        "recommendation": "Block or restrict access to mysql"
+      }
+    ],
+    "network_map": {
+      "interfaces": [
+        {
+          "name": "GigabitEthernet0/0",
+          "ip": "203.0.113.1/255.255.255.0",
+          "description": "WAN Interface"
+        },
+        {
+          "name": "GigabitEthernet0/1",
+          "ip": "192.168.1.1/255.255.255.0",
+          "description": "LAN Interface"
+        }
+      ],
+      "networks": [],
+      "routes": [
+        {
+          "network": "0.0.0.0",
+          "mask": "0.0.0.0",
+          "next_hop": "203.0.113.254"
+        },
+        {
+          "network": "10.0.0.0",
+          "mask": "255.0.0.0",
+          "next_hop": "192.168.1.254"
+        }
+      ],
+      "nat_rules": []
+    },
+    "statistics": {
+      "devices_parsed": 2,
+      "total_rules": 19,
+      "permit_rules": 16,
+      "deny_rules": 3,
+      "findings_count": 13,
+      "critical_findings": 2,
+      "high_findings": 10
+    }
+  }
+}

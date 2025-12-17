@@ -1,0 +1,131 @@
+# IOWIZME Comprehensive Audit
+# Full system audit combining all KOAS kernels
+#
+# Usage:
+#   cd examples/audit/full_audit
+#   python -m ragix_kernels.orchestrator run -w .
+
+name: "IOWIZME Comprehensive Audit"
+description: "Complete technical audit with volumetry, risk analysis, and recommendations"
+
+config:
+  log_level: info
+  output_format: "markdown"
+
+stages:
+  # ==========================================================================
+  # Stage 1: Data Collection
+  # ==========================================================================
+  1:
+    # System inventory parsing
+    inventory:
+      enabled: true
+      options:
+        inventory_file: "data/system_inventory.yaml"
+        include_infrastructure: true
+        include_repositories: true
+        include_teams: true
+
+    # Module grouping
+    module_group:
+      enabled: true
+      options:
+        modules_file: "../microservices/data/modules.yaml"
+        patterns:
+          - "([^/]+)-service"
+          - "([^/]+)-gateway"
+          - "shared-([^/]+)"
+        analyze_dependencies: true
+
+    # Volumetry data collection
+    volumetry:
+      enabled: true
+      options:
+        volumetry_file: "../volumetry_analysis/data/volumetry.yaml"
+        normalize_scores: true
+        max_daily_volume: 10000000
+        include_incidents: true
+
+  # ==========================================================================
+  # Stage 2: Analysis
+  # ==========================================================================
+  2:
+    # Risk matrix calculation (volumetry-weighted)
+    risk_matrix:
+      enabled: true
+      options:
+        weights:
+          loc: 0.20           # Code size (20%)
+          complexity: 0.25    # Cyclomatic complexity (25%)
+          volumetry: 0.40     # Traffic volume (40%)
+          dependencies: 0.15  # Coupling (15%)
+
+        thresholds:
+          critical: 8.0
+          high: 6.0
+          medium: 4.0
+          low: 2.0
+
+        code_metrics_file: "../volumetry_analysis/data/code_metrics.yaml"
+        identify_critical_path: true
+        generate_recommendations: true
+
+    # Dependency analysis
+    dependency_analysis:
+      enabled: true
+      options:
+        detect_circular: true
+        identify_hotspots: true
+        coupling_threshold: 0.7
+
+    # Technical debt assessment
+    tech_debt:
+      enabled: true
+      options:
+        metrics:
+          - test_coverage
+          - javadoc_coverage
+          - code_duplication
+        thresholds:
+          test_coverage_min: 0.70
+          javadoc_coverage_min: 0.50
+          duplication_max: 0.10
+
+  # ==========================================================================
+  # Stage 3: Reporting
+  # ==========================================================================
+  3:
+    # Executive summary
+    executive_summary:
+      enabled: true
+      options:
+        format: "markdown"
+        include_recommendations: true
+        max_findings: 10
+
+    # Detailed technical report
+    technical_report:
+      enabled: true
+      options:
+        format: "markdown"
+        include_diagrams: true
+        include_metrics: true
+
+    # Action plan generation
+    action_plan:
+      enabled: true
+      options:
+        prioritize_by: "risk_score"
+        group_by: "team"
+        estimate_effort: true
+
+# =============================================================================
+# Output Configuration
+# =============================================================================
+output:
+  directory: "reports"
+  formats:
+    - "markdown"
+    - "json"
+  include_raw_data: false
+  include_visualizations: true

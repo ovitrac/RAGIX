@@ -29,16 +29,16 @@
 - ✅ **Radial Explorer** - Ego-centric visualization with focal node at center
 - ✅ **CLI: `ragix-ast radial`** - New radial command with auto-selection
 
-### Tested Successfully on GRDF
+### Tested Successfully on Enterprise Codebase
 - **Project:** 1,315 Java files, 18,210 symbols, 45,113 dependencies
 - **Analysis time:** ~10 seconds
 - **Technical debt:** 362.2 hours estimated
 - **Hotspots:** VueToVueDtoConverter.convertTo (CC=71)
 - **Visualization files generated:**
-  - `/tmp/grdf_deps_enhanced.html` (827KB) - Force-directed graph
-  - `/tmp/grdf_matrix_pkg.html` (254KB) - Package-level DSM
-  - `/tmp/grdf_matrix_class.html` (84KB) - Class-level DSM
-  - `/tmp/grdf_radial_final.html` (123KB) - Radial ego-centric explorer
+  - `/tmp/enterprise_deps_enhanced.html` (827KB) - Force-directed graph
+  - `/tmp/enterprise_matrix_pkg.html` (254KB) - Package-level DSM
+  - `/tmp/enterprise_matrix_class.html` (84KB) - Class-level DSM
+  - `/tmp/enterprise_radial_final.html` (123KB) - Radial ego-centric explorer
 
 ---
 
@@ -61,9 +61,9 @@ curl "http://localhost:8080/api/ast/metrics?path=/path/to/project"
 curl "http://localhost:8080/api/ast/hotspots?path=/path/to/project&limit=20"
 
 # Open visualizations
-xdg-open /tmp/grdf_deps_enhanced.html
-xdg-open /tmp/grdf_matrix_pkg.html
-xdg-open /tmp/grdf_radial_auto.html
+xdg-open /tmp/project_deps_enhanced.html
+xdg-open /tmp/project_matrix_pkg.html
+xdg-open /tmp/project_radial_auto.html
 ```
 
 ---
@@ -210,10 +210,10 @@ d3.js v7            # Browser visualization (CDN)
 
 ---
 
-## GRDF Project Reference
+## Enterprise Project Reference
 
 ```
-/home/olivi/Documents/Adservio/audit/SIAS/grdf/
+/path/to/enterprise/audit/
 ├── app-bpm-main/    # BPM module
 ├── app-hab-main/    # HAB module (main, tested)
 └── app-pre-main/    # PRE module

@@ -18,7 +18,7 @@ RAGIX v0.5 focuses on **quantitative code audit** for enterprise Java applicatio
 5. **Multi-layer analysis** — Support for presentation/service/domain/infra architectures
 
 **Business Context:**
-Companies like GRDF spend significant budget on code reviews by consultants (Cap Gemini, etc.). RAGIX v0.5 aims to provide automated, reproducible analysis that engineers can run independently.
+Enterprise companies spend significant budget on code reviews by consultants. RAGIX v0.5 aims to provide automated, reproducible analysis that engineers can run independently.
 
 ---
 

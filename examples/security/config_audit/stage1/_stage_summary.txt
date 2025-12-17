@@ -1,0 +1,4 @@
+# Stage 1 Summary
+
+## config_parse
+Config Parse: 2 devices, 19 rules (16 permit, 3 deny). Findings: 2 critical, 10 high, 1 medium.

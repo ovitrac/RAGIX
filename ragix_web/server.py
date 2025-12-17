@@ -4217,8 +4217,8 @@ async def get_partition_presets():
 
     presets = {
         "sias_ticc": {
-            "name": "SIAS/TICC (GRDF Pattern)",
-            "description": "Two-application separation pattern used in GRDF audits",
+            "name": "SIAS/TICC (Enterprise Pattern)",
+            "description": "Two-application separation pattern used in enterprise audits",
             "config": create_sias_ticc_config().to_dict()
         },
         "generic_two_apps": {

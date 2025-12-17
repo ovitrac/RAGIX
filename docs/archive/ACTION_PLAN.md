@@ -124,7 +124,7 @@ agents:
 - `ragix_core/ast_viz.py` (CSS, HTML, JavaScript additions)
 
 **Tested On:**
-- GRDF codebase: 18,210 nodes, Large Graph Mode works correctly
+- Enterprise codebase: 18,210 nodes, Large Graph Mode works correctly
 - Package search with `print|alert` pattern validated
 
 ---

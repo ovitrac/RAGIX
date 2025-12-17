@@ -3474,7 +3474,7 @@ com\.grdf\..*\.jms\.spre</textarea>
                                         <select id="settingPatternPreset" onchange="auditApp.loadPatternPreset()">
                                             <option value="">Custom</option>
                                             <option value="iowizme">IOWIZME (SK/SC/SG)</option>
-                                            <option value="sias_grdf">SIAS/GRDF (spre##)</option>
+                                            <option value="sias_enterprise">SIAS (spre##)</option>
                                             <option value="combined">Combined (All patterns)</option>
                                         </select>
                                     </div>
@@ -3520,7 +3520,7 @@ com\.grdf\..*\.jms\.spre</textarea>
                                     <h3>Configuration</h3>
                                     <select id="partitionPresetTab" onchange="partitionerApp.loadPresetTab()">
                                         <option value="">Custom Configuration</option>
-                                        <option value="sias_ticc">SIAS/TICC (GRDF Pattern)</option>
+                                        <option value="sias_ticc">SIAS/TICC (Enterprise Pattern)</option>
                                         <option value="generic_two_apps">Generic Two Apps</option>
                                         <option value="generic_three_apps">Generic Three Apps</option>
                                     </select>
@@ -7319,7 +7319,7 @@ com\.grdf\..*\.jms\.spre</textarea>
                     servicePatterns: 'SK\\d{2}\nSC\\d{2}\nSG\\d{2}',
                     packagePatterns: 'fr\\.iowizmi\\.iok\\.sk\nfr\\.iowizmi\\.iok\\.sc\nfr\\.iowizmi\\.iok\\.sg\nfr\\.iowizmi\\.ui\\.\nfr\\.iowizmi\\.service\\.'
                 },
-                sias_grdf: {
+                sias_enterprise: {
                     servicePatterns: 'spre\\d{2}(?:ws)?\nsprebpm(?:ws)?\nspremail\ns[A-Z][a-zA-Z]+',
                     packagePatterns: 'com\\.grdf\\..*\\.ws\\.spre\ncom\\.grdf\\..*\\.jms\\.spre\ncom\\.grdf\\..*\\.jms\\.traitementmasse'
                 },

@@ -1,0 +1,234 @@
+# Java Monolith Structure
+# Simulated large Java codebase for analysis
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-17
+
+# =============================================================================
+# Package Structure
+# =============================================================================
+packages:
+  # Controllers (Web Layer)
+  - path: "com.company.app.controller"
+    type: "controller"
+    description: "REST and Web controllers"
+    files:
+      - name: "UserController.java"
+        loc: 450
+        methods: 25
+        complexity: 12
+      - name: "OrderController.java"
+        loc: 680
+        methods: 35
+        complexity: 18
+      - name: "ProductController.java"
+        loc: 520
+        methods: 28
+        complexity: 14
+      - name: "ReportController.java"
+        loc: 890
+        methods: 42
+        complexity: 22
+
+  # Services (Business Layer)
+  - path: "com.company.app.service"
+    type: "service"
+    description: "Business logic services"
+    files:
+      - name: "UserService.java"
+        loc: 1200
+        methods: 65
+        complexity: 25
+      - name: "OrderService.java"
+        loc: 2100
+        methods: 98
+        complexity: 35
+      - name: "ProductService.java"
+        loc: 1450
+        methods: 72
+        complexity: 28
+      - name: "PaymentService.java"
+        loc: 1800
+        methods: 85
+        complexity: 42
+      - name: "NotificationService.java"
+        loc: 950
+        methods: 45
+        complexity: 18
+      - name: "ReportService.java"
+        loc: 3200
+        methods: 145
+        complexity: 52
+
+  # Repositories (Data Layer)
+  - path: "com.company.app.repository"
+    type: "repository"
+    description: "Data access repositories"
+    files:
+      - name: "UserRepository.java"
+        loc: 180
+        methods: 12
+        complexity: 3
+      - name: "OrderRepository.java"
+        loc: 350
+        methods: 25
+        complexity: 8
+      - name: "ProductRepository.java"
+        loc: 220
+        methods: 15
+        complexity: 4
+      - name: "CustomQueryRepository.java"
+        loc: 890
+        methods: 45
+        complexity: 22
+
+  # Models (Domain Layer)
+  - path: "com.company.app.model"
+    type: "model"
+    description: "Domain entities and DTOs"
+    files:
+      - name: "User.java"
+        loc: 120
+        methods: 25
+        complexity: 1
+      - name: "Order.java"
+        loc: 280
+        methods: 45
+        complexity: 2
+      - name: "Product.java"
+        loc: 150
+        methods: 30
+        complexity: 1
+      - name: "Payment.java"
+        loc: 180
+        methods: 35
+        complexity: 2
+
+  # DTOs
+  - path: "com.company.app.dto"
+    type: "dto"
+    description: "Data Transfer Objects"
+    file_count: 45
+    total_loc: 2800
+    avg_complexity: 1
+
+  # Utilities
+  - path: "com.company.app.util"
+    type: "utility"
+    description: "Utility classes and helpers"
+    files:
+      - name: "StringUtils.java"
+        loc: 450
+        methods: 35
+        complexity: 8
+      - name: "DateUtils.java"
+        loc: 380
+        methods: 28
+        complexity: 6
+      - name: "ValidationUtils.java"
+        loc: 520
+        methods: 42
+        complexity: 12
+      - name: "ConversionUtils.java"
+        loc: 680
+        methods: 55
+        complexity: 15
+      - name: "CacheUtils.java"
+        loc: 420
+        methods: 32
+        complexity: 10
+
+  # Configuration
+  - path: "com.company.app.config"
+    type: "configuration"
+    description: "Application configuration"
+    file_count: 12
+    total_loc: 1200
+    avg_complexity: 5
+
+  # Exception Handling
+  - path: "com.company.app.exception"
+    type: "exception"
+    description: "Custom exceptions"
+    file_count: 18
+    total_loc: 450
+    avg_complexity: 1
+
+# =============================================================================
+# Code Metrics Summary
+# =============================================================================
+summary:
+  total_files: 185
+  total_loc: 28500
+  total_classes: 185
+  total_methods: 1450
+
+  by_layer:
+    controller:
+      files: 15
+      loc: 4200
+      avg_complexity: 16
+    service:
+      files: 25
+      loc: 12500
+      avg_complexity: 32
+    repository:
+      files: 12
+      loc: 2100
+      avg_complexity: 8
+    model:
+      files: 35
+      loc: 3200
+      avg_complexity: 2
+    dto:
+      files: 45
+      loc: 2800
+      avg_complexity: 1
+    utility:
+      files: 28
+      loc: 2450
+      avg_complexity: 10
+    config:
+      files: 12
+      loc: 1200
+      avg_complexity: 5
+    exception:
+      files: 18
+      loc: 450
+      avg_complexity: 1
+
+  quality_metrics:
+    test_coverage: 0.58
+    javadoc_coverage: 0.42
+    code_duplication: 0.12
+
+# =============================================================================
+# Hot Spots (High Complexity)
+# =============================================================================
+hot_spots:
+  - file: "ReportService.java"
+    package: "com.company.app.service"
+    loc: 3200
+    complexity: 52
+    reason: "Complex report generation logic"
+    recommendation: "Split into smaller focused services"
+
+  - file: "PaymentService.java"
+    package: "com.company.app.service"
+    loc: 1800
+    complexity: 42
+    reason: "Multiple payment gateway integrations"
+    recommendation: "Extract payment strategy pattern"
+
+  - file: "OrderService.java"
+    package: "com.company.app.service"
+    loc: 2100
+    complexity: 35
+    reason: "Order lifecycle management"
+    recommendation: "Consider state machine pattern"
+
+  - file: "CustomQueryRepository.java"
+    package: "com.company.app.repository"
+    loc: 890
+    complexity: 22
+    reason: "Complex dynamic queries"
+    recommendation: "Use Criteria API or QueryDSL"

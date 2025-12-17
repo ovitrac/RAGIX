@@ -1109,7 +1109,7 @@ def partition_from_graph(
 
 def create_sias_ticc_config() -> PartitionConfig:
     """
-    Create configuration for SIAS/TICC separation (based on GRDF audit).
+    Create configuration for SIAS/TICC separation (enterprise pattern).
     """
     return PartitionConfig(
         applications=[

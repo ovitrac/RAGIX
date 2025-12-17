@@ -85,7 +85,7 @@ class ComponentMapper:
         r'fr\.iowizmi\.iok\.sg': ComponentType.GENERAL,
         r'fr\.iowizmi\.ui\.': ComponentType.SCREEN,
         r'fr\.iowizmi\.service\.': ComponentType.SERVICE,
-        # SIAS: GRDF service patterns
+        # SIAS: Enterprise service patterns
         r'com\.grdf\..*\.ws\.spre': ComponentType.SERVICE,
         r'com\.grdf\..*\.jms\.spre': ComponentType.JMS,
         r'com\.grdf\..*\.jms\.traitementmasse': ComponentType.TASK,

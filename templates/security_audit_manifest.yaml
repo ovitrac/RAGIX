@@ -1,0 +1,247 @@
+# RAGIX Security Network Audit Manifest Template
+# Copy this file to your audit workspace as manifest.yaml
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-17
+#
+# Usage:
+#   1. Create workspace: mkdir -p audit/my_audit/data
+#   2. Copy this file: cp templates/security_audit_manifest.yaml audit/my_audit/manifest.yaml
+#   3. Create targets.yaml in data/
+#   4. Run: python -m ragix_kernels.orchestrator run -w audit/my_audit
+
+name: "Security Network Audit"
+description: "Comprehensive network security assessment"
+version: "1.0"
+
+# Global configuration
+config:
+  # Timeout for individual operations (seconds)
+  timeout: 300
+
+  # Output verbosity (debug, info, warning, error)
+  log_level: info
+
+stages:
+  # ============================================================================
+  # Stage 1: Discovery
+  # Objective: Identify all hosts, services, and DNS configuration
+  # ============================================================================
+  1:
+    # Network host discovery
+    net_discover:
+      enabled: true
+      options:
+        # Targets can also be specified in data/targets.yaml
+        # targets:
+        #   - "192.168.1.0/24"
+        #   - "10.0.0.1-10"
+
+        # Hosts to exclude from scanning
+        # exclude:
+        #   - "192.168.1.1"  # Gateway
+
+        # Discovery methods: ping, arp, list
+        methods:
+          - ping
+
+        # Timeout for discovery (seconds)
+        timeout: 300
+
+    # Port scanning and service detection
+    port_scan:
+      enabled: true
+      options:
+        # Port specification (or use presets: top20, top100, web, database, common)
+        ports: "top100"
+
+        # Scan type: connect (no root), syn (requires root), udp
+        scan_type: "connect"
+
+        # Enable service version detection
+        service_detection: true
+
+        # Optional nmap scripts
+        # scripts:
+        #   - "banner"
+        #   - "http-title"
+
+        # Per-host timeout (seconds)
+        timeout: 300
+
+    # DNS enumeration and analysis
+    dns_enum:
+      enabled: true
+      options:
+        # Domains to enumerate (or use data/domains.yaml)
+        # domains:
+        #   - "example.com"
+
+        # Record types to query
+        record_types:
+          - A
+          - AAAA
+          - MX
+          - NS
+          - TXT
+          - SOA
+          - CNAME
+
+        # Security checks
+        check_zone_transfer: true
+        check_dnssec: true
+
+        # Optional: subdomain brute-force wordlist
+        # subdomain_wordlist: "/path/to/wordlist.txt"
+
+        # Query timeout (seconds)
+        timeout: 5
+
+    # Firewall/router configuration analysis (optional)
+    config_parse:
+      enabled: false  # Enable if you have config files to analyze
+      options:
+        # Directory containing config files
+        config_dir: "data/configs"
+
+        # Config type: auto, iptables, cisco_ios, cisco_asa, pfsense, fortigate
+        config_type: "auto"
+
+        # Analysis options
+        analyze_rules: true
+        check_best_practices: true
+
+  # ============================================================================
+  # Stage 2: Analysis
+  # Objective: Identify vulnerabilities, SSL issues, and calculate risk scores
+  # ============================================================================
+  2:
+    # SSL/TLS security analysis
+    ssl_analysis:
+      enabled: true
+      options:
+        # Targets are auto-detected from port_scan (HTTPS services)
+        # Or specify directly:
+        # targets:
+        #   - "example.com:443"
+
+        # Analysis options
+        check_certificates: true
+        check_ciphers: true
+        check_vulnerabilities: true
+
+        # Connection timeout (seconds)
+        timeout: 30
+
+    # Vulnerability assessment with nuclei
+    vuln_assess:
+      enabled: true
+      options:
+        # Targets are auto-detected from port_scan
+        # Or specify directly:
+        # targets:
+        #   - "https://example.com"
+
+        # Template categories to use
+        templates:
+          - cves
+          - misconfiguration
+          - exposed-panels
+          - default-logins
+          - takeovers
+          - vulnerabilities
+
+        # Minimum severity to report: info, low, medium, high, critical
+        severity: "low"
+
+        # Rate limiting (requests per second)
+        rate_limit: 100
+
+        # Total scan timeout (seconds)
+        timeout: 600
+
+        # Path to nuclei templates
+        template_path: "~/nuclei-templates"
+
+        # Templates to exclude
+        # exclude_templates:
+        #   - "dos"
+
+    # Web application scanning (nikto, ZAP)
+    web_scan:
+      enabled: true
+      options:
+        # Targets are auto-detected from port_scan (HTTP/HTTPS services)
+        # Or specify directly:
+        # targets:
+        #   - "https://example.com"
+
+        # Scanners to use
+        scanners:
+          - nikto
+          - zap
+
+        # Scan mode: quick, standard, full
+        scan_mode: "standard"
+
+        # Per-target timeout (seconds)
+        timeout: 600
+
+    # Compliance assessment (ANSSI, NIST, CIS)
+    compliance:
+      enabled: true
+      options:
+        # Frameworks to evaluate
+        frameworks:
+          - anssi   # Primary: French ANSSI
+          - nist    # NIST Cybersecurity Framework
+          - cis     # CIS Controls v8
+
+        # ANSSI level: essential, standard, reinforced
+        anssi_level: "standard"
+
+        # Generate remediation recommendations
+        include_recommendations: true
+
+    # Risk scoring and aggregation
+    risk_network:
+      enabled: true
+      options:
+        # Risk factor weights (must sum to 1.0)
+        weights:
+          vulnerabilities: 0.40   # CVEs and security findings
+          ssl_issues: 0.20        # TLS/SSL problems
+          exposure: 0.25          # Dangerous service exposure
+          dns_issues: 0.15        # DNS misconfigurations
+
+        # Risk level thresholds (score out of 10)
+        thresholds:
+          critical: 8.0
+          high: 6.0
+          medium: 4.0
+          low: 2.0
+
+        # Generate remediation priorities
+        include_remediation: true
+
+  # ============================================================================
+  # Stage 3: Reporting
+  # Objective: Generate comprehensive security report
+  # ============================================================================
+  3:
+    # Security report generation
+    section_security:
+      enabled: true
+      options:
+        # Output format: markdown or json
+        output_format: "markdown"
+
+        # Report sections
+        include_executive_summary: true
+        include_technical_details: true
+        include_remediation_plan: true
+
+        # Report language: en or fr
+        language: "en"
+
+        # Maximum findings to include in detail
+        max_findings: 50

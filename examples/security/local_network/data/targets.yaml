@@ -1,0 +1,19 @@
+# Local Network Scan Targets
+# Adjust these to match your network
+#
+# IMPORTANT: Only scan networks you are authorized to test!
+
+targets:
+  # Example: scan local subnet
+  - "127.0.0.1"           # Localhost (safe for testing)
+  # - "192.168.1.0/24"    # Uncomment and adjust for your network
+  # - "10.0.0.1-10"       # IP range example
+
+exclude:
+  # Hosts to skip
+  # - "192.168.1.1"       # Gateway
+  # - "192.168.1.254"     # Router
+
+methods:
+  - ping                  # ICMP/TCP ping sweep
+  # - arp                 # ARP scan (requires root, local network only)
