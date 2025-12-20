@@ -17,7 +17,8 @@
 #
 # Usage:
 #   ./launch_ragix.sh           # Interactive menu
-#   ./launch_ragix.sh gui       # Launch GUI directly
+#   ./launch_ragix.sh gui       # Launch Streamlit GUI (port 8501)
+#   ./launch_ragix.sh web       # Launch RAGIX-WEB FastAPI (port 8080)
 #   ./launch_ragix.sh demo      # Run Claude demo
 #   ./launch_ragix.sh mcp       # Start MCP server
 #   ./launch_ragix.sh test      # Run LLM backend test
@@ -249,6 +250,20 @@ launch_test() {
     bash "$SCRIPT_DIR/examples/test_llm_backends.sh"
 }
 
+launch_ragix_web() {
+    echo ""
+    echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║${NC}  Launching RAGIX-WEB (FastAPI Advanced UI)                       ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  URL: ${CYAN}http://localhost:8080${NC}                                      ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  Note: Creates config/cache in ~/.ragix/                         ${GREEN}║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${YELLOW}Press Ctrl+C to stop${NC}"
+    echo ""
+
+    ragix-web
+}
+
 # =============================================================================
 # Interactive Menu
 # =============================================================================
@@ -257,15 +272,16 @@ show_menu() {
     echo ""
     echo -e "${BOLD}What would you like to do?${NC}"
     echo ""
-    echo -e "  ${GREEN}1)${NC} Launch Web GUI         ${CYAN}(Streamlit interface)${NC}"
+    echo -e "  ${GREEN}1)${NC} Launch Streamlit GUI   ${CYAN}(Classic interface, port 8501)${NC}"
     echo -e "  ${GREEN}2)${NC} Run Claude Demo        ${CYAN}(Feature demonstration)${NC}"
     echo -e "  ${GREEN}3)${NC} Start MCP Server       ${CYAN}(For Claude Desktop/Code)${NC}"
     echo -e "  ${GREEN}4)${NC} Test LLM Backends      ${CYAN}(Compare Ollama models)${NC}"
     echo -e "  ${GREEN}5)${NC} Python Shell           ${CYAN}(Interactive RAGIX)${NC}"
     echo -e "  ${GREEN}6)${NC} Check Ollama Status    ${CYAN}(View available models)${NC}"
+    echo -e "  ${GREEN}7)${NC} Launch RAGIX-WEB       ${CYAN}(Advanced FastAPI UI, port 8080)${NC}"
     echo -e "  ${GREEN}q)${NC} Quit"
     echo ""
-    read -p "Select option [1-6, q]: " choice
+    read -p "Select option [1-7, q]: " choice
 
     case $choice in
         1) launch_gui ;;
@@ -285,6 +301,7 @@ show_menu() {
             echo ""
             show_menu
             ;;
+        7) launch_ragix_web ;;
         q|Q)
             echo ""
             echo -e "${GREEN}Goodbye!${NC}"
@@ -349,6 +366,9 @@ main() {
         gui)
             launch_gui
             ;;
+        web)
+            launch_ragix_web
+            ;;
         demo)
             launch_demo
             ;;
@@ -363,7 +383,7 @@ main() {
             ;;
         *)
             echo -e "${RED}Unknown option: $1${NC}"
-            echo "Usage: $0 [gui|demo|mcp|test]"
+            echo "Usage: $0 [gui|web|demo|mcp|test]"
             exit 1
             ;;
     esac

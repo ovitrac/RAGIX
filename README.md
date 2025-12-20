@@ -68,20 +68,58 @@ RAGIX is not just a tool—it's a platform for building sovereign AI systems:
 
 ---
 
-## Quick Start (30 seconds)
+## Quick Start
+
+### Option A: One-Click Launcher (Conda + Streamlit GUI)
 
 ```bash
-# Clone and setup
+git clone https://github.com/ovitrac/RAGIX.git
+cd RAGIX
+./launch_ragix.sh
+```
+
+This script automatically:
+- Initializes Conda and creates `ragix-env` environment
+- Installs all dependencies + RAGIX package
+- Checks Ollama status and available models
+- Presents an interactive menu (select **option 7** for `ragix-web`)
+
+### Option B: Manual Setup (venv)
+
+```bash
 git clone https://github.com/ovitrac/RAGIX.git
 cd RAGIX
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
 
-# Start the flagship Web UI
-python ragix_web/server.py
+# Install dependencies then RAGIX package (BOTH required!)
+pip install -r requirements.txt
+pip install -e .   # MUST run after requirements.txt (required to install ragix-web)
+
+# Start the Web UI
+ragix-web
 ```
 
-Open **http://localhost:8421** — You have access to:
+> **Common Error:** `ModuleNotFoundError: No module named 'ragix_core'`
+> **Solution:** Run `pip install -e .` — this installs RAGIX itself, not just dependencies.
+
+### Option C: Conda Environment
+
+```bash
+git clone https://github.com/ovitrac/RAGIX.git
+cd RAGIX
+conda env create -f environment.yaml
+conda activate ragix-env
+pip install -e .
+
+ragix-web
+```
+
+---
+
+### Web UI Access
+
+**`ragix-web`** is the most advanced interface with full AI capabilities. It opens **http://localhost:8080** and provides:
+
 - **Dashboard** — Project overview and metrics
 - **Chat** — AI-assisted coding with local LLMs
 - **Reasoning** — Multi-step workflow visualization
@@ -90,7 +128,35 @@ Open **http://localhost:8421** — You have access to:
 - **Audit** — Risk matrix, drift tracking, compliance
 - **Partitioner** — Visual dependency graphs with propagation algorithms
 
+> **Note:** `ragix-web` creates configuration and cache files in `$HOME/.ragix/` for session persistence.
+
 > **Tip:** For full AI capabilities, start Ollama: `ollama serve && ollama pull mistral`
+
+### Available Launchers
+
+| Launcher | Description |
+|----------|-------------|
+| `./launch_ragix.sh` | Interactive menu with 7 options (Conda) |
+| `./launch_ragix.sh gui` | Direct: Streamlit GUI (port 8501) |
+| `./launch_ragix.sh web` | Direct: **RAGIX-WEB** FastAPI (port 8080) |
+| `./launch_ragix.sh mcp` | Direct: MCP server |
+| `source ragixinit.sh` | Set environment variables (model, sandbox, profile) |
+
+### CLI Entry Points (after `pip install -e .`)
+
+| Command | Description |
+|---------|-------------|
+| `ragix-web` | **Most advanced UI** — FastAPI (port 8080), creates `~/.ragix/` |
+| `ragix` | Core CLI with subcommands |
+| `ragix-unix-agent` | Interactive Unix-RAG agent |
+| `ragix-ast` | AST analysis (scan, metrics, hotspots) |
+| `ragix-koas` | KOAS kernel orchestrator |
+| `ragix-index` | Project indexing for RAG |
+| `ragix-batch` | Batch processing pipelines |
+| `ragix-vault` | Encrypted credential vault |
+| `ragix-wasp` | WASP security scanner |
+
+> **Without install:** `PYTHONPATH=. python ragix_web/server.py`
 
 ---
 

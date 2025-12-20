@@ -1,8 +1,8 @@
 # =============================================================================
-# RAGIX v0.33.0 Requirements
+# RAGIX v0.62.0 Requirements
 # =============================================================================
 #
-# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-09
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-20
 #
 # Install:
 #   pip install -r requirements.txt
