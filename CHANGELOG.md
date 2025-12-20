@@ -6,6 +6,129 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.62.0 — KOAS MCP Consolidation, Demo UI & Academic Documentation (2025-12-20)
+
+### Highlights
+
+**KOAS is now fully consolidated with 38 MCP tools, an interactive demo UI, and comprehensive academic-level documentation explaining MCP as a protocol and reasoning engine architectures.**
+
+| Feature | Status |
+|---------|--------|
+| Total MCP Tools | ✅ 38 tools (11 core + 5 system + 6 KOAS base + 8 security + 8 audit) |
+| KOAS Demo UI | ✅ FastAPI + WebSocket with chat, history, markdown rendering |
+| MCP Documentation | ✅ Protocol-first academic documentation (800+ lines) |
+| Reasoning Documentation | ✅ ContractiveReasoner + v30 deep dive (600+ lines) |
+| Documentation Index | ✅ Navigation hub linking all docs |
+
+### KOAS Demo UI (`demos/koas_mcp_demo/`)
+
+Interactive web interface for testing KOAS MCP tools:
+
+```
+demos/koas_mcp_demo/
+├── server.py          # FastAPI server with WebSocket, memory management
+├── static/
+│   ├── index.html     # Demo UI with 4 tabs
+│   ├── css/koas_demo.css
+│   └── js/koas_client.js
+└── README.md
+```
+
+**Features:**
+- **Chat interface** with markdown rendering (marked.js)
+- **History sidebar** — conversation tracking with save/restore sessions
+- **Tool trace panel** — real-time tool execution visualization
+- **Model selector** — Ollama model selection
+- **Scenario browser** — Quick/Full Security/Audit presets
+- **Dry-run mode** — safe testing without actual execution
+- **Memory management** — conversation context with clear/save/load
+
+### Academic Documentation
+
+#### `docs/MCP.md` — Model Context Protocol (800+ lines)
+
+Addresses common misconceptions about MCP:
+- **Protocol vs System** — MCP is a communication protocol, not an orchestration engine
+- **Local/Remote/Sovereign** — Works with any LLM deployment model
+- **Stochastic vs Deterministic** — Hybrid backends explained
+- **Complete tool reference** — All 38 tools documented with parameters
+- **Deployment topologies** — Local, team server, hybrid, multi-server collective
+- **Collective intelligence** — Multi-agent patterns, information exchange beyond text
+- **FAQ section** — "Do we need MCP if tools are local?" and other questions
+
+#### `docs/REASONING.md` — Reasoning Engines (600+ lines)
+
+Comprehensive coverage of RAGIX reasoning systems:
+- **ContractiveReasoner** — Tree-based decomposition with Banach fixed-point theorem
+- **Reasoning v30** — Graph-based state machine with 7-node pipeline
+- **Mathematical foundations** — Entropy metrics, decision logic, state machines
+- **Comparison guide** — When to use which engine
+- **MCP integration** — How reasoning engines leverage KOAS tools
+- **Configuration reference** — Complete parameter documentation
+
+#### `docs/INDEX.md` — Documentation Navigation Hub
+
+- Visual documentation map
+- Reading order by goal (audit, security, custom reasoning)
+- Glossary of key terms
+- Cross-references between documents
+
+### MCP Tools Summary (38 Total)
+
+```
+RAGIX Core (11 tools)
+├── ragix_chat, ragix_scan_repo, ragix_read_file, ragix_search
+├── ragix_workflow, ragix_templates, ragix_config, ragix_health
+└── ragix_logs, ragix_verify_logs, ragix_agent_step
+
+System (5 tools)
+├── ragix_ast_scan, ragix_ast_metrics
+└── ragix_models_list, ragix_model_info, ragix_system_info
+
+KOAS Base (6 tools)
+├── koas_init, koas_run, koas_status
+└── koas_summary, koas_list_kernels, koas_report
+
+KOAS Security (8 tools)
+├── koas_security_discover, koas_security_scan_ports
+├── koas_security_ssl_check, koas_security_vuln_scan
+├── koas_security_dns_check, koas_security_compliance
+└── koas_security_risk, koas_security_report
+
+KOAS Audit (8 tools)
+├── koas_audit_scan, koas_audit_metrics
+├── koas_audit_hotspots, koas_audit_dependencies
+├── koas_audit_dead_code, koas_audit_risk
+└── koas_audit_compliance, koas_audit_report
+```
+
+### KOAS Helpers (`MCP/koas_helpers.py`)
+
+- Auto-workspace creation in `/tmp/koas_{category}_{timestamp}_{uuid}`
+- Output simplification for LLM consumption (< 300 char summaries)
+- Target resolution (`"discovered"` keyword for chaining)
+- Port presets (common, web, database, admin, top100, full)
+- Compliance framework presets (ANSSI, NIST, CIS)
+- Dependency path loading for kernel chaining
+
+### Design Principles
+
+1. **Protocol-first** — MCP standardizes communication, not orchestration
+2. **Deterministic kernels** — LLMs reason, kernels compute—no hallucinated metrics
+3. **Single values** instead of arrays (use `"discovered"` for chaining)
+4. **Preset strings** instead of complex configurations
+5. **Mandatory summaries** (< 300 chars) in every response
+6. **Auto-workspace** — temporary workspaces created automatically
+
+### Target Hardware
+
+Optimized for testing on DELL GB10 (NVIDIA OEM, 128GB VRAM):
+- Mistral 7B (baseline, ~70% tool accuracy)
+- Llama 3.1 70B (target, 90%+ accuracy)
+- DeepSeek-V2 236B (95%+ accuracy)
+
+---
+
 ## v0.61.0 — Security Kernels & Interactive Demos (2025-12-17)
 
 ### Highlights
@@ -1291,15 +1414,18 @@ mcp:
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| **v0.8** | *Planned* | WASP: WebAssembly sandbox, browser runtime |
-| **v0.7.1** | 2025-11-26 | Unified config, log hashing, CLI, MCP consolidation |
-| **v0.7.0** | 2025-11-25 | Launcher, Web GUI, LLM backends |
+| **v0.62** | 2025-12-20 | KOAS MCP Consolidation, Demo UI, Academic docs (MCP, REASONING) |
+| **v0.61** | 2025-12-17 | Security Kernels (10), ANSSI/NIST/CIS compliance |
+| **v0.60** | 2025-12-14 | MCP Enhancement, Parallel KOAS, System tools |
+| **v0.10.1** | 2025-11-27 | Advanced Visualization, DSM, Radial Explorer |
+| **v0.10** | 2025-11-27 | AST Analysis, Code Metrics, Multi-Language |
+| **v0.9** | 2025-11-26 | WASP Tools, Browser Runtime |
+| **v0.8** | 2025-11-26 | Plugin System, SWE Workflows, WASP Foundation |
+| **v0.7.1** | 2025-11-26 | Unified config, log hashing, CLI |
+| **v0.7** | 2025-11-25 | Launcher, Web GUI, LLM backends |
 | **v0.6** | 2025-11-24 | Monitoring, resilience, caching |
 | **v0.5** | 2025-11-23 | ragix_core package, workflows, hybrid search |
 | **v0.4** | 2025-11-20 | MCP integration, Unix toolbox |
-| **v0.3** | 2025-11 | Original release |
-| **v0.2** | 2025-10 | Experimental |
-| **v0.1** | 2025-09 | Prototype |
 
 ## Related Documents
 

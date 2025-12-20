@@ -57,6 +57,13 @@ openpyxl>=3.1.0
 # Streamlit web framework
 streamlit>=1.28.0
 
+# FastAPI web framework (for ragix_web, koas_mcp_demo)
+fastapi>=0.109.0
+uvicorn>=0.27.0
+
+# Async HTTP client (for Ollama API in async contexts)
+httpx>=0.26.0
+
 # -----------------------------------------------------------------------------
 # Cloud LLM Backends (Optional - breaks sovereignty)
 # -----------------------------------------------------------------------------

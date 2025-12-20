@@ -1,0 +1,25 @@
+{
+  "hosts": [
+    {
+      "ip": "127.0.0.1",
+      "status": "up",
+      "hostname": "localhost",
+      "mac": null,
+      "vendor": null,
+      "discovery_method": "nmap_ping"
+    }
+  ],
+  "targets": [
+    "127.0.0.1"
+  ],
+  "exclude": [],
+  "statistics": {
+    "targets_scanned": 1,
+    "methods_used": [
+      "ping"
+    ],
+    "hosts_up": 1,
+    "hosts_down": 0,
+    "scan_time_sec": 0.0
+  }
+}

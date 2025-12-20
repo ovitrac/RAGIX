@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-RAGIX MCP Server v0.8.0
-=======================
+RAGIX MCP Server v0.62.0
+========================
 
 Expose the RAGIX multi-agent orchestration platform as an MCP server so that
 MCP clients (Claude Desktop, Cursor, Claude Code, etc.) can use RAGIX tools.
@@ -59,8 +59,63 @@ v0.8.0 Tools:
 15. ragix_system_info()
     - Get comprehensive system information (GPU, CPU, memory).
 
-KOAS Tools Enhanced:
-- koas_run: Added parallel execution support (parallel=True, workers=4)
+v0.62.0 KOAS Security Tools (LLM-optimized):
+16. koas_security_discover(target, method, timeout, workspace)
+    - Network host discovery with nmap/arp-scan.
+
+17. koas_security_scan_ports(target, ports, detect_services, workspace)
+    - Port scanning with preset port groups.
+
+18. koas_security_ssl_check(target, check_ciphers, check_vulnerabilities, workspace)
+    - SSL/TLS certificate and cipher analysis.
+
+19. koas_security_vuln_scan(target, severity, templates, workspace)
+    - Vulnerability assessment with nuclei templates.
+
+20. koas_security_dns_check(domain, check_security, workspace)
+    - DNS enumeration and security record analysis.
+
+21. koas_security_compliance(workspace, framework, level)
+    - Compliance checking (ANSSI, NIST CSF, CIS Controls).
+
+22. koas_security_risk(workspace, top_hosts)
+    - Network security risk scoring.
+
+23. koas_security_report(workspace, format, language)
+    - Security assessment report generation.
+
+v0.62.0 KOAS Audit Tools (LLM-optimized):
+24. koas_audit_scan(project_path, language, include_tests, workspace)
+    - AST scanning and symbol extraction.
+
+25. koas_audit_metrics(workspace, threshold_cc, threshold_loc)
+    - Code metrics (complexity, LOC, maintainability).
+
+26. koas_audit_hotspots(workspace, top_n)
+    - Complexity and risk hotspot identification.
+
+27. koas_audit_dependencies(workspace, detect_cycles)
+    - Dependency analysis and cycle detection.
+
+28. koas_audit_dead_code(workspace)
+    - Dead/unused code detection.
+
+29. koas_audit_risk(workspace, include_volumetry)
+    - Code risk scoring and assessment.
+
+30. koas_audit_compliance(workspace, standard)
+    - Code quality compliance checking.
+
+31. koas_audit_report(workspace, format, language)
+    - Audit report generation.
+
+KOAS Base Tools:
+- koas_init: Initialize audit workspace
+- koas_run: Execute stages with parallel support (parallel=True, workers=4)
+- koas_status: Get workspace status
+- koas_summary: Get kernel summaries
+- koas_list_kernels: List available kernels
+- koas_report: Get generated report
 
 Installation
 ------------
@@ -1762,7 +1817,1753 @@ def ragix_system_info() -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# 10. Entry point
+# 10. KOAS Security Tools (v0.62.0) - Simplified for LLM consumption
+# ---------------------------------------------------------------------------
+
+# Import KOAS helpers
+try:
+    from koas_helpers import (
+        get_or_create_workspace,
+        simplify_output,
+        generate_summary,
+        extract_action_items,
+        save_results,
+        load_stage_results,
+        load_stage_dependency_paths,
+        resolve_target,
+        resolve_ports,
+        wrap_kernel_error,
+        validate_target,
+        generate_security_manifest,
+        PORT_PRESETS,
+        COMPLIANCE_PRESETS,
+    )
+    KOAS_HELPERS_AVAILABLE = True
+except ImportError:
+    KOAS_HELPERS_AVAILABLE = False
+
+
+@mcp.tool()
+def koas_security_discover(
+    target: str,
+    method: str = "ping",
+    timeout: int = 120,
+    workspace: str = "",
+) -> Dict[str, Any]:
+    """
+    Discover hosts on a network segment.
+
+    Parameters
+    ----------
+    target : str
+        Target network or host (e.g., "192.168.1.0/24", "10.0.0.1").
+
+    method : str, default "ping"
+        Discovery method: "ping", "arp", or "list".
+
+    timeout : int, default 120
+        Scan timeout in seconds.
+
+    workspace : str, optional
+        Path to workspace. Auto-created if empty.
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "hosts": [{ip, mac, hostname}] (max 10),
+          "hosts_total": int,
+          "action_items": [str],
+          "workspace": str,
+          "details_file": str
+        }
+
+    Example
+    -------
+    >>> koas_security_discover("192.168.1.0/24")
+    {"summary": "Found 12 hosts. Most common: router, server, workstation.",
+     "hosts": [...], "hosts_total": 12, ...}
+    """
+    try:
+        # Validate inputs
+        is_valid, error_msg = validate_target(target)
+        if not is_valid:
+            return {"error": error_msg, "summary": f"Invalid target: {error_msg}"}
+
+        # Get or create workspace
+        ws = get_or_create_workspace(workspace if workspace else None, "security")
+
+        # Import and run kernel
+        from ragix_kernels.security.net_discover import NetDiscoverKernel
+        from ragix_kernels.base import KernelInput
+
+        kernel = NetDiscoverKernel()
+        kernel_input = KernelInput(
+            workspace=ws,
+            config={
+                "targets": [target],
+                "methods": [method],
+                "timeout": timeout,
+            },
+            dependencies={},
+        )
+
+        result = kernel.compute(kernel_input)
+
+        # Save full results
+        details_file = save_results(ws, 1, "net_discover", result)
+
+        # Simplify for LLM
+        simplified = simplify_output(result, max_items=10)
+        simplified["workspace"] = str(ws)
+        simplified["details_file"] = str(details_file)
+        simplified["summary"] = generate_summary(result, f"Network discovery on {target}.")
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "net_discover")
+
+
+@mcp.tool()
+def koas_security_scan_ports(
+    target: str = "discovered",
+    ports: str = "common",
+    detect_services: bool = True,
+    workspace: str = "",
+) -> Dict[str, Any]:
+    """
+    Scan ports on target hosts.
+
+    Parameters
+    ----------
+    target : str, default "discovered"
+        Target specification. Use "discovered" to scan hosts from net_discover.
+
+    ports : str, default "common"
+        Port specification: "common", "web", "database", "admin", "top100", "full",
+        or custom (e.g., "22,80,443" or "1-1000").
+
+    detect_services : bool, default True
+        Attempt service/version detection.
+
+    workspace : str
+        Path to existing workspace (required if target="discovered").
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "ports": [{port, protocol, state, service}] (max 10),
+          "ports_total": int,
+          "services_found": [str],
+          "action_items": [str],
+          "details_file": str
+        }
+
+    Example
+    -------
+    >>> koas_security_scan_ports("192.168.1.1", ports="web")
+    {"summary": "Found 3 open ports: 80/http, 443/https, 8080/http-proxy.",
+     "ports": [...], ...}
+    """
+    try:
+        # Get workspace
+        ws = get_or_create_workspace(workspace if workspace else None, "security")
+
+        # Resolve target
+        targets = resolve_target(target, ws)
+        if not targets:
+            return {"error": "No targets found", "summary": "No targets to scan."}
+
+        # Resolve ports
+        port_spec = resolve_ports(ports)
+
+        # Import and run kernel
+        from ragix_kernels.security.port_scan import PortScanKernel
+        from ragix_kernels.base import KernelInput
+
+        kernel = PortScanKernel()
+        kernel_input = KernelInput(
+            workspace=ws,
+            config={
+                "targets": targets,
+                "ports": port_spec,
+                "service_detection": detect_services,
+            },
+            dependencies=load_stage_dependency_paths(ws, 1),
+        )
+
+        result = kernel.compute(kernel_input)
+
+        # Save results
+        details_file = save_results(ws, 1, "port_scan", result)
+
+        # Simplify
+        simplified = simplify_output(result, max_items=10)
+        simplified["workspace"] = str(ws)
+        simplified["details_file"] = str(details_file)
+
+        # Extract service names
+        if "ports" in result:
+            services = list(set(p.get("service", "unknown") for p in result["ports"] if p.get("service")))
+            simplified["services_found"] = services[:10]
+
+        simplified["summary"] = generate_summary(result, f"Port scan on {len(targets)} host(s).")
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "port_scan")
+
+
+@mcp.tool()
+def koas_security_ssl_check(
+    target: str = "discovered",
+    check_ciphers: bool = True,
+    check_vulnerabilities: bool = True,
+    workspace: str = "",
+) -> Dict[str, Any]:
+    """
+    Analyze SSL/TLS configuration and certificates.
+
+    Parameters
+    ----------
+    target : str, default "discovered"
+        Target specification. Use "discovered" for hosts with HTTPS ports.
+
+    check_ciphers : bool, default True
+        Check cipher suite security.
+
+    check_vulnerabilities : bool, default True
+        Check for known TLS vulnerabilities (POODLE, BEAST, etc.).
+
+    workspace : str
+        Path to existing workspace.
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "certificates": [{subject, issuer, expires, valid}] (max 5),
+          "weak_ciphers": [str],
+          "vulnerabilities": [str],
+          "tls_versions": {version: supported},
+          "action_items": [str],
+          "details_file": str
+        }
+
+    Example
+    -------
+    >>> koas_security_ssl_check("example.com")
+    {"summary": "TLS 1.2+ supported. Certificate valid until 2025-06-15. 2 weak ciphers found.",
+     "certificates": [...], ...}
+    """
+    try:
+        ws = get_or_create_workspace(workspace if workspace else None, "security")
+        targets = resolve_target(target, ws)
+
+        if not targets:
+            return {"error": "No targets found", "summary": "No targets for SSL analysis."}
+
+        # Import and run kernel
+        from ragix_kernels.security.ssl_analysis import SSLAnalysisKernel
+        from ragix_kernels.base import KernelInput
+
+        kernel = SSLAnalysisKernel()
+        kernel_input = KernelInput(
+            workspace=ws,
+            config={
+                "targets": targets,
+                "check_ciphers": check_ciphers,
+                "check_vulnerabilities": check_vulnerabilities,
+            },
+            dependencies=load_stage_dependency_paths(ws, 1),
+        )
+
+        result = kernel.compute(kernel_input)
+
+        # Save results
+        details_file = save_results(ws, 2, "ssl_analysis", result)
+
+        # Simplify
+        simplified = simplify_output(result, max_items=5)
+        simplified["workspace"] = str(ws)
+        simplified["details_file"] = str(details_file)
+
+        # Extract key findings
+        if "weak_ciphers" in result:
+            simplified["weak_ciphers"] = result["weak_ciphers"][:5]
+        if "vulnerabilities" in result:
+            simplified["vulnerabilities"] = [v.get("name", str(v)) if isinstance(v, dict) else v
+                                             for v in result.get("vulnerabilities", [])[:5]]
+
+        simplified["summary"] = generate_summary(result, "SSL/TLS analysis completed.")
+        simplified["action_items"] = extract_action_items(result)
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "ssl_analysis")
+
+
+@mcp.tool()
+def koas_security_vuln_scan(
+    target: str = "discovered",
+    severity: str = "medium",
+    templates: str = "default",
+    workspace: str = "",
+) -> Dict[str, Any]:
+    """
+    Scan for known vulnerabilities.
+
+    Parameters
+    ----------
+    target : str, default "discovered"
+        Target specification.
+
+    severity : str, default "medium"
+        Minimum severity to report: "info", "low", "medium", "high", "critical".
+
+    templates : str, default "default"
+        Template set: "default", "cves", "misconfigs", "exposures", or "all".
+
+    workspace : str
+        Path to existing workspace.
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "vulnerabilities": [{id, severity, title, host}] (max 10),
+          "vulnerabilities_total": int,
+          "critical_count": int,
+          "high_count": int,
+          "action_items": [str],
+          "details_file": str
+        }
+
+    Example
+    -------
+    >>> koas_security_vuln_scan("192.168.1.0/24", severity="high")
+    {"summary": "Found 5 vulnerabilities: 1 critical, 4 high. CVE-2024-1234 on 192.168.1.10.",
+     "vulnerabilities": [...], ...}
+    """
+    try:
+        ws = get_or_create_workspace(workspace if workspace else None, "security")
+        targets = resolve_target(target, ws)
+
+        if not targets:
+            return {"error": "No targets found", "summary": "No targets for vulnerability scan."}
+
+        # Map severity to threshold
+        severity_order = ["info", "low", "medium", "high", "critical"]
+        min_severity = severity.lower()
+
+        # Import and run kernel
+        from ragix_kernels.security.vuln_assess import VulnAssessKernel
+        from ragix_kernels.base import KernelInput
+
+        kernel = VulnAssessKernel()
+        kernel_input = KernelInput(
+            workspace=ws,
+            config={
+                "targets": targets,
+                "min_severity": min_severity,
+                "templates": templates,
+            },
+            dependencies={**load_stage_dependency_paths(ws, 1), **load_stage_dependency_paths(ws, 2)},
+        )
+
+        result = kernel.compute(kernel_input)
+
+        # Save results
+        details_file = save_results(ws, 2, "vuln_assess", result)
+
+        # Simplify
+        simplified = simplify_output(result, max_items=10)
+        simplified["workspace"] = str(ws)
+        simplified["details_file"] = str(details_file)
+
+        # Count by severity
+        vulns = result.get("vulnerabilities", [])
+        simplified["critical_count"] = sum(1 for v in vulns if v.get("severity", "").lower() == "critical")
+        simplified["high_count"] = sum(1 for v in vulns if v.get("severity", "").lower() == "high")
+        simplified["vulnerabilities_total"] = len(vulns)
+
+        simplified["summary"] = generate_summary(result, f"Vulnerability scan on {len(targets)} target(s).")
+        simplified["action_items"] = extract_action_items(result)
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "vuln_assess")
+
+
+@mcp.tool()
+def koas_security_dns_check(
+    domain: str,
+    check_security: bool = True,
+    workspace: str = "",
+) -> Dict[str, Any]:
+    """
+    Analyze DNS configuration and security.
+
+    Parameters
+    ----------
+    domain : str
+        Domain name to analyze.
+
+    check_security : bool, default True
+        Check security records (SPF, DKIM, DMARC, DNSSEC).
+
+    workspace : str
+        Path to workspace.
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "records": {A, AAAA, MX, NS, TXT, ...},
+          "security": {spf, dkim, dmarc, dnssec},
+          "subdomains": [str] (if enumerated),
+          "action_items": [str],
+          "details_file": str
+        }
+
+    Example
+    -------
+    >>> koas_security_dns_check("example.com")
+    {"summary": "Domain has 2 MX, 4 NS records. SPF: OK, DMARC: missing, DNSSEC: enabled.",
+     "records": {...}, "security": {...}, ...}
+    """
+    try:
+        ws = get_or_create_workspace(workspace if workspace else None, "security")
+
+        # Import and run kernel
+        from ragix_kernels.security.dns_enum import DNSEnumKernel
+        from ragix_kernels.base import KernelInput
+
+        kernel = DNSEnumKernel()
+        kernel_input = KernelInput(
+            workspace=ws,
+            config={
+                "domains": [domain],
+                "check_security": check_security,
+            },
+            dependencies={},
+        )
+
+        result = kernel.compute(kernel_input)
+
+        # Save results
+        details_file = save_results(ws, 1, "dns_enum", result)
+
+        # Build simplified response
+        simplified = {
+            "status": "completed",
+            "workspace": str(ws),
+            "details_file": str(details_file),
+        }
+
+        # Extract records
+        if "records" in result:
+            simplified["records"] = result["records"]
+        if "security" in result:
+            simplified["security"] = result["security"]
+        if "subdomains" in result:
+            simplified["subdomains"] = result["subdomains"][:20]
+
+        # Generate summary
+        summary_parts = [f"DNS analysis for {domain}."]
+        if "security" in result:
+            sec = result["security"]
+            status = []
+            if sec.get("spf"):
+                status.append("SPF: OK")
+            else:
+                status.append("SPF: missing")
+            if sec.get("dmarc"):
+                status.append("DMARC: OK")
+            else:
+                status.append("DMARC: missing")
+            if sec.get("dnssec"):
+                status.append("DNSSEC: enabled")
+            summary_parts.append(" ".join(status))
+
+        simplified["summary"] = " ".join(summary_parts)[:300]
+        simplified["action_items"] = extract_action_items(result)
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "dns_enum")
+
+
+@mcp.tool()
+def koas_security_compliance(
+    workspace: str,
+    framework: str = "anssi",
+    level: str = "standard",
+) -> Dict[str, Any]:
+    """
+    Check compliance against security frameworks.
+
+    Parameters
+    ----------
+    workspace : str
+        Path to workspace with prior scan results.
+
+    framework : str, default "anssi"
+        Compliance framework: "anssi", "nist", or "cis".
+
+    level : str, default "standard"
+        Compliance level: "essential", "standard", "reinforced" (ANSSI),
+        or "IG1", "IG2", "IG3" (CIS).
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "compliance_score": float (0-100),
+          "framework": str,
+          "passed": int,
+          "failed": int,
+          "findings": [{rule_id, status, recommendation}] (max 10),
+          "action_items": [str],
+          "details_file": str
+        }
+
+    Example
+    -------
+    >>> koas_security_compliance(workspace="/tmp/koas_123", framework="anssi")
+    {"summary": "ANSSI compliance: 75%. 30/40 controls passed. 3 critical gaps.",
+     "compliance_score": 75.0, "findings": [...], ...}
+    """
+    try:
+        ws = Path(workspace)
+        if not ws.exists():
+            return {"error": f"Workspace not found: {workspace}", "summary": "Workspace not found."}
+
+        # Import and run kernel
+        from ragix_kernels.security.compliance import ComplianceKernel
+        from ragix_kernels.base import KernelInput
+
+        kernel = ComplianceKernel()
+        kernel_input = KernelInput(
+            workspace=ws,
+            config={
+                "frameworks": [framework],
+                "anssi_level": level if framework == "anssi" else "standard",
+                "cis_implementation_group": level if framework == "cis" else "IG1",
+            },
+            dependencies={**load_stage_dependency_paths(ws, 1), **load_stage_dependency_paths(ws, 2)},
+        )
+
+        result = kernel.compute(kernel_input)
+
+        # Save results
+        details_file = save_results(ws, 2, "compliance", result)
+
+        # Simplify
+        simplified = {
+            "status": "completed",
+            "workspace": str(ws),
+            "details_file": str(details_file),
+            "framework": framework.upper(),
+        }
+
+        # Extract scores
+        if "compliance_scores" in result:
+            scores = result["compliance_scores"]
+            score_val = scores.get(framework, 0)
+            # Handle nested dict or direct value
+            if isinstance(score_val, dict):
+                simplified["compliance_score"] = score_val.get("score", 0)
+            else:
+                simplified["compliance_score"] = float(score_val) if score_val else 0
+
+        # Count passed/failed - handle both dict and list formats
+        raw_findings = result.get("findings", {})
+        if isinstance(raw_findings, dict):
+            findings = raw_findings.get(framework, [])
+        elif isinstance(raw_findings, list):
+            findings = raw_findings
+        else:
+            findings = []
+
+        simplified["passed"] = sum(1 for f in findings if isinstance(f, dict) and f.get("status") == "pass")
+        simplified["failed"] = sum(1 for f in findings if isinstance(f, dict) and f.get("status") == "fail")
+        simplified["findings"] = [f for f in findings if isinstance(f, dict) and f.get("status") == "fail"][:10]
+
+        # Summary
+        score = simplified.get("compliance_score", 0)
+        simplified["summary"] = f"{framework.upper()} compliance: {score:.0f}%. {simplified['passed']}/{simplified['passed']+simplified['failed']} controls passed."
+
+        simplified["action_items"] = extract_action_items(result)
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "compliance")
+
+
+@mcp.tool()
+def koas_security_risk(
+    workspace: str,
+    top_hosts: int = 5,
+) -> Dict[str, Any]:
+    """
+    Calculate network security risk scores.
+
+    Parameters
+    ----------
+    workspace : str
+        Path to workspace with prior scan results.
+
+    top_hosts : int, default 5
+        Number of highest-risk hosts to include.
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "risk_score": float (0-10),
+          "risk_level": str (LOW/MEDIUM/HIGH/CRITICAL),
+          "top_risks": [{host, score, factors}] (top N),
+          "risk_breakdown": {category: score},
+          "action_items": [str],
+          "details_file": str
+        }
+
+    Example
+    -------
+    >>> koas_security_risk(workspace="/tmp/koas_123")
+    {"summary": "Network risk: HIGH (7.2/10). Top risk: 192.168.1.50 (exposed SSH, outdated OpenSSL).",
+     "risk_score": 7.2, "risk_level": "HIGH", ...}
+    """
+    try:
+        ws = Path(workspace)
+        if not ws.exists():
+            return {"error": f"Workspace not found: {workspace}", "summary": "Workspace not found."}
+
+        # Import and run kernel
+        from ragix_kernels.security.risk_network import RiskNetworkKernel
+        from ragix_kernels.base import KernelInput
+
+        kernel = RiskNetworkKernel()
+        kernel_input = KernelInput(
+            workspace=ws,
+            config={"top_hosts": top_hosts},
+            dependencies={**load_stage_dependency_paths(ws, 1), **load_stage_dependency_paths(ws, 2)},
+        )
+
+        result = kernel.compute(kernel_input)
+
+        # Save results
+        details_file = save_results(ws, 2, "risk_network", result)
+
+        # Simplify
+        risk_score = result.get("risk_score", result.get("overall_risk", 0))
+        risk_level = "CRITICAL" if risk_score >= 8 else "HIGH" if risk_score >= 6 else "MEDIUM" if risk_score >= 4 else "LOW"
+
+        simplified = {
+            "status": "completed",
+            "workspace": str(ws),
+            "details_file": str(details_file),
+            "risk_score": round(risk_score, 1),
+            "risk_level": risk_level,
+        }
+
+        # Top risks
+        if "host_risks" in result:
+            simplified["top_risks"] = result["host_risks"][:top_hosts]
+        elif "top_risks" in result:
+            simplified["top_risks"] = result["top_risks"][:top_hosts]
+
+        # Risk breakdown
+        if "risk_breakdown" in result:
+            simplified["risk_breakdown"] = result["risk_breakdown"]
+
+        # Summary
+        simplified["summary"] = f"Network risk: {risk_level} ({risk_score:.1f}/10)."
+        if simplified.get("top_risks"):
+            top = simplified["top_risks"][0]
+            top_host = top.get("host", top.get("ip", "unknown"))
+            simplified["summary"] += f" Top risk: {top_host}."
+
+        simplified["action_items"] = extract_action_items(result)
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "risk_network")
+
+
+@mcp.tool()
+def koas_security_report(
+    workspace: str,
+    format: str = "summary",
+    language: str = "en",
+) -> Dict[str, Any]:
+    """
+    Generate security assessment report.
+
+    Parameters
+    ----------
+    workspace : str
+        Path to workspace with scan results.
+
+    format : str, default "summary"
+        Report format: "summary" (concise), "detailed" (full), or "executive".
+
+    language : str, default "en"
+        Report language: "en" (English) or "fr" (French).
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "report_file": str (path to full report),
+          "key_findings": [str] (top 5),
+          "recommendations": [str] (top 5),
+          "scores": {compliance, risk, ...}
+        }
+
+    Example
+    -------
+    >>> koas_security_report(workspace="/tmp/koas_123", format="executive")
+    {"summary": "Security assessment complete. 3 critical issues, 5 recommendations.",
+     "report_file": "/tmp/koas_123/stage3/security_report.md", ...}
+    """
+    try:
+        ws = Path(workspace)
+        if not ws.exists():
+            return {"error": f"Workspace not found: {workspace}", "summary": "Workspace not found."}
+
+        # Import and run kernel
+        from ragix_kernels.security.section_security import SectionSecurityKernel
+        from ragix_kernels.base import KernelInput
+
+        kernel = SectionSecurityKernel()
+        kernel_input = KernelInput(
+            workspace=ws,
+            config={
+                "format": format,
+                "language": language,
+                "include_recommendations": True,
+            },
+            dependencies={
+                **load_stage_dependency_paths(ws, 1),
+                **load_stage_dependency_paths(ws, 2),
+            },
+        )
+
+        result = kernel.compute(kernel_input)
+
+        # Save report
+        report_file = ws / "stage3" / "security_report.md"
+        (ws / "stage3").mkdir(parents=True, exist_ok=True)
+
+        if "report" in result:
+            with open(report_file, "w") as f:
+                f.write(result["report"])
+        elif "content" in result:
+            with open(report_file, "w") as f:
+                f.write(result["content"])
+
+        # Save JSON results too
+        details_file = save_results(ws, 3, "section_security", result)
+
+        # Build response
+        simplified = {
+            "status": "completed",
+            "workspace": str(ws),
+            "report_file": str(report_file) if report_file.exists() else None,
+            "details_file": str(details_file),
+        }
+
+        # Extract key findings and recommendations
+        if "key_findings" in result:
+            simplified["key_findings"] = result["key_findings"][:5]
+        elif "findings" in result:
+            simplified["key_findings"] = [f.get("title", str(f)) if isinstance(f, dict) else str(f)
+                                          for f in result["findings"][:5]]
+
+        if "recommendations" in result:
+            simplified["recommendations"] = [r.get("recommendation", str(r)) if isinstance(r, dict) else str(r)
+                                             for r in result["recommendations"][:5]]
+
+        # Scores
+        scores = {}
+        for key in ["compliance_score", "risk_score", "security_score"]:
+            if key in result:
+                scores[key.replace("_score", "")] = result[key]
+        if scores:
+            simplified["scores"] = scores
+
+        # Summary
+        findings_count = len(result.get("findings", result.get("key_findings", [])))
+        rec_count = len(result.get("recommendations", []))
+        simplified["summary"] = f"Security assessment complete. {findings_count} findings, {rec_count} recommendations. Report: {report_file.name}"
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "section_security")
+
+
+# ---------------------------------------------------------------------------
+# 11. KOAS Audit Tools (v0.62.0) - Simplified for LLM consumption
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def koas_audit_scan(
+    project_path: str,
+    language: str = "auto",
+    include_tests: bool = False,
+    workspace: str = "",
+) -> Dict[str, Any]:
+    """
+    Scan a codebase and extract AST symbols.
+
+    Parameters
+    ----------
+    project_path : str
+        Path to project directory or source file.
+
+    language : str, default "auto"
+        Programming language: "auto", "python", "java", "typescript".
+
+    include_tests : bool, default False
+        Include test files in the scan.
+
+    workspace : str, optional
+        Path to workspace. Auto-created if empty.
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "symbols_total": int,
+          "classes": int,
+          "methods": int,
+          "functions": int,
+          "files_scanned": int,
+          "top_files": [{file, symbols}] (top 10),
+          "workspace": str,
+          "details_file": str
+        }
+
+    Example
+    -------
+    >>> koas_audit_scan("/path/to/project", language="python")
+    {"summary": "Scanned 45 files. Found 120 classes, 580 methods, 95 functions.",
+     "symbols_total": 795, ...}
+    """
+    try:
+        ws = get_or_create_workspace(workspace if workspace else None, "audit")
+
+        # Resolve project path
+        project = Path(project_path)
+        if not project.is_absolute():
+            project = Path(SANDBOX_ROOT) / project_path
+
+        if not project.exists():
+            return {"error": f"Project not found: {project_path}", "summary": "Project path not found."}
+
+        # Use existing ragix_ast_scan or kernel
+        try:
+            from ragix_kernels.audit.ast_scan import ASTScanKernel
+            from ragix_kernels.base import KernelInput
+
+            kernel = ASTScanKernel()
+            kernel_input = KernelInput(
+                workspace=ws,
+                config={
+                    "source_path": str(project),
+                    "language": language,
+                    "include_tests": include_tests,
+                },
+                dependencies={},
+            )
+
+            result = kernel.compute(kernel_input)
+        except ImportError:
+            # Fallback to ragix-ast CLI
+            import subprocess
+            cmd = ["ragix-ast", "scan", str(project), "--language", language, "--format", "json"]
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            if proc.returncode == 0:
+                result = json.loads(proc.stdout)
+            else:
+                return {"error": f"Scan failed: {proc.stderr}", "summary": "AST scan failed."}
+
+        # Save results
+        details_file = save_results(ws, 1, "ast_scan", result)
+
+        # Simplify
+        symbols = result.get("symbols", [])
+        simplified = {
+            "status": "completed",
+            "workspace": str(ws),
+            "details_file": str(details_file),
+            "symbols_total": len(symbols),
+            "classes": sum(1 for s in symbols if s.get("type") == "class"),
+            "methods": sum(1 for s in symbols if s.get("type") == "method"),
+            "functions": sum(1 for s in symbols if s.get("type") == "function"),
+            "files_scanned": len(set(s.get("file", "") for s in symbols)),
+        }
+
+        # Top files by symbol count
+        from collections import Counter
+        file_counts = Counter(s.get("file", "") for s in symbols)
+        simplified["top_files"] = [{"file": f, "symbols": c} for f, c in file_counts.most_common(10)]
+
+        # Summary
+        simplified["summary"] = (
+            f"Scanned {simplified['files_scanned']} files. "
+            f"Found {simplified['classes']} classes, {simplified['methods']} methods, "
+            f"{simplified['functions']} functions."
+        )
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "ast_scan")
+
+
+@mcp.tool()
+def koas_audit_metrics(
+    workspace: str,
+    threshold_cc: int = 10,
+    threshold_loc: int = 300,
+) -> Dict[str, Any]:
+    """
+    Compute code metrics (complexity, LOC, maintainability).
+
+    Parameters
+    ----------
+    workspace : str
+        Path to workspace with prior scan results.
+
+    threshold_cc : int, default 10
+        Cyclomatic complexity threshold for flagging.
+
+    threshold_loc : int, default 300
+        Lines of code threshold for flagging.
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "total_loc": int,
+          "avg_complexity": float,
+          "maintainability_index": float,
+          "high_complexity": [{name, cc, file}] (top 10),
+          "large_files": [{file, loc}] (top 10),
+          "details_file": str
+        }
+
+    Example
+    -------
+    >>> koas_audit_metrics(workspace="/tmp/koas_123")
+    {"summary": "Total: 15,230 LOC, avg CC: 4.2. 8 high-complexity methods flagged.",
+     "total_loc": 15230, "avg_complexity": 4.2, ...}
+    """
+    try:
+        ws = Path(workspace)
+        if not ws.exists():
+            return {"error": f"Workspace not found: {workspace}", "summary": "Workspace not found."}
+
+        # Import and run kernel
+        from ragix_kernels.audit.metrics import MetricsKernel
+        from ragix_kernels.base import KernelInput
+
+        kernel = MetricsKernel()
+        kernel_input = KernelInput(
+            workspace=ws,
+            config={
+                "threshold_cc": threshold_cc,
+                "threshold_loc": threshold_loc,
+            },
+            dependencies=load_stage_dependency_paths(ws, 1),
+        )
+
+        result = kernel.compute(kernel_input)
+
+        # Save results
+        details_file = save_results(ws, 1, "metrics", result)
+
+        # Simplify
+        simplified = {
+            "status": "completed",
+            "workspace": str(ws),
+            "details_file": str(details_file),
+        }
+
+        # Extract key metrics
+        if "total_loc" in result:
+            simplified["total_loc"] = result["total_loc"]
+        if "avg_complexity" in result or "average_cc" in result:
+            simplified["avg_complexity"] = result.get("avg_complexity", result.get("average_cc", 0))
+        if "maintainability_index" in result:
+            simplified["maintainability_index"] = round(result["maintainability_index"], 1)
+
+        # High complexity items
+        if "high_complexity" in result:
+            simplified["high_complexity"] = result["high_complexity"][:10]
+        elif "complexity_violations" in result:
+            simplified["high_complexity"] = result["complexity_violations"][:10]
+
+        # Large files
+        if "large_files" in result:
+            simplified["large_files"] = result["large_files"][:10]
+
+        # Summary
+        loc = simplified.get("total_loc", 0)
+        cc = simplified.get("avg_complexity", 0)
+        high_cc = len(simplified.get("high_complexity", []))
+        simplified["summary"] = f"Total: {loc:,} LOC, avg CC: {cc:.1f}. {high_cc} high-complexity items flagged."
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "metrics")
+
+
+@mcp.tool()
+def koas_audit_hotspots(
+    workspace: str,
+    top_n: int = 20,
+) -> Dict[str, Any]:
+    """
+    Identify complexity and risk hotspots.
+
+    Parameters
+    ----------
+    workspace : str
+        Path to workspace with prior analysis.
+
+    top_n : int, default 20
+        Number of hotspots to return.
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "hotspots": [{name, file, score, factors}] (top N),
+          "risk_distribution": {high, medium, low},
+          "action_items": [str],
+          "details_file": str
+        }
+
+    Example
+    -------
+    >>> koas_audit_hotspots(workspace="/tmp/koas_123", top_n=10)
+    {"summary": "10 hotspots identified. Top: PaymentService.process (score: 8.5).",
+     "hotspots": [...], ...}
+    """
+    try:
+        ws = Path(workspace)
+        if not ws.exists():
+            return {"error": f"Workspace not found: {workspace}", "summary": "Workspace not found."}
+
+        # Import and run kernel
+        from ragix_kernels.audit.hotspots import HotspotsKernel
+        from ragix_kernels.base import KernelInput
+
+        kernel = HotspotsKernel()
+        kernel_input = KernelInput(
+            workspace=ws,
+            config={"top_n": top_n},
+            dependencies={**load_stage_dependency_paths(ws, 1), **load_stage_dependency_paths(ws, 2)},
+        )
+
+        result = kernel.compute(kernel_input)
+
+        # Save results
+        details_file = save_results(ws, 2, "hotspots", result)
+
+        # Simplify
+        hotspots = result.get("hotspots", [])[:top_n]
+
+        simplified = {
+            "status": "completed",
+            "workspace": str(ws),
+            "details_file": str(details_file),
+            "hotspots": hotspots,
+        }
+
+        # Risk distribution
+        if "risk_distribution" in result:
+            simplified["risk_distribution"] = result["risk_distribution"]
+        else:
+            simplified["risk_distribution"] = {
+                "high": sum(1 for h in hotspots if h.get("score", 0) >= 7),
+                "medium": sum(1 for h in hotspots if 4 <= h.get("score", 0) < 7),
+                "low": sum(1 for h in hotspots if h.get("score", 0) < 4),
+            }
+
+        # Summary
+        if hotspots:
+            top = hotspots[0]
+            top_name = top.get("name", top.get("file", "unknown"))
+            top_score = top.get("score", 0)
+            simplified["summary"] = f"{len(hotspots)} hotspots identified. Top: {top_name} (score: {top_score:.1f})."
+        else:
+            simplified["summary"] = "No significant hotspots identified."
+
+        simplified["action_items"] = extract_action_items(result)
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "hotspots")
+
+
+@mcp.tool()
+def koas_audit_dependencies(
+    workspace: str,
+    detect_cycles: bool = True,
+) -> Dict[str, Any]:
+    """
+    Analyze code dependencies and coupling.
+
+    Parameters
+    ----------
+    workspace : str
+        Path to workspace with prior scan results.
+
+    detect_cycles : bool, default True
+        Detect circular dependencies.
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "modules": int,
+          "dependencies": int,
+          "cycles": [[str]] (circular dependency chains),
+          "high_coupling": [{module, fan_in, fan_out}],
+          "details_file": str
+        }
+
+    Example
+    -------
+    >>> koas_audit_dependencies(workspace="/tmp/koas_123")
+    {"summary": "45 modules, 120 dependencies. 2 circular dependencies detected.",
+     "modules": 45, "dependencies": 120, "cycles": [...], ...}
+    """
+    try:
+        ws = Path(workspace)
+        if not ws.exists():
+            return {"error": f"Workspace not found: {workspace}", "summary": "Workspace not found."}
+
+        # Import and run kernel
+        from ragix_kernels.audit.dependency import DependencyKernel
+        from ragix_kernels.base import KernelInput
+
+        kernel = DependencyKernel()
+        kernel_input = KernelInput(
+            workspace=ws,
+            config={"detect_cycles": detect_cycles},
+            dependencies=load_stage_dependency_paths(ws, 1),
+        )
+
+        result = kernel.compute(kernel_input)
+
+        # Save results
+        details_file = save_results(ws, 1, "dependency", result)
+
+        # Simplify
+        simplified = {
+            "status": "completed",
+            "workspace": str(ws),
+            "details_file": str(details_file),
+        }
+
+        # Extract counts
+        modules = result.get("modules", result.get("nodes", []))
+        deps = result.get("dependencies", result.get("edges", []))
+        simplified["modules"] = len(modules) if isinstance(modules, list) else modules
+        simplified["dependencies"] = len(deps) if isinstance(deps, list) else deps
+
+        # Cycles
+        cycles = result.get("cycles", [])
+        simplified["cycles"] = cycles[:10]
+        simplified["cycles_count"] = len(cycles)
+
+        # High coupling
+        if "high_coupling" in result:
+            simplified["high_coupling"] = result["high_coupling"][:10]
+
+        # Summary
+        cycle_msg = f"{len(cycles)} circular dependencies detected." if cycles else "No circular dependencies."
+        simplified["summary"] = f"{simplified['modules']} modules, {simplified['dependencies']} dependencies. {cycle_msg}"
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "dependency")
+
+
+@mcp.tool()
+def koas_audit_dead_code(
+    workspace: str,
+) -> Dict[str, Any]:
+    """
+    Detect potentially dead or unused code.
+
+    Parameters
+    ----------
+    workspace : str
+        Path to workspace with prior analysis.
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "dead_code": [{name, type, file, reason}] (max 20),
+          "dead_code_total": int,
+          "by_type": {functions, classes, methods},
+          "action_items": [str],
+          "details_file": str
+        }
+
+    Example
+    -------
+    >>> koas_audit_dead_code(workspace="/tmp/koas_123")
+    {"summary": "Found 15 potentially dead code items: 8 functions, 5 methods, 2 classes.",
+     "dead_code": [...], ...}
+    """
+    try:
+        ws = Path(workspace)
+        if not ws.exists():
+            return {"error": f"Workspace not found: {workspace}", "summary": "Workspace not found."}
+
+        # Import and run kernel
+        from ragix_kernels.audit.dead_code import DeadCodeKernel
+        from ragix_kernels.base import KernelInput
+
+        kernel = DeadCodeKernel()
+        kernel_input = KernelInput(
+            workspace=ws,
+            config={},
+            dependencies={**load_stage_dependency_paths(ws, 1), **load_stage_dependency_paths(ws, 2)},
+        )
+
+        result = kernel.compute(kernel_input)
+
+        # Save results
+        details_file = save_results(ws, 2, "dead_code", result)
+
+        # Simplify
+        dead_items = result.get("dead_code", result.get("unused", []))
+
+        simplified = {
+            "status": "completed",
+            "workspace": str(ws),
+            "details_file": str(details_file),
+            "dead_code": dead_items[:20],
+            "dead_code_total": len(dead_items),
+        }
+
+        # Count by type
+        from collections import Counter
+        type_counts = Counter(d.get("type", "unknown") for d in dead_items)
+        simplified["by_type"] = dict(type_counts)
+
+        # Summary
+        type_str = ", ".join(f"{c} {t}s" for t, c in type_counts.most_common(3))
+        simplified["summary"] = f"Found {len(dead_items)} potentially dead code items: {type_str}."
+
+        simplified["action_items"] = [
+            {"priority": "low", "action": f"Review {item.get('name', 'item')} for removal"}
+            for item in dead_items[:5]
+        ]
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "dead_code")
+
+
+def _calculate_simple_risk(workspace: Path) -> Dict[str, Any]:
+    """Calculate simple risk score from available stage results."""
+    risk_score = 0.0
+    factors = []
+
+    # Load available results
+    stage1 = {}
+    stage2 = {}
+
+    stage1_dir = workspace / "stage1"
+    stage2_dir = workspace / "stage2"
+
+    if stage1_dir.exists():
+        for f in stage1_dir.glob("*.json"):
+            try:
+                with open(f) as fp:
+                    stage1[f.stem] = json.load(fp)
+            except Exception:
+                pass
+
+    if stage2_dir.exists():
+        for f in stage2_dir.glob("*.json"):
+            try:
+                with open(f) as fp:
+                    stage2[f.stem] = json.load(fp)
+            except Exception:
+                pass
+
+    # Calculate risk from available metrics
+    if "metrics" in stage1:
+        metrics = stage1["metrics"]
+        avg_cc = metrics.get("avg_complexity", metrics.get("average_cc", 0))
+        if avg_cc > 10:
+            risk_score += 3.0
+            factors.append({"factor": "complexity", "impact": "high", "value": avg_cc})
+        elif avg_cc > 5:
+            risk_score += 1.5
+            factors.append({"factor": "complexity", "impact": "medium", "value": avg_cc})
+
+    if "hotspots" in stage2:
+        hotspots = stage2["hotspots"]
+        high_risk = len([h for h in hotspots.get("hotspots", []) if h.get("score", 0) > 7])
+        if high_risk > 5:
+            risk_score += 2.5
+            factors.append({"factor": "hotspots", "impact": "high", "value": high_risk})
+
+    if "dead_code" in stage2:
+        dead = stage2["dead_code"]
+        dead_count = dead.get("dead_code_total", len(dead.get("dead_code", [])))
+        if dead_count > 20:
+            risk_score += 1.0
+            factors.append({"factor": "dead_code", "impact": "medium", "value": dead_count})
+
+    return {
+        "risk_score": min(risk_score, 10.0),
+        "factors": factors,
+        "method": "simplified_calculation",
+    }
+
+
+@mcp.tool()
+def koas_audit_risk(
+    workspace: str,
+    include_volumetry: bool = False,
+) -> Dict[str, Any]:
+    """
+    Calculate code risk scores.
+
+    Parameters
+    ----------
+    workspace : str
+        Path to workspace with prior analysis.
+
+    include_volumetry : bool, default False
+        Include volumetry data in risk calculation.
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "risk_score": float (0-10),
+          "risk_level": str (LOW/MEDIUM/HIGH/CRITICAL),
+          "top_risks": [{module, score, factors}] (top 10),
+          "risk_breakdown": {complexity, coupling, debt},
+          "action_items": [str],
+          "details_file": str
+        }
+
+    Example
+    -------
+    >>> koas_audit_risk(workspace="/tmp/koas_123")
+    {"summary": "Code risk: MEDIUM (5.2/10). Top risk: PaymentModule (high complexity, tight coupling).",
+     "risk_score": 5.2, "risk_level": "MEDIUM", ...}
+    """
+    try:
+        ws = Path(workspace)
+        if not ws.exists():
+            return {"error": f"Workspace not found: {workspace}", "summary": "Workspace not found."}
+
+        # Import and run kernel - try risk_matrix first (more comprehensive)
+        try:
+            from ragix_kernels.audit.risk_matrix import RiskMatrixKernel
+            kernel_class = RiskMatrixKernel
+            kernel_name = "risk_matrix"
+        except ImportError:
+            from ragix_kernels.audit.risk import RiskKernel
+            kernel_class = RiskKernel
+            kernel_name = "risk"
+
+        from ragix_kernels.base import KernelInput
+
+        kernel = kernel_class()
+        kernel_input = KernelInput(
+            workspace=ws,
+            config={"include_volumetry": include_volumetry},
+            dependencies={**load_stage_dependency_paths(ws, 1), **load_stage_dependency_paths(ws, 2)},
+        )
+
+        try:
+            result = kernel.compute(kernel_input)
+        except Exception as e:
+            # If risk_matrix fails (e.g., missing module_group), try simpler risk kernel
+            if kernel_name == "risk_matrix" and "module_group" in str(e):
+                try:
+                    from ragix_kernels.audit.risk import RiskKernel
+                    kernel = RiskKernel()
+                    result = kernel.compute(kernel_input)
+                    kernel_name = "risk"
+                except Exception:
+                    # Fall back to manual risk calculation
+                    result = _calculate_simple_risk(ws)
+            else:
+                raise
+
+        # Save results
+        details_file = save_results(ws, 2, kernel_name, result)
+
+        # Simplify
+        risk_score = result.get("risk_score", result.get("overall_risk", 0))
+        risk_level = "CRITICAL" if risk_score >= 8 else "HIGH" if risk_score >= 6 else "MEDIUM" if risk_score >= 4 else "LOW"
+
+        simplified = {
+            "status": "completed",
+            "workspace": str(ws),
+            "details_file": str(details_file),
+            "risk_score": round(risk_score, 1),
+            "risk_level": risk_level,
+        }
+
+        # Top risks
+        if "module_risks" in result:
+            simplified["top_risks"] = result["module_risks"][:10]
+        elif "top_risks" in result:
+            simplified["top_risks"] = result["top_risks"][:10]
+
+        # Risk breakdown
+        if "risk_breakdown" in result:
+            simplified["risk_breakdown"] = result["risk_breakdown"]
+
+        # Summary
+        simplified["summary"] = f"Code risk: {risk_level} ({risk_score:.1f}/10)."
+        if simplified.get("top_risks"):
+            top = simplified["top_risks"][0]
+            top_name = top.get("module", top.get("name", "unknown"))
+            simplified["summary"] += f" Top risk: {top_name}."
+
+        simplified["action_items"] = extract_action_items(result)
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "risk")
+
+
+@mcp.tool()
+def koas_audit_compliance(
+    workspace: str,
+    standard: str = "maintainability",
+) -> Dict[str, Any]:
+    """
+    Check code quality compliance.
+
+    Parameters
+    ----------
+    workspace : str
+        Path to workspace with prior analysis.
+
+    standard : str, default "maintainability"
+        Quality standard: "maintainability", "testability", "documentation".
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "compliance_score": float (0-100),
+          "standard": str,
+          "violations": [{rule, severity, location}] (max 20),
+          "metrics": {coverage, documentation, complexity},
+          "action_items": [str],
+          "details_file": str
+        }
+
+    Example
+    -------
+    >>> koas_audit_compliance(workspace="/tmp/koas_123", standard="maintainability")
+    {"summary": "Maintainability compliance: 72%. 15 violations: 8 complexity, 7 documentation.",
+     "compliance_score": 72.0, ...}
+    """
+    try:
+        ws = Path(workspace)
+        if not ws.exists():
+            return {"error": f"Workspace not found: {workspace}", "summary": "Workspace not found."}
+
+        # Load metrics from workspace
+        stage1_results = load_stage_results(ws, 1)
+        stage2_results = load_stage_results(ws, 2)
+
+        # Calculate compliance based on standard
+        metrics = stage1_results.get("metrics", {})
+        hotspots = stage2_results.get("hotspots", {})
+
+        violations = []
+        compliance_score = 100.0
+
+        if standard == "maintainability":
+            # Check maintainability index
+            mi = metrics.get("maintainability_index", 65)
+            if mi < 20:
+                compliance_score -= 30
+                violations.append({"rule": "MI_CRITICAL", "severity": "critical", "location": "global"})
+            elif mi < 40:
+                compliance_score -= 15
+                violations.append({"rule": "MI_LOW", "severity": "high", "location": "global"})
+
+            # Check complexity
+            high_cc = metrics.get("high_complexity", [])
+            for item in high_cc[:10]:
+                compliance_score -= 2
+                violations.append({
+                    "rule": "CC_HIGH",
+                    "severity": "medium",
+                    "location": item.get("file", "unknown"),
+                })
+
+        elif standard == "testability":
+            # Check for test files
+            test_coverage = metrics.get("test_coverage", 0)
+            if test_coverage < 50:
+                compliance_score -= 30
+                violations.append({"rule": "COVERAGE_LOW", "severity": "high", "location": "global"})
+            elif test_coverage < 80:
+                compliance_score -= 10
+                violations.append({"rule": "COVERAGE_MEDIUM", "severity": "medium", "location": "global"})
+
+        elif standard == "documentation":
+            doc_coverage = metrics.get("javadoc_coverage", metrics.get("docstring_coverage", 0))
+            if doc_coverage < 30:
+                compliance_score -= 25
+                violations.append({"rule": "DOC_MISSING", "severity": "high", "location": "global"})
+            elif doc_coverage < 60:
+                compliance_score -= 10
+                violations.append({"rule": "DOC_LOW", "severity": "medium", "location": "global"})
+
+        compliance_score = max(0, min(100, compliance_score))
+
+        # Save results
+        result = {
+            "compliance_score": compliance_score,
+            "standard": standard,
+            "violations": violations,
+            "metrics": metrics,
+        }
+        details_file = save_results(ws, 2, "compliance_audit", result)
+
+        simplified = {
+            "status": "completed",
+            "workspace": str(ws),
+            "details_file": str(details_file),
+            "compliance_score": round(compliance_score, 1),
+            "standard": standard,
+            "violations": violations[:20],
+        }
+
+        # Summary
+        simplified["summary"] = f"{standard.capitalize()} compliance: {compliance_score:.0f}%. {len(violations)} violations found."
+
+        simplified["action_items"] = [
+            {"priority": v["severity"], "action": f"Fix {v['rule']} in {v['location']}"}
+            for v in violations[:5]
+        ]
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "compliance_audit")
+
+
+@mcp.tool()
+def koas_audit_report(
+    workspace: str,
+    format: str = "executive",
+    language: str = "en",
+) -> Dict[str, Any]:
+    """
+    Generate code audit report.
+
+    Parameters
+    ----------
+    workspace : str
+        Path to workspace with analysis results.
+
+    format : str, default "executive"
+        Report format: "executive" (summary), "detailed" (full), or "technical".
+
+    language : str, default "en"
+        Report language: "en" (English) or "fr" (French).
+
+    Returns
+    -------
+    dict
+        {
+          "summary": str (<300 chars),
+          "report_file": str (path to full report),
+          "key_findings": [str] (top 5),
+          "recommendations": [str] (top 5),
+          "scores": {risk, maintainability, ...}
+        }
+
+    Example
+    -------
+    >>> koas_audit_report(workspace="/tmp/koas_123", format="executive")
+    {"summary": "Audit complete. Risk: MEDIUM. 5 recommendations for improvement.",
+     "report_file": "/tmp/koas_123/stage3/audit_report.md", ...}
+    """
+    try:
+        ws = Path(workspace)
+        if not ws.exists():
+            return {"error": f"Workspace not found: {workspace}", "summary": "Workspace not found."}
+
+        # Try to use report_assemble kernel
+        try:
+            from ragix_kernels.audit.report_assemble import ReportAssembleKernel
+            from ragix_kernels.base import KernelInput
+
+            kernel = ReportAssembleKernel()
+            kernel_input = KernelInput(
+                workspace=ws,
+                config={
+                    "format": format,
+                    "language": language,
+                },
+                dependencies={
+                    **load_stage_dependency_paths(ws, 1),
+                    **load_stage_dependency_paths(ws, 2),
+                },
+            )
+
+            result = kernel.compute(kernel_input)
+        except ImportError:
+            # Manual report generation
+            stage1 = load_stage_results(ws, 1)
+            stage2 = load_stage_results(ws, 2)
+
+            result = {
+                "format": format,
+                "language": language,
+                "findings": [],
+                "recommendations": [],
+            }
+
+            # Extract findings from various kernels
+            if "hotspots" in stage2:
+                for h in stage2["hotspots"].get("hotspots", [])[:5]:
+                    result["findings"].append({
+                        "title": f"High complexity: {h.get('name', 'unknown')}",
+                        "severity": "medium" if h.get("score", 0) < 7 else "high",
+                    })
+
+            # Add recommendations
+            if "risk" in stage2 or "risk_matrix" in stage2:
+                risk_data = stage2.get("risk_matrix", stage2.get("risk", {}))
+                if risk_data.get("risk_score", 0) > 5:
+                    result["recommendations"].append({
+                        "recommendation": "Reduce complexity in high-risk modules",
+                        "priority": "high",
+                    })
+
+        # Save report
+        report_file = ws / "stage3" / "audit_report.md"
+        (ws / "stage3").mkdir(parents=True, exist_ok=True)
+
+        # Generate markdown report
+        if "report" in result:
+            with open(report_file, "w") as f:
+                f.write(result["report"])
+        elif "content" in result:
+            with open(report_file, "w") as f:
+                f.write(result["content"])
+        else:
+            # Generate basic report
+            report_content = f"# Code Audit Report\n\n"
+            report_content += f"**Format:** {format}\n"
+            report_content += f"**Language:** {language}\n\n"
+            report_content += "## Findings\n\n"
+            for f in result.get("findings", []):
+                report_content += f"- **{f.get('severity', 'info').upper()}**: {f.get('title', 'Finding')}\n"
+            report_content += "\n## Recommendations\n\n"
+            for r in result.get("recommendations", []):
+                report_content += f"- {r.get('recommendation', 'Recommendation')}\n"
+            with open(report_file, "w") as f:
+                f.write(report_content)
+
+        # Save JSON results
+        details_file = save_results(ws, 3, "report_assemble", result)
+
+        # Build response
+        simplified = {
+            "status": "completed",
+            "workspace": str(ws),
+            "report_file": str(report_file) if report_file.exists() else None,
+            "details_file": str(details_file),
+        }
+
+        # Extract findings and recommendations
+        if "findings" in result:
+            simplified["key_findings"] = [
+                f.get("title", str(f)) if isinstance(f, dict) else str(f)
+                for f in result["findings"][:5]
+            ]
+
+        if "recommendations" in result:
+            simplified["recommendations"] = [
+                r.get("recommendation", str(r)) if isinstance(r, dict) else str(r)
+                for r in result["recommendations"][:5]
+            ]
+
+        # Scores
+        stage2 = load_stage_results(ws, 2)
+        scores = {}
+        for kernel_name, kernel_data in stage2.items():
+            if "risk_score" in kernel_data:
+                scores["risk"] = kernel_data["risk_score"]
+            if "compliance_score" in kernel_data:
+                scores["compliance"] = kernel_data["compliance_score"]
+        if scores:
+            simplified["scores"] = scores
+
+        # Summary
+        findings_count = len(result.get("findings", []))
+        rec_count = len(result.get("recommendations", []))
+        simplified["summary"] = f"Audit complete. {findings_count} findings, {rec_count} recommendations. Report: {report_file.name}"
+
+        return simplified
+
+    except Exception as e:
+        return wrap_kernel_error(e, "report_assemble")
+
+
+# ---------------------------------------------------------------------------
+# 12. Entry point
 # ---------------------------------------------------------------------------
 
 def main() -> None:

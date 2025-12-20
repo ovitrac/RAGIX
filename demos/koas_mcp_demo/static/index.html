@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KOAS MCP Demo</title>
+    <link rel="stylesheet" href="/static/css/koas_demo.css">
+    <!-- Marked.js for Markdown rendering (pinned to v9 for stable API) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>KOAS MCP Demo</h1>
+        <p class="subtitle">Kernel-Orchestrated Audit System - Tool Demonstration</p>
+    </header>
+
+    <nav class="tabs">
+        <button class="tab active" data-tab="tools">Tools</button>
+        <button class="tab" data-tab="scenarios">Scenarios</button>
+        <button class="tab" data-tab="chat">Chat</button>
+        <button class="tab" data-tab="trace">Tool Trace</button>
+    </nav>
+
+    <main>
+        <!-- Tools Panel -->
+        <section id="tools" class="panel active">
+            <div class="controls">
+                <label>
+                    <input type="checkbox" id="dryRunMode">
+                    Dry Run Mode (safe testing)
+                </label>
+                <select id="categoryFilter">
+                    <option value="all">All Categories</option>
+                    <option value="security">Security</option>
+                    <option value="audit">Audit</option>
+                </select>
+            </div>
+
+            <div id="toolsGrid" class="tools-grid">
+                <!-- Populated by JavaScript -->
+            </div>
+
+            <div id="toolForm" class="tool-form hidden">
+                <h3 id="toolFormTitle">Tool Configuration</h3>
+                <form id="toolParams">
+                    <!-- Dynamic parameters -->
+                </form>
+                <div class="form-actions">
+                    <button type="button" onclick="executeTool()">Execute</button>
+                    <button type="button" onclick="hideToolForm()">Cancel</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Scenarios Panel -->
+        <section id="scenarios" class="panel">
+            <div class="scenarios-list">
+                <div class="scenario-card" onclick="runScenario('security_quick')">
+                    <h3>Quick Security Scan</h3>
+                    <span class="badge security">Security</span>
+                    <p>Fast network discovery and port scan</p>
+                </div>
+                <div class="scenario-card" onclick="runScenario('security_full')">
+                    <h3>Full Security Assessment</h3>
+                    <span class="badge security">Security</span>
+                    <p>Complete security audit with compliance check</p>
+                </div>
+                <div class="scenario-card" onclick="runScenario('audit_quick')">
+                    <h3>Quick Code Audit</h3>
+                    <span class="badge audit">Audit</span>
+                    <p>Fast codebase scan and metrics</p>
+                </div>
+                <div class="scenario-card" onclick="runScenario('audit_full')">
+                    <h3>Full Code Audit</h3>
+                    <span class="badge audit">Audit</span>
+                    <p>Complete code quality assessment</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Chat Panel with History -->
+        <section id="chat" class="panel">
+            <div class="chat-container">
+                <!-- Main Chat Area -->
+                <div class="chat-main">
+                    <div class="chat-header">
+                        <div class="model-selector">
+                            <label for="modelSelect">Model:</label>
+                            <select id="modelSelect">
+                                <option value="mistral:7b-instruct">Mistral 7B (default)</option>
+                                <option value="llama3.1:70b">Llama 3.1 70B</option>
+                                <option value="qwen2.5:72b">Qwen 2.5 72B</option>
+                            </select>
+                            <button onclick="refreshModels()" title="Refresh model list">🔄</button>
+                        </div>
+                        <div class="chat-actions">
+                            <button onclick="clearChat()" title="Clear conversation">🗑️ Clear</button>
+                        </div>
+                    </div>
+
+                    <div id="chatMessages" class="chat-messages">
+                        <div class="message assistant">
+                            <div class="message-content">
+                                <p>Hello! I'm your KOAS assistant. I can help you with security scans and code audits. What would you like to do?</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chat-input">
+                        <input type="text" id="chatInput" placeholder="Ask about security or audit tasks..." onkeypress="handleChatKeypress(event)">
+                        <button onclick="sendChat()">Send</button>
+                    </div>
+                </div>
+
+                <!-- History Sidebar -->
+                <div class="chat-history">
+                    <div class="history-header">
+                        <h3>📜 Session History</h3>
+                        <div class="history-actions">
+                            <button onclick="saveSession()" title="Save session">💾</button>
+                            <button onclick="loadSession()" title="Load session">📂</button>
+                        </div>
+                    </div>
+                    <div id="historyList" class="history-list">
+                        <p class="history-empty">No history yet. Start a conversation!</p>
+                    </div>
+                    <div class="workspace-info">
+                        <small>Workspace: <span id="currentWorkspace">-</span></small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tool Trace Panel -->
+        <section id="trace" class="panel">
+            <div class="trace-controls">
+                <button onclick="clearTrace()">Clear Trace</button>
+                <label>
+                    <input type="checkbox" id="autoScroll" checked>
+                    Auto-scroll
+                </label>
+            </div>
+
+            <div id="traceLog" class="trace-log">
+                <div class="trace-entry info">
+                    <span class="timestamp">[--:--:--]</span>
+                    <span class="message">Tool trace will appear here...</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Result Modal -->
+    <div id="resultModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="resultTitle">Result</h2>
+            <div id="resultSummary" class="result-summary"></div>
+            <pre id="resultDetails"></pre>
+        </div>
+    </div>
+
+    <!-- Save/Load Modal -->
+    <div id="sessionModal" class="modal hidden">
+        <div class="modal-content small">
+            <span class="close" onclick="closeSessionModal()">&times;</span>
+            <h2 id="sessionModalTitle">Session</h2>
+            <div id="sessionModalContent">
+                <input type="text" id="sessionName" placeholder="Session name...">
+                <div id="savedSessions" class="saved-sessions"></div>
+            </div>
+            <div class="form-actions">
+                <button id="sessionModalAction" onclick="confirmSessionAction()">Save</button>
+                <button onclick="closeSessionModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>RAGIX v0.62.0 | KOAS MCP Demo |
+           <a href="https://github.com/ovitrac/RAGIX" target="_blank">GitHub</a>
+        </p>
+        <p class="authorship">
+            <a href="mailto:olivier.vitrac@adservio.fr">Olivier Vitrac</a>, PhD, HDR |
+            <a href="https://www.adservio.fr" target="_blank">Adservio</a>
+        </p>
+    </footer>
+
+    <script src="/static/js/koas_client.js"></script>
+</body>
+</html>
