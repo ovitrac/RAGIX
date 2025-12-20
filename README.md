@@ -158,6 +158,33 @@ ragix-web
 
 > **Without install:** `PYTHONPATH=. python ragix_web/server.py`
 
+### Returning Users: Reactivate Your Environment
+
+If you installed RAGIX before and want to use it again, you need to **reactivate** the environment first:
+
+| Install Method | Environment Name | Location | Reactivation Command |
+|----------------|------------------|----------|----------------------|
+| Option A (Conda launcher) | `ragix-env` | `~/anaconda3/envs/ragix-env/` | `conda activate ragix-env` |
+| Option B (venv) | `.venv` | `./RAGIX/.venv/` | `cd RAGIX && source .venv/bin/activate` |
+| Option C (Conda manual) | `ragix-env` | `~/anaconda3/envs/ragix-env/` | `conda activate ragix-env` |
+
+**Quick reference:**
+
+```bash
+# If you used venv (Option B) — must be in RAGIX folder
+cd /path/to/RAGIX
+source .venv/bin/activate
+ragix-web
+
+# If you used Conda (Option A or C) — works from anywhere
+conda activate ragix-env
+ragix-web
+```
+
+> **How to know if environment is active?**
+> - Your terminal prompt shows `(.venv)` or `(ragix-env)` at the beginning
+> - Run `which python` — should point to the environment, not system Python
+
 ---
 
 ## Platform Capabilities
