@@ -113,7 +113,7 @@ pip install -e .
 
 ragix-web
 ```
-### Installation issues
+### Troubleshooting
 
 On some OS or machine, they may be some issues or errors.
 
