@@ -113,6 +113,16 @@ pip install -e .
 
 ragix-web
 ```
+### Installation issues
+
+On some OS or machine, they may be some issues or errors.
+
+#### Error 1 :
+- OS : MacOS
+- Message : `OSError: cannot load library 'libgobject-2.0-0'`
+- Solution : 
+  - Option 1 : Try to uninstall the lib from local python and use the OS available one `pip uninstall weasyprint -y`
+  - Alternative : Try to install the required lib using this command `brew install pango gdk-pixbuf libffi cairo`
 
 ---
 
