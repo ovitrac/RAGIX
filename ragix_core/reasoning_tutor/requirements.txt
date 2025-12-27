@@ -1,0 +1,49 @@
+# =============================================================================
+# Reasoning Tutor Requirements
+# =============================================================================
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+# Date: 2025-12-24
+#
+# These are ADDITIONAL dependencies for the reasoning_tutor module.
+# The main RAGIX requirements.txt must be installed first.
+#
+# Install:
+#   pip install -r ragix_core/reasoning_tutor/requirements.txt
+#
+# Or install all at once:
+#   pip install -r requirements.txt
+#   pip install -r ragix_core/reasoning_tutor/requirements.txt
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Core Analysis Dependencies
+# -----------------------------------------------------------------------------
+
+# Numerical computing (semantic similarity, embeddings)
+numpy>=1.24.0
+
+# Data manipulation (feature matrices, results analysis)
+pandas>=2.0.0
+
+# -----------------------------------------------------------------------------
+# Visualization (for analysis/visualize.py)
+# -----------------------------------------------------------------------------
+
+# Plotting (PCA plots, heatmaps, charts)
+matplotlib>=3.7.0
+
+# Scientific computing (dendrograms, hierarchical clustering, distance metrics)
+scipy>=1.11.0
+
+# Machine learning (PCA, StandardScaler, dimensionality reduction)
+scikit-learn>=1.3.0
+
+# -----------------------------------------------------------------------------
+# Already in main requirements.txt (listed for completeness)
+# -----------------------------------------------------------------------------
+
+# requests>=2.31.0      # HTTP client for Ollama API
+# pyyaml>=6.0           # YAML benchmark definitions
+# pytest>=7.0.0         # Unit tests

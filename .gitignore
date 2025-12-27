@@ -178,7 +178,10 @@ QUICKSTART_CLAUDE_CODE.md
 # Agent-generated artifacts (Claude/Gemini/Codex)
 FORREVIEW_*
 REVIEW_*
+REVIEW*
 PLAN_*
+INTERPRET*
+CRITIQUE*
 .session*
 .claude*
 .claude/
@@ -199,4 +202,10 @@ WIP.md
 run_production.py
 diagnose_branching.py
 calibrate.py
+PUBLI*
+publi*
+Publi*
+*.tex
+results/
+benchmarks/
 

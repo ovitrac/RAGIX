@@ -1,0 +1,82 @@
+{
+  "version": "0.3.0",
+  "failure_detector": {
+    "repetition_threshold": 3,
+    "circular_threshold": 2,
+    "error_threshold": 3,
+    "stall_threshold": 4,
+    "exhaustion_threshold": 3,
+    "enabled": true,
+    "log_detections": true,
+    "auto_intervention": true
+  },
+  "meta_cards": {
+    "enabled": true,
+    "max_cards_per_game": 5,
+    "cooldown_turns": 2,
+    "track_effectiveness": true,
+    "min_success_rate": 0.3,
+    "enable_escape_loop": true,
+    "enable_compass": true,
+    "enable_error_analysis": true,
+    "enable_progress_boost": true,
+    "enable_strategic_reset": true
+  },
+  "justification": {
+    "enabled": true,
+    "require_justification": true,
+    "excellent_threshold": 0.7,
+    "good_threshold": 0.4,
+    "acceptable_threshold": 0.2,
+    "none_multiplier": 0.0,
+    "weak_multiplier": 0.25,
+    "acceptable_multiplier": 0.5,
+    "good_multiplier": 0.75,
+    "excellent_multiplier": 1.0,
+    "direct_weight": 1.0,
+    "indirect_weight": 0.7,
+    "exploratory_weight": 0.4,
+    "tangential_weight": 0.1,
+    "irrelevant_weight": 0.0
+  },
+  "semantic": {
+    "enabled": true,
+    "intent_tracker_enabled": true,
+    "embedding_model": "all-MiniLM-L6-v2",
+    "embedding_dim": 384,
+    "use_ollama_embeddings": false,
+    "ollama_embedding_model": "nomic-embed-text",
+    "convergence_window": 3,
+    "convergence_threshold": 0.1,
+    "divergence_threshold": 0.1,
+    "converging_multiplier": 1.0,
+    "stable_multiplier": 0.7,
+    "wandering_multiplier": 0.25,
+    "diverging_multiplier": 0.0,
+    "error_comprehension_enabled": false,
+    "comprehension_threshold": 0.3,
+    "card_relevance_enabled": false,
+    "cache_embeddings": true,
+    "cache_size": 1000
+  },
+  "game": {
+    "max_turns": 10,
+    "warning_turns": 8,
+    "base_action_score": 50,
+    "goal_bonus": 100,
+    "error_penalty": -25,
+    "timeout_penalty": -50,
+    "optimal_turn_bonus": 20
+  },
+  "logging": {
+    "log_level": "INFO",
+    "log_to_file": true,
+    "log_dir": ".agent_logs",
+    "json_logs": true,
+    "include_timestamps": true,
+    "include_embeddings": false,
+    "verbose_failures": true,
+    "verbose_cards": true,
+    "verbose_scores": true
+  }
+}

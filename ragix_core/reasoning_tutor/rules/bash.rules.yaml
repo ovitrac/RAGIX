@@ -1,0 +1,455 @@
+# =============================================================================
+# Bash/Shell Rules for Interpreter-Tutor
+# =============================================================================
+#
+# Core inference rules for shell operations.
+# All rules are deterministic - no LLM reasoning inside.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+# Version: 0.1.0 (2025-12-21)
+#
+# =============================================================================
+
+meta:
+  domain: bash
+  version: "1.0"
+  description: "Rules for shell command execution and file system operations"
+
+rules:
+  # ===========================================================================
+  # Command Exit Codes
+  # ===========================================================================
+
+  - id: R_bash_success
+    soundness: sound
+    description: "Command exit code 0 means success"
+    match:
+      - obs.rc: {eq: 0}
+    conclude:
+      truth:
+        text: "Command '{obs.command}' succeeded"
+        kind: property
+        scope: "{obs.scope}"
+
+  - id: R_bash_failure
+    soundness: sound
+    description: "Command exit code != 0 means failure"
+    match:
+      - obs.rc: {neq: 0}
+    conclude:
+      truth:
+        text: "Command '{obs.command}' failed with rc={obs.rc}"
+        kind: property
+        scope: "{obs.scope}"
+
+  # ===========================================================================
+  # File Existence (test, ls, stat)
+  # ===========================================================================
+
+  - id: R_file_exists_test
+    soundness: sound
+    description: "test -f succeeds means file exists"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {matches: "test -[fe] "}
+      - obs.rc: {eq: 0}
+    extract:
+      path:
+        regex: "test -[fe] ['\"]?([^'\"\\s]+)"
+        from: obs.command
+    conclude:
+      truth:
+        text: "File '{path}' exists"
+        kind: existence
+        scope: "{path}"
+      entity:
+        kind: file
+        value: "{path}"
+
+  - id: R_file_not_exists_test
+    soundness: sound
+    description: "test -f fails means file does not exist"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {matches: "test -[fe] "}
+      - obs.rc: {neq: 0}
+    extract:
+      path:
+        regex: "test -[fe] ['\"]?([^'\"\\s]+)"
+        from: obs.command
+    conclude:
+      truth:
+        text: "File '{path}' does not exist"
+        kind: existence
+        scope: "{path}"
+
+  - id: R_dir_exists_test
+    soundness: sound
+    description: "test -d succeeds means directory exists"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {matches: "test -d "}
+      - obs.rc: {eq: 0}
+    extract:
+      path:
+        regex: "test -d ['\"]?([^'\"\\s]+)"
+        from: obs.command
+    conclude:
+      truth:
+        text: "Directory '{path}' exists"
+        kind: existence
+        scope: "{path}"
+      entity:
+        kind: directory
+        value: "{path}"
+
+  # ===========================================================================
+  # File Content (grep, cat, head, tail)
+  # ===========================================================================
+
+  - id: R_grep_pattern_found
+    soundness: sound
+    description: "grep success means pattern found"
+    match:
+      - obs.tool: {in: ["bash", "grep"]}
+      - obs.command: {contains: "grep"}
+      - obs.rc: {eq: 0}
+    conclude:
+      truth:
+        text: "Pattern found in file"
+        kind: existence
+        scope: "{obs.scope}"
+
+  - id: R_grep_pattern_not_found
+    soundness: sound
+    description: "grep failure means pattern not found"
+    match:
+      - obs.tool: {in: ["bash", "grep"]}
+      - obs.command: {contains: "grep"}
+      - obs.rc: {eq: 1}
+    conclude:
+      truth:
+        text: "Pattern not found in file"
+        kind: existence
+        scope: "{obs.scope}"
+
+  - id: R_function_definition
+    soundness: sound
+    description: "Found function definition in output"
+    match:
+      - obs.stdout: {matches: "^\\s*(def|function)\\s+\\w+"}
+    extract:
+      fn_name:
+        regex: "(?:def|function)\\s+(\\w+)"
+        from: obs.stdout
+    conclude:
+      truth:
+        text: "Function '{fn_name}' is defined"
+        kind: existence
+        scope: "{obs.scope}"
+      entity:
+        kind: function
+        value: "{fn_name}"
+
+  - id: R_class_definition
+    soundness: sound
+    description: "Found class definition in output"
+    match:
+      - obs.stdout: {matches: "^\\s*class\\s+\\w+"}
+    extract:
+      class_name:
+        regex: "class\\s+(\\w+)"
+        from: obs.stdout
+    conclude:
+      truth:
+        text: "Class '{class_name}' is defined"
+        kind: existence
+        scope: "{obs.scope}"
+      entity:
+        kind: class
+        value: "{class_name}"
+
+  # ===========================================================================
+  # Process Status (ps, pgrep)
+  # ===========================================================================
+
+  - id: R_process_running_pgrep
+    soundness: sound
+    description: "pgrep success means process is running"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {contains: "pgrep"}
+      - obs.rc: {eq: 0}
+    extract:
+      proc:
+        regex: "pgrep\\s+(?:-[^\\s]+\\s+)*['\"]?([^'\"\\s]+)"
+        from: obs.command
+    conclude:
+      truth:
+        text: "Process '{proc}' is running"
+        kind: property
+        scope: "system"
+      entity:
+        kind: process
+        value: "{proc}"
+
+  - id: R_process_not_running_pgrep
+    soundness: sound
+    description: "pgrep failure means process is not running"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {contains: "pgrep"}
+      - obs.rc: {eq: 1}
+    extract:
+      proc:
+        regex: "pgrep\\s+(?:-[^\\s]+\\s+)*['\"]?([^'\"\\s]+)"
+        from: obs.command
+    conclude:
+      truth:
+        text: "Process '{proc}' is not running"
+        kind: property
+        scope: "system"
+
+  # ===========================================================================
+  # Network (curl, wget, ping, nc)
+  # ===========================================================================
+
+  - id: R_host_reachable_ping
+    soundness: sound
+    description: "ping success means host is reachable"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {contains: "ping"}
+      - obs.rc: {eq: 0}
+    extract:
+      host:
+        regex: "ping\\s+(?:-[^\\s]+\\s+)*([^\\s]+)"
+        from: obs.command
+    conclude:
+      truth:
+        text: "Host '{host}' is reachable"
+        kind: property
+        scope: "network"
+      entity:
+        kind: host
+        value: "{host}"
+
+  - id: R_host_unreachable_ping
+    soundness: sound
+    description: "ping failure means host is unreachable"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {contains: "ping"}
+      - obs.rc: {neq: 0}
+    extract:
+      host:
+        regex: "ping\\s+(?:-[^\\s]+\\s+)*([^\\s]+)"
+        from: obs.command
+    conclude:
+      truth:
+        text: "Host '{host}' is unreachable"
+        kind: property
+        scope: "network"
+
+  - id: R_url_accessible_curl
+    soundness: sound
+    description: "curl success (rc=0) means URL is accessible"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {contains: "curl"}
+      - obs.rc: {eq: 0}
+    conclude:
+      truth:
+        text: "URL is accessible"
+        kind: property
+        scope: "network"
+
+  - id: R_port_open_nc
+    soundness: sound
+    description: "netcat success means port is open"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {matches: "nc\\s+-z"}
+      - obs.rc: {eq: 0}
+    extract:
+      host:
+        regex: "nc\\s+-[^\\s]*z[^\\s]*\\s+([^\\s]+)"
+        from: obs.command
+      port:
+        regex: "nc\\s+-[^\\s]*z[^\\s]*\\s+[^\\s]+\\s+(\\d+)"
+        from: obs.command
+    conclude:
+      truth:
+        text: "Port {port} is open on '{host}'"
+        kind: property
+        scope: "network"
+
+  # ===========================================================================
+  # Disk & Space (df, du)
+  # ===========================================================================
+
+  - id: R_disk_space_available
+    soundness: heuristic
+    description: "df output shows available space"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {contains: "df"}
+      - obs.rc: {eq: 0}
+      - obs.stdout: {matches: "\\d+%"}
+    conclude:
+      truth:
+        text: "Disk space information retrieved"
+        kind: quantitative
+        scope: "system"
+
+  # ===========================================================================
+  # Permissions (ls -l, stat)
+  # ===========================================================================
+
+  - id: R_file_readable
+    soundness: sound
+    description: "test -r succeeds means file is readable"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {matches: "test -r "}
+      - obs.rc: {eq: 0}
+    extract:
+      path:
+        regex: "test -r ['\"]?([^'\"\\s]+)"
+        from: obs.command
+    conclude:
+      truth:
+        text: "File '{path}' is readable"
+        kind: property
+        scope: "{path}"
+
+  - id: R_file_writable
+    soundness: sound
+    description: "test -w succeeds means file is writable"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {matches: "test -w "}
+      - obs.rc: {eq: 0}
+    extract:
+      path:
+        regex: "test -w ['\"]?([^'\"\\s]+)"
+        from: obs.command
+    conclude:
+      truth:
+        text: "File '{path}' is writable"
+        kind: property
+        scope: "{path}"
+
+  - id: R_file_executable
+    soundness: sound
+    description: "test -x succeeds means file is executable"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {matches: "test -x "}
+      - obs.rc: {eq: 0}
+    extract:
+      path:
+        regex: "test -x ['\"]?([^'\"\\s]+)"
+        from: obs.command
+    conclude:
+      truth:
+        text: "File '{path}' is executable"
+        kind: property
+        scope: "{path}"
+
+  # ===========================================================================
+  # Line Counting (wc)
+  # ===========================================================================
+
+  - id: R_line_count
+    soundness: sound
+    description: "wc -l output gives line count"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {contains: "wc -l"}
+      - obs.rc: {eq: 0}
+      - obs.stdout: {matches: "^\\s*\\d+"}
+    extract:
+      count:
+        regex: "^\\s*(\\d+)"
+        from: obs.stdout
+    conclude:
+      truth:
+        text: "File has {count} lines"
+        kind: quantitative
+        scope: "{obs.scope}"
+
+  # ===========================================================================
+  # Empty Checks
+  # ===========================================================================
+
+  - id: R_file_empty
+    soundness: sound
+    description: "test -s fails means file is empty or doesn't exist"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {matches: "test -s "}
+      - obs.rc: {neq: 0}
+    extract:
+      path:
+        regex: "test -s ['\"]?([^'\"\\s]+)"
+        from: obs.command
+    conclude:
+      truth:
+        text: "File '{path}' is empty or does not exist"
+        kind: property
+        scope: "{path}"
+
+  - id: R_file_not_empty
+    soundness: sound
+    description: "test -s succeeds means file has content"
+    match:
+      - obs.tool: {eq: "bash"}
+      - obs.command: {matches: "test -s "}
+      - obs.rc: {eq: 0}
+    extract:
+      path:
+        regex: "test -s ['\"]?([^'\"\\s]+)"
+        from: obs.command
+    conclude:
+      truth:
+        text: "File '{path}' has content"
+        kind: property
+        scope: "{path}"
+
+  # ===========================================================================
+  # Error Detection in Output
+  # ===========================================================================
+
+  - id: R_error_in_output
+    soundness: heuristic
+    description: "Output contains error indicator"
+    match:
+      - obs.stdout: {matches: "(?i)(error|failed|failure|exception|traceback)"}
+    conclude:
+      truth:
+        text: "Output contains error indication"
+        kind: property
+        scope: "{obs.scope}"
+
+  - id: R_permission_denied
+    soundness: sound
+    description: "Permission denied error detected"
+    match:
+      - obs.stderr: {contains: "Permission denied"}
+    conclude:
+      truth:
+        text: "Permission denied error occurred"
+        kind: property
+        scope: "{obs.scope}"
+
+  - id: R_command_not_found
+    soundness: sound
+    description: "Command not found error detected"
+    match:
+      - obs.stderr: {matches: "(command not found|not found)"}
+    conclude:
+      truth:
+        text: "Command not found"
+        kind: property
+        scope: "{obs.scope}"

@@ -1,0 +1,236 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ragix.adservio.fr/schemas/rule.schema.json",
+  "title": "Interpreter-Tutor Rule Schema",
+  "description": "JSON Schema for validating YAML rules in the Interpreter-Tutor architecture",
+  "type": "object",
+  "required": ["id", "soundness", "match", "conclude"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^R_[a-z][a-z0-9_]*$",
+      "description": "Unique rule identifier (R_snake_case)"
+    },
+    "soundness": {
+      "type": "string",
+      "enum": ["sound", "heuristic"],
+      "description": "sound = always correct, heuristic = usually correct"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of what the rule does"
+    },
+    "lifetime": {
+      "type": "string",
+      "enum": ["permanent", "session"],
+      "default": "permanent",
+      "description": "permanent = persisted, session = game-only"
+    },
+    "match": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/matchCondition"
+      },
+      "description": "All conditions must match (AND semantics)"
+    },
+    "extract": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/extraction"
+      },
+      "description": "Named extractions from matched observations"
+    },
+    "conclude": {
+      "type": "object",
+      "properties": {
+        "truth": {
+          "$ref": "#/definitions/truthConclusion"
+        },
+        "entity": {
+          "$ref": "#/definitions/entityConclusion"
+        }
+      },
+      "anyOf": [
+        { "required": ["truth"] },
+        { "required": ["entity"] }
+      ],
+      "description": "What to conclude when rule fires"
+    }
+  },
+  "definitions": {
+    "matchCondition": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "patternProperties": {
+        "^[a-z][a-z0-9_.]*$": {
+          "$ref": "#/definitions/operator"
+        }
+      },
+      "description": "Field path with operator (e.g., obs.rc: {eq: 0})"
+    },
+    "operator": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "eq": {
+          "description": "Equality check (any type)"
+        },
+        "neq": {
+          "description": "Not equal check"
+        },
+        "in": {
+          "type": "array",
+          "description": "Value must be in list"
+        },
+        "not_in": {
+          "type": "array",
+          "description": "Value must not be in list"
+        },
+        "contains": {
+          "type": "string",
+          "description": "String contains substring"
+        },
+        "not_contains": {
+          "type": "string",
+          "description": "String does not contain substring"
+        },
+        "matches": {
+          "type": "string",
+          "description": "Regex pattern match"
+        },
+        "not_matches": {
+          "type": "string",
+          "description": "Regex pattern does not match"
+        },
+        "gt": {
+          "type": "number",
+          "description": "Greater than"
+        },
+        "gte": {
+          "type": "number",
+          "description": "Greater than or equal"
+        },
+        "lt": {
+          "type": "number",
+          "description": "Less than"
+        },
+        "lte": {
+          "type": "number",
+          "description": "Less than or equal"
+        },
+        "exists": {
+          "type": "boolean",
+          "description": "Field exists (true) or not (false)"
+        },
+        "startswith": {
+          "type": "string",
+          "description": "String starts with prefix"
+        },
+        "endswith": {
+          "type": "string",
+          "description": "String ends with suffix"
+        }
+      },
+      "additionalProperties": false
+    },
+    "extraction": {
+      "type": "object",
+      "required": ["regex"],
+      "properties": {
+        "regex": {
+          "type": "string",
+          "description": "Regex with capture group"
+        },
+        "from": {
+          "type": "string",
+          "description": "Field to extract from (default: obs.stdout)"
+        },
+        "group": {
+          "type": "integer",
+          "default": 1,
+          "description": "Capture group index"
+        }
+      }
+    },
+    "truthConclusion": {
+      "type": "object",
+      "required": ["text", "kind"],
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Truth text with {var} placeholders"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "existence", "property", "relation", "count",
+            "equality", "content", "state", "error", "success"
+          ],
+          "description": "Category of truth"
+        },
+        "scope": {
+          "type": "string",
+          "description": "Scope with {var} placeholders"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 1.0,
+          "description": "Confidence (1.0 for sound rules)"
+        }
+      }
+    },
+    "entityConclusion": {
+      "type": "object",
+      "required": ["kind", "value"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["file", "directory", "process", "variable", "command", "user", "service"],
+          "description": "Entity type"
+        },
+        "value": {
+          "type": "string",
+          "description": "Entity value with {var} placeholders"
+        },
+        "properties": {
+          "type": "object",
+          "description": "Additional entity properties"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "id": "R_file_exists_test",
+      "soundness": "sound",
+      "description": "test -f succeeds means file exists",
+      "match": [
+        { "obs.tool": { "eq": "bash" } },
+        { "obs.command": { "matches": "test -[fe] " } },
+        { "obs.rc": { "eq": 0 } }
+      ],
+      "extract": {
+        "path": {
+          "regex": "test -[fe] ['\"]?([^'\"\\s]+)",
+          "from": "obs.command"
+        }
+      },
+      "conclude": {
+        "truth": {
+          "text": "File '{path}' exists",
+          "kind": "existence",
+          "scope": "{path}"
+        },
+        "entity": {
+          "kind": "file",
+          "value": "{path}"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+TABLE 1: Win Rate Evolution Across Rounds
+model,params_b,R1_wins,R1_total,R1_rate,R2_wins,R2_total,R2_rate,R3_wins,R3_total,R3_rate,R4_wins,R4_total,R4_rate,net_change
+deepseek-r1:14b,14,6,6,100%,6,6,100%,6,6,100%,6,6,100%,0%
+granite3.1-moe:3b,3,3,6,50%,2,6,33%,2,6,33%,6,6,100%,+50%
+llama3.2:3b,3,1,6,17%,2,6,33%,4,6,67%,4,6,67%,+50%
+mistral:latest,7,1,6,17%,3,6,50%,2,6,33%,3,6,50%,+33%
+phi3:latest,3.8,1,6,17%,1,6,17%,1,6,17%,retired,—,—,—
+
+TABLE 2: Round 4 Detailed Metrics
+model,wins,games,win_rate,total_score,failures_total,failure_rate,wip_limit,triz_enabled
+deepseek-r1:14b,6,6,100%,1075,0,0.00,3,OFF*
+granite3.1-moe:3b,6,6,100%,630,17,—,3,ON
+llama3.2:3b,4,6,67%,1245,35,—,2,ON
+mistral:latest,3,6,50%,-1675,48,—,1,ON
+
+TABLE 3: Score vs Win Rate Paradox (R2→R3)
+model,R2_score,R3_score,delta_score,R2_wins,R3_wins,delta_wins,interpretation
+llama3.2:3b,2920,1385,-1535,2,4,+2,Confabulation penalized
+granite3.1-moe:3b,1585,1585,0,2,2,0,Stable specialist
+mistral:latest,920,115,-805,3,2,-1,Semantic rigidity
+
+TABLE 4: Pathology Taxonomy
+pathology,model_affected,round_identified,symptom,curable,treatment
+Interface Mismatch,deepseek-r1:14b,R2,Token leak to shell,Yes,strip_reasoning_tokens()
+Wandering/Gaming,llama3.2:3b,R2,High score low wins,Yes,Semantic Intent Tracker
+Semantic Rigidity,mistral:latest,R3,Refuses adaptation,Partial,WIP=1 Straightjacket
+Agnosia,phi3:latest,R1-R3,Cannot perceive errors,No,Below MVT—retire
+
+TABLE 5: TRIZ Card Mapping
+triz_principle,principle_name,meta_card,trigger_pattern,target_benchmark
+1,Segmentation,SEGMENT_TASK,Resource depletion,B06 Memory
+10,Prior Action,DEFINE_CRITERIA,Blind reading,B04 Verification
+13,Inversion,LIST_INSTEAD,Repeated FileNotFoundError,B01 Find Needle
+—,Kanban,WIP_OVERFLOW,WIP limit exceeded,All
+
+TABLE 6: Model Intervention Profiles (R4)
+model,wip_limit,triz_enabled,triz_exemption_turn,focus_view,straightjacket,rationale
+deepseek-r1:14b,3,OFF,15,OFF,No,Champion—minimal intervention
+granite3.1-moe:3b,3,ON,—,ON,No,Stable specialist—freedom
+llama3.2:3b,2,ON,—,ON,No,Rehabilitated—maintain oversight
+mistral:latest,1,ON,—,ON,Yes,Stubborn—force single-thread
+
+TABLE 7: Benchmark Suite
+benchmark_id,name,tests,difficulty,key_challenge
+B01,Find Needle,File search pattern matching,Low,Basic grep/find usage
+B02,Count Lines,Enumeration arithmetic,Low,Working memory for sums
+B03,Undecidable Claim,Truth/Dare mechanism,High,Recognize missing evidence
+B04,Verification Chain,Multi-step proofs,High,Build evidence chain
+B05,Session Rules,Rule generation,High,Abstract pattern recognition
+B06,Memory Recall,Context retention 4 files,High,Working memory limits
