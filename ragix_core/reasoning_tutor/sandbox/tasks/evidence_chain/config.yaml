@@ -1,0 +1,12 @@
+pipeline:
+  name: flow_monitor
+  version: 1.2.0
+
+thresholds:
+  alert_threshold: 0.20
+  max_flow: 1200.0
+  warning_margin: 0.10
+
+notifications:
+  enabled: true
+  email: admin@example.com

@@ -28,9 +28,12 @@ pip install -r requirements.txt
 
 # 2. Install reasoning_tutor analysis dependencies
 pip install -r ragix_core/reasoning_tutor/requirements.txt
+
+# 3. (Optional) Install DSPy for policy compilation
+pip install dspy-ai>=2.5.0
 ```
 
-**Additional packages installed:**
+**Core packages (required):**
 
 | Package | Purpose |
 |---------|---------|
@@ -40,7 +43,28 @@ pip install -r ragix_core/reasoning_tutor/requirements.txt
 | `scipy` | Dendrograms, hierarchical clustering |
 | `scikit-learn` | PCA, StandardScaler |
 
+**Optional packages:**
+
+| Package | Purpose |
+|---------|---------|
+| `dspy-ai` | Offline policy compilation (TutorEnvelope Layer 3) |
+
 **Note:** If you only use the core Tutor (no visualization/analysis), `numpy` is the only required addition.
+
+### Backward Compatibility
+
+The Tutor is designed with strict backward compatibility:
+
+- **TutorV1** (existing) remains unchanged and is the default
+- **TutorEnvelope** (optional wrapper) adds layers without modifying TutorV1
+- **DSPy is never required at runtime** — only for offline policy compilation
+- **Previous production scripts continue to work unchanged**
+
+This follows the **"Law vs. Lawyer"** model:
+- **Law (TutorV1):** Deterministic verification, CHECK protocol, scoring — immutable
+- **Lawyer (DSPy):** Optional optimizer that compiles policy bundles offline
+
+See `REVIEW_extensions.md` for the full integration specification.
 
 ---
 

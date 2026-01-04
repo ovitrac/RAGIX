@@ -1,0 +1,111 @@
+# =============================================================================
+# Optimized Policy Bundle (Simulated DSPy Output)
+# =============================================================================
+#
+# This simulates what DSPy optimization would produce based on:
+# - Analysis of successful vs. failed traces
+# - Identification of common failure patterns
+# - Few-shot exemplar selection from winning traces
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+# Version: 1.0.0 (2025-12-27)
+#
+# =============================================================================
+
+bundle_version: "1.0.0"
+bundle_id: "optimized_v1"
+bundle_type: "optimized"
+
+metadata:
+  created_at: "2025-12-27T16:00:00Z"
+  created_by: "simulated_dspy"
+  description: "Optimized policy simulating DSPy compilation from successful traces"
+  optimized: true
+  optimization_source: "Manual analysis of envelope_demo failure patterns"
+  target_improvements:
+    - "Eliminate natural language commands"
+    - "Enforce JSON-only output"
+    - "Provide concrete Unix command exemplars"
+    - "Warn against common failure patterns"
+
+prompts:
+  system: |
+    You are a Unix shell command generator. You MUST output ONLY valid JSON.
+
+    CRITICAL RULES:
+    1. Output EXACTLY ONE JSON object, nothing else
+    2. The "command" field MUST contain an executable shell command
+    3. Do NOT include explanations, markdown, or prose
+    4. Do NOT wrap JSON in code fences
+    5. The "action" field MUST be "PROPOSE" for shell commands
+
+  task_template: |
+    TASK: {task_description}
+
+    {context}
+
+    REQUIRED OUTPUT FORMAT:
+    {{"action": "PROPOSE", "intent": "<brief intent>", "command": "<shell command>", "mode": "read"}}
+
+    EXAMPLES OF CORRECT OUTPUT:
+    {{"action": "PROPOSE", "intent": "List files", "command": "ls -la", "mode": "read"}}
+    {{"action": "PROPOSE", "intent": "Find errors", "command": "grep -i error system.log", "mode": "read"}}
+    {{"action": "PROPOSE", "intent": "Sort unique", "command": "tr '[:upper:]' '[:lower:]' < input.txt | sort -u", "mode": "read"}}
+
+    WRONG (do NOT do this):
+    - "command": "Review the file for issues" (natural language, not shell)
+    - "command": "Check config.yaml" (not executable)
+    - ```json ... ``` (no markdown fences)
+    - Explanations before or after JSON
+
+    Your response (single JSON object only):
+
+exemplars:
+  - task: "Sort unique tokens case-insensitive"
+    correct: |
+      {"action": "PROPOSE", "intent": "Convert to lowercase and sort unique", "command": "tr '[:upper:]' '[:lower:]' < input.txt | sort -u", "mode": "read"}
+    wrong: |
+      {"action": "PROPOSE", "intent": "Sort file", "command": "sort -u -f input.txt", "mode": "read"}
+    why_wrong: "sort -f folds case for comparison but preserves original case in output"
+
+  - task: "Find errors in log file"
+    correct: |
+      {"action": "PROPOSE", "intent": "Extract error lines", "command": "grep -i 'error' system.log", "mode": "read"}
+    wrong: |
+      {"action": "PROPOSE", "intent": "Check errors", "command": "Review system.log for any errors", "mode": "read"}
+    why_wrong: "Natural language instead of shell command"
+
+  - task: "Read YAML config"
+    correct: |
+      {"action": "PROPOSE", "intent": "Display config contents", "command": "cat config.yaml", "mode": "read"}
+    wrong: |
+      {"action": "READ", "intent": "Read config", "command": "cat config.yaml", "mode": "read"}
+    why_wrong: "Wrong action type - must use PROPOSE for shell commands"
+
+anti_patterns:
+  - pattern: "Review|Check|Analyze|Examine"
+    description: "Natural language verbs instead of shell commands"
+    severity: "critical"
+
+  - pattern: "^[A-Z][a-z]+ (the|a|for)"
+    description: "Prose sentence structure"
+    severity: "critical"
+
+  - pattern: "<\\([^)]+\\)"
+    description: "Bash-specific process substitution (non-portable)"
+    severity: "warning"
+
+  - pattern: "```"
+    description: "Markdown code fence"
+    severity: "moderate"
+
+model_params:
+  temperature: 0.0
+  top_p: 1.0
+  max_tokens: 256  # Reduced to discourage verbosity
+
+format_guidance:
+  json_only: true
+  no_markdown: true
+  no_prose: true
+  single_object: true

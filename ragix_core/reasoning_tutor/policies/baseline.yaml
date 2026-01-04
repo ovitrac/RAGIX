@@ -1,0 +1,45 @@
+# =============================================================================
+# Baseline Policy Bundle (No Optimization)
+# =============================================================================
+#
+# This represents the default prompts without DSPy optimization.
+# Used as control in ablation studies.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+# Version: 1.0.0 (2025-12-27)
+#
+# =============================================================================
+
+bundle_version: "1.0.0"
+bundle_id: "baseline_v1"
+bundle_type: "control"
+
+metadata:
+  created_at: "2025-12-27T16:00:00Z"
+  created_by: "manual"
+  description: "Baseline policy without optimization (control group)"
+  optimized: false
+
+prompts:
+  system: |
+    You are a Unix command expert. Output ONLY a JSON object, no explanations.
+
+  task_template: |
+    TASK: {task_description}
+
+    {context}
+
+    OUTPUT FORMAT (strict JSON only):
+    {{"action": "PROPOSE", "intent": "<your intent>", "command": "<shell command>", "mode": "read"}}
+
+    Your response (JSON only):
+
+exemplars: []
+
+model_params:
+  temperature: 0.0
+  top_p: 1.0
+  max_tokens: 512
+
+# No anti-patterns or format guidance
+format_guidance: null
