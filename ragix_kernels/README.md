@@ -1,8 +1,12 @@
 # KOAS — Kernel-Orchestrated Audit System
 
-**A Sovereign, LLM-Agnostic Platform for AI-Assisted Code Analysis**
+**A Sovereign, LLM-Agnostic Platform for AI-Assisted Analysis**
 
-KOAS brings the Virtual Hybrid Lab paradigm to code auditing:
+**Author:** Olivier Vitrac, PhD, HDR | Adservio Innovation Lab
+**Version:** 1.2.0
+**Date:** 2026-01-18
+
+KOAS brings the Virtual Hybrid Lab paradigm to automated analysis:
 - **Kernels compute** — Fast, deterministic, scalable
 - **LLMs orchestrate** — Strategic decisions, synthesis, interpretation
 - **RAG provides context** — Domain knowledge, patterns, standards
@@ -13,14 +17,12 @@ KOAS brings the Virtual Hybrid Lab paradigm to code auditing:
 # Install RAGIX with KOAS support
 pip install -e ".[koas]"
 
-# Initialize an audit workspace
+# Code Audit
 ragix-koas init --project /path/to/your/project --name "My Project" --language python
-
-# Run all stages
 ragix-koas run --workspace /tmp/koas_my_project --all
 
-# View the report
-cat /tmp/koas_my_project/stage3/audit_report.md
+# Document Analysis (see docs/KOAS_DOCS.md)
+python run_doc_koas.py --project /path/to/project/src --language fr
 ```
 
 ## Architecture
@@ -35,44 +37,147 @@ cat /tmp/koas_my_project/stage3/audit_report.md
 
 ### Three-Stage Pipeline
 
-| Stage | Purpose | Kernels |
-|-------|---------|---------|
-| **1** | Data Collection | ast_scan, metrics, dependency, partition, services, timeline |
-| **2** | Analysis | stats_summary, hotspots, dead_code, coupling, entropy, risk |
-| **3** | Reporting | section_executive, section_overview, section_recommendations, report_assemble |
+| Stage | Purpose | Description |
+|-------|---------|-------------|
+| **1** | Collection | Extract raw data (AST, metadata, structure) |
+| **2** | Analysis | Derive insights (metrics, clusters, risks) |
+| **3** | Reporting | Generate reports and summaries |
 
-## Kernels
+---
+
+## Kernel Categories
+
+KOAS provides three kernel families for different analysis domains:
+
+| Category | Module | Purpose | Kernels |
+|----------|--------|---------|---------|
+| **audit** | `ragix_kernels.audit` | Code quality analysis | 18 kernels |
+| **docs** | `ragix_kernels.docs` | Document summarization | 11 kernels |
+| **security** | `ragix_kernels.security` | Network/infrastructure security | 11 kernels |
+
+---
+
+## Code Audit Kernels (`ragix_kernels.audit`)
+
+For source code analysis (Java, Python, etc.)
 
 ### Stage 1: Data Collection
 
-| Kernel | Description | Wraps |
-|--------|-------------|-------|
-| `ast_scan` | AST extraction and symbol enumeration | ragix-ast scan |
-| `metrics` | Code metrics (CC, LOC, MI) | ragix-ast metrics |
-| `dependency` | Dependency graph construction | DependencyGraphBuilder |
-| `partition` | Codebase partitioning | Partitioner |
-| `services` | Service detection | ServiceDetector |
-| `timeline` | Component lifecycle profiles | TimelineScanner |
+| Kernel | Description | Output |
+|--------|-------------|--------|
+| `ast_scan` | AST extraction and symbol enumeration | Classes, methods, fields |
+| `metrics` | Code metrics (CC, LOC, MI) | Per-file metrics |
+| `dependency` | Dependency graph construction | Import relationships |
+| `partition` | Codebase partitioning | Component clusters |
+| `services` | Service detection | Controllers, services, repos |
+| `timeline` | Component lifecycle profiles | Modification history |
+| `volumetry` | Size and distribution analysis | LOC distributions |
 
 ### Stage 2: Analysis
 
-| Kernel | Description | Wraps |
-|--------|-------------|-------|
-| `stats_summary` | Statistical aggregation | StatisticsComputer |
-| `hotspots` | Complexity hotspot identification | metrics data |
-| `dead_code` | Dead code detection | DeadCodeDetector |
-| `coupling` | Martin coupling metrics | CouplingComputer |
-| `entropy` | Information-theoretic analysis | EntropyComputer |
-| `risk` | Service Life Risk assessment | RiskScorer |
+| Kernel | Description | Output |
+|--------|-------------|--------|
+| `stats_summary` | Statistical aggregation | Mean, median, outliers |
+| `hotspots` | Complexity hotspot identification | High-risk areas |
+| `dead_code` | Dead code detection | Unreachable elements |
+| `coupling` | Martin coupling metrics | Ca, Ce, I, A, D |
+| `entropy` | Information-theoretic analysis | Token entropy |
+| `risk` | Service Life Risk assessment | Risk levels |
+| `drift` | Spec-code alignment | Synchronization status |
+| `module_group` | Module grouping | Logical boundaries |
+| `risk_matrix` | Risk matrix generation | Risk visualization |
 
 ### Stage 3: Reporting
 
 | Kernel | Description | Output |
 |--------|-------------|--------|
-| `section_executive` | Executive summary | key findings, metrics |
-| `section_overview` | Codebase overview | structure, distributions |
-| `section_recommendations` | Prioritized recommendations | action plan |
+| `section_executive` | Executive summary | Key findings |
+| `section_overview` | Codebase overview | Structure, distributions |
+| `section_drift` | Drift analysis | Alignment tables |
+| `section_recommendations` | Prioritized recommendations | Action plan |
 | `report_assemble` | Final assembly | audit_report.md |
+
+---
+
+## Document Analysis Kernels (`ragix_kernels.docs`)
+
+For specification and document corpus analysis. See [KOAS_DOCS.md](../docs/KOAS_DOCS.md) for full documentation.
+
+### Stage 1: Collection
+
+| Kernel | Description | LLM | Output |
+|--------|-------------|-----|--------|
+| `doc_metadata` | Document inventory from RAG | No | File list, statistics |
+| `doc_concepts` | Concept extraction from knowledge graph | No | Concept hierarchy |
+| `doc_structure` | Section/heading detection | No | Document outlines |
+
+### Stage 2: Analysis
+
+| Kernel | Description | LLM | Output |
+|--------|-------------|-----|--------|
+| `doc_cluster` | Hierarchical document clustering | No | Document groups |
+| `doc_extract` | Quality-filtered sentence extraction | No | Key sentences |
+| `doc_coverage` | Concept coverage analysis | No | Gaps, overlaps |
+| `doc_func_extract` | SPD functionality extraction | **Yes** | Structured functionalities |
+
+### Stage 3: Synthesis
+
+| Kernel | Description | LLM | Output |
+|--------|-------------|-----|--------|
+| `doc_compare` | Inter-document discrepancy detection | No | Discrepancies |
+| `doc_pyramid` | Hierarchical summary structure | No | 4-level pyramid |
+| `doc_report_assemble` | Report generation | No | doc_report.md |
+| `doc_summarize` | Per-document LLM summaries | **Yes** | Natural language summaries |
+| `doc_visualize` | Generate word clouds and charts | No | PNG visualizations |
+| `doc_final_report` | Comprehensive report with appendices | No | final_report.md + A-F appendices |
+
+### Report Appendices (doc_final_report)
+
+The `doc_final_report` kernel generates six appendices:
+
+| Appendix | Content |
+|----------|---------|
+| **A** | Corpus Summary — file inventory, statistics by type |
+| **B** | Domain Summaries — per-domain concept analysis |
+| **C** | Functionality Catalog — extracted SPD functionalities |
+| **D** | Discrepancy Details — content overlap, terminology variations, version references |
+| **E** | Clustering Analysis — document clusters with file names |
+| **F** | Artifacts Catalog — links to visualizations (word clouds, graphs) |
+
+Appendices D and E display **human-readable file names** instead of internal IDs.
+
+---
+
+## Security Kernels (`ragix_kernels.security`)
+
+For network and infrastructure security analysis.
+
+### Stage 1: Discovery
+
+| Kernel | Description | Output |
+|--------|-------------|--------|
+| `net_discover` | Network topology discovery | Host inventory |
+| `port_scan` | Port and service detection | Open ports, services |
+| `dns_enum` | DNS enumeration | DNS records |
+| `config_parse` | Configuration file parsing | Security settings |
+
+### Stage 2: Analysis
+
+| Kernel | Description | Output |
+|--------|-------------|--------|
+| `ssl_analysis` | TLS/SSL certificate analysis | Certificate status |
+| `vuln_assess` | Vulnerability assessment | CVE matches |
+| `web_scan` | Web application scanning | Web vulnerabilities |
+| `compliance` | Compliance checking | Policy violations |
+| `risk_network` | Network risk scoring | Risk levels |
+
+### Stage 3: Reporting
+
+| Kernel | Description | Output |
+|--------|-------------|--------|
+| `section_security` | Security report section | Findings summary |
+
+---
 
 ## CLI Usage
 
@@ -86,13 +191,41 @@ ragix-koas run --workspace /path/to/workspace --stage 1
 # Run all stages
 ragix-koas run --workspace /path/to/workspace --all
 
+# Run with cache (skip LLM kernels if outputs exist)
+ragix-koas run --workspace /path/to/workspace --all --use-cache
+
 # Get summary
 ragix-koas summary --workspace /path/to/workspace
 
 # List available kernels
 ragix-koas list
 ragix-koas list --stage 1
+ragix-koas list --category docs
 ```
+
+### Deterministic Execution (--use-cache)
+
+The `--use-cache` flag enables deterministic re-execution by reusing cached kernel outputs:
+
+```bash
+# First run: all kernels execute (includes LLM calls)
+ragix-koas run --workspace ./ws --all
+# → Stage 3: 13 kernels in 45.2s
+
+# Subsequent runs: skip kernels with cached outputs
+ragix-koas run --workspace ./ws --all --use-cache
+# → Stage 3: 13 kernels in 0ms (all cached)
+
+# Regenerate single kernel: delete its cache, then run
+rm ./ws/stage3/doc_final_report.json
+ragix-koas run --workspace ./ws --stage 3 --use-cache
+# → 12 cached + 1 regenerated
+```
+
+Benefits:
+- **Reproducibility**: Same inputs always produce same outputs
+- **Speed**: Skip expensive LLM calls on unchanged data
+- **Iteration**: Modify one kernel without re-running the entire pipeline
 
 ## Configuration
 
@@ -143,10 +276,10 @@ output:
 ```
 
 French output includes:
-- Synthese Executive
+- Synthèse Exécutive
 - Vue d'Ensemble du Code Source
-- Recommandations priorisees
-- Evaluation des Risques
+- Recommandations priorisées
+- Évaluation des Risques
 
 ## MCP Integration
 
@@ -162,16 +295,6 @@ koas_list_kernels(stage, category)
 koas_report(workspace, max_chars)
 ```
 
-## Shell Scripts
-
-```bash
-# Quick single-project audit
-./scripts/koas-quick-audit.sh /path/to/project "My Project" --fr
-
-# Batch audit multiple projects
-./scripts/koas-batch-audit.sh projects.txt --lang fr --output-dir ./reports
-```
-
 ## Design Principles
 
 ### 1. Local-First, Sovereignty by Default
@@ -181,7 +304,7 @@ All computation happens locally. Data never leaves the infrastructure.
 Works with ANY LLM: Ollama (local), Claude, GPT-4, etc.
 
 ### 3. Kernel-Centric Computation
-Kernels are pure computation units — no LLM inside:
+Kernels are pure computation units — no LLM inside (except explicitly marked):
 - Accept structured input (JSON/YAML)
 - Produce structured output + human-readable summary
 - Fully deterministic and reproducible
@@ -189,21 +312,57 @@ Kernels are pure computation units — no LLM inside:
 ### 4. Reuse Over Reimplementation
 KOAS wraps existing RAGIX tools rather than reimplementing.
 
+### 5. Dual LLM Architecture (Worker + Tutor)
+
+LLM-enabled kernels use a **two-model approach**:
+
+```
+┌────────────────────────────────────────────────────────┐
+│                 Dual LLM Pattern                        │
+│                                                         │
+│  Input → Worker LLM (fast, small) → Draft Output       │
+│              ↓                                          │
+│         Tutor LLM (larger, smarter) → Refined Output   │
+└────────────────────────────────────────────────────────┘
+```
+
+| Role | Model | Purpose |
+|------|-------|---------|
+| **Worker** | `granite3.1-moe:3b` | Fast extraction, initial processing |
+| **Tutor** | `mistral:7b-instruct` | Quality refinement, validation |
+
+Benefits:
+- **Speed**: Small model handles bulk work
+- **Quality**: Larger model refines results
+- **Cost**: Minimizes expensive model usage
+
+### 6. Dual Reconstruction (Pyramidal + Leiden)
+
+Document clustering uses two complementary algorithms:
+
+| Algorithm | Purpose | Output |
+|-----------|---------|--------|
+| **Hierarchical (Pyramidal)** | Bottom-up aggregation | Document → Group → Domain → Corpus |
+| **Leiden Community Detection** | Graph-based clustering | Optimized partitions from similarity graph |
+
+The combination provides robust document organization regardless of corpus structure.
+
 ## Kernel Development
 
 Create a new kernel by extending the base class:
 
 ```python
 from ragix_kernels.base import Kernel, KernelInput
+from typing import Dict, Any
 
 class MyKernel(Kernel):
     name = "my_kernel"
     version = "1.0.0"
-    category = "audit"
+    category = "audit"  # or "docs", "security"
     stage = 2
 
-    requires = ["ast_scan", "metrics"]
-    provides = ["my_analysis"]
+    requires = ["ast_scan", "metrics"]  # Dependencies
+    provides = ["my_analysis"]          # Capabilities
 
     def compute(self, input: KernelInput) -> Dict[str, Any]:
         # Load dependencies
@@ -223,11 +382,20 @@ class MyKernel(Kernel):
 | Criterion | Target |
 |-----------|--------|
 | Codebase support | 500K+ LOC without context issues |
+| Document support | 1000+ documents |
 | Report length | 50+ pages, modular sections |
 | Execution time | Stage 1+2 < 5 minutes for 1000 classes |
-| LLM efficiency | < 10% time in LLM, > 90% in kernels |
+| LLM efficiency | < 10% time in LLM for code audit |
 | Reproducibility | Same input = same output (deterministic) |
 | Auditability | Full SHA256 chain of all operations |
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [KOAS.md](../docs/KOAS.md) | Philosophy and code audit details |
+| [KOAS_DOCS.md](../docs/KOAS_DOCS.md) | Document summarization system |
+| [KOAS_MCP_REFERENCE.md](../docs/KOAS_MCP_REFERENCE.md) | MCP tool reference |
 
 ## Author
 

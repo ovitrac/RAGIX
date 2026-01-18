@@ -6,6 +6,109 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.63.0 — KOAS Document Analysis Enhancement & Deterministic Execution (2026-01-18)
+
+### Highlights
+
+**KOAS/docs kernels gain comprehensive final report generation, improved appendices with human-readable file names, dual LLM architecture (Worker + Tutor), and deterministic cache-based execution.**
+
+| Feature | Status |
+|---------|--------|
+| `--use-cache` flag | ✅ Skip LLM kernels with cached outputs |
+| Appendix D improvements | ✅ Type-specific discrepancy details |
+| Appendix E improvements | ✅ File names instead of IDs |
+| Appendix F (new) | ✅ Artifacts and visualizations catalog |
+| `doc_final_report` kernel | ✅ Comprehensive report generation |
+| `doc_visualize` kernel | ✅ Word clouds and concept graphs |
+| Dual LLM (Worker + Tutor) | ✅ Granite 3b + Mistral 7b |
+| Dual reconstruction | ✅ Pyramidal + Leiden clustering |
+
+### Deterministic Execution (`--use-cache`)
+
+New orchestrator flag to reuse cached kernel outputs:
+
+```bash
+# Skip kernels with existing cached outputs
+ragix-koas run --workspace ./ws --all --use-cache
+
+# Result: Stage 3 with 13 kernels in 0ms (all cached)
+```
+
+**Implementation:**
+- Added `--use-cache, -C` argument to `run` command
+- Added `_load_cached_output()` method to load existing kernel results
+- Modified `_run_stage_sequential()` and `_run_stage_parallel()` to check cache before execution
+- Enables rapid iteration: delete one cache file, regenerate only that kernel
+
+### Appendix Improvements
+
+#### Appendix D: Discrepancy Details
+
+Now shows type-specific information:
+
+| Discrepancy Type | Information Shown |
+|------------------|-------------------|
+| **Content Overlap** | File pairs with similarity percentage + text sample |
+| **Terminology Variation** | Base term + all variants found |
+| **Version Reference** | File name + file version + referenced version + context |
+
+#### Appendix E: Clustering Analysis
+
+- Shows **file names** (e.g., "2025.08.11 - CR CoStrat SURF4.pdf")
+- Previously showed internal IDs (e.g., "F000012")
+- Added `_build_file_id_mapping()` method for ID-to-name resolution
+
+#### Appendix F: Artifacts Catalog (New)
+
+Links to all generated visualizations:
+- Word clouds (corpus, per-domain)
+- Concept distribution charts
+- Cluster visualizations
+- All files in `visualizations/` directory
+
+### Dual LLM Architecture
+
+LLM-enabled kernels (`doc_summarize`, `doc_func_extract`) now use two models:
+
+```
+Worker (granite3.1-moe:3b) → Draft Output
+        ↓
+Tutor (mistral:7b-instruct) → Refined Output
+```
+
+**Benefits:**
+- Speed: Small model handles bulk extraction
+- Quality: Larger model validates and refines
+- Cost: Minimizes expensive model usage
+
+### Dual Reconstruction
+
+Document clustering combines two algorithms:
+
+| Algorithm | Purpose |
+|-----------|---------|
+| **Hierarchical (Pyramidal)** | Document → Group → Domain → Corpus |
+| **Leiden Community Detection** | Graph-based optimized partitions |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `ragix_kernels/orchestrator.py` | `--use-cache` flag, `_load_cached_output()` |
+| `ragix_kernels/docs/doc_final_report.py` | Appendix D/E/F generation, file ID mapping |
+| `ragix_kernels/README.md` | v1.2.0, --use-cache docs, dual LLM/reconstruction |
+
+### Tested on VDP Corpus
+
+- **159 documents** (DOCX, PDF, PPTX, XLSX)
+- **5,515 chunks** indexed
+- **33 content overlaps** detected with file pairs
+- **7 terminology variations** identified
+- **11 version references** flagged
+- **Stage 3**: 45.2s full run → 0ms with cache
+
+---
+
 ## v0.62.0 — KOAS MCP Consolidation, Demo UI & Academic Documentation (2025-12-20)
 
 ### Highlights
@@ -1414,6 +1517,7 @@ mcp:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **v0.63** | 2026-01-18 | KOAS/docs enhancement, --use-cache, dual LLM (Worker+Tutor), improved appendices |
 | **v0.62** | 2025-12-20 | KOAS MCP Consolidation, Demo UI, Academic docs (MCP, REASONING) |
 | **v0.61** | 2025-12-17 | Security Kernels (10), ANSSI/NIST/CIS compliance |
 | **v0.60** | 2025-12-14 | MCP Enhancement, Parallel KOAS, System tools |

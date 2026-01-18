@@ -412,6 +412,7 @@ class Orchestrator:
         progress_callback: Optional[Callable] = None,
         parallel: bool = False,
         max_workers: int = 4,
+        use_cache: bool = False,
     ) -> List[KernelOutput]:
         """
         Execute all kernels in a stage.
@@ -422,6 +423,7 @@ class Orchestrator:
             progress_callback: Optional callback(kernel_name, status, progress)
             parallel: Enable parallel execution for independent kernels
             max_workers: Maximum concurrent kernel executions (default: 4)
+            use_cache: If True, use cached outputs when available (skip re-execution)
 
         Returns:
             List of KernelOutput from executed kernels
@@ -485,11 +487,11 @@ class Orchestrator:
 
         if parallel and total > 1:
             results = self._run_stage_parallel(
-                stage_kernels, context, progress_callback, max_workers
+                stage_kernels, context, progress_callback, max_workers, use_cache
             )
         else:
             results = self._run_stage_sequential(
-                stage_kernels, context, progress_callback
+                stage_kernels, context, progress_callback, use_cache
             )
 
         # Save audit trail
@@ -500,21 +502,73 @@ class Orchestrator:
 
         return results
 
+    def _load_cached_output(self, kernel_name: str, context: "ExecutionContext") -> Optional[KernelOutput]:
+        """
+        Load cached output for a kernel if available.
+
+        Returns:
+            KernelOutput if cache exists and is valid, None otherwise
+        """
+        kernel_class = KernelRegistry.get(kernel_name)
+        output_path = context.workspace / f"stage{kernel_class.stage}" / f"{kernel_name}.json"
+
+        if not output_path.exists():
+            return None
+
+        try:
+            with open(output_path) as f:
+                cached_data = json.load(f)
+
+            # Load summary if available
+            summary_path = output_path.with_suffix(".summary.txt")
+            summary = summary_path.read_text() if summary_path.exists() else ""
+
+            return KernelOutput(
+                success=True,
+                data=cached_data.get("data", {}),
+                summary=summary,
+                output_file=output_path,
+                kernel_name=kernel_name,
+                kernel_version=cached_data.get("kernel_version", ""),
+                execution_time_ms=0,  # Cached, no execution time
+                input_hash=cached_data.get("input_hash", ""),
+                dependencies_used=cached_data.get("dependencies_used", []),
+            )
+        except Exception as e:
+            logger.warning(f"[{kernel_name}] Failed to load cache: {e}")
+            return None
+
     def _run_stage_sequential(
         self,
         stage_kernels: List[str],
         context: "ExecutionContext",
         progress_callback: Optional[Callable],
+        use_cache: bool = False,
     ) -> List[KernelOutput]:
         """Execute kernels sequentially."""
         results = []
         total = len(stage_kernels)
+        cached_count = 0
 
         for i, kernel_name in enumerate(stage_kernels):
             if progress_callback:
                 progress_callback(kernel_name, "starting", (i + 1) / total)
 
             try:
+                # Check cache first if enabled
+                if use_cache:
+                    cached_output = self._load_cached_output(kernel_name, context)
+                    if cached_output:
+                        logger.info(f"[{kernel_name}] Using cached output (--use-cache)")
+                        results.append(cached_output)
+                        context.outputs[kernel_name] = cached_output
+                        cached_count += 1
+
+                        if progress_callback:
+                            progress_callback(kernel_name, "cached", (i + 1) / total)
+                        continue
+
+                # Execute kernel
                 output = self._run_kernel(kernel_name, context)
                 results.append(output)
                 context.outputs[kernel_name] = output
@@ -530,6 +584,9 @@ class Orchestrator:
                     progress_callback(kernel_name, "error", (i + 1) / total)
                 raise
 
+        if cached_count > 0:
+            logger.info(f"[Cache] Used {cached_count}/{total} cached outputs")
+
         return results
 
     def _run_stage_parallel(
@@ -538,6 +595,7 @@ class Orchestrator:
         context: "ExecutionContext",
         progress_callback: Optional[Callable],
         max_workers: int,
+        use_cache: bool = False,
     ) -> List[KernelOutput]:
         """
         Execute kernels in parallel where possible.
@@ -550,6 +608,7 @@ class Orchestrator:
         context_lock = Lock()
         total = len(stage_kernels)
         completed_count = 0
+        cached_count = 0
 
         def get_ready_kernels() -> List[str]:
             """Get kernels whose dependencies are all complete."""
@@ -563,8 +622,19 @@ class Orchestrator:
                     ready.append(name)
             return ready
 
-        def run_kernel_safe(kernel_name: str) -> Tuple[str, KernelOutput]:
-            """Run kernel with thread-safe context access."""
+        def run_kernel_safe(kernel_name: str) -> Tuple[str, KernelOutput, bool]:
+            """Run kernel with thread-safe context access. Returns (name, output, from_cache)."""
+            nonlocal cached_count
+
+            # Check cache first if enabled
+            if use_cache:
+                cached_output = self._load_cached_output(kernel_name, context)
+                if cached_output:
+                    logger.info(f"[{kernel_name}] Using cached output (--use-cache)")
+                    with context_lock:
+                        context.outputs[kernel_name] = cached_output
+                    return kernel_name, cached_output, True
+
             output = self._run_kernel(kernel_name, context)
 
             # Thread-safe update of context
@@ -572,7 +642,7 @@ class Orchestrator:
                 context.outputs[kernel_name] = output
                 context.add_to_audit_trail(kernel_name, output)
 
-            return kernel_name, output
+            return kernel_name, output, False
 
         logger.info(f"[Parallel] Running {total} kernels with max {max_workers} workers")
 
@@ -596,13 +666,17 @@ class Orchestrator:
                 for future in as_completed(futures):
                     kernel_name = futures[future]
                     try:
-                        name, output = future.result()
+                        name, output, from_cache = future.result()
                         results.append(output)
                         completed.add(name)
                         pending.discard(name)
 
                         completed_count += 1
-                        status = "completed" if output.success else "failed"
+                        if from_cache:
+                            cached_count += 1
+                            status = "cached"
+                        else:
+                            status = "completed" if output.success else "failed"
                         if progress_callback:
                             progress_callback(name, status, completed_count / total)
 
@@ -611,6 +685,9 @@ class Orchestrator:
                         if progress_callback:
                             progress_callback(kernel_name, "error", completed_count / total)
                         raise
+
+        if cached_count > 0:
+            logger.info(f"[Cache] Used {cached_count}/{total} cached outputs")
 
         return results
 
@@ -1092,12 +1169,15 @@ def cmd_run(args):
     else:
         stages = [1]  # Default to stage 1
 
-    # Parallel execution settings
+    # Execution settings
     parallel = getattr(args, 'parallel', False)
     max_workers = getattr(args, 'workers', 4)
+    use_cache = getattr(args, 'use_cache', False)
 
     if parallel:
         print(f"[Parallel mode] Max workers: {max_workers}")
+    if use_cache:
+        print(f"[Cache mode] Using cached outputs when available")
 
     # Run stages
     for stage in stages:
@@ -1113,6 +1193,7 @@ def cmd_run(args):
                 progress_callback=progress_reporter if not args.quiet else None,
                 parallel=parallel,
                 max_workers=max_workers,
+                use_cache=use_cache,
             )
 
             # Summary
@@ -1399,6 +1480,8 @@ Examples:
                            help="Enable parallel execution for independent kernels")
     run_parser.add_argument("--workers", "-W", type=int, default=4,
                            help="Max parallel workers (default: 4)")
+    run_parser.add_argument("--use-cache", "-C", action="store_true",
+                           help="Use cached outputs if available (skip LLM-based kernels with existing results)")
     run_parser.set_defaults(func=cmd_run)
 
     # status command

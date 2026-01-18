@@ -1,0 +1,22 @@
+# KOAS Document Summarization Requirements
+# Author: Olivier Vitrac, PhD, HDR | Adservio Innovation Lab
+# Date: 2026-01-18
+#
+# Install with: pip install -r requirements-koas-docs.txt
+# Or with mamba: mamba install python-igraph leidenalg
+
+# Core RAGIX dependencies (inherited)
+# - chromadb, sentence-transformers, etc.
+
+# Document analysis kernels
+python-igraph>=1.0.0    # Graph operations for Leiden clustering
+leidenalg>=0.10.0       # Leiden community detection algorithm
+
+# Visualization (doc_visualize kernel)
+matplotlib>=3.7.0       # Plotting and figure generation
+networkx>=3.0           # Network graph visualization for Leiden
+wordcloud>=1.9.0        # Word cloud generation for summaries
+
+# Optional: for enhanced similarity metrics
+# scipy>=1.10.0         # Already in base RAGIX
+# scikit-learn>=1.3.0   # Already in base RAGIX

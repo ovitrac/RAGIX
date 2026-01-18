@@ -3,6 +3,9 @@ keys/
 tests/audit/
 uploads/
 
+# LLM cache (should be in workspace, not repo)
+cache/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 .mypy_cache/
