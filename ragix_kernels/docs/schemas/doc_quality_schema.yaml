@@ -1,0 +1,349 @@
+# =============================================================================
+# Document Quality Scorecard Schema
+# =============================================================================
+#
+# Defines the 5-dimension quality assessment framework for RAGIX documents.
+# This schema enables deterministic quality scoring (no LLM inside computation)
+# with optional LLM-assisted intent classification.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-01-20
+#
+# =============================================================================
+
+version: "1.0.0"
+name: "doc_quality_schema"
+description: "5-dimension document quality scorecard for RAG optimization"
+
+# =============================================================================
+# Quality Dimensions (5D Scorecard)
+# =============================================================================
+
+dimensions:
+  # ---------------------------------------------------------------------------
+  # D1: Linguistic Quality (LQ)
+  # ---------------------------------------------------------------------------
+  linguistic_quality:
+    id: "LQ"
+    level: "chunk_to_doc"  # Computed at chunk level, aggregated to document
+    description: "Measures text quality at the linguistic level"
+    range: [0.0, 1.0]
+
+    metrics:
+      lexical_richness:
+        description: "Type-Token Ratio (TTR) normalized"
+        weight: 0.3
+        computation: "unique_words / total_words"
+
+      sentence_regularity:
+        description: "Variance in sentence length (lower is better)"
+        weight: 0.25
+        computation: "1 - normalized_std(sentence_lengths)"
+
+      syntax_markers:
+        description: "Presence of well-formed sentence structures"
+        weight: 0.25
+        indicators:
+          - "complete_sentences"  # Start caps, end punctuation
+          - "proper_paragraphs"   # Logical paragraph breaks
+          - "no_truncation"       # No mid-word or mid-sentence cuts
+
+      completeness:
+        description: "Absence of truncation artifacts"
+        weight: 0.2
+        penalties:
+          starts_lowercase: -0.2
+          ends_without_punctuation: -0.2
+          has_markdown_artifacts: -0.3
+          has_table_fragments: -0.2
+
+  # ---------------------------------------------------------------------------
+  # D2: Structural Quality (SQ)
+  # ---------------------------------------------------------------------------
+  structural_quality:
+    id: "SQ"
+    level: "document"  # Computed at document level
+    description: "Measures document organization and structure"
+    range: [0.0, 1.0]
+
+    metrics:
+      paragraph_variance:
+        description: "Consistency of paragraph lengths"
+        weight: 0.25
+        target_range: [100, 500]  # Characters per paragraph
+
+      heading_depth:
+        description: "Hierarchical heading structure (H1->H2->H3)"
+        weight: 0.25
+        bonuses:
+          has_h1: 0.1
+          has_h2: 0.1
+          proper_hierarchy: 0.15  # H2 under H1, H3 under H2
+
+      prose_bullets_ratio:
+        description: "Balance between prose and lists"
+        weight: 0.25
+        optimal_range: [0.6, 0.9]  # 60-90% prose
+
+      section_coherence:
+        description: "Logical flow between sections"
+        weight: 0.25
+        indicators:
+          - "section_transitions"
+          - "topic_continuity"
+
+  # ---------------------------------------------------------------------------
+  # D3: Semantic Coherence (SC)
+  # ---------------------------------------------------------------------------
+  semantic_coherence:
+    id: "SC"
+    level: "document"  # Computed at document level
+    description: "Measures conceptual consistency and topic focus"
+    range: [0.0, 1.0]
+
+    metrics:
+      concept_reuse:
+        description: "How often key concepts are referenced"
+        weight: 0.3
+        computation: "mean(concept_occurrences) / doc_length_normalized"
+
+      graph_connectivity:
+        description: "Connectedness of concept graph"
+        weight: 0.3
+        bonuses:
+          no_isolated_concepts: 0.1
+          single_component: 0.15
+
+      clustering_agreement:
+        description: "Agreement between hierarchical and Leiden clustering"
+        weight: 0.4
+        computation: "adjusted_rand_index(hierarchical, leiden)"
+        thresholds:
+          excellent: 0.8
+          good: 0.6
+          acceptable: 0.4
+
+  # ---------------------------------------------------------------------------
+  # D4: Intent Clarity (IR)
+  # ---------------------------------------------------------------------------
+  intent_clarity:
+    id: "IR"
+    level: "chunk_to_doc"  # Classified at chunk level, aggregated
+    description: "Clarity of document purpose and intent"
+    range: [0.0, 1.0]
+
+    # Intent categories
+    intent_labels:
+      descriptive:
+        description: "Describes facts, states, or processes"
+        patterns:
+          - "\\b(describes?|explains?|defines?|presents?)\\b"
+          - "\\b(consists? of|contains?|includes?)\\b"
+        weight: 1.0
+
+      prescriptive:
+        description: "Provides instructions, requirements, or guidelines"
+        patterns:
+          - "\\b(must|shall|should|required|mandatory)\\b"
+          - "\\b(follow|implement|ensure|comply)\\b"
+        weight: 1.2  # Higher weight for decision support
+
+      decisional:
+        description: "Records decisions, approvals, or agreements"
+        patterns:
+          - "\\b(decision|decided|approved?|rejected?|agreed?)\\b"
+          - "\\b(vote[ds]?|resolution|consensus)\\b"
+        weight: 1.3  # Highest weight for accountability
+
+      exploratory:
+        description: "Discusses possibilities, alternatives, or hypotheses"
+        patterns:
+          - "\\b(might|could|possibly|potentially|consider)\\b"
+          - "\\b(alternative|option|hypothesis|maybe)\\b"
+        weight: 0.9
+
+    # Intent entropy (lower is better = clearer intent)
+    entropy_scoring:
+      pure_intent: 1.0       # Single dominant intent (entropy ~0)
+      mixed_mild: 0.8        # 80% dominant intent
+      mixed_moderate: 0.6    # 60% dominant intent
+      ambiguous: 0.4         # No clear dominant intent
+
+    # Optional LLM classification
+    llm_classification:
+      enabled: false  # Default: pattern-based only
+      model: "granite3.1-moe:3b"
+      max_chunk_chars: 500
+      confidence_threshold: 0.7
+
+  # ---------------------------------------------------------------------------
+  # D5: Exploitability (EFU)
+  # ---------------------------------------------------------------------------
+  exploitability:
+    id: "EFU"
+    level: "task"  # Task-dependent fitness
+    description: "Fitness for specific downstream tasks"
+    range: [0.0, 1.0]
+
+    # Task-specific weights
+    tasks:
+      summarization:
+        description: "Readiness for generating summaries"
+        formula: "0.30*LQ + 0.30*SQ + 0.20*SC + 0.20*IR"
+        weights:
+          LQ: 0.30
+          SQ: 0.30
+          SC: 0.20
+          IR: 0.20
+
+      minutes_extraction:
+        description: "Readiness for extracting meeting minutes/action items"
+        formula: "0.35*LQ + 0.25*SQ + 0.25*(1-IR_entropy) + 0.15*EFU_minutes"
+        weights:
+          LQ: 0.35
+          SQ: 0.25
+          IR_clarity: 0.25  # 1 - entropy
+          action_density: 0.15
+        bonuses:
+          has_action_verbs: 0.1
+          has_dates: 0.1
+          has_named_entities: 0.1
+
+      qa_retrieval:
+        description: "Readiness for question-answering retrieval"
+        formula: "0.25*LQ + 0.20*SQ + 0.35*SC + 0.20*IR"
+        weights:
+          LQ: 0.25
+          SQ: 0.20
+          SC: 0.35  # Semantic coherence most important
+          IR: 0.20
+
+      compliance_check:
+        description: "Readiness for compliance/audit checks"
+        formula: "0.20*LQ + 0.20*SQ + 0.20*SC + 0.40*IR_prescriptive"
+        weights:
+          LQ: 0.20
+          SQ: 0.20
+          SC: 0.20
+          IR_prescriptive: 0.40  # Prescriptive intent crucial
+
+# =============================================================================
+# Readiness Indices
+# =============================================================================
+
+readiness_indices:
+  # Minutes Readiness Index (MRI)
+  MRI:
+    name: "Minutes Readiness Index"
+    description: "Indicates document suitability for minutes/action item extraction"
+    formula: "0.35*LQ + 0.25*SQ + 0.25*(1-IR_entropy) + 0.15*action_density"
+    thresholds:
+      auto_itemizable: 0.75   # Can auto-extract action items
+      assisted: 0.45          # Needs human review
+      needs_rewrite: 0.45     # Below this: source needs improvement
+    interpretation:
+      ">0.75": "Auto-itemizable: High-quality structured content"
+      "0.45-0.75": "Assisted itemization: Review recommended"
+      "<0.45": "Needs rewrite: Source document quality insufficient"
+
+  # Summarization Readiness Index (SRI)
+  SRI:
+    name: "Summarization Readiness Index"
+    description: "Indicates document suitability for automated summarization"
+    formula: "0.30*LQ + 0.30*SQ + 0.20*SC + 0.20*IR"
+    thresholds:
+      auto_summarize: 0.70    # Can auto-summarize
+      assisted: 0.50          # Needs human review
+      unsuitable: 0.50        # Below this: manual summary needed
+    interpretation:
+      ">0.70": "Auto-summarize: Ready for pyramidal summarization"
+      "0.50-0.70": "Assisted summarization: Verify key points"
+      "<0.50": "Unsuitable: Manual summarization recommended"
+
+# =============================================================================
+# Quality Tags
+# =============================================================================
+
+quality_tags:
+  structural:
+    well_structured:
+      condition: "SQ >= 0.7"
+      label: "Well Structured"
+
+    needs_structure:
+      condition: "SQ < 0.4"
+      label: "Needs Structure"
+
+  content:
+    high_density:
+      condition: "LQ >= 0.7 AND action_density >= 0.1"
+      label: "High Information Density"
+
+    sparse:
+      condition: "LQ < 0.4"
+      label: "Sparse Content"
+
+  intent:
+    clear_intent:
+      condition: "IR_entropy < 0.3"
+      label: "Clear Intent"
+
+    mixed_intent:
+      condition: "IR_entropy >= 0.5"
+      label: "Mixed Intent"
+
+  readiness:
+    minutes_ready:
+      condition: "MRI >= 0.75"
+      label: "Minutes Ready"
+
+    summary_ready:
+      condition: "SRI >= 0.70"
+      label: "Summary Ready"
+
+# =============================================================================
+# Consistency Checks
+# =============================================================================
+
+consistency_checks:
+  - name: "LQ_vs_SQ"
+    condition: "LQ > 0.7 AND SQ < 0.4"
+    warning: "Unusual pattern: High linguistic quality but poor structure"
+
+  - name: "minutes_long_chunks"
+    condition: "minutes_ready AND avg_chunk_length > 1000"
+    warning: "Document marked minutes-ready but has long chunks"
+
+  - name: "specs_high_entropy"
+    condition: "well_structured AND IR_entropy > 0.5"
+    warning: "Well-structured document with mixed intent - verify consistency"
+
+# =============================================================================
+# Output Schema
+# =============================================================================
+
+output:
+  per_document:
+    - file_id
+    - path
+    - scores:
+        - LQ
+        - SQ
+        - SC
+        - IR
+        - IR_entropy
+        - EFU  # Task-specific
+    - readiness_indices:
+        - MRI
+        - SRI
+    - tags: []
+    - warnings: []
+    - intent_distribution: {}
+
+  corpus_level:
+    - total_documents
+    - avg_quality_scores
+    - quality_distribution
+    - readiness_summary:
+        - minutes_ready_count
+        - summary_ready_count
+        - needs_attention_count

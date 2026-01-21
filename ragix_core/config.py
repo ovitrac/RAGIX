@@ -69,6 +69,12 @@ class SearchConfig:
     top_k: int = 10
     index_path: str = ".ragix/index"
 
+    # Previously hardcoded parameters (moved from hybrid_search.py and rag.py)
+    rrf_k: int = 60                    # RRF parameter controlling rank sensitivity
+    chunk_size: int = 1000             # Default chunk size in characters
+    chunk_overlap: int = 200           # Default chunk overlap in characters
+    max_file_size_mb: int = 10         # Maximum file size for indexing
+
 
 @dataclass
 class LoggingConfig:
@@ -289,6 +295,10 @@ def _parse_config_dict(data: Dict[str, Any]) -> RAGIXConfig:
             vector_weight=search.get("vector_weight", config.search.vector_weight),
             top_k=search.get("top_k", config.search.top_k),
             index_path=search.get("index_path", config.search.index_path),
+            rrf_k=search.get("rrf_k", config.search.rrf_k),
+            chunk_size=search.get("chunk_size", config.search.chunk_size),
+            chunk_overlap=search.get("chunk_overlap", config.search.chunk_overlap),
+            max_file_size_mb=search.get("max_file_size_mb", config.search.max_file_size_mb),
         )
 
     # Logging config
@@ -459,6 +469,10 @@ def save_config(config: RAGIXConfig, path: Path) -> None:
             "vector_weight": config.search.vector_weight,
             "top_k": config.search.top_k,
             "index_path": config.search.index_path,
+            "rrf_k": config.search.rrf_k,
+            "chunk_size": config.search.chunk_size,
+            "chunk_overlap": config.search.chunk_overlap,
+            "max_file_size_mb": config.search.max_file_size_mb,
         },
         "logging": {
             "level": config.logging.level,

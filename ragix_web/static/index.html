@@ -1034,20 +1034,22 @@
         /* Settings Tabs */
         .settings-tabs {
             display: flex;
+            flex-wrap: wrap;
             gap: 4px;
             margin-bottom: 20px;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 10px;
         }
         .settings-tab {
-            padding: 8px 16px;
+            padding: 8px 12px;
             border: none;
             background: transparent;
             color: var(--text-secondary);
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             border-radius: 6px;
             transition: all 0.2s;
+            white-space: nowrap;
         }
         .settings-tab:hover {
             background: rgba(255,255,255,0.05);
@@ -2338,9 +2340,11 @@
                             </div>
                             <div class="rag-actions">
                                 <select id="ragProfileSelect" class="rag-profile-select">
-                                    <option value="mixed_docs_code">Mixed (Docs + Code)</option>
-                                    <option value="docs_only">Documentation Only</option>
-                                    <option value="code_only">Code Only</option>
+                                    <option value="mixed_docs_code">Mixed (Docs + Code) - 512/64</option>
+                                    <option value="docs_only">Documentation Only - 1024/128</option>
+                                    <option value="code_only">Code Only - 256/32</option>
+                                    <option value="docs_longform">Long-form Docs - 2800/400</option>
+                                    <option value="docs_techspec">Tech Specs - 1600/240</option>
                                 </select>
                                 <button class="btn btn-primary" id="ragIndexBtn" onclick="projectRagApp.startIndexing()">
                                     Index Project
@@ -4192,6 +4196,7 @@ com\.grdf\..*\.jms\.spre</textarea>
                     <button class="settings-tab active" data-settings-tab="session">Session</button>
                     <button class="settings-tab" data-settings-tab="agents">Agent Config</button>
                     <button class="settings-tab" data-settings-tab="reasoning">Reasoning</button>
+                    <button class="settings-tab" data-settings-tab="indexing">Indexing</button>
                     <button class="settings-tab" data-settings-tab="memory">Memory</button>
                     <button class="settings-tab" data-settings-tab="context">User Context</button>
                 </div>
@@ -4366,6 +4371,75 @@ com\.grdf\..*\.jms\.spre</textarea>
                     <div class="config-actions">
                         <button onclick="reasoningSettingsApp.reset()" class="btn">Reset to Defaults</button>
                         <button onclick="reasoningSettingsApp.save()" class="btn btn-primary">Apply Changes</button>
+                    </div>
+                </div>
+
+                <!-- Indexing Settings (v0.63) -->
+                <div id="indexingSettings" class="settings-content">
+                    <div class="agent-settings-header">
+                        <h3>Document Indexing</h3>
+                        <p class="settings-desc">Configure how documents are chunked and indexed for RAG search. These settings apply when uploading documents.</p>
+                    </div>
+
+                    <!-- Indexing Mode -->
+                    <div class="form-group">
+                        <label>Indexing Mode:</label>
+                        <select id="indexingModeInput" onchange="indexingSettingsApp.changeMode()">
+                            <option value="pure_code">Pure Code (AST-aware chunking)</option>
+                            <option value="code_docs">Code + Docs (Hybrid)</option>
+                            <option value="pure_docs" selected>Pure Docs (Document-focused)</option>
+                        </select>
+                        <small>Pure Code/Code+Docs use optimized, tested settings. Pure Docs allows profile selection.</small>
+                    </div>
+
+                    <!-- Document Profile (shown when pure_docs mode) -->
+                    <div id="docsProfileGroup" class="form-group">
+                        <label>Document Profile:</label>
+                        <select id="docsProfileInput" onchange="indexingSettingsApp.applyProfile()">
+                            <option value="">Custom (no profile)</option>
+                            <option value="docs_minutes_v1">Minutes / Meeting Notes (600 chars)</option>
+                            <option value="docs_techspec_v1">Technical Specs (1600 chars)</option>
+                            <option value="docs_mixed_v1" selected>Mixed Operational Docs (1000 chars)</option>
+                            <option value="docs_longform_v1">Long-form Docs (2800 chars)</option>
+                            <option value="docs_noisy_pdf_v1">Noisy PDF / OCR (1200 chars)</option>
+                        </select>
+                        <small id="profileHint">1000 chars, 200 overlap - robust default (same as code)</small>
+                    </div>
+
+                    <!-- Chunking Parameters (all values in CHARS) -->
+                    <div class="form-group" style="margin-top: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 8px;">
+                        <h4 style="margin: 0 0 12px 0; font-size: 14px; color: var(--accent-blue);">Chunking Parameters (chars)</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <label style="font-size: 12px;">Chunk Size (chars):</label>
+                                <input type="number" id="chunkSizeInput" value="1000" min="300" max="5000" style="width: 100%;">
+                                <small>1000 chars ≈ 250 tokens</small>
+                            </div>
+                            <div>
+                                <label style="font-size: 12px;">Overlap (chars):</label>
+                                <input type="number" id="overlapInput" value="200" min="0" max="800" style="width: 100%;">
+                                <small>Max 30% of chunk or 800</small>
+                            </div>
+                        </div>
+                        <div id="boundsInfo" style="margin-top: 10px; font-size: 11px; color: var(--text-secondary);">
+                            Safe range: 800-1400 chars, overlap 160-260
+                        </div>
+                    </div>
+
+                    <!-- Current Settings Status -->
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label>Effective Settings:</label>
+                        <div id="indexingSettingsStatus" style="padding: 10px; background: var(--bg-tertiary); border-radius: 6px; font-family: monospace; font-size: 12px;">
+                            <div>Mode: <span id="effectiveMode">pure_docs</span></div>
+                            <div>Profile: <span id="effectiveProfile">docs_mixed_v1</span></div>
+                            <div>Chunk Size: <span id="effectiveChunkSize">~1000 chars</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Indexing Actions -->
+                    <div class="config-actions">
+                        <button onclick="indexingSettingsApp.reset()" class="btn">Reset to Defaults</button>
+                        <button onclick="indexingSettingsApp.save()" class="btn btn-primary">Apply Settings</button>
                     </div>
                 </div>
 
@@ -7987,6 +8061,13 @@ com\.grdf\..*\.jms\.spre</textarea>
                         if (tab.dataset.settingsTab === 'agents') {
                             this.loadConfig();
                         }
+
+                        // Load indexing settings when switching to indexing tab (v0.63)
+                        if (tab.dataset.settingsTab === 'indexing') {
+                            if (typeof indexingSettingsApp !== 'undefined') {
+                                indexingSettingsApp.loadSettings();
+                            }
+                        }
                     });
                 });
             },
@@ -8892,6 +8973,301 @@ com\.grdf\..*\.jms\.spre</textarea>
             }
         };
 
+        // Indexing Settings Application (v0.63)
+        const indexingSettingsApp = {
+            // Profile definitions - ALL VALUES IN CHARS (not tokens)
+            // Code uses 1000 chars ≈ 250 tokens
+            profiles: {
+                'docs_minutes_v1': {
+                    name: 'Minutes / Meeting Notes',
+                    hint: '600 chars, 120 overlap - fast itemization of decisions/actions',
+                    chunk_size: 600, overlap: 120,
+                    bounds: { chunk_min: 450, chunk_max: 900, overlap_min: 80, overlap_max: 180 }
+                },
+                'docs_techspec_v1': {
+                    name: 'Technical Specs / Requirements',
+                    hint: '1600 chars, 240 overlap - preserve constraints & definitions',
+                    chunk_size: 1600, overlap: 240,
+                    bounds: { chunk_min: 1200, chunk_max: 2200, overlap_min: 180, overlap_max: 350 }
+                },
+                'docs_mixed_v1': {
+                    name: 'Mixed Operational Docs',
+                    hint: '1000 chars, 200 overlap - robust default (same as code)',
+                    chunk_size: 1000, overlap: 200,
+                    bounds: { chunk_min: 800, chunk_max: 1400, overlap_min: 160, overlap_max: 260 }
+                },
+                'docs_longform_v1': {
+                    name: 'Long-form Docs (reports/theses)',
+                    hint: '2800 chars, 400 overlap - fewer chunks, better coherence',
+                    chunk_size: 2800, overlap: 400,
+                    bounds: { chunk_min: 2200, chunk_max: 3800, overlap_min: 300, overlap_max: 600 }
+                },
+                'docs_noisy_pdf_v1': {
+                    name: 'Noisy PDF / OCR',
+                    hint: '1200 chars, 300 overlap - handles broken text extraction',
+                    chunk_size: 1200, overlap: 300,
+                    bounds: { chunk_min: 900, chunk_max: 1800, overlap_min: 240, overlap_max: 450 }
+                }
+            },
+
+            // Global guardrails
+            guardrails: {
+                chunk_size_min: 300,
+                chunk_size_max: 5000,
+                overlap_max_ratio: 0.30,
+                overlap_max_abs: 800
+            },
+
+            async init() {
+                await this.loadSettings();
+            },
+
+            async loadSettings() {
+                try {
+                    const sessionId = (typeof app !== 'undefined' && app.sessionId) ? app.sessionId : 'default';
+                    const resp = await fetch(`/api/settings/all?session_id=${encodeURIComponent(sessionId)}`);
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        this.applyToForm(data);
+                    }
+                } catch (e) {
+                    console.log('Indexing settings load failed (using defaults):', e.message);
+                }
+            },
+
+            applyToForm(data) {
+                // Apply indexing mode
+                const modeInput = document.getElementById('indexingModeInput');
+                if (modeInput && data.indexing_mode) {
+                    modeInput.value = data.indexing_mode;
+                }
+
+                // Apply active profile
+                const profileInput = document.getElementById('docsProfileInput');
+                if (profileInput && data.active_profile) {
+                    profileInput.value = data.active_profile;
+                }
+
+                // Apply chunking settings (values in chars)
+                const settings = data.settings || {};
+                const chunking = settings.chunking || {};
+
+                if (chunking.chunk_size) {
+                    document.getElementById('chunkSizeInput').value = chunking.chunk_size;
+                }
+                if (chunking.overlap !== undefined) {
+                    document.getElementById('overlapInput').value = chunking.overlap;
+                }
+
+                this.updateEffectiveDisplay();
+                this.changeMode(); // Update visibility
+            },
+
+            changeMode() {
+                const mode = document.getElementById('indexingModeInput').value;
+                const profileGroup = document.getElementById('docsProfileGroup');
+                const chunkSizeInput = document.getElementById('chunkSizeInput');
+                const overlapInput = document.getElementById('overlapInput');
+                const boundsInfo = document.getElementById('boundsInfo');
+
+                // Show profile selection only for pure_docs mode
+                if (profileGroup) {
+                    profileGroup.style.display = (mode === 'pure_docs') ? 'block' : 'none';
+                }
+
+                // Lock chunking inputs for Code/Code+Docs modes (use tested 1000/200 defaults)
+                if (mode !== 'pure_docs') {
+                    // Lock inputs at tested defaults
+                    if (chunkSizeInput) {
+                        chunkSizeInput.value = '1000';
+                        chunkSizeInput.disabled = true;
+                    }
+                    if (overlapInput) {
+                        overlapInput.value = '200';
+                        overlapInput.disabled = true;
+                    }
+                    if (boundsInfo) {
+                        boundsInfo.textContent = 'Code/Code+Docs: locked at 1000/200 (tested for industrial audits)';
+                    }
+                } else {
+                    // Unlock inputs for pure_docs
+                    if (chunkSizeInput) chunkSizeInput.disabled = false;
+                    if (overlapInput) overlapInput.disabled = false;
+                    // Apply profile if selected to restore bounds info
+                    this.applyProfile();
+                }
+
+                this.updateEffectiveDisplay();
+                this.syncToRagForm();  // Sync to RAG form on mode change
+            },
+
+            applyProfile() {
+                const profileId = document.getElementById('docsProfileInput').value;
+                const profile = this.profiles[profileId];
+
+                if (profile) {
+                    // Values are in CHARS directly
+                    document.getElementById('chunkSizeInput').value = profile.chunk_size;
+                    document.getElementById('overlapInput').value = profile.overlap;
+                    document.getElementById('profileHint').textContent = profile.hint;
+
+                    // Update bounds display
+                    const boundsInfo = document.getElementById('boundsInfo');
+                    if (boundsInfo && profile.bounds) {
+                        boundsInfo.textContent = `Safe range: ${profile.bounds.chunk_min}-${profile.bounds.chunk_max} chars, overlap ${profile.bounds.overlap_min}-${profile.bounds.overlap_max}`;
+                    }
+                } else {
+                    document.getElementById('profileHint').textContent = 'Custom settings - configure manually';
+                }
+
+                this.updateEffectiveDisplay();
+                this.syncToRagForm();  // Sync to RAG form immediately
+            },
+
+            updateEffectiveDisplay() {
+                const mode = document.getElementById('indexingModeInput').value;
+                const profileId = document.getElementById('docsProfileInput').value;
+                const chunkSize = document.getElementById('chunkSizeInput').value;
+                const overlap = document.getElementById('overlapInput').value;
+
+                document.getElementById('effectiveMode').textContent = mode;
+                document.getElementById('effectiveProfile').textContent = profileId || 'custom';
+                document.getElementById('effectiveChunkSize').textContent = `${chunkSize} chars, ${overlap} overlap`;
+
+                // Show diff from profile if user modified
+                const profile = this.profiles[profileId];
+                if (profile) {
+                    const diffChunk = parseInt(chunkSize) - profile.chunk_size;
+                    const diffOverlap = parseInt(overlap) - profile.overlap;
+                    if (diffChunk !== 0 || diffOverlap !== 0) {
+                        document.getElementById('effectiveChunkSize').textContent +=
+                            ` (diff: ${diffChunk >= 0 ? '+' : ''}${diffChunk}, ${diffOverlap >= 0 ? '+' : ''}${diffOverlap})`;
+                    }
+                }
+            },
+
+            // Validate against guardrails
+            validate() {
+                const chunkSize = parseInt(document.getElementById('chunkSizeInput').value);
+                const overlap = parseInt(document.getElementById('overlapInput').value);
+                const errors = [];
+
+                if (chunkSize < this.guardrails.chunk_size_min) {
+                    errors.push(`Chunk size too small (min ${this.guardrails.chunk_size_min} chars)`);
+                }
+                if (chunkSize > this.guardrails.chunk_size_max) {
+                    errors.push(`Chunk size too large (max ${this.guardrails.chunk_size_max} chars)`);
+                }
+                const maxOverlap = Math.min(chunkSize * this.guardrails.overlap_max_ratio, this.guardrails.overlap_max_abs);
+                if (overlap > maxOverlap) {
+                    errors.push(`Overlap too large (max ${Math.round(maxOverlap)} chars for this chunk size)`);
+                }
+
+                return errors;
+            },
+
+            // Sync settings to the RAG tab form inputs (chars directly)
+            syncToRagForm() {
+                const mode = document.getElementById('indexingModeInput').value;
+                const ragChunkSize = document.getElementById('ragChunkSize');
+                const ragChunkOverlap = document.getElementById('ragChunkOverlap');
+
+                // For non-pure_docs modes, ensure RAG form uses locked defaults
+                if (mode !== 'pure_docs') {
+                    if (ragChunkSize) ragChunkSize.value = 1000;
+                    if (ragChunkOverlap) ragChunkOverlap.value = 200;
+                    console.log(`[${mode}] Locked RAG form to 1000/200 (industrial defaults)`);
+                    return;
+                }
+
+                // For pure_docs, use the settings from Indexing tab
+                const chunkSize = parseInt(document.getElementById('chunkSizeInput').value);
+                const overlap = parseInt(document.getElementById('overlapInput').value);
+
+                if (ragChunkSize) {
+                    ragChunkSize.value = chunkSize;
+                }
+                if (ragChunkOverlap) {
+                    ragChunkOverlap.value = overlap;
+                }
+
+                console.log(`[pure_docs] Synced to RAG form: chunk_size=${chunkSize}, overlap=${overlap}`);
+            },
+
+            async save() {
+                // Validate first
+                const errors = this.validate();
+                if (errors.length > 0) {
+                    alert('Validation errors:\n' + errors.join('\n'));
+                    return;
+                }
+
+                try {
+                    const sessionId = (typeof app !== 'undefined' && app.sessionId) ? app.sessionId : 'default';
+                    const mode = document.getElementById('indexingModeInput').value;
+                    const profile = document.getElementById('docsProfileInput').value;
+
+                    // Save indexing mode
+                    await fetch(`/api/settings/indexing-mode?session_id=${encodeURIComponent(sessionId)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ mode: mode })
+                    });
+
+                    // Save chunking settings (all values in chars)
+                    const chunking = {
+                        chunk_size: parseInt(document.getElementById('chunkSizeInput').value),
+                        overlap: parseInt(document.getElementById('overlapInput').value)
+                    };
+
+                    await fetch(`/api/settings/chunking?session_id=${encodeURIComponent(sessionId)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(chunking)
+                    });
+
+                    // Apply profile if selected
+                    if (profile && mode === 'pure_docs') {
+                        await fetch(`/api/settings/profiles/${profile}/apply?session_id=${encodeURIComponent(sessionId)}`, {
+                            method: 'POST'
+                        });
+                    }
+
+                    // Sync to RAG form inputs
+                    this.syncToRagForm();
+
+                    // Show success feedback
+                    const statusDiv = document.getElementById('indexingSettingsStatus');
+                    if (statusDiv) {
+                        const originalBg = statusDiv.style.background;
+                        statusDiv.style.background = 'var(--accent-green)';
+                        statusDiv.querySelector('#effectiveMode').textContent += ' ✓';
+                        setTimeout(() => {
+                            statusDiv.style.background = originalBg;
+                            this.updateEffectiveDisplay();
+                        }, 2000);
+                    }
+
+                    console.log('Indexing settings saved for session:', sessionId);
+
+                } catch (e) {
+                    alert('Error saving indexing settings: ' + e.message);
+                }
+            },
+
+            reset() {
+                document.getElementById('indexingModeInput').value = 'pure_docs';
+                document.getElementById('docsProfileInput').value = 'docs_mixed_v1';
+                document.getElementById('chunkSizeInput').value = '1000';
+                document.getElementById('overlapInput').value = '200';
+                document.getElementById('profileHint').textContent = '1000 chars, 200 overlap - robust default (same as code)';
+                document.getElementById('boundsInfo').textContent = 'Safe range: 800-1400 chars, overlap 160-260';
+                this.changeMode();
+                this.updateEffectiveDisplay();
+                this.syncToRagForm();  // Also reset RAG form
+            }
+        };
+
         // Memory Management Application
         const memoryApp = {
             messages: [],
@@ -9163,6 +9539,7 @@ com\.grdf\..*\.jms\.spre</textarea>
         reasoningGraph.init();  // Reasoning Graph
         memoryContext.init();  // Memory Context in Reasoning tab (v0.32)
         reasoningSettingsApp.init();  // Reasoning Settings
+        indexingSettingsApp.init();  // Indexing Settings (v0.63)
 
         // Update app.showTraces to use tracesApp
         if (typeof app !== 'undefined') {

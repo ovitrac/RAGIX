@@ -34,6 +34,9 @@ class ProfileType(str, Enum):
     DOCS_ONLY = "docs_only"
     MIXED_DOCS_CODE = "mixed_docs_code"
     CODE_ONLY = "code_only"
+    # New optimized document profiles (from REVIEW_RAG_DOCS.md)
+    DOCS_LONGFORM = "docs_longform"      # Reports, theses, long documents
+    DOCS_TECHSPEC = "docs_techspec"      # Technical specs, requirements
 
 
 # =============================================================================
@@ -98,10 +101,33 @@ PROFILE_CODE_ONLY = IndexingProfile(
     code_mode=True,
 )
 
+# New optimized document profiles (from REVIEW_RAG_DOCS.md roadmap)
+PROFILE_DOCS_LONGFORM = IndexingProfile(
+    name="docs_longform",
+    description="Long-form documents: reports, theses, articles (2800/400 chars)",
+    chunk_size=2800,
+    chunk_overlap=400,
+    level="paragraph+section",
+    multilingual=True,
+    code_mode=False,
+)
+
+PROFILE_DOCS_TECHSPEC = IndexingProfile(
+    name="docs_techspec",
+    description="Technical specs, requirements documents (1600/240 chars)",
+    chunk_size=1600,
+    chunk_overlap=240,
+    level="paragraph",
+    multilingual=True,
+    code_mode=False,
+)
+
 DEFAULT_PROFILES = {
     ProfileType.DOCS_ONLY: PROFILE_DOCS_ONLY,
     ProfileType.MIXED_DOCS_CODE: PROFILE_MIXED,
     ProfileType.CODE_ONLY: PROFILE_CODE_ONLY,
+    ProfileType.DOCS_LONGFORM: PROFILE_DOCS_LONGFORM,
+    ProfileType.DOCS_TECHSPEC: PROFILE_DOCS_TECHSPEC,
 }
 
 
@@ -152,7 +178,9 @@ class IndexingFilters:
     exclude_globs: List[str] = field(default_factory=lambda: [
         ".git/**",
         ".RAG/**",
+        ".KOAS/**",          # KOAS kernel outputs
         ".ragix/**",
+        ".trash/**",         # Archived/deleted files
         "target/**",
         "build/**",
         "dist/**",

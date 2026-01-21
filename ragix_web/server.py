@@ -152,6 +152,7 @@ try:
         rag_router,
         rag_project_router,
         audit_router,
+        settings_router,
     )
     from ragix_web.routers.sessions import set_sessions_store
     from ragix_web.routers.context import set_context_store
@@ -382,6 +383,7 @@ if ROUTERS_AVAILABLE:
     app.include_router(rag_router, tags=["Chat RAG (v0.33)"])
     app.include_router(rag_project_router, tags=["Project RAG (v0.33)"])
     app.include_router(audit_router, tags=["Code Audit (v0.4)"])
+    app.include_router(settings_router, tags=["Settings (v0.63)"])
 
 
 @app.get("/", response_class=HTMLResponse)

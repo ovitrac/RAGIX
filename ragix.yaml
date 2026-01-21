@@ -103,6 +103,14 @@ search:
   # Index storage path
   index_path: ".ragix/index"
 
+  # RRF parameter controlling rank sensitivity (moved from hardcoded)
+  rrf_k: 60
+
+  # Chunking parameters for RAG indexing
+  chunk_size: 1000        # Default chunk size in characters
+  chunk_overlap: 200      # Default overlap between chunks
+  max_file_size_mb: 10    # Maximum file size for indexing
+
 # -----------------------------------------------------------------------------
 # Logging Configuration
 # -----------------------------------------------------------------------------
@@ -185,6 +193,54 @@ converters:
 
   # Conversion timeout (in seconds)
   timeout: 30
+
+# -----------------------------------------------------------------------------
+# Document Kernels Configuration (v0.63)
+# -----------------------------------------------------------------------------
+# Configuration for document processing kernels (KOAS doc_* kernels)
+# Includes chunking, quality scoring, and clustering parameters
+doc_kernels:
+  # Chunking strategy for document processing
+  chunking:
+    strategy: semantic        # semantic, fixed, hybrid
+    target_tokens: 250        # Target chunk size in tokens (200-300 recommended)
+    overlap: paragraph        # paragraph, percentage, fixed
+    overlap_tokens: 50        # Overlap tokens when using "fixed"
+    preserve_bullets: true    # Keep bullet lists intact
+    preserve_tables: true     # Keep tables intact
+
+  # Quality scoring configuration
+  quality:
+    quality_threshold: 0.4    # Minimum quality score to accept (0-1)
+    base_score: 0.5           # Starting score for quality computation
+    truncation_penalty: 0.2   # Penalty for truncated sentences
+    artifact_penalty: 0.3     # Penalty for markdown artifacts
+    entity_bonus: 0.1         # Bonus for named entities
+    numbers_bonus: 0.1        # Bonus for numbers/metrics
+    action_verb_bonus: 0.15   # Bonus for action verbs
+
+    # LLM intent classification (optional)
+    enable_llm_intent: false  # Enable LLM-based intent classification
+    llm_intent_model: granite3.1-moe:3b
+
+    # Readiness index thresholds
+    mri_auto_threshold: 0.75  # Minutes Readiness Index: auto-itemizable
+    mri_assisted_threshold: 0.45  # MRI: needs assistance
+    sri_auto_threshold: 0.70  # Summarization Readiness Index: auto-summarize
+    sri_assisted_threshold: 0.50  # SRI: needs review
+
+  # Clustering configuration (unified for hierarchical and Leiden)
+  clustering:
+    method: both              # hierarchical, leiden, both
+    min_cluster_size: 2       # Minimum documents per cluster
+    resolutions: [0.1, 0.5, 1.0]  # Multi-resolution for Leiden
+    similarity_metric: jaccard  # jaccard, cosine
+
+  # Extraction parameters
+  sentences_per_concept: 5
+  sentences_per_file: 10
+  min_sentence_length: 40
+  max_sentence_length: 500
 
 # =============================================================================
 # Environment Variable Overrides

@@ -47,9 +47,14 @@ except ImportError:
 
 @dataclass
 class LeidenConfig:
-    """Configuration for Leiden clustering."""
-    resolutions: List[float] = None  # Multi-resolution analysis
-    min_community_size: int = 2
+    """Configuration for Leiden clustering.
+
+    Note: Parameter names unified with doc_cluster.py for consistency:
+    - 'resolutions' (not 'leiden_resolutions')
+    - 'min_cluster_size' (not 'min_community_size')
+    """
+    resolutions: List[float] = None  # Multi-resolution analysis (unified name)
+    min_cluster_size: int = 2  # Unified naming with doc_cluster.py
     seed: int = 42  # For reproducibility
 
     def __post_init__(self):
@@ -100,11 +105,15 @@ class DocClusterLeidenKernel(Kernel):
             concepts = json.load(f).get("data", {})
         logger.info(f"[doc_cluster_leiden] Dependencies loaded in {time.time()-t0:.2f}s")
 
-        # Get configuration
-        # Note: res=2.0 removed from defaults due to exponential computation on dense graphs
+        # Get configuration with unified parameter names
+        # Support both old names (leiden_resolutions, min_community_size) and new names (resolutions, min_cluster_size)
+        # New unified names take precedence
+        resolutions = input.config.get("resolutions") or input.config.get("leiden_resolutions", [0.1, 0.5, 1.0])
+        min_cluster_size = input.config.get("min_cluster_size") or input.config.get("min_community_size", 2)
+
         config = LeidenConfig(
-            resolutions=input.config.get("leiden_resolutions", [0.1, 0.5, 1.0]),
-            min_community_size=input.config.get("min_community_size", 2),
+            resolutions=resolutions,
+            min_cluster_size=min_cluster_size,
             seed=input.config.get("seed", 42)
         )
 
@@ -270,7 +279,7 @@ class DocClusterLeidenKernel(Kernel):
             # Filter by minimum size
             clusters = []
             for comm_id, files in sorted(clusters_dict.items()):
-                if len(files) >= config.min_community_size:
+                if len(files) >= config.min_cluster_size:
                     clusters.append({
                         "id": f"L{resolution:.1f}_C{comm_id:02d}",
                         "resolution": resolution,

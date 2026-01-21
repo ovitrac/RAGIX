@@ -1,0 +1,270 @@
+# =============================================================================
+# RAGIX Document Indexing Profiles
+# =============================================================================
+#
+# Predefined profiles for document-only indexing mode.
+# These profiles optimize chunking, structure parsing, quality scoring,
+# and retrieval for specific document types.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-01-20
+#
+# =============================================================================
+
+# Profile metadata
+metadata:
+  version: "1.0"
+  description: "Document indexing profiles for RAGIX docs mode"
+  koas_compatible: true
+
+# -----------------------------------------------------------------------------
+# Profile 1: Minutes / Meeting Notes
+# -----------------------------------------------------------------------------
+# Goal: Extract action items, decisions, risks; short coherent chunks.
+# Use case: Meeting minutes, call notes, project updates
+# Rationale: Minutes benefit from atomic units; sentence overlap preserves context
+#
+docs_minutes_v1:
+  name: "Minutes / Meeting Notes"
+  description: "Fast itemization of action items, decisions, risks from meeting notes"
+  icon: "clock"
+  use_cases:
+    - Meeting minutes
+    - Call notes
+    - Project status updates
+    - Action item tracking
+
+  chunking:
+    strategy: hybrid               # headings/paragraphs first, fallback to tokens
+    target_tokens: 140
+    min_tokens: 60
+    max_tokens: 220
+    overlap: sentence             # Avoid token overlap for minutes
+    overlap_tokens: 0
+    boundary_policy: prefer_paragraphs
+
+  structure:
+    detect_headings: true
+    heading_regex_profile: md
+    keep_bullets_together: true
+    keep_tables_as_blocks: true
+    split_on_pagebreaks: false
+
+  quality:
+    enable: true
+    task_focus: minutes
+    intent_classifier:
+      enable: true
+      labels:
+        - decisional
+        - action
+        - informational
+        - risk
+        - open_point
+
+  retrieval:
+    top_k_default: 10
+    rerank: none
+
+  # UI hints/tooltips
+  hints:
+    chunk_size: "100-200 tokens, sentence/paragraph overlap (avoid token overlap)"
+    guardrail: "If max_tokens > 220, topic drift increases"
+
+# -----------------------------------------------------------------------------
+# Profile 2: Technical Specs / Requirements
+# -----------------------------------------------------------------------------
+# Goal: Preserve local context (definitions, constraints, lists).
+# Use case: Technical specifications, requirement documents, RFC
+# Rationale: Requirements often live in lists; larger chunks include constraint context
+#
+docs_techspec_v1:
+  name: "Technical Specs / Requirements"
+  description: "Preserve definitions, constraints and requirement context"
+  icon: "file-code"
+  use_cases:
+    - Technical specifications
+    - Requirements documents
+    - RFC / Standards
+    - API documentation
+    - System design docs
+
+  chunking:
+    strategy: semantic
+    target_tokens: 380
+    min_tokens: 180
+    max_tokens: 650
+    overlap: paragraph
+    overlap_tokens: 0
+    boundary_policy: prefer_headings
+
+  structure:
+    detect_headings: true
+    heading_regex_profile: md
+    keep_bullets_together: true
+    keep_tables_as_blocks: true
+    split_on_pagebreaks: false
+
+  quality:
+    enable: true
+    task_focus: technical
+    intent_classifier:
+      enable: true
+      labels:
+        - prescriptive      # SHALL/MUST requirements
+        - descriptive       # Information/definitions
+        - constraint        # Limitations/bounds
+        - definition        # Term definitions
+
+  retrieval:
+    top_k_default: 8
+    rerank: cross_encoder
+    rerank_top_n: 30
+
+  hints:
+    chunk_size: "300-600 tokens, paragraph overlap"
+    guardrail: "Chunks big enough to include 'shall/must/constraint' context"
+
+# -----------------------------------------------------------------------------
+# Profile 3: Mixed Operational Docs
+# -----------------------------------------------------------------------------
+# Goal: Robust "default" that doesn't break on varied document types.
+# Use case: Emails, slides, wiki pages, general office documents
+# Rationale: Safe middle ground that handles heterogeneous content
+#
+docs_mixed_v1:
+  name: "Mixed Operational Docs"
+  description: "Robust default for emails, slides, wiki pages, varied content"
+  icon: "files"
+  use_cases:
+    - Email archives
+    - Presentation slides
+    - Wiki pages
+    - Internal memos
+    - General office documents
+
+  chunking:
+    strategy: hybrid
+    target_tokens: 250
+    min_tokens: 120
+    max_tokens: 450
+    overlap: paragraph
+    overlap_tokens: 0
+    boundary_policy: prefer_paragraphs
+
+  structure:
+    detect_headings: true
+    heading_regex_profile: md
+    keep_bullets_together: true
+    keep_tables_as_blocks: true
+    split_on_pagebreaks: false
+
+  quality:
+    enable: true
+    task_focus: mixed
+    intent_classifier:
+      enable: true
+      labels:
+        - descriptive
+        - prescriptive
+        - decisional
+        - informational
+
+  retrieval:
+    top_k_default: 10
+    rerank: none
+
+  hints:
+    chunk_size: "200-350 tokens, paragraph overlap"
+    guardrail: "Safe default for heterogeneous content"
+
+# -----------------------------------------------------------------------------
+# Profile 4: Long-form Elaborated Docs
+# -----------------------------------------------------------------------------
+# Goal: Enable pyramid summarization and stable communities.
+# Use case: Reports, theses, academic articles, books, research papers
+# Rationale: Long-form docs want fewer, richer chunks; rely on hierarchical summarization
+#
+docs_longform_v1:
+  name: "Long-form Elaborated Docs"
+  description: "Reports, theses, articles requiring pyramid summarization"
+  icon: "book-open"
+  use_cases:
+    - Academic articles
+    - Research papers
+    - Thesis documents
+    - Books / chapters
+    - Annual reports
+    - Compliance reports
+
+  chunking:
+    strategy: semantic
+    target_tokens: 700
+    min_tokens: 350
+    max_tokens: 1200
+    overlap: paragraph
+    overlap_tokens: 0
+    boundary_policy: prefer_headings
+
+  structure:
+    detect_headings: true
+    heading_regex_profile: md
+    keep_bullets_together: true
+    keep_tables_as_blocks: true
+    split_on_pagebreaks: true    # PDF heavy - respect page breaks
+
+  graph:
+    clustering:
+      hierarchical: true
+      leiden: true
+
+  quality:
+    enable: true
+    task_focus: longform
+    intent_classifier:
+      enable: true
+      labels:
+        - narrative           # Story/flow
+        - descriptive         # Facts/data
+        - argumentative       # Claims/evidence
+        - methodological      # Methods/procedures
+
+  retrieval:
+    top_k_default: 6
+    rerank: cross_encoder
+    rerank_top_n: 20
+
+  hints:
+    chunk_size: "600-1200 tokens, paragraph overlap"
+    guardrail: "If max_tokens > 1200, risk 'topic drift' inside a chunk"
+
+# =============================================================================
+# Global Guardrails (for UI validation)
+# =============================================================================
+guardrails:
+  max_tokens_warning: 1200    # Warn if max_tokens exceeds this
+  min_tokens_warning: 50      # Warn if min_tokens below this (too many fragments)
+
+  size_recommendations:
+    minutes: "100-200 tokens"
+    tech_specs: "300-600 tokens"
+    mixed: "200-350 tokens"
+    longform: "600-1200 tokens"
+
+# =============================================================================
+# Profile Application Rules
+# =============================================================================
+#
+# When a profile is applied:
+# 1. chunking + structure defaults are set
+# 2. quality labeling config is updated
+# 3. retrieval defaults (top_k, rerank) are configured
+#
+# Profiles should NOT hardcode:
+# - embedding model names (environment-specific)
+# - LLM choices (unless centrally controlled)
+#
+# The UI should show:
+# - "Profile applied: docs_techspec_v1"
+# - "Overrides: target_tokens changed from 380 -> 450"
+#
+# =============================================================================

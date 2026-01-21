@@ -25,6 +25,7 @@ import json
 import re
 
 from ragix_kernels.base import Kernel, KernelInput
+from ragix_kernels.docs.config import QualityConfig, get_doc_kernel_config
 
 logger = logging.getLogger(__name__)
 
@@ -97,12 +98,22 @@ class DocExtractKernel(Kernel):
 
         project_path = Path(project_path_str)
 
-        # Configuration
+        # Load quality configuration from config system
+        quality_config_dict = input.config.get("quality_config", {})
+        if quality_config_dict:
+            quality_config = QualityConfig.from_dict(quality_config_dict)
+        else:
+            quality_config = get_doc_kernel_config().quality
+
+        # Configuration - now from unified config or kernel config
         sentences_per_concept = input.config.get("sentences_per_concept", 5)
         sentences_per_file = input.config.get("sentences_per_file", 10)
         min_sentence_length = input.config.get("min_sentence_length", 40)
         max_sentence_length = input.config.get("max_sentence_length", 500)
-        quality_threshold = input.config.get("quality_threshold", 0.3)
+        quality_threshold = input.config.get("quality_threshold", quality_config.quality_threshold)
+
+        # Store config for use in scoring methods
+        self._quality_config = quality_config
 
         logger.info(f"[doc_extract] Extracting key sentences from {project_path}")
 
@@ -350,37 +361,42 @@ class DocExtractKernel(Kernel):
         - Information density (entities, numbers)
         - Action verbs (descriptive content)
         - Length appropriateness
+
+        Uses parameters from QualityConfig instead of hardcoded values.
         """
-        score = 0.5  # Base score
+        # Get config (with fallback for direct calls)
+        config = getattr(self, '_quality_config', None) or QualityConfig()
+
+        score = config.base_score
 
         # Penalty for truncation indicators
         if self.TRUNCATED_START.match(sentence):
-            score -= 0.2
+            score -= config.truncation_penalty
         if self.TRUNCATED_END.search(sentence):
-            score -= 0.2
+            score -= config.truncation_penalty
 
         # Bonus for information density
         if self.HAS_NUMBERS.search(sentence):
-            score += 0.1
+            score += config.numbers_bonus
         if self.HAS_ENTITIES.search(sentence):
-            score += 0.1
+            score += config.entity_bonus
         if self.ACTION_VERBS.search(sentence):
-            score += 0.15
+            score += config.action_verb_bonus
 
         # Length bonus (prefer medium-length sentences)
         length = len(sentence)
-        if 80 <= length <= 300:
-            score += 0.1
-        elif length < 50 or length > 400:
-            score -= 0.1
+        if config.length_bonus_min <= length <= config.length_bonus_max:
+            score += config.length_bonus
+        elif length < config.length_penalty_short or length > config.length_penalty_long:
+            score -= config.length_bonus
 
         # Penalty for markdown artifacts
         if re.search(r'\!\[|\{width=|\\[a-z]+\{', sentence):
-            score -= 0.3
+            score -= config.artifact_penalty
 
         # Penalty for table fragments
         if sentence.count('|') > 3:
-            score -= 0.2
+            score -= config.table_fragment_penalty
 
         return max(0, min(1, score))
 

@@ -58,7 +58,8 @@ class DocFinalReportKernel(Kernel):
         "doc_compare",
         "doc_coverage",
         "doc_func_extract",
-        "doc_visualize"  # Figures for report
+        "doc_visualize",  # Figures for report
+        "doc_quality"     # Quality metrics (MRI/SRI)
     ]
     provides = ["final_report", "appendices"]
 
@@ -73,6 +74,7 @@ class DocFinalReportKernel(Kernel):
         coverage = self._load_dep(input, "doc_coverage")
         funcs = self._load_dep(input, "doc_func_extract")
         visualize = self._load_dep(input, "doc_visualize")
+        quality = self._load_dep(input, "doc_quality")
 
         # Use workspace as run directory (not config which defaults to ".")
         run_dir = input.workspace
@@ -93,6 +95,12 @@ class DocFinalReportKernel(Kernel):
 
         # 3. Corpus overview (with doc type distribution figure)
         sections["corpus"] = self._build_corpus_overview(metadata, pyramid, visualize)
+
+        # 3b. Quality metrics (MRI/SRI histograms, radar, scatter)
+        sections["quality_metrics"] = self._build_quality_metrics_section(quality, visualize)
+
+        # 3c. Document similarity & elaboration analysis
+        sections["similarity_analysis"] = self._build_similarity_section(metadata, visualize)
 
         # 4. Clustering analysis (dual view with figures)
         sections["clustering"] = self._build_clustering_section(clusters, visualize)
@@ -330,6 +338,187 @@ The analysis follows a three-stage process:
 - **Chunks**: {stats.get('total_chunks', 0)}
 - **Size**: {stats.get('total_size_mb', 0):.1f} MB
 
+---
+"""
+
+    def _build_quality_metrics_section(self, quality: Dict, visualize: Dict = None) -> str:
+        """Build quality metrics section with MRI/SRI analysis and figures."""
+        if not quality or not quality.get("quality_scores"):
+            return ""
+
+        scores = quality.get("quality_scores", {})
+        n_docs = len(scores)
+
+        # Calculate statistics
+        mri_values = [d["readiness_indices"]["MRI"] for d in scores.values()
+                      if "readiness_indices" in d and "MRI" in d["readiness_indices"]]
+        sri_values = [d["readiness_indices"]["SRI"] for d in scores.values()
+                      if "readiness_indices" in d and "SRI" in d["readiness_indices"]]
+
+        if not mri_values or not sri_values:
+            return ""
+
+        import numpy as np
+        mri_mean, mri_std = np.mean(mri_values), np.std(mri_values)
+        sri_mean, sri_std = np.mean(sri_values), np.std(sri_values)
+
+        # MRI thresholds
+        mri_high = sum(1 for v in mri_values if v > 0.75)
+        mri_med = sum(1 for v in mri_values if 0.45 <= v <= 0.75)
+        mri_low = sum(1 for v in mri_values if v < 0.45)
+
+        # SRI thresholds
+        sri_high = sum(1 for v in sri_values if v > 0.65)
+        sri_med = sum(1 for v in sri_values if 0.45 <= v <= 0.65)
+        sri_low = sum(1 for v in sri_values if v < 0.45)
+
+        # Collect tags
+        tags = {}
+        for d in scores.values():
+            for tag in d.get("tags", []):
+                tags[tag] = tags.get(tag, 0) + 1
+        top_tags = sorted(tags.items(), key=lambda x: -x[1])[:5]
+
+        # Get figure paths
+        mri_hist_fig = ""
+        sri_hist_fig = ""
+        scatter_fig = ""
+        radar_fig = ""
+
+        if visualize:
+            figures = visualize.get("figures", {})
+            if isinstance(figures, dict):
+                if "mri_histogram" in figures:
+                    path = figures["mri_histogram"].get("svg", "")
+                    if path:
+                        mri_hist_fig = f"\n![MRI Distribution]({path})\n*Figure: Minutes Readiness Index distribution with threshold bands*\n"
+                if "sri_histogram" in figures:
+                    path = figures["sri_histogram"].get("svg", "")
+                    if path:
+                        sri_hist_fig = f"\n![SRI Distribution]({path})\n*Figure: Summarization Readiness Index distribution with threshold bands*\n"
+                if "mri_sri_scatter" in figures:
+                    path = figures["mri_sri_scatter"].get("svg", "")
+                    if path:
+                        scatter_fig = f"\n![MRI vs SRI]({path})\n*Figure: Document quality scatter plot with quadrant analysis*\n"
+                if "quality_radar" in figures:
+                    path = figures["quality_radar"].get("svg", "")
+                    if path:
+                        radar_fig = f"\n![Quality Radar]({path})\n*Figure: 5-dimension quality profile (corpus average)*\n"
+
+        tags_list = ", ".join([f"{t} ({c})" for t, c in top_tags]) if top_tags else "None"
+
+        return f"""## Quality Metrics
+
+This section presents document quality assessment based on a 5-dimension scorecard:
+- **LQ** (Linguistic Quality): Lexical richness, sentence regularity
+- **SQ** (Structural Quality): Paragraph variance, heading depth
+- **SC** (Semantic Coherence): Concept reuse, clustering agreement
+- **IR** (Intent Clarity): Prescriptive vs descriptive content
+- **EFU** (Exploitability): Task-specific fitness scores
+
+### Quality Profile
+{radar_fig}
+### Readiness Indices
+
+**Minutes Readiness Index (MRI)** — Fitness for minute/action item extraction:
+
+| Category | Count | Percentage |
+|----------|-------|------------|
+| Auto-itemizable (>0.75) | {mri_high} | {100*mri_high/n_docs:.1f}% |
+| Assisted (0.45-0.75) | {mri_med} | {100*mri_med/n_docs:.1f}% |
+| Needs rewrite (<0.45) | {mri_low} | {100*mri_low/n_docs:.1f}% |
+
+*Mean: {mri_mean:.3f} ± {mri_std:.3f}*
+{mri_hist_fig}
+**Summarization Readiness Index (SRI)** — Fitness for automatic summarization:
+
+| Category | Count | Percentage |
+|----------|-------|------------|
+| Ready (>0.65) | {sri_high} | {100*sri_high/n_docs:.1f}% |
+| Partial (0.45-0.65) | {sri_med} | {100*sri_med/n_docs:.1f}% |
+| Not ready (<0.45) | {sri_low} | {100*sri_low/n_docs:.1f}% |
+
+*Mean: {sri_mean:.3f} ± {sri_std:.3f}*
+{sri_hist_fig}
+### Quality Correlation
+{scatter_fig}
+### Quality Tags
+
+Top document quality tags: {tags_list}
+
+---
+"""
+
+    def _build_similarity_section(self, metadata: Dict, visualize: Dict = None) -> str:
+        """Build document similarity and elaboration analysis section."""
+        # Handle both list format (files) and dict format (documents)
+        files_list = metadata.get("files", [])
+        docs_dict = metadata.get("documents", {})
+
+        if not files_list and not docs_dict:
+            return ""
+
+        n_docs = len(files_list) if files_list else len(docs_dict)
+        docs = files_list if files_list else docs_dict
+
+        # Get figure paths
+        elaboration_fig = ""
+        filename_dend_fig = ""
+        similarity_heatmap_fig = ""
+
+        if visualize:
+            figures = visualize.get("figures", {})
+            if isinstance(figures, dict):
+                if "doc_elaboration_scatter" in figures:
+                    path = figures["doc_elaboration_scatter"].get("svg", "")
+                    if path:
+                        elaboration_fig = f"\n![Document Elaboration Map]({path})\n*Figure: Document complexity vs size — larger points indicate higher quality scores*\n"
+                if "filename_similarity_dendrogram" in figures:
+                    path = figures["filename_similarity_dendrogram"].get("svg", "")
+                    if path:
+                        filename_dend_fig = f"\n![Filename Similarity]({path})\n*Figure: Hierarchical clustering by filename — red line marks version detection threshold*\n"
+                if "doc_similarity_heatmap" in figures:
+                    path = figures["doc_similarity_heatmap"].get("svg", "")
+                    if path:
+                        similarity_heatmap_fig = f"\n![Content Similarity]({path})\n*Figure: Content similarity matrix — red boxes highlight near-duplicate pairs*\n"
+
+        # Count documents by type for context
+        type_counts = {}
+        doc_items = docs if isinstance(docs, list) else docs.values()
+        for doc in doc_items:
+            doc_type = doc.get("kind", doc.get("type", doc.get("extension", "unknown")))
+            type_counts[doc_type] = type_counts.get(doc_type, 0) + 1
+
+        top_types = sorted(type_counts.items(), key=lambda x: -x[1])[:5]
+        types_str = ", ".join([f"{t} ({c})" for t, c in top_types])
+
+        return f"""## Document Similarity & Elaboration Analysis
+
+This section analyzes document relationships through three complementary lenses:
+- **Elaboration**: Identifies the most complex and content-rich documents
+- **Filename Patterns**: Detects document versions, copies, and related files
+- **Content Similarity**: Reveals potential duplicates or near-identical content
+
+### Document Elaboration Map
+
+The elaboration map plots each document by its size (word count) and structural complexity
+(heading depth × section count). This reveals which documents are the "pillars" of the corpus.
+{elaboration_fig}
+**Document Types**: {types_str}
+
+### Filename Similarity Analysis
+
+Documents with similar filenames often represent versions, translations, or related variants.
+The dendrogram below clusters documents by normalized Levenshtein distance on their filenames.
+{filename_dend_fig}
+*Documents below the 30% threshold line likely represent version families.*
+
+### Content Similarity Matrix
+
+Beyond filename patterns, content similarity reveals semantic duplicates — documents that may have
+different names but contain substantially similar information. High-similarity pairs (>85%)
+are highlighted for review.
+{similarity_heatmap_fig}
 ---
 """
 
@@ -1027,6 +1216,8 @@ services. All data remained on the local infrastructure.
             "methodology",
             "executive",
             "corpus",
+            "quality_metrics",      # MRI/SRI analysis
+            "similarity_analysis",  # Document similarity & elaboration
             "clustering",
             "domains",
             "visual_analysis",

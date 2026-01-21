@@ -23,6 +23,7 @@ from .threads import router as threads_router
 from .rag import router as rag_router
 from .rag_project import router as rag_project_router
 from .audit import router as audit_router
+from .settings import router as settings_router
 
 __all__ = [
     "sessions_router",
@@ -35,5 +36,6 @@ __all__ = [
     "rag_router",
     "rag_project_router",
     "audit_router",
+    "settings_router",
     "get_agent_config_store",
 ]

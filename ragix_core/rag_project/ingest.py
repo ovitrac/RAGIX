@@ -428,7 +428,7 @@ class FileIngester:
         Yields:
             Path objects for matching files
         """
-        for root, dirs, files in os.walk(self.project_root):
+        for root, dirs, files in os.walk(self.project_root, followlinks=True):
             root_path = Path(root)
             rel_root = root_path.relative_to(self.project_root)
 

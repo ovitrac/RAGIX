@@ -165,8 +165,8 @@ TOPICS: [topic1, topic2, topic3]"""
             enable_cache=input.config.get("enable_cache", True)
         )
 
-        # Initialize cache in workspace directory
-        cache_dir = input.workspace / "cache"
+        # Initialize cache in workspace directory (.KOAS/cache for consistency)
+        cache_dir = input.workspace / ".KOAS" / "cache"
         self.cache = LLMCache(cache_dir, self.config.endpoint)
 
         # Get model digests for tracking

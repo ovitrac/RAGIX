@@ -67,7 +67,7 @@ class HybridSearchEngine:
         fusion_strategy: FusionStrategy = FusionStrategy.RRF,
         bm25_weight: float = 0.5,
         vector_weight: float = 0.5,
-        rrf_k: int = 60,
+        rrf_k: Optional[int] = None,
     ):
         """
         Initialize hybrid search engine.
@@ -79,7 +79,7 @@ class HybridSearchEngine:
             fusion_strategy: Strategy for combining results
             bm25_weight: Weight for BM25 scores (for weighted fusion)
             vector_weight: Weight for vector scores (for weighted fusion)
-            rrf_k: Parameter for RRF (controls rank sensitivity)
+            rrf_k: Parameter for RRF (controls rank sensitivity). If None, loads from config.
         """
         self.bm25_index = bm25_index
         self.vector_index = vector_index
@@ -87,6 +87,14 @@ class HybridSearchEngine:
         self.fusion_strategy = fusion_strategy
         self.bm25_weight = bm25_weight
         self.vector_weight = vector_weight
+
+        # Load rrf_k from config if not provided
+        if rrf_k is None:
+            try:
+                from ragix_core.config import get_config
+                rrf_k = get_config().search.rrf_k
+            except Exception:
+                rrf_k = 60  # Fallback to default
         self.rrf_k = rrf_k
 
     def search(

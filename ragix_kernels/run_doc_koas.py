@@ -84,6 +84,7 @@ DOC_STAGE2_KERNELS = [
     "doc_extract",
     "doc_coverage",
     "doc_func_extract",
+    "doc_quality",           # 5-dimension quality scorecard + MRI/SRI
 ]
 DOC_STAGE3_KERNELS = [
     "doc_pyramid",
@@ -594,6 +595,22 @@ def _copy_artifacts_to_run_dir(workspace: Path, run_dir: Path, project_path: Pat
             # Copy markdown files (doc_report.md, audit_report.md, etc.)
             for md_file in src_dir.glob("*.md"):
                 shutil.copy(md_file, dst_dir / md_file.name)
+
+    # Copy assets (visualizations) from workspace
+    assets_src = workspace / "assets"
+    assets_dst = run_dir / "assets"
+    if assets_src.exists():
+        # Copy all files in assets/
+        for asset_file in assets_src.glob("*"):
+            if asset_file.is_file():
+                shutil.copy(asset_file, assets_dst / asset_file.name)
+            elif asset_file.is_dir():
+                # Copy subdirectories (e.g., domain_clouds/)
+                subdir_dst = assets_dst / asset_file.name
+                subdir_dst.mkdir(parents=True, exist_ok=True)
+                for subfile in asset_file.glob("*"):
+                    if subfile.is_file():
+                        shutil.copy(subfile, subdir_dst / subfile.name)
 
     # Copy final report and appendices from project path
     # (doc_final_report kernel writes to project_path, not workspace)

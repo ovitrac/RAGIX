@@ -453,8 +453,33 @@ PANDOC_EXTENSIONS = {'.docx', '.doc', '.odt', '.rtf', '.epub', '.html'}
 PPTX_EXTENSIONS = {'.pptx', '.ppt'}
 XLSX_EXTENSIONS = {'.xlsx', '.xls'}
 
-# Default RAG indexing parameters
-DEFAULT_CHUNK_SIZE = 1000  # characters
+# Default RAG indexing parameters - now loaded from config when possible
+def _get_default_chunk_size() -> int:
+    """Get default chunk size from config or fallback."""
+    try:
+        from ragix_core.config import get_config
+        return get_config().search.chunk_size
+    except Exception:
+        return 1000
+
+def _get_default_chunk_overlap() -> int:
+    """Get default chunk overlap from config or fallback."""
+    try:
+        from ragix_core.config import get_config
+        return get_config().search.chunk_overlap
+    except Exception:
+        return 200
+
+def _get_default_max_file_size() -> int:
+    """Get default max file size from config or fallback."""
+    try:
+        from ragix_core.config import get_config
+        return get_config().search.max_file_size_mb * 1024 * 1024
+    except Exception:
+        return 10 * 1024 * 1024
+
+# Legacy constants for backward compatibility (used by Pydantic defaults)
+DEFAULT_CHUNK_SIZE = 1000  # characters (actual default loaded from config at runtime)
 DEFAULT_CHUNK_OVERLAP = 200  # characters
 DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
@@ -864,6 +889,58 @@ def _build_simple_bm25_index(chunks: List[Dict[str, Any]], index_path: Path) -> 
     return True
 
 
+def _get_effective_indexing_settings(session_id: str, form_chunk_size: int, form_chunk_overlap: int) -> Dict[str, Any]:
+    """
+    Get effective indexing settings, merging form parameters with session settings.
+
+    Priority: Form parameters > Session settings > Config defaults > Hardcoded fallback
+
+    All values are in CHARS (not tokens).
+
+    Args:
+        session_id: Session ID for settings lookup
+        form_chunk_size: Chunk size from form (may be default)
+        form_chunk_overlap: Chunk overlap from form (may be default)
+
+    Returns:
+        Dict with effective settings
+    """
+    settings = {
+        "chunk_size": form_chunk_size,
+        "chunk_overlap": form_chunk_overlap,
+        "source": "form",
+    }
+
+    # Try to load session settings from the settings router
+    try:
+        from ragix_web.routers.settings import _get_settings_state
+        state = _get_settings_state(session_id)
+
+        # Check if user has custom settings (not default form values)
+        if form_chunk_size == DEFAULT_CHUNK_SIZE and form_chunk_overlap == DEFAULT_CHUNK_OVERLAP:
+            # Form has defaults, check for session settings
+            chunking = state.get("chunking", {})
+
+            # Use char-based settings directly (new format)
+            if "chunk_size" in chunking:
+                settings["chunk_size"] = chunking["chunk_size"]
+                settings["source"] = "session"
+
+            if "overlap" in chunking and isinstance(chunking["overlap"], int):
+                settings["chunk_overlap"] = chunking["overlap"]
+
+            # Store additional settings for future use
+            settings["chunking_strategy"] = chunking.get("strategy", "paragraph")
+            settings["active_profile"] = state.get("active_profile")
+            settings["indexing_mode"] = state.get("indexing_mode", "pure_docs")
+
+    except Exception as e:
+        # Fall back to form/config defaults
+        logger.debug(f"Could not load session settings: {e}")
+
+    return settings
+
+
 @router.post("/upload")
 async def upload_and_index(
     file: UploadFile = File(...),
@@ -872,6 +949,7 @@ async def upload_and_index(
     chunk_overlap: int = Form(DEFAULT_CHUNK_OVERLAP),
     pdf_enabled: str = Form("true"),
     pandoc_enabled: str = Form("true"),
+    use_session_settings: str = Form("true"),
 ) -> Dict[str, Any]:
     """
     Upload a file or archive and index it for RAG.
@@ -884,17 +962,27 @@ async def upload_and_index(
     Args:
         file: File to upload (text file or ZIP)
         session_id: Session ID
-        chunk_size: Size of text chunks (default: 1000 chars)
-        chunk_overlap: Overlap between chunks (default: 200 chars)
+        chunk_size: Size of text chunks (default: 1000 chars). Overridden by session settings if use_session_settings=true.
+        chunk_overlap: Overlap between chunks (default: 200 chars). Overridden by session settings if use_session_settings=true.
         pdf_enabled: Enable PDF conversion via pdftotext
         pandoc_enabled: Enable Office docs conversion via pandoc
+        use_session_settings: If true, use settings from Settings page (default: true)
 
     Returns:
-        Indexing statistics
+        Indexing statistics including effective settings used
     """
     # Parse boolean strings from form data
     pdf_conv_enabled = pdf_enabled.lower() in ('true', '1', 'yes', 'on')
     pandoc_conv_enabled = pandoc_enabled.lower() in ('true', '1', 'yes', 'on')
+    use_session = use_session_settings.lower() in ('true', '1', 'yes', 'on')
+
+    # Get effective settings (merges form params with session settings)
+    if use_session:
+        effective_settings = _get_effective_indexing_settings(session_id, chunk_size, chunk_overlap)
+        chunk_size = effective_settings["chunk_size"]
+        chunk_overlap = effective_settings["chunk_overlap"]
+    else:
+        effective_settings = {"chunk_size": chunk_size, "chunk_overlap": chunk_overlap, "source": "form"}
 
     index_path = _get_index_path()
     index_path.mkdir(parents=True, exist_ok=True)
@@ -1036,6 +1124,9 @@ async def upload_and_index(
     metadata["config"] = {
         "chunk_size": chunk_size,
         "chunk_overlap": chunk_overlap,
+        "settings_source": effective_settings.get("source", "form"),
+        "active_profile": effective_settings.get("active_profile"),
+        "indexing_mode": effective_settings.get("indexing_mode"),
     }
 
     with open(metadata_path, 'w') as f:
@@ -1069,6 +1160,14 @@ async def upload_and_index(
         "total_chunks": len(all_chunks),
         "bm25_built": bm25_built,
         "errors": errors if errors else None,
+        # v0.63: Include effective settings used for indexing
+        "effective_settings": {
+            "chunk_size": chunk_size,
+            "chunk_overlap": chunk_overlap,
+            "source": effective_settings.get("source", "form"),
+            "active_profile": effective_settings.get("active_profile"),
+            "indexing_mode": effective_settings.get("indexing_mode"),
+        },
     }
 
 

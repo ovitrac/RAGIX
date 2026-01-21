@@ -172,9 +172,9 @@ class DocVisualizeKernel(Kernel):
 
     name = "doc_visualize"
     stage = 3
-    version = "1.1.0"  # Updated for content-based word clouds
+    version = "1.2.2"  # Fixed concepts format handling for content similarity heatmap
     requires = ["doc_metadata", "doc_concepts", "doc_cluster", "doc_cluster_leiden",
-                "doc_coverage", "doc_pyramid", "doc_extract"]  # Added doc_extract for raw content
+                "doc_coverage", "doc_pyramid", "doc_extract", "doc_quality"]  # Added doc_quality for MRI/SRI figures
     provides = ["visualizations", "figure_manifest"]
 
     def compute(self, input: KernelInput) -> Dict[str, Any]:
@@ -196,6 +196,7 @@ class DocVisualizeKernel(Kernel):
         coverage = self._load_dependency(input, "doc_coverage")
         pyramid = self._load_dependency(input, "doc_pyramid")
         extract = self._load_dependency(input, "doc_extract")  # Raw sentences
+        quality = self._load_dependency(input, "doc_quality")  # Quality scores (optional)
 
         figures = {}  # Dict keyed by figure name for easy lookup
 
@@ -275,6 +276,65 @@ class DocVisualizeKernel(Kernel):
                 figures["domain_word_clouds"] = domain_clouds
         except Exception as e:
             logger.warning(f"Failed to generate domain word clouds: {e}")
+
+        # 9-12. Quality visualizations (if doc_quality data available)
+        if quality and quality.get("quality_scores"):
+            # 9. MRI histogram
+            try:
+                fig_info = self._generate_mri_histogram(quality, assets_dir)
+                if fig_info:
+                    figures["mri_histogram"] = fig_info
+            except Exception as e:
+                logger.warning(f"Failed to generate MRI histogram: {e}")
+
+            # 10. SRI histogram
+            try:
+                fig_info = self._generate_sri_histogram(quality, assets_dir)
+                if fig_info:
+                    figures["sri_histogram"] = fig_info
+            except Exception as e:
+                logger.warning(f"Failed to generate SRI histogram: {e}")
+
+            # 11. MRI vs SRI scatter plot
+            try:
+                fig_info = self._generate_mri_sri_scatter(quality, assets_dir)
+                if fig_info:
+                    figures["mri_sri_scatter"] = fig_info
+            except Exception as e:
+                logger.warning(f"Failed to generate MRI/SRI scatter: {e}")
+
+            # 12. Quality radar (5-dimension average)
+            try:
+                fig_info = self._generate_quality_radar(quality, assets_dir)
+                if fig_info:
+                    figures["quality_radar"] = fig_info
+            except Exception as e:
+                logger.warning(f"Failed to generate quality radar: {e}")
+
+        # 13-15. Document similarity and elaboration visualizations
+        # 13. Document elaboration scatter (complexity vs size)
+        try:
+            fig_info = self._generate_elaboration_scatter(metadata, quality, assets_dir)
+            if fig_info:
+                figures["doc_elaboration_scatter"] = fig_info
+        except Exception as e:
+            logger.warning(f"Failed to generate elaboration scatter: {e}")
+
+        # 14. Filename similarity dendrogram
+        try:
+            fig_info = self._generate_filename_dendrogram(metadata, assets_dir)
+            if fig_info:
+                figures["filename_similarity_dendrogram"] = fig_info
+        except Exception as e:
+            logger.warning(f"Failed to generate filename dendrogram: {e}")
+
+        # 15. Content similarity heatmap
+        try:
+            fig_info = self._generate_content_similarity_heatmap(concepts, metadata, assets_dir)
+            if fig_info:
+                figures["doc_similarity_heatmap"] = fig_info
+        except Exception as e:
+            logger.warning(f"Failed to generate content similarity heatmap: {e}")
 
         # Generate figure manifest (also as list for compatibility)
         figures_list = list(figures.values())
@@ -1170,6 +1230,661 @@ class DocVisualizeKernel(Kernel):
             "count": len(domain_figures),
             "by_domain": domain_figures,
         }
+
+    # =========================================================================
+    # Quality Visualizations (from doc_quality kernel)
+    # =========================================================================
+
+    def _generate_mri_histogram(self, quality: Dict, assets_dir: Path) -> Optional[Dict]:
+        """Generate MRI (Minutes Readiness Index) histogram with threshold bands."""
+        scores = quality.get("quality_scores", {})
+        if not scores:
+            return None
+
+        mri_values = [doc["readiness_indices"]["MRI"] for doc in scores.values()
+                      if "readiness_indices" in doc and "MRI" in doc["readiness_indices"]]
+
+        if not mri_values:
+            return None
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Histogram
+        n, bins, patches = ax.hist(mri_values, bins=20, range=(0, 1),
+                                   color='steelblue', edgecolor='white', alpha=0.8)
+
+        # Color by threshold bands
+        for patch, left_edge in zip(patches, bins[:-1]):
+            if left_edge >= 0.75:
+                patch.set_facecolor('#2ecc71')  # Green - auto-itemizable
+            elif left_edge >= 0.45:
+                patch.set_facecolor('#f39c12')  # Orange - assisted
+            else:
+                patch.set_facecolor('#e74c3c')  # Red - needs rewrite
+
+        # Threshold lines
+        ax.axvline(x=0.45, color='#f39c12', linestyle='--', linewidth=2, label='Assisted (0.45)')
+        ax.axvline(x=0.75, color='#2ecc71', linestyle='--', linewidth=2, label='Auto (0.75)')
+
+        # Labels
+        ax.set_xlabel('MRI Score', fontsize=12)
+        ax.set_ylabel('Number of Documents', fontsize=12)
+        ax.set_title('Minutes Readiness Index (MRI) Distribution', fontsize=14, fontweight='bold')
+        ax.legend(loc='upper right')
+
+        # Stats annotation
+        stats_text = f"n={len(mri_values)}, μ={np.mean(mri_values):.2f}, σ={np.std(mri_values):.2f}"
+        ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, fontsize=10,
+                verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+        plt.tight_layout()
+
+        return self._save_figure(fig, "mri_histogram", assets_dir,
+                                 "MRI Distribution",
+                                 "Minutes Readiness Index histogram with threshold bands")
+
+    def _generate_sri_histogram(self, quality: Dict, assets_dir: Path) -> Optional[Dict]:
+        """Generate SRI (Summarization Readiness Index) histogram with threshold bands."""
+        scores = quality.get("quality_scores", {})
+        if not scores:
+            return None
+
+        sri_values = [doc["readiness_indices"]["SRI"] for doc in scores.values()
+                      if "readiness_indices" in doc and "SRI" in doc["readiness_indices"]]
+
+        if not sri_values:
+            return None
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Histogram
+        n, bins, patches = ax.hist(sri_values, bins=20, range=(0, 1),
+                                   color='steelblue', edgecolor='white', alpha=0.8)
+
+        # Color by threshold bands
+        for patch, left_edge in zip(patches, bins[:-1]):
+            if left_edge >= 0.65:
+                patch.set_facecolor('#2ecc71')  # Green - ready
+            elif left_edge >= 0.45:
+                patch.set_facecolor('#f39c12')  # Orange - partial
+            else:
+                patch.set_facecolor('#e74c3c')  # Red - not ready
+
+        # Threshold lines
+        ax.axvline(x=0.45, color='#f39c12', linestyle='--', linewidth=2, label='Partial (0.45)')
+        ax.axvline(x=0.65, color='#2ecc71', linestyle='--', linewidth=2, label='Ready (0.65)')
+
+        # Labels
+        ax.set_xlabel('SRI Score', fontsize=12)
+        ax.set_ylabel('Number of Documents', fontsize=12)
+        ax.set_title('Summarization Readiness Index (SRI) Distribution', fontsize=14, fontweight='bold')
+        ax.legend(loc='upper left')
+
+        # Stats annotation (bottom-left to avoid legend overlap)
+        stats_text = f"n={len(sri_values)}, μ={np.mean(sri_values):.2f}, σ={np.std(sri_values):.2f}"
+        ax.text(0.02, 0.02, stats_text, transform=ax.transAxes, fontsize=10,
+                verticalalignment='bottom', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+        plt.tight_layout()
+
+        return self._save_figure(fig, "sri_histogram", assets_dir,
+                                 "SRI Distribution",
+                                 "Summarization Readiness Index histogram with threshold bands")
+
+    def _generate_mri_sri_scatter(self, quality: Dict, assets_dir: Path) -> Optional[Dict]:
+        """Generate MRI vs SRI scatter plot with quadrant analysis."""
+        scores = quality.get("quality_scores", {})
+        if not scores:
+            return None
+
+        mri_values = []
+        sri_values = []
+        labels = []
+
+        for doc_id, doc in scores.items():
+            if "readiness_indices" in doc:
+                ri = doc["readiness_indices"]
+                if "MRI" in ri and "SRI" in ri:
+                    mri_values.append(ri["MRI"])
+                    sri_values.append(ri["SRI"])
+                    labels.append(doc.get("path", doc_id)[-30:])  # Truncate long paths
+
+        if len(mri_values) < 2:
+            return None
+
+        fig, ax = plt.subplots(figsize=(10, 10))
+
+        # Scatter plot with color by combined quality
+        combined = [(m + s) / 2 for m, s in zip(mri_values, sri_values)]
+        scatter = ax.scatter(mri_values, sri_values, c=combined, cmap='RdYlGn',
+                             s=60, alpha=0.7, edgecolors='white', linewidth=0.5)
+
+        # Quadrant lines
+        ax.axhline(y=0.65, color='gray', linestyle='--', alpha=0.5)
+        ax.axvline(x=0.45, color='gray', linestyle='--', alpha=0.5)
+
+        # Quadrant labels
+        ax.text(0.22, 0.85, 'Low MRI\nHigh SRI', ha='center', fontsize=9, alpha=0.7)
+        ax.text(0.75, 0.85, 'High MRI\nHigh SRI', ha='center', fontsize=9, alpha=0.7,
+                bbox=dict(boxstyle='round', facecolor='#2ecc71', alpha=0.3))
+        ax.text(0.22, 0.25, 'Low MRI\nLow SRI', ha='center', fontsize=9, alpha=0.7,
+                bbox=dict(boxstyle='round', facecolor='#e74c3c', alpha=0.3))
+        ax.text(0.75, 0.25, 'High MRI\nLow SRI', ha='center', fontsize=9, alpha=0.7)
+
+        # Labels
+        ax.set_xlabel('MRI (Minutes Readiness)', fontsize=12)
+        ax.set_ylabel('SRI (Summarization Readiness)', fontsize=12)
+        ax.set_title('Document Quality: MRI vs SRI', fontsize=14, fontweight='bold')
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+
+        # Colorbar
+        cbar = plt.colorbar(scatter, ax=ax)
+        cbar.set_label('Combined Quality', fontsize=10)
+
+        # Correlation annotation
+        corr = np.corrcoef(mri_values, sri_values)[0, 1]
+        ax.text(0.98, 0.02, f'r = {corr:.3f}', transform=ax.transAxes, fontsize=10,
+                ha='right', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+        plt.tight_layout()
+
+        return self._save_figure(fig, "mri_sri_scatter", assets_dir,
+                                 "MRI vs SRI Scatter",
+                                 f"Document quality scatter plot (n={len(mri_values)}, r={corr:.2f})")
+
+    def _generate_quality_radar(self, quality: Dict, assets_dir: Path) -> Optional[Dict]:
+        """Generate 5-dimension quality radar chart (corpus average)."""
+        scores = quality.get("quality_scores", {})
+        if not scores:
+            return None
+
+        # Collect dimension scores
+        dimensions = ["LQ", "SQ", "SC", "IR", "EFU"]
+        dim_labels = [
+            "Linguistic\nQuality",
+            "Structural\nQuality",
+            "Semantic\nCoherence",
+            "Intent\nClarity",
+            "Exploitability"
+        ]
+
+        # Calculate averages
+        dim_values = {d: [] for d in dimensions}
+        for doc in scores.values():
+            doc_scores = doc.get("scores", {})
+            for d in dimensions:
+                if d == "EFU":
+                    # EFU is nested, take average of sub-scores
+                    efu = doc_scores.get("EFU", {})
+                    if efu:
+                        dim_values[d].append(np.mean(list(efu.values())))
+                elif d == "IR":
+                    # Use 1 - entropy for clarity (higher = clearer)
+                    entropy = doc_scores.get("IR_entropy", 0.5)
+                    dim_values[d].append(1 - entropy)
+                elif d in doc_scores:
+                    dim_values[d].append(doc_scores[d])
+
+        # Calculate means
+        means = [np.mean(dim_values[d]) if dim_values[d] else 0 for d in dimensions]
+
+        # Radar chart
+        angles = np.linspace(0, 2 * np.pi, len(dimensions), endpoint=False).tolist()
+        means += means[:1]  # Close the polygon
+        angles += angles[:1]
+
+        fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
+
+        # Plot
+        ax.fill(angles, means, color='steelblue', alpha=0.25)
+        ax.plot(angles, means, color='steelblue', linewidth=2, marker='o', markersize=8)
+
+        # Labels
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels(dim_labels, fontsize=10)
+        ax.set_ylim(0, 1)
+        ax.set_yticks([0.25, 0.5, 0.75, 1.0])
+        ax.set_yticklabels(['0.25', '0.50', '0.75', '1.00'], fontsize=8)
+
+        # Title
+        ax.set_title('Document Quality Profile\n(Corpus Average)', fontsize=14, fontweight='bold', y=1.08)
+
+        # Add value annotations
+        for angle, mean, label in zip(angles[:-1], means[:-1], dimensions):
+            ax.annotate(f'{mean:.2f}', xy=(angle, mean), xytext=(angle, mean + 0.1),
+                        ha='center', fontsize=9, fontweight='bold')
+
+        plt.tight_layout()
+
+        return self._save_figure(fig, "quality_radar", assets_dir,
+                                 "Quality Radar",
+                                 "5-dimension quality profile (corpus average)")
+
+    # =========================================================================
+    # Document Similarity & Elaboration Visualizations
+    # =========================================================================
+
+    def _generate_elaboration_scatter(self, metadata: Dict, quality: Dict,
+                                       assets_dir: Path) -> Optional[Dict]:
+        """Generate document elaboration scatter plot (complexity vs size).
+
+        X-axis: Word count (document size)
+        Y-axis: Structural complexity (heading depth × section count)
+        Color: Document type
+        Size: Quality score (MRI)
+        Labels: Top 10 most elaborate documents
+        """
+        # Handle both list format (files) and dict format (documents)
+        files_list = metadata.get("files", [])
+        docs_dict = metadata.get("documents", {})
+
+        if not files_list and not docs_dict:
+            return None
+
+        # Extract data for each document
+        data_points = []
+
+        # Process list format (preferred)
+        if files_list:
+            for doc in files_list:
+                doc_id = doc.get("file_id", doc.get("path", ""))
+                # Estimate word count from size_bytes (roughly 5 chars per word)
+                size_bytes = doc.get("size_bytes", 0) or 0
+                word_count = max(size_bytes // 5, 100) if size_bytes else 100
+
+                # Use chunk_count as proxy for structure complexity
+                chunk_count = doc.get("chunk_count", 1) or 1
+                structure_score = chunk_count
+
+                # Get quality score if available
+                mri = 0.5  # Default
+                if quality and quality.get("quality_scores"):
+                    q_data = quality["quality_scores"].get(doc_id, {})
+                    if "readiness_indices" in q_data:
+                        mri = q_data["readiness_indices"].get("MRI", 0.5)
+
+                # Get document type from kind or extension
+                doc_type = doc.get("kind", doc.get("extension", "unknown"))
+                filename = doc.get("path", doc_id).split("/")[-1]
+
+                data_points.append({
+                    "doc_id": doc_id,
+                    "filename": filename,
+                    "word_count": word_count,
+                    "structure": structure_score,
+                    "mri": mri,
+                    "doc_type": doc_type,
+                    "elaboration": word_count * structure_score
+                })
+        else:
+            # Process dict format (fallback)
+            for doc_id, doc in docs_dict.items():
+                word_count = doc.get("word_count", 0) or doc.get("size_words", 0)
+                if word_count == 0:
+                    content = doc.get("content", "")
+                    word_count = len(content.split()) if content else 100
+
+                heading_depth = doc.get("heading_depth", 1) or 1
+                section_count = doc.get("section_count", 1) or doc.get("num_sections", 1) or 1
+                structure_score = heading_depth * section_count
+
+                mri = 0.5
+                if quality and quality.get("quality_scores"):
+                    q_data = quality["quality_scores"].get(doc_id, {})
+                    if "readiness_indices" in q_data:
+                        mri = q_data["readiness_indices"].get("MRI", 0.5)
+
+                doc_type = doc.get("type", "unknown") or doc.get("doc_type", "unknown")
+                filename = doc.get("filename", doc.get("name", doc_id))
+
+                data_points.append({
+                    "doc_id": doc_id,
+                    "filename": filename,
+                    "word_count": word_count,
+                    "structure": structure_score,
+                    "mri": mri,
+                    "doc_type": doc_type,
+                    "elaboration": word_count * structure_score
+                })
+
+        if len(data_points) < 3:
+            return None
+
+        # Sort by elaboration for top 10 labels
+        data_points.sort(key=lambda x: x["elaboration"], reverse=True)
+        top_10_ids = {d["doc_id"] for d in data_points[:10]}
+
+        # Prepare plot data
+        import numpy as np
+
+        word_counts = np.array([d["word_count"] for d in data_points])
+        structures = np.array([d["structure"] for d in data_points])
+        mris = np.array([d["mri"] for d in data_points])
+
+        # Get unique types for coloring
+        types = [d["doc_type"] for d in data_points]
+        unique_types = list(set(types))
+        type_colors = {t: plt.cm.Set2(i / max(len(unique_types), 1))
+                       for i, t in enumerate(unique_types)}
+        colors = [type_colors[t] for t in types]
+
+        # Create figure
+        fig, ax = plt.subplots(figsize=(12, 8))
+
+        # Scale point sizes by MRI (50-300 range)
+        sizes = 50 + 250 * mris
+
+        # Scatter plot
+        scatter = ax.scatter(word_counts, structures, c=colors, s=sizes, alpha=0.7, edgecolors='black', linewidth=0.5)
+
+        # Add labels for top 10
+        for i, d in enumerate(data_points):
+            if d["doc_id"] in top_10_ids:
+                # Truncate filename for display
+                label = d["filename"][:25] + "..." if len(d["filename"]) > 28 else d["filename"]
+                ax.annotate(label, (word_counts[i], structures[i]),
+                           xytext=(5, 5), textcoords='offset points',
+                           fontsize=7, alpha=0.8,
+                           bbox=dict(boxstyle='round,pad=0.2', facecolor='yellow', alpha=0.3))
+
+        # Labels and title
+        ax.set_xlabel('Word Count (Document Size)', fontsize=12)
+        ax.set_ylabel('Structural Complexity (Heading Depth × Sections)', fontsize=12)
+        ax.set_title('Document Elaboration Map\n(Size indicates quality score)', fontsize=14, fontweight='bold')
+
+        # Legend for document types
+        legend_elements = [plt.Line2D([0], [0], marker='o', color='w',
+                                       markerfacecolor=type_colors[t], markersize=10, label=t)
+                          for t in unique_types[:8]]  # Limit to 8 types
+        ax.legend(handles=legend_elements, loc='upper right', title='Document Type', fontsize=8)
+
+        # Add grid
+        ax.grid(True, alpha=0.3)
+        ax.set_axisbelow(True)
+
+        # Log scale for word count if range is large
+        if word_counts.max() / max(word_counts.min(), 1) > 100:
+            ax.set_xscale('log')
+
+        plt.tight_layout()
+
+        return self._save_figure(fig, "doc_elaboration_scatter", assets_dir,
+                                 "Document Elaboration Map",
+                                 "Scatter plot showing document complexity vs size with top elaborated docs labeled")
+
+    def _generate_filename_dendrogram(self, metadata: Dict, assets_dir: Path) -> Optional[Dict]:
+        """Generate filename similarity dendrogram using Levenshtein distance.
+
+        Detects document versions, copies, and related files by name patterns.
+        """
+        # Handle both list format (files) and dict format (documents)
+        files_list = metadata.get("files", [])
+        docs_dict = metadata.get("documents", {})
+
+        if not files_list and not docs_dict:
+            return None
+
+        # Get filenames
+        filenames = []
+        doc_ids = []
+
+        if files_list:
+            for doc in files_list:
+                doc_id = doc.get("file_id", doc.get("path", ""))
+                fname = doc.get("path", doc_id)
+                # Normalize: remove extension and path
+                fname_clean = fname.rsplit('.', 1)[0] if '.' in fname else fname
+                fname_clean = fname_clean.rsplit('/', 1)[-1] if '/' in fname_clean else fname_clean
+                filenames.append(fname_clean)
+                doc_ids.append(doc_id)
+        else:
+            for doc_id, doc in docs_dict.items():
+                fname = doc.get("filename", doc.get("name", doc_id))
+                fname_clean = fname.rsplit('.', 1)[0] if '.' in fname else fname
+                fname_clean = fname_clean.rsplit('/', 1)[-1] if '/' in fname_clean else fname_clean
+                filenames.append(fname_clean)
+                doc_ids.append(doc_id)
+
+        if len(filenames) < 3:
+            return None
+
+        # Compute Levenshtein distance matrix
+        def levenshtein_distance(s1: str, s2: str) -> int:
+            """Compute Levenshtein edit distance between two strings."""
+            if len(s1) < len(s2):
+                return levenshtein_distance(s2, s1)
+            if len(s2) == 0:
+                return len(s1)
+
+            prev_row = range(len(s2) + 1)
+            for i, c1 in enumerate(s1):
+                curr_row = [i + 1]
+                for j, c2 in enumerate(s2):
+                    insertions = prev_row[j + 1] + 1
+                    deletions = curr_row[j] + 1
+                    substitutions = prev_row[j] + (c1 != c2)
+                    curr_row.append(min(insertions, deletions, substitutions))
+                prev_row = curr_row
+            return prev_row[-1]
+
+        def normalized_distance(s1: str, s2: str) -> float:
+            """Normalized Levenshtein distance (0-1 scale)."""
+            max_len = max(len(s1), len(s2))
+            if max_len == 0:
+                return 0.0
+            return levenshtein_distance(s1, s2) / max_len
+
+        import numpy as np
+        from scipy.cluster.hierarchy import linkage, dendrogram
+        from scipy.spatial.distance import squareform
+
+        n = len(filenames)
+
+        # Build distance matrix
+        dist_matrix = np.zeros((n, n))
+        for i in range(n):
+            for j in range(i + 1, n):
+                d = normalized_distance(filenames[i].lower(), filenames[j].lower())
+                dist_matrix[i, j] = d
+                dist_matrix[j, i] = d
+
+        # Convert to condensed form for linkage
+        condensed = squareform(dist_matrix)
+
+        # Hierarchical clustering
+        Z = linkage(condensed, method='average')
+
+        # Create figure
+        fig, ax = plt.subplots(figsize=(14, max(8, n * 0.15)))
+
+        # Generate dendrogram
+        # Truncate labels for display
+        labels = [f[:30] + "..." if len(f) > 33 else f for f in filenames]
+
+        dend = dendrogram(Z, labels=labels, orientation='left', ax=ax,
+                          color_threshold=0.3,  # Threshold for version detection
+                          above_threshold_color='gray')
+
+        # Add threshold line
+        ax.axvline(x=0.3, color='red', linestyle='--', linewidth=1, alpha=0.7)
+        ax.text(0.32, 0.02, 'Version threshold (30%)', transform=ax.transAxes,
+                fontsize=9, color='red', alpha=0.8)
+
+        ax.set_xlabel('Normalized Levenshtein Distance', fontsize=12)
+        ax.set_title('Filename Similarity Dendrogram\n(Detects versions, copies, related documents)',
+                    fontsize=14, fontweight='bold')
+
+        # Add stats
+        n_clusters = len(set(dend['color_list'])) - 1  # Exclude gray
+        stats_text = f"n = {n} documents\n~{n_clusters} version groups"
+        ax.text(0.98, 0.98, stats_text, transform=ax.transAxes, fontsize=10,
+                verticalalignment='top', horizontalalignment='right',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+        plt.tight_layout()
+
+        return self._save_figure(fig, "filename_similarity_dendrogram", assets_dir,
+                                 "Filename Similarity Dendrogram",
+                                 "Hierarchical clustering of documents by filename similarity")
+
+    def _generate_content_similarity_heatmap(self, concepts: Dict, metadata: Dict,
+                                              assets_dir: Path) -> Optional[Dict]:
+        """Generate content similarity heatmap using concept vectors.
+
+        Detects plagiarism, copies, or near-duplicate content.
+        """
+        # Try different concept data formats
+        doc_concepts = concepts.get("file_concepts", {}) or concepts.get("document_concepts", {})
+        if not doc_concepts or len(doc_concepts) < 3:
+            return None
+
+        import numpy as np
+        from scipy.cluster.hierarchy import linkage, dendrogram
+
+        # Build concept vocabulary from the concept definitions
+        concept_defs = concepts.get("concepts", [])
+        all_concepts = set()
+
+        # Extract concept labels from definitions
+        for c in concept_defs:
+            if isinstance(c, dict):
+                label = c.get("label", c.get("concept_id", "")).lower()
+                if label:
+                    all_concepts.add(label)
+            elif isinstance(c, str):
+                all_concepts.add(c.lower())
+
+        # Also extract from document concepts if definitions are sparse
+        for doc_data in doc_concepts.values():
+            if isinstance(doc_data, list):
+                for c in doc_data:
+                    if isinstance(c, str):
+                        all_concepts.add(c.lower())
+                    elif isinstance(c, dict):
+                        label = c.get("label", c.get("concept", c.get("concept_id", ""))).lower()
+                        if label:
+                            all_concepts.add(label)
+
+        if len(all_concepts) < 5:
+            return None
+
+        concept_list = sorted(all_concepts)
+        concept_idx = {c: i for i, c in enumerate(concept_list)}
+
+        # Build document vectors
+        doc_ids = list(doc_concepts.keys())
+        n_docs = len(doc_ids)
+        n_concepts = len(concept_list)
+
+        vectors = np.zeros((n_docs, n_concepts))
+        for i, doc_id in enumerate(doc_ids):
+            doc_data = doc_concepts[doc_id]
+            if isinstance(doc_data, dict):
+                concepts_list = doc_data.get("concepts", [])
+            else:
+                concepts_list = doc_data if isinstance(doc_data, list) else []
+
+            for c in concepts_list:
+                if isinstance(c, str):
+                    c_name = c.lower()
+                elif isinstance(c, dict):
+                    # Handle multiple possible key names
+                    c_name = c.get("label", c.get("concept", c.get("concept_id", c.get("name", "")))).lower()
+                else:
+                    continue
+                if c_name and c_name in concept_idx:
+                    vectors[i, concept_idx[c_name]] = 1.0
+
+        # Compute cosine similarity matrix
+        # Normalize vectors
+        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+        norms[norms == 0] = 1  # Avoid division by zero
+        vectors_norm = vectors / norms
+
+        similarity_matrix = vectors_norm @ vectors_norm.T
+
+        # Get filenames for labels - handle both list and dict formats
+        files_list = metadata.get("files", [])
+        docs_dict = metadata.get("documents", {})
+
+        # Build a lookup for file_id -> filename
+        file_lookup = {}
+        if files_list:
+            for doc in files_list:
+                fid = doc.get("file_id", doc.get("path", ""))
+                fpath = doc.get("path", fid)
+                file_lookup[fid] = fpath.split("/")[-1] if "/" in fpath else fpath
+        elif docs_dict:
+            for doc_id, doc in docs_dict.items():
+                file_lookup[doc_id] = doc.get("filename", doc.get("name", doc_id))
+
+        labels = []
+        for doc_id in doc_ids:
+            fname = file_lookup.get(doc_id, doc_id)
+            # Truncate for display
+            label = fname[:20] + "..." if len(fname) > 23 else fname
+            labels.append(label)
+
+        # Reorder by hierarchical clustering
+        if n_docs > 2:
+            # Convert similarity to distance
+            dist_matrix = 1 - similarity_matrix
+            np.fill_diagonal(dist_matrix, 0)
+
+            condensed = []
+            for i in range(n_docs):
+                for j in range(i + 1, n_docs):
+                    condensed.append(dist_matrix[i, j])
+            condensed = np.array(condensed)
+
+            Z = linkage(condensed, method='average')
+            dend = dendrogram(Z, no_plot=True)
+            order = dend['leaves']
+
+            # Reorder matrix and labels
+            similarity_matrix = similarity_matrix[order][:, order]
+            labels = [labels[i] for i in order]
+
+        # Create figure
+        fig, ax = plt.subplots(figsize=(12, 10))
+
+        # Heatmap
+        im = ax.imshow(similarity_matrix, cmap='RdYlBu_r', vmin=0, vmax=1, aspect='auto')
+
+        # Add colorbar
+        cbar = plt.colorbar(im, ax=ax, shrink=0.8)
+        cbar.set_label('Content Similarity (Cosine)', fontsize=11)
+
+        # Labels
+        ax.set_xticks(range(n_docs))
+        ax.set_yticks(range(n_docs))
+        ax.set_xticklabels(labels, rotation=90, fontsize=7, ha='center')
+        ax.set_yticklabels(labels, fontsize=7)
+
+        ax.set_title('Document Content Similarity Heatmap\n(Based on concept overlap)',
+                    fontsize=14, fontweight='bold')
+
+        # Highlight high similarity pairs (>0.85)
+        high_sim_count = 0
+        for i in range(n_docs):
+            for j in range(i + 1, n_docs):
+                if similarity_matrix[i, j] > 0.85:
+                    high_sim_count += 1
+                    ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1,
+                                                fill=False, edgecolor='red', linewidth=2))
+
+        # Stats
+        stats_text = f"n = {n_docs} documents\nHigh similarity pairs (>0.85): {high_sim_count}"
+        ax.text(1.02, 0.98, stats_text, transform=ax.transAxes, fontsize=10,
+                verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
+        plt.tight_layout()
+
+        return self._save_figure(fig, "doc_similarity_heatmap", assets_dir,
+                                 "Content Similarity Heatmap",
+                                 "Document similarity matrix based on concept overlap")
 
     def summarize(self, data: Dict[str, Any]) -> str:
         """Generate summary of visualizations."""
