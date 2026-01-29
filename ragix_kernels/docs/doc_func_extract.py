@@ -24,6 +24,8 @@ import time
 import re
 
 from ragix_kernels.base import Kernel, KernelInput
+from ragix_kernels.cache import LLMCache, CacheMode
+from ragix_kernels.llm_wrapper import llm_call_with_ollama_lib
 
 logger = logging.getLogger(__name__)
 
@@ -142,8 +144,6 @@ REFERENCES: [SPD-YY, SPD-ZZ]
 
     def compute(self, input: KernelInput) -> Dict[str, Any]:
         """Extract functionalities from specification documents."""
-        import ollama
-
         # Get configuration
         project_config = input.config.get("project", {})
         project_path_str = project_config.get("path")
@@ -156,10 +156,16 @@ REFERENCES: [SPD-YY, SPD-ZZ]
         spd_pattern = input.config.get("spd_pattern", r"SPD-\d+")
         include_non_spd = input.config.get("include_non_spd", False)
 
+        # Cache configuration
+        cache_mode_str = input.config.get("llm_cache_mode", "write_through")
+        cache_mode = CacheMode(cache_mode_str)
+        cache_dir = input.workspace / ".KOAS" / "cache"
+        cache = LLMCache(cache_dir)
+
         prompt_template = self.PROMPT_FR if language == "fr" else self.PROMPT_EN
         spd_regex = re.compile(spd_pattern, re.IGNORECASE)
 
-        logger.info(f"[doc_func_extract] Extracting functionalities with {llm_model}")
+        logger.info(f"[doc_func_extract] Extracting functionalities with {llm_model} (cache={cache_mode.value})")
 
         # Load dependencies
         metadata_path = input.dependencies.get("doc_metadata")
@@ -228,17 +234,16 @@ REFERENCES: [SPD-YY, SPD-ZZ]
                 extracts=extracts_text
             )
 
-            # Call LLM
+            # Call LLM with caching
             try:
-                response = ollama.generate(
+                raw_response = llm_call_with_ollama_lib(
                     model=llm_model,
                     prompt=prompt,
-                    options={
-                        "temperature": 0.2,
-                        "num_predict": 800,
-                    }
+                    temperature=0.2,
+                    cache=cache,
+                    mode=cache_mode,
+                    num_predict=800,
                 )
-                raw_response = response.get("response", "")
 
                 # Parse functionalities
                 funcs = self._parse_functionalities(raw_response, spd_num, file_id, file_path, language)
@@ -314,6 +319,7 @@ REFERENCES: [SPD-YY, SPD-ZZ]
             "spd_inventory": list(existing_spds),
             "errors": errors,
             "statistics": statistics,
+            "cache_stats": cache.get_stats(),
         }
 
     def _parse_functionalities(

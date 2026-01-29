@@ -23,6 +23,8 @@ import time
 import re
 
 from ragix_kernels.base import Kernel, KernelInput
+from ragix_kernels.cache import LLMCache, CacheMode
+from ragix_kernels.llm_wrapper import llm_call_with_ollama_lib
 
 logger = logging.getLogger(__name__)
 
@@ -107,8 +109,6 @@ TOPICS: [word1, word2, word3]"""
 
     def compute(self, input: KernelInput) -> Dict[str, Any]:
         """Generate per-document summaries."""
-        import ollama
-
         # Get configuration
         project_config = input.config.get("project", {})
         project_path_str = project_config.get("path")
@@ -122,9 +122,15 @@ TOPICS: [word1, word2, word3]"""
         batch_size = input.config.get("batch_size", 10)
         skip_types = set(input.config.get("skip_types", []))
 
+        # Cache configuration
+        cache_mode_str = input.config.get("llm_cache_mode", "write_through")
+        cache_mode = CacheMode(cache_mode_str)
+        cache_dir = input.workspace / ".KOAS" / "cache"
+        cache = LLMCache(cache_dir)
+
         prompt_template = self.PROMPT_FR if language == "fr" else self.PROMPT_EN
 
-        logger.info(f"[doc_summarize] Generating summaries with {llm_model}")
+        logger.info(f"[doc_summarize] Generating summaries with {llm_model} (cache={cache_mode.value})")
 
         # Load dependencies
         metadata_path = input.dependencies.get("doc_metadata")
@@ -198,17 +204,16 @@ TOPICS: [word1, word2, word3]"""
                 extracts=extracts_text
             )
 
-            # Call LLM
+            # Call LLM with caching
             try:
-                response = ollama.generate(
+                raw_response = llm_call_with_ollama_lib(
                     model=llm_model,
                     prompt=prompt,
-                    options={
-                        "temperature": 0.3,
-                        "num_predict": 300,
-                    }
+                    temperature=0.3,
+                    cache=cache,
+                    mode=cache_mode,
+                    num_predict=300,
                 )
-                raw_response = response.get("response", "")
 
                 # Parse response
                 parsed = self._parse_summary(raw_response, language)
@@ -266,6 +271,7 @@ TOPICS: [word1, word2, word3]"""
             "by_domain": dict(by_domain),
             "errors": errors,
             "statistics": statistics,
+            "cache_stats": cache.get_stats(),
         }
 
     def _format_doc_type(self, kind: str, language: str) -> str:

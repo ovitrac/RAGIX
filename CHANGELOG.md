@@ -6,6 +6,195 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.64.0 — Two-Tier Caching: LLM + Kernel Output Cache (2026-01-22)
+
+### Highlights
+
+**RAGIX now features dual caching layers for maximum iteration speed: LLM response caching and kernel output caching. When document list is stable, full audit pipeline runs in seconds instead of minutes.**
+
+| Feature | Status |
+|---------|--------|
+| LLM response cache with modes | ✅ `write_through`, `read_only`, `read_prefer`, `off` |
+| Kernel output cache | ✅ Cache entire kernel results by input hash |
+| `--llm-cache` CLI flag | ✅ Control LLM caching behavior |
+| `--kernel-cache` CLI flag | ✅ Control kernel output caching |
+| Cache sovereignty tracking | ✅ Hostname, user, timestamp metadata |
+| Input hash-based invalidation | ✅ Auto-invalidate on config/dependency changes |
+
+### Performance Impact
+
+**VDP src2 audit (137 documents):**
+
+| Configuration | Stage 1 | Stage 2 | Stage 3 | Total |
+|--------------|---------|---------|---------|-------|
+| No cache | 54s | ~11 min | ~42s | ~12 min |
+| LLM cache only | 54s | ~11 min | ~42s | ~12 min |
+| Both caches | **2ms** | **~10s** | **34s** | **~45s** |
+
+**Speedup: ~16x on cached runs**
+
+### Two-Tier Caching System
+
+```
+┌─────────────────────────────────────┐
+│  Kernel Input (config + deps)      │
+│  → Hash: 5c9b158b                  │
+└──────────┬──────────────────────────┘
+           ↓
+    ┌──────────────┐
+    │ Kernel Cache │ ← New in v0.64
+    │  Hit? Yes    │
+    └──────────────┘
+           ↓
+    Return cached output (0ms)
+
+    If cache miss:
+           ↓
+    ┌──────────────┐
+    │ Run Kernel   │
+    └──────────────┘
+           ↓
+    ┌──────────────┐
+    │  LLM Cache   │ ← Existing
+    │  Hit? Yes    │
+    └──────────────┘
+```
+
+### LLM Cache Modes
+
+```bash
+# Default: normal operation, cache all responses
+ragix-koas run --workspace ./ws --all --llm-cache=write_through
+
+# Fast replay: fail on cache miss (deterministic)
+ragix-koas run --workspace ./ws --all --llm-cache=read_only
+
+# Prefer cache, fallback to LLM
+ragix-koas run --workspace ./ws --all --llm-cache=read_prefer
+
+# Disable LLM caching
+ragix-koas run --workspace ./ws --all --llm-cache=off
+```
+
+### Kernel Cache Modes
+
+```bash
+# Default: cache kernel outputs
+ragix-koas run --workspace ./ws --all --kernel-cache=write_through
+
+# Ultra-fast: replay cached kernels (Stage 1: 2ms)
+ragix-koas run --workspace ./ws --all --kernel-cache=read_only
+
+# Combine both for maximum speed
+ragix-koas run --workspace ./ws --all \
+    --llm-cache=read_only \
+    --kernel-cache=read_only
+```
+
+### Cache Invalidation
+
+Kernel cache automatically invalidates when:
+- Config changes (LLM model, parameters, options)
+- Dependencies change (upstream kernel outputs modified)
+- Kernel version changes (code updates)
+
+**Input hash includes:**
+```json
+{
+  "kernel": "doc_extract@1.0.0",
+  "config": {"llm_model": "granite3.1-moe:3b", ...},
+  "dependencies": {"doc_metadata": "/path/to/stage1/doc_metadata.json"}
+}
+```
+
+### Cache Structure
+
+```
+.KOAS/cache/
+├── llm_responses/              # LLM response cache
+│   ├── granite3.1-moe_3b/
+│   │   └── a3f2c8d1.json      # Cached LLM response
+│   └── mistral_7b-instruct/
+├── kernel_outputs/             # Kernel output cache (new)
+│   ├── doc_extract_1f732e1c.json
+│   ├── doc_quality_299be442.json
+│   └── doc_summarize_8e4a1f3d.json
+├── cache_stats.json            # LLM cache statistics
+├── kernel_cache_stats.json     # Kernel cache statistics (new)
+└── cache_index.json            # LLM cache index
+```
+
+### Sovereignty Tracking
+
+Both caches track sovereignty metadata:
+
+```json
+{
+  "hostname": "workstation-01",
+  "user": "analyst",
+  "endpoint": "http://127.0.0.1:11434",
+  "local": true,
+  "timestamp": "2026-01-22T17:51:18Z"
+}
+```
+
+### Files Added/Modified
+
+| File | Changes |
+|------|---------|
+| `ragix_kernels/cache.py` | Added `CacheMode` enum, `CacheMissError`, `KernelCache` class |
+| `ragix_kernels/llm_wrapper.py` | **NEW** - Unified LLM call boundary with caching |
+| `ragix_kernels/orchestrator.py` | Integrated kernel cache in `_run_kernel()` |
+| `ragix_kernels/run_doc_koas.py` | Added `--llm-cache` and `--kernel-cache` CLI flags |
+| `ragix_kernels/docs/doc_summarize.py` | Uses `llm_call_with_ollama_lib()` wrapper |
+| `ragix_kernels/docs/doc_func_extract.py` | Uses `llm_call_with_ollama_lib()` wrapper |
+
+### Usage Examples
+
+**Scenario 1: Initial audit**
+```bash
+# Populate both caches (normal run)
+ragix-koas run --workspace VDP/src2 --all
+```
+
+**Scenario 2: Iterate on report templates**
+```bash
+# Use cached kernel outputs + cached LLM responses
+ragix-koas run --workspace VDP/src2 --all \
+    --llm-cache=read_only \
+    --kernel-cache=read_only
+# Result: ~45 seconds instead of ~12 minutes
+```
+
+**Scenario 3: Update LLM prompts**
+```bash
+# Invalidate LLM cache, keep kernel cache
+ragix-koas run --workspace VDP/src2 --all \
+    --llm-cache=off \
+    --kernel-cache=read_only
+```
+
+**Scenario 4: Fresh run after code changes**
+```bash
+# Bypass all caches
+ragix-koas run --workspace VDP/src2 --all \
+    --llm-cache=off \
+    --kernel-cache=off
+```
+
+### Safety & Regression Risk
+
+**LOW regression risk** - Comprehensive safeguards:
+
+1. **Automatic invalidation**: Input hash includes all dependencies
+2. **Default unchanged**: `write_through` mode preserves existing behavior
+3. **Output consistency**: Cached outputs written to expected file locations
+4. **Fail-fast**: `read_only` mode logs warnings on cache miss
+
+**Tested on VDP audit**: All stages completed successfully with identical outputs.
+
+---
+
 ## v0.63.0 — KOAS Document Analysis Enhancement & Deterministic Execution (2026-01-18)
 
 ### Highlights

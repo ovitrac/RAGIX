@@ -10,6 +10,7 @@ Features:
 - Sovereignty metadata (hostname, user, endpoint, timestamps)
 - Statistics tracking (hits, misses, savings)
 - TTL support (optional)
+- Cache modes: write_through, read_only, read_prefer, off
 """
 
 import hashlib
@@ -18,9 +19,23 @@ import os
 import socket
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
+from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Optional
 import logging
+
+
+class CacheMode(Enum):
+    """LLM cache operating modes."""
+    WRITE_THROUGH = "write_through"  # Default: call LLM, cache result
+    READ_ONLY = "read_only"          # Replay only, fail on cache miss
+    READ_PREFER = "read_prefer"      # Use cache if exists, else call LLM
+    OFF = "off"                      # No caching
+
+
+class CacheMissError(Exception):
+    """Raised when cache lookup fails in read_only mode."""
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -319,6 +334,137 @@ class LLMCache:
             "hosts": list(hosts),
             "all_local": all("127.0.0.1" in e or "localhost" in e for e in endpoints)
         }
+
+
+class KernelCache:
+    """
+    Persistent cache for kernel outputs.
+
+    Caches kernel computation results based on input_hash, allowing
+    fast replay when document list is stable.
+
+    Usage:
+        cache = KernelCache(workspace / ".KOAS/cache")
+
+        # Check cache
+        cached = cache.get("doc_extract", input_hash)
+        if cached:
+            return cached
+
+        # Compute and cache
+        output = kernel.compute(input)
+        cache.put("doc_extract", input_hash, output)
+    """
+
+    def __init__(self, cache_dir: Path):
+        self.cache_dir = Path(cache_dir)
+        self.outputs_dir = self.cache_dir / "kernel_outputs"
+        self.outputs_dir.mkdir(parents=True, exist_ok=True)
+
+        self.stats = self._load_stats()
+
+    def _load_stats(self) -> Dict[str, Any]:
+        """Load kernel cache statistics."""
+        stats_file = self.cache_dir / "kernel_cache_stats.json"
+        if stats_file.exists():
+            try:
+                return json.loads(stats_file.read_text())
+            except Exception as e:
+                logger.warning(f"Failed to load kernel cache stats: {e}")
+        return {"hits": 0, "misses": 0, "total_requests": 0}
+
+    def _save_stats(self):
+        """Save kernel cache statistics."""
+        stats_file = self.cache_dir / "kernel_cache_stats.json"
+        hit_rate = self.stats["hits"] / self.stats["total_requests"] if self.stats["total_requests"] > 0 else 0
+        self.stats["hit_rate"] = hit_rate
+        stats_file.write_text(json.dumps(self.stats, indent=2))
+
+    def _get_cache_path(self, kernel_name: str, input_hash: str) -> Path:
+        """Get cache file path for a kernel output."""
+        return self.outputs_dir / f"{kernel_name}_{input_hash}.json"
+
+    def get(self, kernel_name: str, input_hash: str) -> Optional[Dict[str, Any]]:
+        """
+        Get cached kernel output if available.
+
+        Args:
+            kernel_name: Name of the kernel (e.g., "doc_extract")
+            input_hash: Hash of kernel inputs
+
+        Returns:
+            Cached output dict, or None if not cached
+        """
+        cache_file = self._get_cache_path(kernel_name, input_hash)
+
+        self.stats["total_requests"] += 1
+
+        if cache_file.exists():
+            try:
+                data = json.loads(cache_file.read_text())
+                self.stats["hits"] += 1
+                self._save_stats()
+                logger.debug(f"[KernelCache] HIT for {kernel_name} (hash={input_hash})")
+                return data.get("output")
+            except Exception as e:
+                logger.warning(f"Failed to read kernel cache {kernel_name}: {e}")
+
+        self.stats["misses"] += 1
+        self._save_stats()
+        logger.debug(f"[KernelCache] MISS for {kernel_name} (hash={input_hash})")
+        return None
+
+    def put(self, kernel_name: str, input_hash: str, output: Dict[str, Any], metadata: Optional[Dict] = None):
+        """
+        Store kernel output in cache.
+
+        Args:
+            kernel_name: Name of the kernel
+            input_hash: Hash of kernel inputs
+            output: Kernel output dict
+            metadata: Optional metadata (timing, etc.)
+        """
+        cache_file = self._get_cache_path(kernel_name, input_hash)
+
+        entry = {
+            "kernel": kernel_name,
+            "input_hash": input_hash,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "hostname": socket.gethostname(),
+            "output": output,
+            "metadata": metadata or {}
+        }
+
+        cache_file.write_text(json.dumps(entry, indent=2, ensure_ascii=False))
+        logger.debug(f"[KernelCache] Stored {kernel_name} (hash={input_hash})")
+
+    def invalidate(self, kernel_name: Optional[str] = None):
+        """
+        Invalidate cache entries.
+
+        Args:
+            kernel_name: If specified, only invalidate entries for this kernel
+        """
+        if kernel_name:
+            for f in self.outputs_dir.glob(f"{kernel_name}_*.json"):
+                f.unlink()
+            logger.info(f"[KernelCache] Invalidated cache for {kernel_name}")
+        else:
+            for f in self.outputs_dir.glob("*.json"):
+                f.unlink()
+            logger.info("[KernelCache] Invalidated all kernel cache entries")
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get kernel cache statistics."""
+        return self.stats.copy()
+
+    def list_cached_kernels(self) -> Dict[str, int]:
+        """List cached kernels and their entry counts."""
+        kernel_counts: Dict[str, int] = {}
+        for f in self.outputs_dir.glob("*.json"):
+            kernel_name = f.stem.rsplit("_", 1)[0]
+            kernel_counts[kernel_name] = kernel_counts.get(kernel_name, 0) + 1
+        return kernel_counts
 
 
 def get_model_digest(model: str, endpoint: str = "http://127.0.0.1:11434") -> str:

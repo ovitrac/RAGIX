@@ -3,8 +3,8 @@
 **A Sovereign, LLM-Agnostic Platform for AI-Assisted Analysis**
 
 **Author:** Olivier Vitrac, PhD, HDR | Adservio Innovation Lab
-**Version:** 1.2.0
-**Date:** 2026-01-18
+**Version:** 1.3.0
+**Date:** 2026-01-22
 
 KOAS brings the Virtual Hybrid Lab paradigm to automated analysis:
 - **Kernels compute** — Fast, deterministic, scalable

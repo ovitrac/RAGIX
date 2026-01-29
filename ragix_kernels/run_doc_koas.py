@@ -379,6 +379,8 @@ def run_doc_pipeline(
     parallel: bool = True,
     max_workers: int = 4,
     enable_cache: bool = True,
+    llm_cache_mode: str = "write_through",
+    kernel_cache_mode: str = "write_through",
     worker_model: str = DEFAULT_WORKER_MODEL,
     tutor_model: str = DEFAULT_TUTOR_MODEL,
     endpoint: str = DEFAULT_OLLAMA_ENDPOINT,
@@ -395,6 +397,8 @@ def run_doc_pipeline(
         parallel: Enable parallel execution
         max_workers: Maximum parallel workers
         enable_cache: Enable LLM caching
+        llm_cache_mode: LLM cache mode (write_through, read_only, read_prefer, off)
+        kernel_cache_mode: Kernel output cache mode (write_through, read_only, read_prefer, off)
         worker_model: Worker model name
         tutor_model: Tutor model name
         endpoint: Ollama endpoint
@@ -444,7 +448,16 @@ def run_doc_pipeline(
     if not orchestrator.manifest:
         raise RuntimeError(f"No manifest.yaml found in {workspace}")
 
+    # Inject cache modes into manifest so kernels can access them
+    if orchestrator.manifest.llm is None:
+        orchestrator.manifest.llm = {}
+    orchestrator.manifest.llm["cache_mode"] = llm_cache_mode
+    orchestrator.manifest.llm["kernel_cache_mode"] = kernel_cache_mode
+
     project_path = orchestrator.manifest.project_path
+
+    print(f"\n[LLM Cache] Mode: {llm_cache_mode}")
+    print(f"[Kernel Cache] Mode: {kernel_cache_mode}")
 
     # Create run configuration with unique run ID
     run_config = RunConfig.create(
@@ -489,6 +502,8 @@ def run_doc_pipeline(
         "run_dir": str(run_config.run_dir),
         "workspace": str(workspace),
         "stages_run": stages,
+        "llm_cache_mode": llm_cache_mode,
+        "kernel_cache_mode": kernel_cache_mode,
         "attestation": attestation,
         "stage_results": {},
     }
@@ -719,6 +734,10 @@ def cmd_run(args):
     else:
         stages = [1]
 
+    # Handle cache mode: --no-cache overrides --llm-cache to "off"
+    llm_cache_mode = "off" if args.no_cache else args.llm_cache
+    kernel_cache_mode = getattr(args, 'kernel_cache', 'write_through')
+
     try:
         results = run_doc_pipeline(
             workspace=workspace,
@@ -726,6 +745,8 @@ def cmd_run(args):
             parallel=not args.sequential,
             max_workers=args.workers,
             enable_cache=not args.no_cache,
+            llm_cache_mode=llm_cache_mode,
+            kernel_cache_mode=kernel_cache_mode,
             worker_model=args.worker_model,
             tutor_model=args.tutor_model,
             endpoint=args.endpoint,
@@ -926,6 +947,18 @@ Examples:
     run_parser.add_argument("--tutor-model", default=DEFAULT_TUTOR_MODEL, help="Tutor LLM model")
     run_parser.add_argument("--endpoint", default=DEFAULT_OLLAMA_ENDPOINT, help="Ollama endpoint")
     run_parser.add_argument("--no-cache", action="store_true", help="Disable LLM caching")
+    run_parser.add_argument(
+        "--llm-cache",
+        choices=["write_through", "read_only", "read_prefer", "off"],
+        default="write_through",
+        help="LLM cache mode: write_through (default), read_only (fail on miss), read_prefer, off"
+    )
+    run_parser.add_argument(
+        "--kernel-cache",
+        choices=["write_through", "read_only", "read_prefer", "off"],
+        default="write_through",
+        help="Kernel output cache mode: write_through (default), read_only (fast replay), read_prefer, off"
+    )
     run_parser.add_argument("--quiet", "-q", action="store_true", help="Suppress progress output")
     run_parser.add_argument("--skip-preflight", action="store_true", help="Skip pre-flight checks")
     run_parser.set_defaults(func=cmd_run)

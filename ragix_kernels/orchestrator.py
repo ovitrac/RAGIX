@@ -29,6 +29,8 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
+from ragix_kernels.cache import KernelCache, CacheMode
+
 import yaml
 
 from ragix_kernels.base import Kernel, KernelInput, KernelOutput
@@ -269,6 +271,13 @@ class ManifestConfig:
             config["language"] = self.output.get("language", "en")
             config["template"] = self.output.get("template", "default")
             config["frontmatter"] = self.output.get("frontmatter", {})
+
+        # Add cache modes from llm config (if set)
+        if self.llm:
+            if "cache_mode" in self.llm:
+                config["llm_cache_mode"] = self.llm["cache_mode"]
+            if "kernel_cache_mode" in self.llm:
+                config["kernel_cache_mode"] = self.llm["kernel_cache_mode"]
 
         return config
 
@@ -731,21 +740,78 @@ class Orchestrator:
         return self._run_kernel(kernel_name, context)
 
     def _run_kernel(self, kernel_name: str, context: ExecutionContext) -> KernelOutput:
-        """Internal kernel execution with context."""
+        """Internal kernel execution with context and optional caching."""
         kernel_class = KernelRegistry.get(kernel_name)
         kernel = kernel_class()
 
         logger.info(f"[{kernel_name}] Starting (stage={kernel.stage})")
 
         # Build input
+        config = context.manifest.get_kernel_config(kernel_name, kernel.stage)
         kernel_input = KernelInput(
             workspace=context.workspace,
-            config=context.manifest.get_kernel_config(kernel_name, kernel.stage),
+            config=config,
             dependencies=context.get_dependency_paths(kernel_name),
         )
 
-        # Execute
+        # Get kernel cache mode
+        kernel_cache_mode_str = config.get("kernel_cache_mode", "write_through")
+        kernel_cache_mode = CacheMode(kernel_cache_mode_str)
+
+        # Initialize kernel cache if needed
+        cache_dir = context.workspace / ".KOAS" / "cache"
+        kernel_cache = KernelCache(cache_dir)
+
+        # Compute input hash for cache lookup
+        input_hash = kernel._hash_input(kernel_input)
+
+        # Check kernel cache if not OFF mode
+        if kernel_cache_mode != CacheMode.OFF:
+            cached_output = kernel_cache.get(kernel_name, input_hash)
+            if cached_output:
+                logger.info(f"[{kernel_name}] Cache HIT (hash={input_hash[:8]})")
+
+                # Reconstruct KernelOutput from cached data
+                output_file = context.workspace / f"stage{kernel.stage}" / f"{kernel_name}.json"
+
+                # Write cached output to the expected location
+                output_file.parent.mkdir(parents=True, exist_ok=True)
+                output_file.write_text(json.dumps(cached_output, indent=2, ensure_ascii=False))
+
+                return KernelOutput(
+                    success=True,
+                    data=cached_output.get("data", {}),
+                    summary=cached_output.get("_meta", {}).get("summary", f"[cached] {kernel_name}"),
+                    output_file=output_file,
+                    kernel_name=kernel_name,
+                    kernel_version=kernel.version,
+                    execution_time_ms=0,
+                    input_hash=input_hash,
+                    dependencies_used=list(kernel_input.dependencies.keys()),
+                )
+
+            # Cache miss in read_only mode
+            if kernel_cache_mode == CacheMode.READ_ONLY:
+                logger.warning(f"[{kernel_name}] Cache MISS in read_only mode (hash={input_hash[:8]})")
+                # Still run the kernel but log the warning
+
+        # Execute the kernel
         output = kernel.run(kernel_input)
+
+        # Cache the output if successful and not OFF mode
+        if output.success and kernel_cache_mode != CacheMode.OFF:
+            # Read the persisted output to cache it
+            if output.output_file and output.output_file.exists():
+                try:
+                    output_data = json.loads(output.output_file.read_text())
+                    kernel_cache.put(
+                        kernel_name,
+                        input_hash,
+                        output_data,
+                        metadata={"execution_time_ms": output.execution_time_ms}
+                    )
+                except Exception as e:
+                    logger.warning(f"[{kernel_name}] Failed to cache output: {e}")
 
         if output.success:
             logger.info(
