@@ -13,12 +13,14 @@ Enhanced with quality scoring for better sentence selection:
 - Information density: Prefers sentences with entities/numbers
 - Structural importance: Weights sentences from headings
 - Uniqueness: Avoids redundant content
+- Boilerplate detection: Penalizes document control panels, revision history,
+  dashed separators, and formatting-heavy content (v1.2.0)
 
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-01-18
 """
 
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Set, Tuple
+from typing import Dict, Any, List, Optional, Set, Tuple, Pattern
 from collections import defaultdict
 import logging
 import json
@@ -45,6 +47,13 @@ class DocExtractKernel(Kernel):
     - Information density weighting
     - Deduplication across chunks
 
+    Enhanced v1.2.0 features (VDP fix):
+    - Boilerplate detection: document control panels, revision history
+    - Dashed separator line penalties
+    - Formatting-heavy content detection
+    - Multilingual vocabulary (FR/EN) for document control keywords
+    - Configurable penalties via QualityConfig
+
     Configuration options:
         project.path: Path to the indexed project (required)
         sentences_per_concept: Max sentences per concept (default: 5)
@@ -52,6 +61,11 @@ class DocExtractKernel(Kernel):
         min_sentence_length: Minimum chars for a sentence (default: 40)
         max_sentence_length: Maximum chars for a sentence (default: 500)
         quality_threshold: Min quality score 0-1 (default: 0.3)
+        quality_config.boilerplate_penalty: Penalty for boilerplate (default: 0.4)
+        quality_config.formatting_penalty: Penalty for formatting (default: 0.25)
+        quality_config.boilerplate_vocab_fr: French boilerplate patterns
+        quality_config.boilerplate_vocab_en: English boilerplate patterns
+        quality_config.boilerplate_changelog: Release/changelog patterns (v0.64.2)
 
     Dependencies:
         doc_metadata: File inventory
@@ -66,10 +80,10 @@ class DocExtractKernel(Kernel):
     """
 
     name = "doc_extract"
-    version = "1.1.0"
+    version = "1.2.0"
     category = "docs"
     stage = 2
-    description = "Extract key sentences per concept and file (with quality scoring)"
+    description = "Extract key sentences per concept and file (with quality scoring + boilerplate detection)"
 
     requires = ["doc_metadata", "doc_concepts", "doc_cluster"]
     provides = ["doc_extracts", "file_extracts", "concept_extracts", "cluster_extracts"]
@@ -84,6 +98,15 @@ class DocExtractKernel(Kernel):
     HAS_NUMBERS = re.compile(r'\d+')
     HAS_ENTITIES = re.compile(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b')
     ACTION_VERBS = re.compile(r'\b(permet|permet de|définit|décrit|spécifie|gère|assure|contrôle|surveille|affiche|exporte|importe|configure|valide|vérifie|creates|defines|manages|controls|displays|exports|imports|validates)\b', re.IGNORECASE)
+
+    # Boilerplate detection patterns (v0.64.1 - VDP fix)
+    # Compiled dynamically from config in __init__ or compute()
+    _boilerplate_vocab_pattern: Optional[re.Pattern] = None
+    _dashed_line_pattern: Optional[re.Pattern] = None
+
+    # Formatting density pattern (multiple formatting chars in sequence)
+    FORMATTING_HEAVY = re.compile(r'[\*\-\|_=]{5,}')  # 5+ consecutive formatting chars
+    EMPTY_FIELD_LABEL = re.compile(r'^\*{0,2}[A-Za-zÀ-ÿ\s]+\s*:\*{0,2}\s*$')  # "**Field:** " with no content
 
     def compute(self, input: KernelInput) -> Dict[str, Any]:
         """Extract key sentences from documents."""
@@ -114,6 +137,8 @@ class DocExtractKernel(Kernel):
 
         # Store config for use in scoring methods
         self._quality_config = quality_config
+        # Reset cached boilerplate pattern (will be recompiled with new config)
+        self._boilerplate_vocab_pattern = None
 
         logger.info(f"[doc_extract] Extracting key sentences from {project_path}")
 
@@ -352,6 +377,32 @@ class DocExtractKernel(Kernel):
 
         return result
 
+    def _compile_boilerplate_pattern(self, config: 'QualityConfig') -> re.Pattern:
+        """
+        Compile boilerplate vocabulary patterns from config.
+
+        Combines French and English vocabulary into a single regex pattern.
+        Cached in instance variable for performance.
+        """
+        # Combine all boilerplate patterns: French, English, and changelog/release tracking
+        all_vocab = (
+            config.boilerplate_vocab_fr +
+            config.boilerplate_vocab_en +
+            getattr(config, 'boilerplate_changelog', [])  # v0.64.2 - changelog patterns
+        )
+        if not all_vocab:
+            # Return a pattern that never matches
+            return re.compile(r'(?!)')
+
+        # Combine all patterns with OR
+        combined = '|'.join(f'({pattern})' for pattern in all_vocab)
+        return re.compile(combined, re.IGNORECASE)
+
+    def _get_dashed_line_pattern(self, config: 'QualityConfig') -> re.Pattern:
+        """Get compiled pattern for dashed line detection."""
+        min_length = config.dashed_line_min_length
+        return re.compile(rf'[-=_]{{{min_length},}}')
+
     def _score_sentence_quality(self, sentence: str) -> float:
         """
         Score sentence quality from 0 to 1.
@@ -361,6 +412,7 @@ class DocExtractKernel(Kernel):
         - Information density (entities, numbers)
         - Action verbs (descriptive content)
         - Length appropriateness
+        - Boilerplate detection (v0.64.1 - VDP fix)
 
         Uses parameters from QualityConfig instead of hardcoded values.
         """
@@ -397,6 +449,35 @@ class DocExtractKernel(Kernel):
         # Penalty for table fragments
         if sentence.count('|') > 3:
             score -= config.table_fragment_penalty
+
+        # === Boilerplate penalties (v0.64.1 - VDP fix) ===
+
+        # Penalty for dashed separator lines (e.g., "--------", "========", "________")
+        dashed_pattern = self._get_dashed_line_pattern(config)
+        dashed_matches = dashed_pattern.findall(sentence)
+        if dashed_matches:
+            # Heavy penalty - these are formatting artifacts
+            score -= config.boilerplate_penalty
+            # Additional penalty if multiple dashed sequences
+            if len(dashed_matches) > 1:
+                score -= config.formatting_penalty
+
+        # Penalty for document control vocabulary (FR/EN)
+        # Compile pattern once and cache
+        if self._boilerplate_vocab_pattern is None:
+            self._boilerplate_vocab_pattern = self._compile_boilerplate_pattern(config)
+
+        if self._boilerplate_vocab_pattern.search(sentence):
+            score -= config.boilerplate_penalty
+
+        # Penalty for formatting-heavy content (many consecutive *, -, |, _, =)
+        formatting_matches = self.FORMATTING_HEAVY.findall(sentence)
+        if len(formatting_matches) >= 2:
+            score -= config.formatting_penalty
+
+        # Penalty for empty field labels (e.g., "**Client:** " with nothing after)
+        if self.EMPTY_FIELD_LABEL.match(sentence.strip()):
+            score -= config.boilerplate_penalty
 
         return max(0, min(1, score))
 

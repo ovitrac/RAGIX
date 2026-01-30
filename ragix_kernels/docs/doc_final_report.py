@@ -76,8 +76,9 @@ class DocFinalReportKernel(Kernel):
         visualize = self._load_dep(input, "doc_visualize")
         quality = self._load_dep(input, "doc_quality")
 
-        # Use workspace as run directory (not config which defaults to ".")
-        run_dir = input.workspace
+        # Write to .KOAS directory to avoid indexing generated content
+        run_dir = input.workspace / ".KOAS"
+        run_dir.mkdir(parents=True, exist_ok=True)
         appendices_dir = run_dir / "appendices"
         appendices_dir.mkdir(parents=True, exist_ok=True)
 

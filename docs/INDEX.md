@@ -74,6 +74,7 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
 
 | Document | Description | Audience |
 |----------|-------------|----------|
+| [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) | Confidential AI operations | Auditors, Compliance |
 | [PLAYBOOK_GUIDE.md](PLAYBOOK_GUIDE.md) | Workflow playbooks | Power Users |
 | [WASP_GUIDE.md](WASP_GUIDE.md) | WASP integration | Specialists |
 
@@ -124,6 +125,17 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
 
 - **Source Documentation:**
   - `ragix_kernels/README.md` — Kernel development guide
+
+### Sovereignty and Compliance
+
+**Understanding data sovereignty and confidential operations.**
+
+- **[SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md)** — Confidential AI guide
+  - Gray environment deployment
+  - Policy enforcement mechanisms
+  - Audit trail and attestation
+  - Air-gapped operation
+  - Sovereignty verification
 
 ### Tools and APIs
 
@@ -193,6 +205,11 @@ User Goal
 2. [MCP.md](MCP.md) § Security Tools → Tool reference
 3. [KOAS_MCP_REFERENCE.md](KOAS_MCP_REFERENCE.md) → Detailed parameters
 
+**"I need to ensure data sovereignty/compliance"**
+1. [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) → Complete guide
+2. [ARCHITECTURE.md](ARCHITECTURE.md) → System topology
+3. [KOAS.md](KOAS.md) → Audit trail mechanisms
+
 ---
 
 ## Key Concepts Glossary
@@ -208,6 +225,9 @@ User Goal
 | **Workspace** | Isolated directory for audit/scan results | [KOAS.md](KOAS.md) |
 | **Entropy** | Uncertainty measure for decomposition decisions | [REASONING.md](REASONING.md) |
 | **Peer Review** | External LLM validation of reasoning | [REASONING.md](REASONING.md) |
+| **Sovereignty** | Data processing within controlled perimeter | [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) |
+| **Gray Environment** | Networked but untrusted context | [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) |
+| **Attestation** | Cryptographic proof of sovereignty | [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) |
 
 ---
 
@@ -240,12 +260,13 @@ Documentation follows these principles:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.64.2 | 2026-01-29 | Added SOVEREIGN_LLM_OPERATIONS.md |
 | 0.62.0 | 2025-12-20 | Added MCP.md, REASONING.md, INDEX.md |
 | 0.61.0 | 2025-12-19 | KOAS security kernels |
 | 0.60.0 | 2025-12-18 | Initial documentation structure |
 
 ---
 
-**Document Version:** 1.0.0
-**Last Updated:** 2025-12-20
+**Document Version:** 1.1.0
+**Last Updated:** 2026-01-29
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio

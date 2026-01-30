@@ -6,6 +6,87 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.64.2 — Boilerplate Detection Enhancement & Output Path Fix (2026-01-29)
+
+### Highlights
+
+**KOAS-Docs v0.64.2 improves representative content quality by filtering release changelog patterns and infrastructure notation, and fixes the report output path to ensure audit artifacts don't contaminate future RAG indexing.**
+
+| Feature | Status |
+|---------|--------|
+| Changelog boilerplate patterns | ✅ Filter `X.X.X.X MERGED/RELEASED` patterns |
+| Infrastructure notation filter | ✅ Filter `VM1 VM2`, `Datacenter`, `Lien WAN` |
+| Report output path fix | ✅ Write to `.KOAS/` instead of workspace root |
+| Quality metric improvement | ✅ Sentences: 649 → 644 (-5 boilerplate) |
+
+### Problem Solved
+
+**Before v0.64.2:** Representative content excerpts contained non-informative text:
+```
+> 2 01 Oct 2025 0 issues MERGED ProjectX 3.4.3.18 02 Sept 2025 0 issues MERGED...
+> 29 Oct 2025 5 issues RELEASED ProjectX 3.4.3.24...
+> VM1 VM2 VMx...
+```
+
+**After v0.64.2:** Meaningful technical content preserved:
+```
+> **Sous-chapitre 3 : Appel à la fonction et scripts** Ce sous-chapitre décrit...
+> ChangeSetState (Enumération) - ModificationType (Enumération)...
+> Paris Risk Management Last risk assessment: 18 Dec 2025 Risk KPI...
+```
+
+### New Boilerplate Patterns (`config.py`)
+
+Added `boilerplate_changelog` field to `QualityConfig`:
+
+```python
+boilerplate_changelog: List[str] = field(default_factory=lambda: [
+    r"\d+\.\d+\.\d+\.\d+\s*.*?(?:MERGED|RELEASED|issues)",  # X.X.X.X MERGED
+    r"(?:Jan|Feb|...|Dec)\s+\d{4}\s+\d+\s+issues",           # Month YYYY N issues
+    r"\d+\s+issues\s+(?:MERGED|RELEASED|CLOSED)",            # N issues STATUS
+    r"(?:NOT\s+)?DELIVERED",                                  # DELIVERED markers
+    r"(?:VM\d+\s*)+",                                         # VM1 VM2 notation
+    r"Sous-r[eé]seau\s+priv[eé]",                            # Network diagram text
+    r"Fibre\s+noire",                                         # Infrastructure terms
+    r"Datacenter\s+\w+",                                      # Datacenter refs
+    r"Lien\s+WAN",                                            # Network link refs
+])
+```
+
+### Output Path Fix (`doc_final_report.py`)
+
+**Before:**
+```python
+run_dir = input.workspace  # → src2/ (pollutes RAG index)
+```
+
+**After:**
+```python
+run_dir = input.workspace / ".KOAS"  # → src2/.KOAS/ (excluded from indexing)
+```
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `ragix_kernels/docs/config.py` | Added `boilerplate_changelog` field to `QualityConfig` |
+| `ragix_kernels/docs/doc_extract.py` | Updated `_compile_boilerplate_pattern()` to include changelog patterns |
+| `ragix_kernels/docs/doc_final_report.py` | Fixed `run_dir` to use `.KOAS/` subdirectory |
+
+### Validation (Document Corpus Audit)
+
+| Metric | v0.64.1 (Jan 29) | v0.64.2 (Jan 29) | Status |
+|--------|------------------|------------------|--------|
+| REP_QUALITY | Bad (changelog data) | Good (API docs) | ✅ Fixed |
+| SENTENCE_SELECT | 649 | 644 (-5) | ✅ Improved |
+| OUTPUT_PATH | `src2/final_report.md` | `src2/.KOAS/final_report.md` | ✅ Fixed |
+
+### Regression Testing
+
+Report history tracking established with KQI (Key Quality Indicators) metrics for measuring improvements across versions.
+
+---
+
 ## v0.64.0 — Two-Tier Caching: LLM + Kernel Output Cache (2026-01-22)
 
 ### Highlights
@@ -1706,6 +1787,8 @@ mcp:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **v0.64.2** | 2026-01-29 | Boilerplate detection (changelog patterns), output path fix |
+| **v0.64** | 2026-01-22 | Two-tier caching (LLM + kernel), 16x speedup on cached runs |
 | **v0.63** | 2026-01-18 | KOAS/docs enhancement, --use-cache, dual LLM (Worker+Tutor), improved appendices |
 | **v0.62** | 2025-12-20 | KOAS MCP Consolidation, Demo UI, Academic docs (MCP, REASONING) |
 | **v0.61** | 2025-12-17 | Security Kernels (10), ANSSI/NIST/CIS compliance |

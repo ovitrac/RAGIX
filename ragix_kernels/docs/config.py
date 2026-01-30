@@ -127,6 +127,11 @@ class QualityConfig:
         enable_llm_intent: Enable LLM-based intent classification
         llm_intent_model: Model to use for intent classification
         llm_intent_confidence: Minimum confidence for LLM classification
+        boilerplate_penalty: Penalty for document control boilerplate
+        formatting_penalty: Penalty for formatting-heavy content
+        dashed_line_min_length: Minimum consecutive dashes to trigger penalty
+        boilerplate_vocab_fr: French boilerplate vocabulary patterns
+        boilerplate_vocab_en: English boilerplate vocabulary patterns
     """
     # Thresholds
     quality_threshold: float = 0.4
@@ -136,6 +141,50 @@ class QualityConfig:
     truncation_penalty: float = 0.2
     artifact_penalty: float = 0.3
     table_fragment_penalty: float = 0.2
+
+    # Boilerplate penalties (v0.64.1 - VDP fix)
+    boilerplate_penalty: float = 0.4  # Heavy penalty for document control content
+    formatting_penalty: float = 0.25  # Penalty for formatting-heavy lines
+    dashed_line_min_length: int = 10  # Minimum dashes to trigger penalty
+
+    # Boilerplate vocabulary (multilingual, configurable)
+    boilerplate_vocab_fr: List[str] = field(default_factory=lambda: [
+        r"PANNEAU DE CONTR[OÔ]LE",
+        r"Historique des r[eé]visions",
+        r"Contr[oô]le du document",
+        r"Table des mati[eè]res",
+        r"R[eé]f[eé]rence\s*:",
+        r"Auteur\s*:",
+        r"Date\s*:",
+        r"Version\s*:",
+        r"Statut\s*:",
+        r"Approbation\s*:",
+        r"Diffusion\s*:",
+    ])
+    boilerplate_vocab_en: List[str] = field(default_factory=lambda: [
+        r"DOCUMENT CONTROL",
+        r"Revision History",
+        r"Table of Contents",
+        r"Reference\s*:",
+        r"Author\s*:",
+        r"Date\s*:",
+        r"Version\s*:",
+        r"Status\s*:",
+        r"Approval\s*:",
+        r"Distribution\s*:",
+    ])
+    # Release changelog / version tracking patterns (v0.64.2 - VDP fix)
+    boilerplate_changelog: List[str] = field(default_factory=lambda: [
+        r"\d+\.\d+\.\d+\.\d+\s*.*?(?:MERGED|RELEASED|issues)",  # X.X.X.X ... MERGED/RELEASED
+        r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}\s+\d+\s+issues",  # Month YYYY N issues
+        r"\d+\s+issues\s+(?:MERGED|RELEASED|CLOSED)",  # N issues MERGED/RELEASED
+        r"(?:NOT\s+)?DELIVERED",  # NOT DELIVERED / DELIVERED
+        r"(?:VM\d+\s*)+",  # VM1 VM2 VM3 (infrastructure notation)
+        r"Sous-r[eé]seau\s+priv[eé]",  # Network diagram text
+        r"Fibre\s+noire",  # Infrastructure terminology
+        r"Datacenter\s+\w+",  # Datacenter references
+        r"Lien\s+WAN",  # Network link references
+    ])
 
     # Bonuses (added to score)
     entity_bonus: float = 0.1
@@ -176,6 +225,12 @@ class QualityConfig:
             "truncation_penalty": self.truncation_penalty,
             "artifact_penalty": self.artifact_penalty,
             "table_fragment_penalty": self.table_fragment_penalty,
+            "boilerplate_penalty": self.boilerplate_penalty,
+            "formatting_penalty": self.formatting_penalty,
+            "dashed_line_min_length": self.dashed_line_min_length,
+            "boilerplate_vocab_fr": self.boilerplate_vocab_fr,
+            "boilerplate_vocab_en": self.boilerplate_vocab_en,
+            "boilerplate_changelog": self.boilerplate_changelog,
             "entity_bonus": self.entity_bonus,
             "numbers_bonus": self.numbers_bonus,
             "action_verb_bonus": self.action_verb_bonus,
@@ -197,12 +252,58 @@ class QualityConfig:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "QualityConfig":
         """Create from dictionary."""
+        # Default boilerplate vocabulary (French)
+        default_vocab_fr = [
+            r"PANNEAU DE CONTR[OÔ]LE",
+            r"Historique des r[eé]visions",
+            r"Contr[oô]le du document",
+            r"Table des mati[eè]res",
+            r"R[eé]f[eé]rence\s*:",
+            r"Auteur\s*:",
+            r"Date\s*:",
+            r"Version\s*:",
+            r"Statut\s*:",
+            r"Approbation\s*:",
+            r"Diffusion\s*:",
+        ]
+        # Default boilerplate vocabulary (English)
+        default_vocab_en = [
+            r"DOCUMENT CONTROL",
+            r"Revision History",
+            r"Table of Contents",
+            r"Reference\s*:",
+            r"Author\s*:",
+            r"Date\s*:",
+            r"Version\s*:",
+            r"Status\s*:",
+            r"Approval\s*:",
+            r"Distribution\s*:",
+        ]
+        # Default changelog/release tracking patterns
+        default_changelog = [
+            r"\d+\.\d+\.\d+\.\d+\s*.*?(?:MERGED|RELEASED|issues)",
+            r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}\s+\d+\s+issues",
+            r"\d+\s+issues\s+(?:MERGED|RELEASED|CLOSED)",
+            r"(?:NOT\s+)?DELIVERED",
+            r"(?:VM\d+\s*)+",
+            r"Sous-r[eé]seau\s+priv[eé]",
+            r"Fibre\s+noire",
+            r"Datacenter\s+\w+",
+            r"Lien\s+WAN",
+        ]
+
         return cls(
             quality_threshold=data.get("quality_threshold", 0.4),
             base_score=data.get("base_score", 0.5),
             truncation_penalty=data.get("truncation_penalty", 0.2),
             artifact_penalty=data.get("artifact_penalty", 0.3),
             table_fragment_penalty=data.get("table_fragment_penalty", 0.2),
+            boilerplate_penalty=data.get("boilerplate_penalty", 0.4),
+            formatting_penalty=data.get("formatting_penalty", 0.25),
+            dashed_line_min_length=data.get("dashed_line_min_length", 10),
+            boilerplate_vocab_fr=data.get("boilerplate_vocab_fr", default_vocab_fr),
+            boilerplate_vocab_en=data.get("boilerplate_vocab_en", default_vocab_en),
+            boilerplate_changelog=data.get("boilerplate_changelog", default_changelog),
             entity_bonus=data.get("entity_bonus", 0.1),
             numbers_bonus=data.get("numbers_bonus", 0.1),
             action_verb_bonus=data.get("action_verb_bonus", 0.15),
