@@ -35,6 +35,12 @@ import yaml
 
 from ragix_kernels.base import Kernel, KernelInput, KernelOutput
 from ragix_kernels.registry import KernelRegistry
+from ragix_kernels.activity import (
+    init_activity_writer,
+    get_activity_writer,
+    ActivityWriter,
+    Actor,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -741,10 +747,23 @@ class Orchestrator:
 
     def _run_kernel(self, kernel_name: str, context: ExecutionContext) -> KernelOutput:
         """Internal kernel execution with context and optional caching."""
+        import time
+        kernel_start_time = time.time()
+
         kernel_class = KernelRegistry.get(kernel_name)
         kernel = kernel_class()
 
         logger.info(f"[{kernel_name}] Starting (stage={kernel.stage})")
+
+        # Activity logging: emit kernel start event
+        activity_writer = get_activity_writer()
+        start_event_id = ""
+        if activity_writer:
+            start_event_id = activity_writer.emit_kernel_start(
+                kernel_name=kernel_name,
+                kernel_version=kernel.version,
+                stage=kernel.stage,
+            )
 
         # Build input
         config = context.manifest.get_kernel_config(kernel_name, kernel.stage)
@@ -777,6 +796,20 @@ class Orchestrator:
                 # Write cached output to the expected location
                 output_file.parent.mkdir(parents=True, exist_ok=True)
                 output_file.write_text(json.dumps(cached_output, indent=2, ensure_ascii=False))
+
+                # Activity logging: emit kernel end event (cached)
+                if activity_writer:
+                    duration_ms = int((time.time() - kernel_start_time) * 1000)
+                    metrics = {"item_count": cached_output.get("_meta", {}).get("item_count", 0)}
+                    activity_writer.emit_kernel_end(
+                        kernel_name=kernel_name,
+                        kernel_version=kernel.version,
+                        stage=kernel.stage,
+                        success=True,
+                        duration_ms=duration_ms,
+                        metrics=metrics,
+                        cache_hit=True,
+                    )
 
                 return KernelOutput(
                     success=True,
@@ -819,6 +852,21 @@ class Orchestrator:
             )
         else:
             logger.error(f"[{kernel_name}] Failed: {output.errors}")
+
+        # Activity logging: emit kernel end event
+        if activity_writer:
+            duration_ms = int((time.time() - kernel_start_time) * 1000)
+            metrics = {"item_count": output.data.get("_meta", {}).get("item_count", 0) if output.data else 0}
+            if not output.success:
+                metrics["errors"] = output.errors
+            activity_writer.emit_kernel_end(
+                kernel_name=kernel_name,
+                kernel_version=kernel.version,
+                stage=kernel.stage,
+                success=output.success,
+                duration_ms=duration_ms,
+                metrics=metrics,
+            )
 
         return output
 

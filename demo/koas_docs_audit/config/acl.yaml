@@ -1,0 +1,52 @@
+# KOAS Activity ACL — Demo
+# Access control for restricted mode
+
+schema_version: "koas.acl/1.0"
+
+clients:
+  # System (internal, no key required)
+  koas-system:
+    key_hash: null
+    type: system
+    scopes: ["*"]
+
+  # Demo operator (full access)
+  demo-operator:
+    # Key: koas_key_demo_operator_12345
+    key_hash: "sha256:a]5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+    type: operator
+    scopes:
+      - "docs.trigger"
+      - "docs.status"
+      - "docs.export_external"
+      - "docs.export_internal"
+      - "activity.read"
+    rate_limit: "60/min"
+
+  # External orchestrator (limited)
+  claude-demo:
+    # Key: koas_key_claude_demo_67890
+    key_hash: "sha256:d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
+    type: external_orchestrator
+    scopes:
+      - "docs.trigger"
+      - "docs.status"
+      - "docs.export_external"
+      # NOT: activity.read, docs.export_internal
+    rate_limit: "30/min"
+    restrictions:
+      - "no_content_access"
+      - "metrics_only"
+
+# Scope definitions
+scopes:
+  docs.trigger:
+    description: "Trigger KOAS workflow"
+  docs.status:
+    description: "View job status and metrics"
+  docs.export_external:
+    description: "Download external-safe artifacts"
+  docs.export_internal:
+    description: "Download full artifacts with traces"
+  activity.read:
+    description: "Read activity event stream"

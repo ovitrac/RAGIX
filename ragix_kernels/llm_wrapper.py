@@ -23,14 +23,22 @@ Usage:
     )
 """
 
+import hashlib
 import logging
+import time
 from typing import Optional
 
 import httpx
 
 from ragix_kernels.cache import LLMCache, CacheMode, CacheMissError
+from ragix_kernels.activity import get_activity_writer
 
 logger = logging.getLogger(__name__)
+
+
+def _compute_hash(text: str) -> str:
+    """Compute SHA256 hash prefix for traceability (first 16 chars)."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 def _call_ollama(
@@ -113,15 +121,40 @@ def llm_call(
         httpx.HTTPError: On HTTP errors
         Exception: On other failures
     """
+    activity_writer = get_activity_writer()
+    prompt_hash = _compute_hash(prompt)
+    start_time = time.time()
+
     # OFF mode: bypass cache entirely
     if mode == CacheMode.OFF:
         logger.debug(f"[llm_call] Cache OFF, calling LLM directly")
-        return _call_ollama(model, prompt, temperature, endpoint, timeout, num_predict)
+        response = _call_ollama(model, prompt, temperature, endpoint, timeout, num_predict)
+
+        # Activity logging: LLM call without cache
+        if activity_writer:
+            duration_ms = int((time.time() - start_time) * 1000)
+            activity_writer.emit_llm_call(
+                model=model,
+                cache_hit=False,
+                prompt_hash=prompt_hash,
+                response_hash=_compute_hash(response),
+                duration_ms=duration_ms,
+            )
+        return response
 
     # Check cache first for all other modes
     cached = cache.get(model, prompt, temperature, model_digest or None)
     if cached:
         logger.debug(f"[llm_call] Cache HIT for model={model}")
+
+        # Activity logging: cache hit
+        if activity_writer:
+            activity_writer.emit_llm_call(
+                model=model,
+                cache_hit=True,
+                prompt_hash=prompt_hash,
+                response_hash=_compute_hash(cached),
+            )
         return cached
 
     # READ_ONLY mode: fail on cache miss
@@ -139,6 +172,17 @@ def llm_call(
     # Cache the response
     cache.put(model, prompt, response, temperature, model_digest)
     logger.debug(f"[llm_call] Cached response for model={model}")
+
+    # Activity logging: LLM call with cache write
+    if activity_writer:
+        duration_ms = int((time.time() - start_time) * 1000)
+        activity_writer.emit_llm_call(
+            model=model,
+            cache_hit=False,
+            prompt_hash=prompt_hash,
+            response_hash=_compute_hash(response),
+            duration_ms=duration_ms,
+        )
 
     return response
 
@@ -175,6 +219,10 @@ def llm_call_with_ollama_lib(
     """
     import ollama as ollama_lib
 
+    activity_writer = get_activity_writer()
+    prompt_hash = _compute_hash(prompt)
+    start_time = time.time()
+
     # OFF mode: bypass cache entirely
     if mode == CacheMode.OFF:
         response = ollama_lib.generate(
@@ -182,12 +230,33 @@ def llm_call_with_ollama_lib(
             prompt=prompt,
             options={"temperature": temperature, "num_predict": num_predict},
         )
-        return response.get("response", "")
+        response_text = response.get("response", "")
+
+        # Activity logging: LLM call without cache
+        if activity_writer:
+            duration_ms = int((time.time() - start_time) * 1000)
+            activity_writer.emit_llm_call(
+                model=model,
+                cache_hit=False,
+                prompt_hash=prompt_hash,
+                response_hash=_compute_hash(response_text),
+                duration_ms=duration_ms,
+            )
+        return response_text
 
     # Check cache first
     cached = cache.get(model, prompt, temperature, model_digest or None)
     if cached:
         logger.debug(f"[llm_call_ollama] Cache HIT for model={model}")
+
+        # Activity logging: cache hit
+        if activity_writer:
+            activity_writer.emit_llm_call(
+                model=model,
+                cache_hit=True,
+                prompt_hash=prompt_hash,
+                response_hash=_compute_hash(cached),
+            )
         return cached
 
     # READ_ONLY mode: fail on cache miss
@@ -209,5 +278,16 @@ def llm_call_with_ollama_lib(
 
     # Cache the response
     cache.put(model, prompt, response_text, temperature, model_digest)
+
+    # Activity logging: LLM call with cache write
+    if activity_writer:
+        duration_ms = int((time.time() - start_time) * 1000)
+        activity_writer.emit_llm_call(
+            model=model,
+            cache_hit=False,
+            prompt_hash=prompt_hash,
+            response_hash=_compute_hash(response_text),
+            duration_ms=duration_ms,
+        )
 
     return response_text

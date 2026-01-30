@@ -60,6 +60,7 @@ from ragix_kernels.preflight import (
     RunConfig,
     LLMStatsCollector,
 )
+from ragix_kernels.activity import init_activity_writer, Actor
 
 logger = logging.getLogger(__name__)
 
@@ -477,6 +478,13 @@ def run_doc_pipeline(
 
     # Initialize LLM statistics collector
     _llm_stats = LLMStatsCollector(run_config.run_id)
+
+    # Initialize activity writer for centralized logging
+    activity_writer = init_activity_writer(
+        workspace=workspace,
+        run_id=run_config.run_id,
+    )
+    logger.info(f"[Activity] Initialized at {workspace / '.KOAS' / 'activity'}")
 
     # =========================================================================
     # Step 3: Capture sovereignty attestation
@@ -958,6 +966,23 @@ Examples:
         choices=["write_through", "read_only", "read_prefer", "off"],
         default="write_through",
         help="Kernel output cache mode: write_through (default), read_only (fast replay), read_prefer, off"
+    )
+    # Sovereign compliance: output isolation (MUST M1, M2)
+    run_parser.add_argument(
+        "--output-level",
+        choices=["internal", "external", "orchestrator", "compliance"],
+        default="internal",
+        help="Output isolation: internal (full), external (redacted), orchestrator (metrics), compliance (full+attestation)"
+    )
+    run_parser.add_argument(
+        "--redact-paths",
+        action="store_true",
+        help="Redact file paths in output (implied by --output-level=external)"
+    )
+    run_parser.add_argument(
+        "--anonymize-ids",
+        action="store_true",
+        help="Anonymize internal identifiers (implied by --output-level=external)"
     )
     run_parser.add_argument("--quiet", "-q", action="store_true", help="Suppress progress output")
     run_parser.add_argument("--skip-preflight", action="store_true", help="Skip pre-flight checks")

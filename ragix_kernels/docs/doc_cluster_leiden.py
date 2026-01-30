@@ -117,6 +117,9 @@ class DocClusterLeidenKernel(Kernel):
             seed=input.config.get("seed", 42)
         )
 
+        # MUST M6: Log seed for reproducibility (sovereign compliance)
+        logger.info(f"[doc_cluster_leiden] Using seed={config.seed} for reproducibility")
+
         # Build file-concept vectors
         logger.info("[doc_cluster_leiden] Building file-concept vectors...")
         t1 = time.time()
@@ -174,7 +177,15 @@ class DocClusterLeidenKernel(Kernel):
             "file_count": len(file_ids),
             "method": "leiden" if (IGRAPH_AVAILABLE and LEIDEN_AVAILABLE) else
                       "louvain" if IGRAPH_AVAILABLE else "threshold",
-            "resolutions_analyzed": list(communities.keys()) if communities else []
+            "resolutions_analyzed": list(communities.keys()) if communities else [],
+            # MUST M6: Audit trail seed logging (sovereign compliance)
+            "_audit": {
+                "seed": config.seed,
+                "algorithm": "leiden" if (IGRAPH_AVAILABLE and LEIDEN_AVAILABLE) else
+                            "louvain" if IGRAPH_AVAILABLE else "threshold",
+                "resolutions": config.resolutions,
+                "min_cluster_size": config.min_cluster_size,
+            }
         }
 
     def _build_file_concept_vectors(self, concepts: Dict) -> Dict[str, Dict[str, float]]:

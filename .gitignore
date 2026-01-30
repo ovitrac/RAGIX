@@ -199,6 +199,11 @@ codex_*
 .trash/
 .RAG/
 
+# KOAS runtime data (activity logs, kernel outputs, caches)
+.KOAS/
+**/workspace/
+.demo_keys
+
 # Publication paper
 intern*.md
 WIP.md

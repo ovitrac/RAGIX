@@ -74,8 +74,11 @@ class DocClusterKernel(Kernel):
         similarity_metric = input.config.get("similarity_metric", "jaccard")
         linkage = input.config.get("linkage", "average")
         resolutions = input.config.get("resolutions", [0.5, 1.0, 2.0])
+        seed = input.config.get("seed", 42)  # For Leiden path reproducibility
 
-        logger.info(f"[doc_cluster] Clustering with method={method}")
+        # MUST M6: Log seed for reproducibility (sovereign compliance)
+        # Note: hierarchical clustering is deterministic, seed applies to Leiden path
+        logger.info(f"[doc_cluster] Clustering with method={method}, seed={seed}")
 
         # Load dependencies
         metadata_path = input.dependencies.get("doc_metadata")
@@ -201,6 +204,14 @@ class DocClusterKernel(Kernel):
             "hierarchy": hierarchy,
             "file_vectors": {fid: list(v) for fid, v in file_vectors.items()},
             "statistics": statistics,
+            # MUST M6: Audit trail seed logging (sovereign compliance)
+            "_audit": {
+                "seed": seed,
+                "algorithm": method,
+                "linkage": linkage if method == "hierarchical" else None,
+                "similarity_metric": similarity_metric,
+                "min_cluster_size": min_cluster_size,
+            }
         }
 
     def _compute_similarity_matrix(

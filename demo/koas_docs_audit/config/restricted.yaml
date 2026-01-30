@@ -1,0 +1,37 @@
+# KOAS Restricted Mode Configuration
+# Broker-mediated access, full auth, external-safe output
+
+project:
+  name: "RAGIX Documentation Audit"
+  language: "en"
+  author: "Demo"
+
+pipeline:
+  stages: [1, 2, 3]
+  parallel: true
+  workers: 4
+
+llm:
+  worker_model: "granite3.1-dense:8b"
+  tutor_model: "mistral:7b-instruct"
+  endpoint: "http://localhost:11434"
+  temperature: 0.3
+
+cache:
+  llm_cache: "write_through"
+  kernel_cache: "write_through"
+
+output:
+  level: "external"  # Sanitized output
+  format: "markdown"
+  redact_paths: true
+  anonymize_ids: true
+
+activity:
+  enabled: true
+  stream: ".KOAS/activity/events.jsonl"
+
+auth:
+  enabled: true
+  acl_file: ".KOAS/auth/acl.yaml"
+  require_hmac: false  # Set true for production

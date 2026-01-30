@@ -108,6 +108,57 @@ class DocExtractKernel(Kernel):
     FORMATTING_HEAVY = re.compile(r'[\*\-\|_=]{5,}')  # 5+ consecutive formatting chars
     EMPTY_FIELD_LABEL = re.compile(r'^\*{0,2}[A-Za-zÀ-ÿ\s]+\s*:\*{0,2}\s*$')  # "**Field:** " with no content
 
+    # Code fence protection patterns (v0.65.0 - MUST M4: sovereign compliance)
+    # These patterns identify code blocks that should be excluded from boilerplate matching
+    CODE_FENCE_PATTERN = re.compile(r'```[\s\S]*?```', re.MULTILINE)
+    INLINE_CODE_PATTERN = re.compile(r'`[^`\n]+`')
+
+    def _protect_code_blocks(self, text: str) -> Tuple[str, List[str], List[str]]:
+        """
+        Extract and protect code blocks from boilerplate matching.
+
+        Implements MUST M4: Protect fenced/inline code from boilerplate detection.
+
+        Returns:
+            Tuple of (protected_text, fenced_blocks, inline_codes)
+        """
+        # Extract fenced code blocks first (they may contain backticks)
+        fenced_blocks = self.CODE_FENCE_PATTERN.findall(text)
+        protected = text
+        for i, block in enumerate(fenced_blocks):
+            protected = protected.replace(block, f'__FENCED_CODE_{i}__', 1)
+
+        # Extract inline code from the protected text
+        inline_codes = self.INLINE_CODE_PATTERN.findall(protected)
+        for i, code in enumerate(inline_codes):
+            protected = protected.replace(code, f'__INLINE_CODE_{i}__', 1)
+
+        return protected, fenced_blocks, inline_codes
+
+    def _restore_code_blocks(
+        self,
+        text: str,
+        fenced_blocks: List[str],
+        inline_codes: List[str]
+    ) -> str:
+        """
+        Restore code blocks after boilerplate matching.
+
+        Args:
+            text: Text with placeholders
+            fenced_blocks: List of fenced code blocks to restore
+            inline_codes: List of inline code spans to restore
+
+        Returns:
+            Text with code blocks restored
+        """
+        result = text
+        for i, block in enumerate(fenced_blocks):
+            result = result.replace(f'__FENCED_CODE_{i}__', block)
+        for i, code in enumerate(inline_codes):
+            result = result.replace(f'__INLINE_CODE_{i}__', code)
+        return result
+
     def compute(self, input: KernelInput) -> Dict[str, Any]:
         """Extract key sentences from documents."""
         from ragix_core.rag_project import RAGProject, MetadataStore
@@ -451,10 +502,16 @@ class DocExtractKernel(Kernel):
             score -= config.table_fragment_penalty
 
         # === Boilerplate penalties (v0.64.1 - VDP fix) ===
+        # === Code protection (v0.65.0 - MUST M4: sovereign compliance) ===
+
+        # Protect code blocks from boilerplate matching
+        # Code inside fences or backticks should not trigger boilerplate penalties
+        protected_sentence, _, _ = self._protect_code_blocks(sentence)
 
         # Penalty for dashed separator lines (e.g., "--------", "========", "________")
+        # Applied to protected text (code excluded)
         dashed_pattern = self._get_dashed_line_pattern(config)
-        dashed_matches = dashed_pattern.findall(sentence)
+        dashed_matches = dashed_pattern.findall(protected_sentence)
         if dashed_matches:
             # Heavy penalty - these are formatting artifacts
             score -= config.boilerplate_penalty
@@ -463,15 +520,17 @@ class DocExtractKernel(Kernel):
                 score -= config.formatting_penalty
 
         # Penalty for document control vocabulary (FR/EN)
+        # Applied to protected text (code excluded)
         # Compile pattern once and cache
         if self._boilerplate_vocab_pattern is None:
             self._boilerplate_vocab_pattern = self._compile_boilerplate_pattern(config)
 
-        if self._boilerplate_vocab_pattern.search(sentence):
+        if self._boilerplate_vocab_pattern.search(protected_sentence):
             score -= config.boilerplate_penalty
 
         # Penalty for formatting-heavy content (many consecutive *, -, |, _, =)
-        formatting_matches = self.FORMATTING_HEAVY.findall(sentence)
+        # Applied to protected text (code excluded)
+        formatting_matches = self.FORMATTING_HEAVY.findall(protected_sentence)
         if len(formatting_matches) >= 2:
             score -= config.formatting_penalty
 

@@ -1,0 +1,34 @@
+# KOAS Relaxed Mode Configuration
+# Direct CLI access, no broker, minimal auth
+
+project:
+  name: "RAGIX Documentation Audit"
+  language: "en"
+  author: "Demo"
+
+pipeline:
+  stages: [1, 2, 3]
+  parallel: true
+  workers: 4
+
+llm:
+  worker_model: "granite3.1-dense:8b"
+  tutor_model: "mistral:7b-instruct"
+  endpoint: "http://localhost:11434"
+  temperature: 0.3
+
+cache:
+  llm_cache: "write_through"
+  kernel_cache: "write_through"
+
+output:
+  level: "internal"  # Full output for development
+  format: "markdown"
+
+activity:
+  enabled: true
+  stream: ".KOAS/activity/events.jsonl"
+
+# No auth required in relaxed mode
+auth:
+  enabled: false

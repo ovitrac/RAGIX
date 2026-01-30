@@ -6,6 +6,131 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.66.0 — Centralized Activity Logging & Broker Gateway (2026-01-30)
+
+### Highlights
+
+**KOAS v0.66.0 introduces centralized activity logging for complete observability of kernel and LLM operations, plus an optional broker gateway for critical applications requiring API authentication.**
+
+| Feature | Status |
+|---------|--------|
+| Centralized Activity Logging | ✅ JSONL event stream at `.KOAS/activity/events.jsonl` |
+| Event Schema (koas.event/1.0) | ✅ Structured events with sovereignty attestation |
+| Kernel Start/End Events | ✅ All kernel executions logged with metrics |
+| LLM Call Events | ✅ Model, cache_hit, duration logged (no content) |
+| Broker Gateway (Optional) | ✅ FastAPI-based for restricted mode |
+| ACL Support | ✅ API key + scope-based access control |
+| Demo Setup | ✅ `demo/koas_docs_audit/` with 79 markdown files |
+| Documentation Update | ✅ SOVEREIGN_LLM_OPERATIONS.md v1.4.0 |
+
+### New Module: `ragix_kernels/activity.py`
+
+Centralized activity logging with append-only JSONL events:
+
+```python
+from ragix_kernels.activity import init_activity_writer, get_activity_writer
+
+# Initialize at workflow start
+writer = init_activity_writer(workspace=workspace, run_id=run_id)
+
+# Events emitted automatically by orchestrator and llm_wrapper
+# - docs.kernel:start / docs.kernel:end
+# - docs.llm:call / docs.llm:cache_hit
+```
+
+**Event Schema (koas.event/1.0):**
+```json
+{
+  "v": "koas.event/1.0",
+  "ts": "2026-01-30T20:50:11.142+00:00",
+  "event_id": "uuid-v4",
+  "run_id": "run_20260130_215011_348bc4",
+  "actor": {"type": "system", "id": "koas", "auth": "none"},
+  "scope": "docs.kernel",
+  "phase": "end",
+  "kernel": {"name": "doc_metadata", "version": "1.0.0", "stage": 1},
+  "decision": {"success": true, "cache_hit": false},
+  "metrics": {"duration_ms": 42, "item_count": 79},
+  "sovereignty": {"local_only": true}
+}
+```
+
+### Integration Points
+
+| File | Changes |
+|------|---------|
+| `ragix_kernels/activity.py` | **NEW** - ActivityWriter, ActivityReader, event dataclasses |
+| `ragix_kernels/orchestrator.py` | Emit kernel start/end events in `_run_kernel()` |
+| `ragix_kernels/llm_wrapper.py` | Emit LLM call events with cache status |
+| `ragix_kernels/run_doc_koas.py` | Initialize activity writer at workflow start |
+
+### Broker Gateway (Optional)
+
+For critical applications requiring API authentication:
+
+```bash
+# Start broker (separate terminal)
+cd demo/koas_docs_audit && ./start_broker.sh
+
+# Trigger via API
+curl -X POST http://localhost:8080/koas/v1/jobs \
+    -H "Authorization: Bearer $KOAS_API_KEY" \
+    -d '{"mode": "pure_docs", "workspace": "./workspace"}'
+```
+
+**ACL Configuration (`acl.yaml`):**
+```yaml
+clients:
+  claude-demo:
+    key_hash: "sha256:..."
+    type: external_orchestrator
+    scopes: ["docs.trigger", "docs.status", "docs.export_external"]
+    rate_limit: "30/min"
+```
+
+### Demo Setup
+
+New demo at `demo/koas_docs_audit/`:
+- **Corpus:** 79 markdown files (RAGIX documentation)
+- **Relaxed Mode:** Direct CLI execution (default)
+- **Restricted Mode:** Broker gateway with ACL
+
+```bash
+cd demo/koas_docs_audit
+./setup.sh  # Create workspace with symlink to docs/
+python -m ragix_kernels.run_doc_koas init --workspace ./workspace --project ./workspace/docs
+python -m ragix_kernels.run_doc_koas run --workspace ./workspace --stage 1 --skip-preflight
+```
+
+### Validation
+
+```bash
+# Verify activity events
+cat workspace/.KOAS/activity/events.jsonl | wc -l
+# Expected: ~30 events for stage 1
+
+# All events local
+jq '.sovereignty.local_only' events.jsonl | sort -u
+# Expected: true
+```
+
+### Documentation Updates
+
+- `docs/SOVEREIGN_LLM_OPERATIONS.md` → v1.4.0
+  - §6. Centralized Activity Logging (NEW)
+  - §7. Broker Gateway for Critical Applications (NEW)
+  - §12. Demo: KOAS Docs Audit (NEW)
+  - Updated TOC and section numbering
+
+### Sovereignty Guarantees
+
+Every activity event includes:
+- `sovereignty.local_only: true` — Confirms no external API calls
+- `actor.type: "system"` — Internal KOAS processing
+- **No content fields** — Prompts, responses, excerpts are NEVER logged
+
+---
+
 ## v0.64.2 — Boilerplate Detection Enhancement & Output Path Fix (2026-01-29)
 
 ### Highlights
@@ -1787,6 +1912,7 @@ mcp:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **v0.66.0** | 2026-01-30 | Centralized Activity Logging, Broker Gateway, Demo setup |
 | **v0.64.2** | 2026-01-29 | Boilerplate detection (changelog patterns), output path fix |
 | **v0.64** | 2026-01-22 | Two-tier caching (LLM + kernel), 16x speedup on cached runs |
 | **v0.63** | 2026-01-18 | KOAS/docs enhancement, --use-cache, dual LLM (Worker+Tutor), improved appendices |

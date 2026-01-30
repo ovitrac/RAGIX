@@ -20,8 +20,8 @@ footer: 📄 ${pageNo} / ${pageCount}
 **A Framework for Confidential Document Analysis in Regulated Environments**
 
 **Author:** Olivier Vitrac, PhD, HDR | Adservio Innovation Lab
-**Version:** 1.2.0
-**Date:** 2026-01-29
+**Version:** 1.4.0
+**Date:** 2026-01-30
 **Classification:** Technical Architecture Document
 
 ---
@@ -39,69 +39,293 @@ This document presents the architectural principles and operational procedures e
 > **This section defines non-negotiable rules for any LLM or agent operating within this framework.**
 
 > [!NOTE]
-> **Implementation Status (v0.64.2):** Not all requirements below are fully implemented yet.
-> See `docs/developer/ROADMAP_SOVEREIGN_COMPLIANCE.md` for the implementation plan.
+> **Implementation Status (v0.65.0):** Core sovereignty features now implemented.
+> See `docs/developer/ROADMAP_SOVEREIGN_COMPLIANCE.md` for the full implementation plan.
 >
 > | Status | Meaning |
 > |--------|---------|
 > | ✅ Implemented | Available in current release |
-> | ⚠️ Partial | Core functionality exists, enhancements planned |
-> | 🔜 Planned | Documented target, implementation in progress |
+> | ⚠️ Partial | Core functionality exists, integration pending |
+> | 🔜 Planned | Documented target, not yet started |
+>
+> **New in v0.65.0:**
+> - `ragix_kernels/output_sanitizer.py` — Output isolation enforcement
+> - `ragix_kernels/merkle.py` — Provenance hashing and Merkle roots
+> - `--output-level` CLI flag for external/orchestrator modes
+> - Code fence protection in boilerplate detection
+> - Seed logging in clustering kernels (`_audit` dict)
+>
+> **New in v0.66.0:**
+> - `ragix_kernels/activity.py` — Centralized activity logging (JSONL event stream)
+> - Activity events for all kernel executions (start/end) and LLM calls
+> - Sovereignty attestation in every event (`local_only: true`)
+> - Optional broker gateway for critical applications
+> - Demo setup at `demo/koas_docs_audit/` with relaxed/restricted modes
 
 > [!CAUTION]
 >
 > ### MUST
 >
-> 1. 🔜 **Strip Markdown metadata in all external outputs** — YAML/TOML/JSON front-matter, fenced `metadata` blocks, and HTML provenance comments (`<!-- PROVENANCE ... -->`) are internal-only artifacts. External reports receive `content_clean` exclusively.
+> 1. ✅ **Strip Markdown metadata in all external outputs** — YAML/TOML/JSON front-matter, fenced `metadata` blocks, and HTML provenance comments (`<!-- PROVENANCE ... -->`) are internal-only artifacts. External reports receive `content_clean` exclusively.
+>    - *Implemented in `output_sanitizer.py:strip_metadata_blocks()`*
 >
-> 2. 🔜 **Enforce output-level contract via CLI** — `--output-level=external` MUST strip metadata, redact paths, anonymize identifiers. This is enforced by build-time validation, not trust.
+> 2. ✅ **Enforce output-level contract via CLI** — `--output-level=external` MUST strip metadata, redact paths, anonymize identifiers. This is enforced by build-time validation, not trust.
+>    - *Implemented: `--output-level`, `--redact-paths`, `--anonymize-ids` CLI flags*
 >
-> 3. ⚠️ **Forced caching for all document LLM calls** — Every LLM call in `doc_*` kernels MUST be logged with:
+> 3. ✅ **Forced caching for all document LLM calls** — Every LLM call in `doc_*` kernels MUST be logged with:
 >    - `call_hash` = SHA256 of canonical request JSON (sorted keys, normalized whitespace, volatile fields stripped)
 >    - `inputs_merkle_root` = Merkle root of ordered child hashes for pyramidal synthesis
 >    - Cache key includes: `model_id`, `temperature`, `template_id@version`, `prompt_canonical`
->    - *Status: LLMCache exists with basic key derivation. Merkle root and call_hash planned.*
+>    - *Implemented in `merkle.py:compute_call_hash()`, `compute_inputs_merkle_root()`*
 >
-> 4. 🔜 **Protect fenced/inline code inside documents** — Boilerplate detection patterns MUST NOT match content within triple-backtick fences or inline code spans. Code blocks are preserved verbatim.
+> 4. ✅ **Protect fenced/inline code inside documents** — Boilerplate detection patterns MUST NOT match content within triple-backtick fences or inline code spans. Code blocks are preserved verbatim.
+>    - *Implemented in `doc_extract.py:_protect_code_blocks()`*
 >
-> 5. ⚠️ **Canonical ordering for reproducibility** — Pyramid children MUST be ordered deterministically (by document path, then chunk index) before Merkle root computation. Non-deterministic ordering invalidates cache.
->    - *Status: Seeds exist in clustering config. Merkle ordering planned.*
+> 5. ✅ **Canonical ordering for reproducibility** — Pyramid children MUST be ordered deterministically (by document path, then chunk index) before Merkle root computation. Non-deterministic ordering invalidates cache.
+>    - *Implemented in `merkle.py:compute_inputs_merkle_root()` with sorted children*
 >
-> 6. ⚠️ **Seed logging for partial-determinism kernels** — Clustering kernels (`doc_cluster`, `doc_cluster_leiden`, `partition`) MUST log their random seed in the audit trail. Same seed + same input = same output.
->    - *Status: Seeds configured. Audit trail logging planned.*
+> 6. ✅ **Seed logging for partial-determinism kernels** — Clustering kernels (`doc_cluster`, `doc_cluster_leiden`, `partition`) MUST log their random seed in the audit trail. Same seed + same input = same output.
+>    - *Implemented: `_audit.seed` in kernel outputs*
 >
 > ### MUST NOT
 >
 > 1. ⚠️ **Apply boilerplate cleaning to code or Code+Docs mode** — Boilerplate detection is for **pure document corpora only**. In mixed mode, code files bypass boilerplate filtering entirely.
->    - *Status: Mode check not yet implemented.*
+>    - *Status: Mode check implementation pending integration.*
 >
-> 2. 🔜 **Include provenance markers in external outputs** — Keys like `call_hash`, `inputs_merkle_root`, `run_id`, `endpoint`, `model` are denylist items. Build fails if detected in external report.
+> 2. ✅ **Include provenance markers in external outputs** — Keys like `call_hash`, `inputs_merkle_root`, `run_id`, `endpoint`, `model` are denylist items. Build fails if detected in external report.
+>    - *Implemented in `output_sanitizer.py:DENYLIST_KEYS`, `validate_external_report()`*
 >
 > 3. ✅ **Modify representative content in `doc_extract`** — Quality filtering is achieved by **penalizing boilerplate patterns in `_score_sentence_quality()`**, not by cleaning/transforming the text. Original content is preserved.
->    - *Status: Correctly implemented in doc_extract.py.*
+>    - *Correctly implemented in doc_extract.py.*
 >
-> 4. 🔜 **Allow orchestrator to see document excerpts** — `--output-level=orchestrator` returns metrics only: kernel names, timing, success/failure, aggregate counts. No text content.
+> 4. ✅ **Allow orchestrator to see document excerpts** — `--output-level=orchestrator` returns metrics only: kernel names, timing, success/failure, aggregate counts. No text content.
+>    - *Implemented in `output_sanitizer.py:extract_metrics_only()`*
 >
-> 5. 🔜 **Trust implicit defaults for isolation** — Isolation settings MUST be explicit in manifest or CLI. Absent flags do not imply "safe"; they imply "internal mode."
+> 5. ✅ **Trust implicit defaults for isolation** — Isolation settings MUST be explicit in manifest or CLI. Absent flags do not imply "safe"; they imply "internal mode."
+>    - *Default is `--output-level=internal` (explicit)*
 >
 
 ---
 
 ## Table of Contents
 
+0. [Quick Start: Sovereign KOAS Audit](#0-quick-start-sovereign-koas-audit)
 1. [Introduction](#1-introduction)
 2. [Sovereignty Architecture](#2-sovereignty-architecture)
 3. [The KOAS Paradigm: Kernels Compute, LLMs Interpret](#3-the-koas-paradigm-kernels-compute-llms-interpret)
 4. [KOAS Kernel Inventory and Capabilities](#4-koas-kernel-inventory-and-capabilities)
 5. [Policy Enforcement Mechanisms](#5-policy-enforcement-mechanisms)
-6. [Operational Modes](#6-operational-modes)
-7. [Gray Environment Deployment](#7-gray-environment-deployment)
-8. [Attestation and Audit Trail](#8-attestation-and-audit-trail)
-9. [Practical Implementation](#9-practical-implementation)
-10. [Case Study: Metropolitan Infrastructure Audit](#10-case-study-metropolitan-infrastructure-audit)
-11. [Limitations and Mitigations](#11-limitations-and-mitigations)
-12. [Conclusion](#12-conclusion)
-13. [References](#13-references)
+6. [Centralized Activity Logging](#6-centralized-activity-logging)
+7. [Broker Gateway for Critical Applications](#7-broker-gateway-for-critical-applications)
+8. [Operational Modes](#8-operational-modes)
+9. [Gray Environment Deployment](#9-gray-environment-deployment)
+10. [Attestation and Audit Trail](#10-attestation-and-audit-trail)
+11. [Practical Implementation](#11-practical-implementation)
+12. [Demo: KOAS Docs Audit](#12-demo-koas-docs-audit)
+13. [Case Study: Metropolitan Infrastructure Audit](#13-case-study-metropolitan-infrastructure-audit)
+14. [Limitations and Mitigations](#14-limitations-and-mitigations)
+15. [Conclusion](#15-conclusion)
+16. [References](#16-references)
+
+---
+
+## 0. Quick Start: Sovereign KOAS Audit
+
+This section provides a practical guide to running a sovereign document audit using KOAS. All processing occurs locally with no external API calls.
+
+### 0.1 Prerequisites
+
+```bash
+# 1. Verify Ollama is running with required models
+ollama list
+# Expected: granite3.1-dense:8b (or granite3.1-moe:3b), mistral:7b-instruct
+
+# 2. Pull models if missing
+ollama pull granite3.1-dense:8b
+ollama pull mistral:7b-instruct
+
+# 3. Verify RAGIX installation
+python -c "import ragix_kernels; print(ragix_kernels.__version__)"
+```
+
+### 0.2 Workspace Initialization
+
+```bash
+# Create workspace with your document corpus
+mkdir -p /path/to/audit/workspace
+cd /path/to/audit/workspace
+
+# Copy documents into workspace (supports: PDF, DOCX, PPTX, XLSX, MD, TXT)
+cp -r /source/documents/* ./
+
+# Initialize KOAS workspace
+python -m ragix_kernels.run_doc_koas init \
+    --workspace . \
+    --name "Project Audit" \
+    --author "Your Name" \
+    --language fr
+```
+
+This creates:
+<pre style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 9px; line-height: 1.05; white-space: pre; margin: 0; text-align: left;">
+workspace/
+├── [your documents]
+├── .RAG/              # RAG index (auto-generated)
+└── .KOAS/             # KOAS outputs
+    ├── config.yaml    # Pipeline configuration
+    └── manifest.json  # Workspace manifest
+</pre>
+
+### 0.3 Running the Full Audit Pipeline
+
+```bash
+# Run all three stages (Collection → Analysis → Synthesis)
+python -m ragix_kernels.run_doc_koas run \
+    --workspace /path/to/audit/workspace \
+    --all
+
+# With explicit output isolation (for external delivery)
+python -m ragix_kernels.run_doc_koas run \
+    --workspace /path/to/audit/workspace \
+    --all \
+    --output-level=external
+```
+
+### 0.4 Stage-by-Stage Execution
+
+For more control, run stages individually:
+
+```bash
+# Stage 1: Collection (document inventory, concepts, structure)
+python -m ragix_kernels.run_doc_koas run \
+    --workspace . --stage 1
+
+# Stage 2: Analysis (extraction, clustering, quality scoring)
+python -m ragix_kernels.run_doc_koas run \
+    --workspace . --stage 2
+
+# Stage 3: Synthesis (pyramid summaries, final report)
+python -m ragix_kernels.run_doc_koas run \
+    --workspace . --stage 3
+```
+
+### 0.5 Output Isolation Levels
+
+| Level | Use Case | What's Included | What's Removed |
+|-------|----------|-----------------|----------------|
+| `internal` | Development/debugging | Everything | Nothing |
+| `external` | Client delivery | Report content | Paths, IDs, metadata, provenance |
+| `orchestrator` | External LLM integration | Metrics only | All text content |
+| `compliance` | Regulatory submission | Everything + attestation | Nothing |
+
+```bash
+# Generate external-safe report (no internal paths/IDs)
+python -m ragix_kernels.run_doc_koas run \
+    --workspace . --all \
+    --output-level=external \
+    --redact-paths \
+    --anonymize-ids
+```
+
+### 0.6 Cache Management
+
+KOAS uses aggressive caching for reproducibility and performance:
+
+```bash
+# Full pipeline with caching (default)
+python -m ragix_kernels.run_doc_koas run --workspace . --all
+
+# Force fresh LLM calls (ignore cache)
+python -m ragix_kernels.run_doc_koas run --workspace . --all \
+    --llm-cache=off
+
+# Replay from cache only (no LLM calls, deterministic)
+python -m ragix_kernels.run_doc_koas run --workspace . --all \
+    --llm-cache=read_only
+
+# Clear cache and start fresh
+python -m ragix_kernels.run_doc_koas cache --workspace . --clear
+```
+
+### 0.7 Typical Workflow
+
+```bash
+# 1. Initialize workspace
+python -m ragix_kernels.run_doc_koas init -w ./audit -n "Q1 Audit" -a "Auditor"
+
+# 2. Run full pipeline (first run, populates cache)
+python -m ragix_kernels.run_doc_koas run -w ./audit --all
+
+# 3. Review outputs
+ls ./audit/.KOAS/
+# final_report.md, appendices/, assets/, stage1/, stage2/, stage3/
+
+# 4. If adjustments needed, refresh specific stage
+python -m ragix_kernels.run_doc_koas run -w ./audit --stage 2 \
+    --llm-cache=read_only --kernel-cache=write_through
+
+# 5. Generate external deliverable
+python -m ragix_kernels.run_doc_koas run -w ./audit --stage 3 \
+    --output-level=external
+```
+
+### 0.8 Sovereignty Verification
+
+After running, verify sovereignty compliance:
+
+```bash
+# Check no external calls were made
+grep -r "api.openai.com\|api.anthropic.com\|googleapis.com" ./audit/.KOAS/logs/
+
+# Verify audit trail integrity
+cat ./audit/.KOAS/audit_trail.json | jq '.sovereignty'
+# Should show: {"local_only": true, "models": ["granite3.1-dense:8b", ...]}
+
+# Check output isolation (for external level)
+grep -E "call_hash|merkle|run_id|/home/" ./audit/.KOAS/final_report.md
+# Should return nothing for --output-level=external
+```
+
+### 0.9 Output Structure
+
+After a successful run:
+
+<pre style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 9px; line-height: 1.05; white-space: pre; margin: 0; text-align: left;">
+.KOAS/
+├── final_report.md          # Main deliverable
+├── final_report.pdf         # PDF export (if pandoc available)
+├── audit_trail.json         # Full execution trace
+├── appendices/
+│   ├── appendix_a_corpus.md     # Document inventory
+│   ├── appendix_b_concepts.md   # Concept analysis
+│   ├── appendix_c_functions.md  # Functionality catalog
+│   ├── appendix_d_issues.md     # Discrepancies/overlaps
+│   ├── appendix_e_clusters.md   # Clustering analysis
+│   └── appendix_f_artifacts.md  # Generated assets
+├── assets/
+│   ├── wordcloud_*.png      # Word clouds
+│   ├── dendrogram.png       # Cluster hierarchy
+│   ├── heatmap_*.png        # Similarity matrices
+│   └── community_graph.png  # Leiden communities
+├── stage1/                  # Collection outputs
+├── stage2/                  # Analysis outputs
+├── stage3/                  # Synthesis outputs
+├── cache/
+│   ├── llm_responses/       # Cached LLM calls (replayable)
+│   └── kernel_outputs/      # Cached kernel results
+└── logs/
+    └── koas_YYYYMMDD.log    # Execution log
+</pre>
+
+### 0.10 Troubleshooting
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| "Ollama not responding" | Ollama not running | `ollama serve` |
+| "Model not found" | Model not pulled | `ollama pull <model>` |
+| "Missing dependency: doc_metadata" | Stage 1 not run | Run `--stage 1` first |
+| "Cache miss" with `read_only` | Cache invalidated | Run with `write_through` first |
+| Boilerplate in excerpts | Outdated extraction | Clear `doc_extract*.json`, rerun stage 2 |
 
 ---
 
@@ -247,6 +471,7 @@ For maximum isolation, RAGIX supports a **core-shell architecture** where an ext
 │  └────────────────────────────────────────────────────────────────────────────┘│
 └────────────────────────────────────────────────────────────────────────────────┘
 </pre>
+
 
 <center><b>Figure 2. Core-Shell Architecture with External Orchestrator</b></center>
 
@@ -1098,11 +1323,367 @@ After:  "Document [DOC-A] ([PATH-REDACTED]) shows..."
 
 **Non-Negotiable:** Absent `--output-level` flag defaults to `internal`. External outputs require explicit declaration.
 
+### 5.8 Implementation: Sovereignty Enforcement Modules (v0.65.0)
+
+The following modules enforce sovereignty requirements programmatically:
+
+#### 5.8.1 Output Sanitizer (`ragix_kernels/output_sanitizer.py`)
+
+Enforces output isolation contracts:
+
+```python
+from ragix_kernels.output_sanitizer import (
+    OutputLevel, sanitize_for_level, validate_external_report, SecurityViolation
+)
+
+# Apply sanitization based on output level
+result = sanitize_for_level(content, OutputLevel.EXTERNAL)
+# Returns: SanitizationResult with redacted_paths, anonymized_ids counts
+
+# Validate external report (raises SecurityViolation if denylist detected)
+validate_external_report(report_path, OutputLevel.EXTERNAL, strict=True)
+```
+
+**Denylist Keys** (MUST NOT appear in external outputs):
+```python
+DENYLIST_KEYS = [
+    "llm_trace", "call_hash", "inputs_merkle_root", "run_id",
+    "endpoint", "model", "cache_status", "prompt_tokens",
+    "completion_tokens", "digest", "prompt_hash", "response_hash",
+    "sovereignty", "model_digest", "cache_key"
+]
+```
+
+#### 5.8.2 Merkle Provenance (`ragix_kernels/merkle.py`)
+
+Provides cryptographic provenance for pyramidal synthesis:
+
+```python
+from ragix_kernels.merkle import (
+    compute_call_hash, compute_inputs_merkle_root, build_node_ref,
+    build_provenance_record, NodeRef, ProvenanceRecord
+)
+
+# Compute call hash for LLM request
+call_hash = compute_call_hash(request_dict)
+
+# Compute Merkle root for pyramidal children
+children = [
+    {"file_path": "doc1.pdf", "chunk_index": 0, "content": "..."},
+    {"file_path": "doc2.pdf", "chunk_index": 0, "content": "..."},
+]
+merkle_root = compute_inputs_merkle_root(children)
+
+# Build provenance record for audit trail
+provenance = build_provenance_record(request, response, node_ref)
+```
+
+**Canonical Ordering Rule:**
+Children are sorted by `(file_path, chunk_index)` before Merkle computation, ensuring deterministic roots regardless of input order.
+
+#### 5.8.3 Code Fence Protection (`ragix_kernels/docs/doc_extract.py`)
+
+Protects code blocks from boilerplate detection:
+
+```python
+# In DocExtractKernel._score_sentence_quality()
+protected_sentence, _, _ = self._protect_code_blocks(sentence)
+
+# Boilerplate patterns applied to protected text only
+if self._boilerplate_vocab_pattern.search(protected_sentence):
+    score -= config.boilerplate_penalty
+```
+
+**Effect:** A code block containing `"Table of Contents"` is NOT penalized as boilerplate.
+
+#### 5.8.4 Seed Audit Trail (`ragix_kernels/docs/doc_cluster*.py`)
+
+Clustering kernels log seeds for reproducibility:
+
+```python
+# Kernel output includes _audit dict
+return {
+    "clusters": clusters,
+    # ... other outputs
+    "_audit": {
+        "seed": 42,
+        "algorithm": "leiden",
+        "resolutions": [0.1, 0.5, 1.0],
+    }
+}
+```
+
+**Reproducibility Guarantee:** Same seed + same input = same clustering output.
+
 ---
 
-## 6. Operational Modes
+## 6. Centralized Activity Logging
 
-### 6.1 Mode 1: Documents Only
+### 6.1 Overview
+
+KOAS v0.66.0 introduces centralized activity logging via `ragix_kernels/activity.py`. Every kernel execution and LLM call emits a structured event to a JSONL stream, providing complete observability without exposing document content.
+
+**Key Design Principles:**
+- **Append-only**: Events are written sequentially, never modified
+- **Content-free**: No document excerpts, prompts, or responses in events
+- **Sovereignty-aware**: Every event includes `sovereignty.local_only: true`
+- **Traceable**: Events linked by `run_id` and `event_id`
+
+### 6.2 Event Schema (koas.event/1.0)
+
+```json
+{
+  "v": "koas.event/1.0",
+  "ts": "2026-01-30T20:50:11.142+00:00",
+  "event_id": "uuid-v4",
+  "run_id": "run_20260130_215011_348bc4",
+  "actor": {
+    "type": "system",
+    "id": "koas",
+    "auth": "none"
+  },
+  "scope": "docs.kernel",
+  "phase": "end",
+  "kernel": {
+    "name": "doc_metadata",
+    "version": "1.0.0",
+    "stage": 1
+  },
+  "decision": {
+    "success": true,
+    "cache_hit": false
+  },
+  "metrics": {
+    "duration_ms": 42,
+    "item_count": 79
+  },
+  "sovereignty": {
+    "local_only": true
+  }
+}
+```
+
+### 6.3 Event Types
+
+| Scope | Phase | Trigger | Metrics |
+|-------|-------|---------|---------|
+| `docs.kernel` | `start` | Kernel begins execution | kernel name, version, stage |
+| `docs.kernel` | `end` | Kernel completes | duration_ms, item_count, success |
+| `docs.llm` | `call` | LLM inference (cache miss) | model, duration_ms, prompt_hash |
+| `docs.llm` | `cache_hit` | LLM cache hit | model, prompt_hash, response_hash |
+| `docs.workflow` | `start` | Pipeline begins | stages list |
+| `docs.workflow` | `end` | Pipeline completes | total_duration_ms |
+
+### 6.4 Activity Log Location
+
+```
+workspace/.KOAS/activity/
+└── events.jsonl    # Append-only event stream
+```
+
+### 6.5 Querying Activity Logs
+
+```bash
+# Count events by type
+cat workspace/.KOAS/activity/events.jsonl | \
+  python -c "import json,sys; events=[json.loads(l) for l in sys.stdin]; \
+    from collections import Counter; \
+    c=Counter(f\"{e['scope']}:{e['phase']}\" for e in events); \
+    print('\n'.join(f'{k}: {v}' for k,v in sorted(c.items())))"
+
+# Filter by run_id
+jq 'select(.run_id == "run_20260130_215011_348bc4")' events.jsonl
+
+# Verify all events are local
+jq 'select(.sovereignty.local_only != true)' events.jsonl
+# Expected: no output (all events are local)
+
+# Calculate total LLM call time
+jq -s '[.[] | select(.scope == "docs.llm" and .phase == "call")] |
+       map(.metrics.duration_ms) | add' events.jsonl
+```
+
+### 6.6 Integration Points
+
+Activity logging is automatically initialized when running KOAS:
+
+```python
+# Automatic initialization in run_doc_koas.py
+from ragix_kernels.activity import init_activity_writer, get_activity_writer
+
+# At workflow start
+activity_writer = init_activity_writer(workspace=workspace, run_id=run_config.run_id)
+
+# In kernel execution (orchestrator.py)
+activity_writer = get_activity_writer()
+if activity_writer:
+    activity_writer.emit_kernel_start(kernel_name, kernel_version, stage)
+    # ... kernel execution ...
+    activity_writer.emit_kernel_end(kernel_name, kernel_version, stage, success, duration_ms)
+
+# In LLM wrapper (llm_wrapper.py)
+if activity_writer:
+    activity_writer.emit_llm_call(model, cache_hit, prompt_hash, response_hash, duration_ms)
+```
+
+### 6.7 Sovereignty Guarantees
+
+Every activity event includes:
+- `sovereignty.local_only: true` — Confirms no external API calls
+- `actor.type: "system"` — Internal KOAS processing
+- No content fields — Prompts, responses, excerpts are NEVER logged
+
+This enables compliance verification without content exposure:
+```bash
+# Verify all processing was local
+jq -s 'all(.sovereignty.local_only == true)' events.jsonl
+# Expected: true
+```
+
+---
+
+## 7. Broker Gateway for Critical Applications
+
+### 7.1 Overview
+
+For highly sensitive environments, KOAS supports an optional **broker gateway** that adds API key authentication and access control between external orchestrators (Claude Code, GPT-4) and the KOAS pipeline.
+
+**When to Use:**
+- Multi-tenant deployments
+- Environments requiring audit-grade access control
+- Integration with external orchestration platforms
+- Compliance mandating authentication trails
+
+**When NOT Needed:**
+- Single-user local development
+- Direct CLI usage
+- Internal tooling without external orchestrators
+
+### 7.2 Two-Mode Architecture
+
+| Mode | Description | Authentication | Broker Required |
+|------|-------------|----------------|-----------------|
+| **Relaxed** | Claude/operator runs KOAS directly via CLI | None | No |
+| **Restricted** | All access through broker gateway | API key + ACL | Yes |
+
+### 7.3 Broker Architecture
+
+<pre style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 9px; line-height: 1.05; white-space: pre; margin: 0; text-align: center;">
+┌─────────────────────────────────────────────────────────────────┐
+│                    RESTRICTED MODE                              │
+│                                                                 │
+│   ┌──────────────┐     ┌──────────────┐     ┌──────────────┐    │
+│   │   External   │     │    Broker    │     │    KOAS      │    │
+│   │ Orchestrator │────▶│   Gateway    │────▶│   Pipeline   │    │
+│   │  (Claude)    │     │  (FastAPI)   │     │              │    │
+│   └──────────────┘     └──────────────┘     └──────────────┘    │
+│         │                     │                    │            │
+│         │                     │                    │            │
+│   API Key + ACL         Validates key          Executes         │
+│   required              Checks scopes           locally         │
+│                         Rate limits                             │
+│                         Logs to activity                        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+</pre>
+
+
+### 7.4 ACL Configuration
+
+Access control is defined in `workspace/.KOAS/auth/acl.yaml`:
+
+```yaml
+schema_version: "koas.acl/1.0"
+
+clients:
+  # System (internal, no key required)
+  koas-system:
+    key_hash: null
+    type: system
+    scopes: ["*"]
+
+  # External orchestrator (limited)
+  claude-demo:
+    key_hash: "sha256:d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
+    type: external_orchestrator
+    scopes:
+      - "docs.trigger"
+      - "docs.status"
+      - "docs.export_external"
+      # NOT: activity.read, docs.export_internal
+    rate_limit: "30/min"
+    restrictions:
+      - "no_content_access"
+      - "metrics_only"
+
+scopes:
+  docs.trigger:
+    description: "Trigger KOAS workflow"
+  docs.status:
+    description: "View job status and metrics"
+  docs.export_external:
+    description: "Download external-safe artifacts"
+  docs.export_internal:
+    description: "Download full artifacts with traces"
+  activity.read:
+    description: "Read activity event stream"
+```
+
+### 7.5 Broker API Endpoints
+
+| Method | Endpoint | Scope Required | Description |
+|--------|----------|----------------|-------------|
+| `POST` | `/koas/v1/jobs` | `docs.trigger` | Start KOAS workflow |
+| `GET` | `/koas/v1/jobs/{id}` | `docs.status` | Get job status (metrics only) |
+| `GET` | `/koas/v1/jobs/{id}/artifact` | `docs.export_*` | Download artifacts |
+| `DELETE` | `/koas/v1/jobs/{id}` | `docs.trigger` | Cancel running job |
+
+### 7.6 Broker Events in Activity Log
+
+All broker interactions are logged:
+
+```json
+{
+  "v": "koas.event/1.0",
+  "scope": "system.auth",
+  "phase": "request",
+  "actor": {
+    "type": "external_orchestrator",
+    "id": "claude-demo",
+    "auth": "api_key"
+  },
+  "decision": {
+    "endpoint": "/koas/v1/jobs",
+    "method": "POST",
+    "allowed": true,
+    "scopes_checked": ["docs.trigger"]
+  },
+  "sovereignty": {
+    "local_only": true
+  }
+}
+```
+
+### 7.7 Starting the Broker
+
+```bash
+# Start broker gateway (separate terminal)
+cd demo/koas_docs_audit
+./start_broker.sh
+# Listens on http://localhost:8080
+
+# Trigger via API
+curl -X POST http://localhost:8080/koas/v1/jobs \
+    -H "Authorization: Bearer $KOAS_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"mode": "pure_docs", "workspace": "./workspace"}'
+```
+
+---
+
+## 8. Operational Modes
+
+### 8.1 Mode 1: Documents Only
 
 Analyze a corpus of technical documents without code.
 
@@ -1115,7 +1696,7 @@ ragix-koas run --workspace ./specs/.KOAS --all
 
 **Kernels activated:** `doc_metadata`, `doc_concepts`, `doc_structure`, `doc_cluster`, `doc_extract`, `doc_pyramid`, `doc_summarize`, `doc_final_report`
 
-### 6.2 Mode 2: Documents + Code
+### 8.2 Mode 2: Documents + Code
 
 Combined analysis of specifications and implementation.
 
@@ -1128,7 +1709,7 @@ ragix-koas run --workspace ./system/.KOAS --all --include-code
 
 **Additional kernels:** `ast_scan`, `metrics_compute`, `coverage_analyze`, `drift_detect`
 
-### 6.3 Mode 3: Code Only
+### 8.3 Mode 3: Code Only
 
 Pure code audit without documentation.
 
@@ -1143,9 +1724,9 @@ ragix-koas run --workspace ./codebase/.KOAS --all
 
 ---
 
-## 7. Gray Environment Deployment
+## 9. Gray Environment Deployment
 
-### 7.1 Definition
+### 9.1 Definition
 
 A **gray environment** is an operational context where:
 1. Network connectivity exists but is untrusted
@@ -1157,7 +1738,7 @@ This differs from:
 - **Green environment:** Full connectivity, cloud services allowed
 - **Air-gapped (black):** No network connectivity
 
-### 7.2 Network Configuration
+### 9.2 Network Configuration
 
 **Firewall rules for gray deployment:**
 ```bash
@@ -1175,7 +1756,7 @@ iptables -A OUTPUT -j LOG --log-prefix "OUTBOUND_ATTEMPT: "
 iptables -A OUTPUT -j DROP
 ```
 
-### 7.3 Verification Procedure
+### 9.3 Verification Procedure
 
 Before processing sensitive data, verify sovereignty:
 
@@ -1193,7 +1774,7 @@ timeout 5 curl -s https://api.openai.com/v1/models && echo "FAIL: External reach
 ragix-koas status --sovereignty-check
 ```
 
-### 7.4 Sovereignty Attestation
+### 9.4 Sovereignty Attestation
 
 The audit trail includes sovereignty attestation:
 
@@ -1218,9 +1799,9 @@ The audit trail includes sovereignty attestation:
 
 ---
 
-## 8. Attestation and Audit Trail
+## 10. Attestation and Audit Trail
 
-### 8.1 Audit Trail Structure
+### 10.1 Audit Trail Structure
 
 Every KOAS run produces a comprehensive audit trail:
 
@@ -1271,7 +1852,7 @@ Every KOAS run produces a comprehensive audit trail:
 }
 ```
 
-### 8.2 Hash Chain Integrity
+### 10.2 Hash Chain Integrity
 
 Logs are protected by SHA-256 hash chaining:
 
@@ -1287,7 +1868,7 @@ ragix verify --audit-trail ./audit/.KOAS/audit_trail.json
 # Output: "Chain integrity verified. 247 entries, no tampering detected."
 ```
 
-### 8.3 Provenance Tracking
+### 10.3 Provenance Tracking
 
 Every generated statement can be traced:
 
@@ -1308,9 +1889,9 @@ timestamp: 2026-01-29T14:06:23Z
 
 ---
 
-## 9. Practical Implementation
+## 11. Practical Implementation
 
-### 9.1 Prerequisites
+### 11.1 Prerequisites
 
 **Hardware:**
 - CPU: 8+ cores recommended
@@ -1331,7 +1912,7 @@ ollama pull mistral:7b-instruct
 pip install ragix[full]
 ```
 
-### 9.2 Initialization
+### 11.2 Initialization
 
 ```bash
 # Create audit workspace
@@ -1345,7 +1926,7 @@ ragix-koas init \
 cat /path/to/documents/.KOAS/manifest.yaml
 ```
 
-### 9.3 Execution
+### 11.3 Execution
 
 ```bash
 # Full pipeline (populates caches)
@@ -1359,7 +1940,7 @@ ragix-koas run \
 tail -f /path/to/documents/.KOAS/logs/koas.log
 ```
 
-### 9.4 Verification
+### 11.4 Verification
 
 ```bash
 # Replay without LLM (verification mode)
@@ -1378,9 +1959,129 @@ ragix-koas report --sovereignty --format pdf
 
 ---
 
-## 10. Case Study: Metropolitan Infrastructure Audit
+## 12. Demo: KOAS Docs Audit
 
-### 10.1 Context
+This section describes the demo setup at `demo/koas_docs_audit/` which validates the activity logging implementation using the RAGIX documentation corpus (79 markdown files).
+
+### 12.1 Demo Modes
+
+| Mode | Description | Authentication | Broker |
+|------|-------------|----------------|--------|
+| **Relaxed** | Claude/operator runs KOAS directly via CLI | None | No |
+| **Restricted** | Full access control with broker gateway | API key + ACL | Yes |
+
+### 12.2 Quick Setup
+
+```bash
+cd /path/to/RAGIX/demo/koas_docs_audit
+
+# 1. Initialize workspace (creates symlink to docs/)
+./setup.sh
+
+# 2. Initialize KOAS workspace
+python -m ragix_kernels.run_doc_koas init \
+    --workspace ./workspace \
+    --project ./workspace/docs
+
+# 3. Run in relaxed mode (direct CLI)
+python -m ragix_kernels.run_doc_koas run \
+    --workspace ./workspace \
+    --stage 1 \
+    --skip-preflight
+```
+
+### 12.3 Directory Structure
+
+<pre style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 9px; line-height: 1.05; white-space: pre; margin: 0; text-align: left;">
+demo/koas_docs_audit/
+├── README.md              # Demo documentation
+├── setup.sh               # Initialize workspace
+├── run_relaxed.sh         # Run in relaxed mode
+├── run_restricted.sh      # Run in restricted mode
+├── start_broker.sh        # Start broker gateway
+├── config/
+│   ├── relaxed.yaml       # Config for relaxed mode
+│   ├── restricted.yaml    # Config for restricted mode
+│   └── acl.yaml           # ACL for restricted mode
+├── workspace/
+│   ├── docs/ -> symlink   # Symlink to ../../docs/
+│   └── .KOAS/
+│       ├── activity/
+│       │   └── events.jsonl   # Activity stream
+│       └── auth/
+│           └── acl.yaml       # ACL (restricted mode)
+└── broker/
+    └── main.py            # FastAPI broker implementation
+</pre>
+
+### 12.4 Validating Activity Logging
+
+After running the pipeline, verify activity logging:
+
+```bash
+# Check event count
+wc -l workspace/.KOAS/activity/events.jsonl
+# Expected: ~30 events for stage 1
+
+# Verify event schema
+head -1 workspace/.KOAS/activity/events.jsonl | python -m json.tool
+
+# Count by event type
+python3 << 'EOF'
+import json
+from pathlib import Path
+from collections import Counter
+
+events = [json.loads(l) for l in
+          Path("workspace/.KOAS/activity/events.jsonl").read_text().strip().split('\n') if l]
+c = Counter(f"{e['scope']}:{e['phase']}" for e in events)
+for k, v in sorted(c.items()):
+    print(f"  {k}: {v}")
+print(f"\nTotal: {len(events)} events")
+print(f"All local: {all(e.get('sovereignty',{}).get('local_only') for e in events)}")
+EOF
+```
+
+Expected output:
+```
+  docs.kernel:end: 15
+  docs.kernel:start: 15
+
+Total: 30 events
+All local: True
+```
+
+### 12.5 Running Restricted Mode (Optional)
+
+For broker testing:
+
+```bash
+# Terminal 1: Start broker
+./start_broker.sh
+
+# Terminal 2: Trigger via API
+export KOAS_API_KEY="koas_key_claude_demo_67890"
+curl -X POST http://localhost:8080/koas/v1/jobs \
+    -H "Authorization: Bearer $KOAS_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"mode": "pure_docs", "workspace": "./workspace"}'
+```
+
+### 12.6 Validation Checklist
+
+| Check | Command | Expected |
+|-------|---------|----------|
+| Events written | `wc -l events.jsonl` | 30+ events |
+| Schema version | `jq '.v' events.jsonl \| head -1` | `"koas.event/1.0"` |
+| All local | `jq '.sovereignty.local_only' events.jsonl \| sort -u` | `true` |
+| Balanced start/end | Compare counts | Equal |
+| No content logged | `grep "content" events.jsonl` | No matches |
+
+---
+
+## 13. Case Study: Metropolitan Infrastructure Audit
+
+### 13.1 Context
 
 - **Client:** Major metropolitan authority
 - **Scope:** Technical specification corpus for urban infrastructure system
@@ -1388,7 +2089,7 @@ ragix-koas report --sovereignty --format pdf
 - **Chunks:** 11,809 indexed segments
 - **Constraint:** Full data sovereignty required
 
-### 10.2 Execution Metrics
+### 13.2 Execution Metrics
 
 **Table 3. Execution Metrics** *(example run, actual values vary by corpus size and hardware):*
 
@@ -1401,7 +2102,7 @@ ragix-koas report --sovereignty --format pdf
 
 **Replay (cached):** ~45 seconds *(example)*
 
-### 10.3 Quality Improvements (v0.64.2)
+### 13.3 Quality Improvements (v0.64.2)
 
 | Metric | Before | After | Improvement |
 |--------|--------|-------|-------------|
@@ -1410,7 +2111,7 @@ ragix-koas report --sovereignty --format pdf
 | Infrastructure notation | Present | Filtered | ✅ |
 | Report path | Wrong | Correct | ✅ |
 
-### 10.4 Sovereignty Verification
+### 13.4 Sovereignty Verification
 
 ```bash
 $ ragix-koas status --sovereignty-check
@@ -1423,9 +2124,9 @@ $ ragix-koas status --sovereignty-check
 
 ---
 
-## 11. Limitations and Mitigations
+## 14. Limitations and Mitigations
 
-### 11.1 Model Quality vs. Cloud Services
+### 14.1 Model Quality vs. Cloud Services
 
 **Limitation:** Local 3B-7B models produce lower quality outputs than GPT-4 or Claude Opus.
 
@@ -1435,7 +2136,7 @@ $ ragix-koas status --sovereignty-check
 3. **Iterative refinement** — Multiple passes with quality gates
 4. **Human review** — Final outputs require expert validation
 
-### 11.2 Computational Resources
+### 14.2 Computational Resources
 
 **Limitation:** Local inference requires significant hardware.
 
@@ -1445,7 +2146,7 @@ $ ragix-koas status --sovereignty-check
 3. **Batch processing** — Optimize GPU utilization
 4. **Incremental updates** — Process only changed documents
 
-### 11.3 Model Updates
+### 14.3 Model Updates
 
 **Limitation:** Local models don't receive automatic updates.
 
@@ -1456,7 +2157,7 @@ $ ragix-koas status --sovereignty-check
 
 ---
 
-## 12. Conclusion
+## 15. Conclusion
 
 The RAGIX/KOAS framework demonstrates that sovereign LLM operations are achievable for document analysis tasks requiring confidentiality. The key architectural decisions enabling this are:
 
@@ -1476,7 +2177,7 @@ The v0.64.2 release demonstrates continuous improvement in content quality while
 
 ---
 
-## 13. References
+## 16. References
 
 ### Academic Foundations
 
