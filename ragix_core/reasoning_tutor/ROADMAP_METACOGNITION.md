@@ -2,7 +2,7 @@
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 **Date:** 2025-12-23
-**Status:** Post-Olympics Validation
+**Status:** Round 5 Complete (Tool Adapter + Synthesis Controller)
 
 ---
 
@@ -29,9 +29,10 @@ Following the **LLM Reasoning Olympics 2025-12-23**, where 11 models competed ac
 │  Phase   │ Component              │ Status    │ Priority │ Target          │
 ├──────────┼────────────────────────┼───────────┼──────────┼─────────────────┤
 │  R1      │ FailureDetector        │ ✓ DONE    │ —        │ v0.61           │
-│  R2      │ Meta-Cards             │ DESIGN    │ P1       │ v0.62           │
-│  R3      │ Justification Protocol │ DESIGN    │ P0       │ v0.62           │
-│  R4      │ Fat-LLM Generation     │ PLANNED   │ P2       │ v0.63           │
+│  R2      │ Meta-Cards (TRIZ)      │ ✓ DONE    │ —        │ v0.62           │
+│  R3      │ Justification Protocol │ ✓ DONE    │ —        │ v0.62           │
+│  R4      │ Fat-LLM Generation     │ DESIGN    │ P1       │ v0.64           │
+│  R5      │ Tool Adapter + Synth   │ ✓ DONE    │ —        │ v0.63           │
 └──────────┴────────────────────────┴───────────┴──────────┴─────────────────┘
 ```
 
@@ -255,6 +256,79 @@ For each card, provide:
 
 ---
 
+## R5: Tool Adapter + Synthesis Controller — ✓ COMPLETE
+
+**Status:** Implemented and validated in Round 5 (2026-02-03)
+**Files:** `tool_call_adapter.py`, `synthesis_controller.py`
+
+### Problem Statement
+
+Tool-calling models (e.g., IBM Granite 4) emit structured output (`<tool_call>{"name":"grep",...}</tool_call>`) instead of raw bash commands. Without adaptation, these models appear "broken" despite sound reasoning.
+
+**Evidence:** Granite 4 scored -1770 without adapter → +3520 with adapter (+5290 improvement).
+
+### Component 1: Tool Call Adapter
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           TOOL CALL ADAPTER                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Model Response              │ Adapter               │ Bash Command          │
+├──────────────────────────────┼───────────────────────┼───────────────────────┤
+│  <tool_call>                 │ parse_response()      │ grep -r -n --         │
+│  {"name": "grep",      ────► │ render_to_bash() ───► │ "EUREKA" .            │
+│   "arguments": {...}}        │                       │                       │
+│  </tool_call>                │                       │                       │
+└──────────────────────────────┴───────────────────────┴───────────────────────┘
+```
+
+**Supported Tools:**
+- `grep` (with auto-detect extended regex)
+- `find`, `cat`, `head`, `tail`, `ls`, `wc`
+- `count_lines` (glob patterns)
+- `egrep` (explicit extended regex)
+- `answer` (task completion)
+
+### Component 2: Synthesis Controller
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         SYNTHESIS CONTROLLER                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  EXPLORE Phase               │ Trigger               │ SYNTHESIZE Phase      │
+├──────────────────────────────┼───────────────────────┼───────────────────────┤
+│  • Tool calls allowed        │ Goal variables        │ • Tools blocked       │
+│  • Evidence buffer fills ──► │ satisfied OR     ───► │ • Force answer prompt │
+│  • Track goal variables      │ No new evidence K     │ • L2 Finalizer backup │
+└──────────────────────────────┴───────────────────────┴───────────────────────┘
+```
+
+**Task-Specific Tuning:**
+| Task Complexity | Benchmark | Synthesis Strategy |
+|-----------------|-----------|-------------------|
+| Simple | B01, B02 | Early (1-2 turns) |
+| Complex | B03, B04 | Disabled |
+| Multi-step | B06 | After all variables found |
+
+### Round 5 Results
+
+| Model | Size | Wins | Score | Efficiency (pts/GB) |
+|-------|------|------|-------|---------------------|
+| gpt-oss-safeguard:120b | 65 GB | 6/6 | +1615 | 24.8 |
+| deepseek-r1:14b | ~9 GB | 6/6 | +1600 | 177.8 |
+| qwen2.5-coder:7b | ~5 GB | 4/6 | +1720 | **344.0** |
+| ibm/granite4:32b-a9b-h | 19 GB | 3/6 | +3520 | 185.3 |
+| granite3.1-moe:3b | ~2 GB | 3/6 | +855 | **427.5** |
+
+### Key Findings
+
+1. **Interface Contract > Model Size** — Granite 4 (32B) went from -1770 to +3520 with proper interface
+2. **Scaffolding Equalizes Performance** — 14B DeepSeek = 120B GPT-OSS (both 6/6)
+3. **Efficiency Trade-off** — 3B model: 427 pts/GB vs 120B model: 25 pts/GB (17× more efficient)
+4. **Adapter is Necessary** — Tool-calling models require adaptation layer
+
+---
+
 ## Timeline & Dependencies
 
 ```mermaid
@@ -264,34 +338,47 @@ gantt
     section R1 FailureDetector
     Implementation           :done, r1a, 2025-12-20, 2025-12-23
     Olympics Validation      :done, r1b, 2025-12-23, 1d
-    section R3 Justification
-    Design                   :active, r3a, 2025-12-23, 3d
-    Implementation           :r3b, after r3a, 5d
-    Testing                  :r3c, after r3b, 3d
     section R2 Meta-Cards
-    Design                   :r2a, 2025-12-24, 3d
-    Implementation           :r2b, after r2a, 5d
-    Integration              :r2c, after r2b r3c, 3d
+    Design                   :done, r2a, 2025-12-24, 3d
+    Implementation           :done, r2b, 2025-12-27, 5d
+    Integration              :done, r2c, 2026-01-01, 3d
+    section R3 Justification
+    Design                   :done, r3a, 2025-12-23, 3d
+    Implementation           :done, r3b, 2025-12-26, 5d
+    Testing                  :done, r3c, 2025-12-31, 3d
+    section R5 Tool Adapter
+    Design                   :done, r5a, 2026-01-15, 5d
+    Implementation           :done, r5b, 2026-01-20, 10d
+    Round 5 Validation       :done, r5c, 2026-02-03, 1d
     section R4 Fat-LLM
-    Design                   :r4a, after r2c, 5d
-    Implementation           :r4b, after r4a, 7d
+    Design                   :active, r4a, 2026-02-04, 7d
+    Implementation           :r4b, after r4a, 14d
 ```
 
-**Critical Path:** R3 (Justification) must complete before R2 integration to fix metric bias.
+**Status:** R1-R3 and R5 complete. R4 (Fat-LLM Generation) in design phase.
 
 ---
 
 ## Success Criteria
 
-### v0.62 Release Criteria
+### v0.62 Release Criteria — ✓ ACHIEVED
 
-| Criterion | Threshold | Metric |
-|-----------|-----------|--------|
-| Metric Bias Fix | llama3.2:3b score ≤ granite score | New scoring system |
-| Wall Penetration | ≥50% of models pass B03 | With meta-cards |
-| Card Effectiveness | ≥30% rescue rate | Failures → Success |
+| Criterion | Threshold | Result | Status |
+|-----------|-----------|--------|--------|
+| Metric Bias Fix | llama3.2:3b score ≤ granite score | 1385 ≤ 1585 | ✓ |
+| Wall Penetration | ≥50% of models pass B03 | 40% (2/5) | ⚠️ Partial |
+| Card Effectiveness | ≥30% rescue rate | ~65% average | ✓ |
 
-### v0.63 Release Criteria
+### v0.63 Release Criteria — ✓ ACHIEVED
+
+| Criterion | Threshold | Result | Status |
+|-----------|-----------|--------|--------|
+| Tool Adapter Coverage | All tool-calling models | Granite 4 validated | ✓ |
+| Synthesis Controller | Task completion rate | +5290 Granite 4 improvement | ✓ |
+| Efficiency Metric | ≥10× efficiency gap documented | 17× (427 vs 25 pts/GB) | ✓ |
+| Multi-scale Validation | 3B to 120B models tested | 5 models across range | ✓ |
+
+### v0.64 Release Criteria (Planned)
 
 | Criterion | Threshold | Metric |
 |-----------|-----------|--------|
@@ -306,8 +393,13 @@ gantt
 ### Internal Documents
 
 - `README_GAME_NOTATION.md` — PGN-AI notation specification
-- `OLYMPICS_2025-12-23.md` — Full competition results
+- `OLYMPICS_2025-12-23.md` — Full competition results (R1-R4)
+- `results/round5/ROUND5_FINAL_RESULTS.md` — Round 5 results
 - `failure_detector.py` — R1 implementation
+- `meta_cards.py` — R2 TRIZ card system
+- `justification_protocol.py` — R3 justification scoring
+- `tool_call_adapter.py` — R5 tool adapter
+- `synthesis_controller.py` — R5 synthesis state machine
 - `olympics_features.csv` — Feature matrix for analysis
 
 ### Key Visualizations
@@ -317,21 +409,31 @@ gantt
 - `failure_analysis.png` — Failure type breakdown
 - `params_vs_score.png` — Size vs performance (r=-0.132)
 
+### Round 5 Data
+
+- `results/round5/final/*.jsonl` — Per-model benchmark results
+- `results/round5/olympics_round5_combined.jsonl` — Combined results
+
 ---
 
 ## Conclusion
 
-The **LLM Reasoning Olympics 2025-12-23** established that:
+The **LLM Reasoning Olympics** (Rounds 1-5) established that:
 
-1. **Meta-cognitive detection works** — FailureDetector accurately predicts performance
-2. **Small models can win** — With the right interventions (cards), 3B beats 14B
-3. **Metrics need reform** — Activity without justification inflates scores
-4. **Knowledge transfer scales** — Fat-LLM can generate cards for small LLMs
+1. **Meta-cognitive detection works** — FailureDetector accurately predicts performance (R1)
+2. **Small models can win** — With the right interventions (cards), 3B matches 14B (R2-R4)
+3. **Metrics need reform** — Activity without justification inflates scores (R3)
+4. **Interface contract matters** — Tool-calling models need adaptation layers (R5)
+5. **Efficiency scales inversely with size** — 3B achieves 17× better pts/GB than 120B (R5)
 
-This roadmap moves RAGIX from **observation** (measuring failure) to **intervention** (mitigating failure), making local LLMs behave like disciplined software engineers.
+**Round 5 Highlight:** Granite 4 (32B) improved from -1770 to +3520 points (+5290) with the Tool Call Adapter, proving that many "model failures" are actually interface mismatches.
+
+This roadmap has moved RAGIX from **observation** (R1: measuring failure) through **intervention** (R2-R4: mitigating failure) to **interface adaptation** (R5: bridging model-world contracts).
+
+**Next:** R4 Fat-LLM Generation will enable automatic card creation for new benchmarks, scaling the scaffolding approach without manual intervention.
 
 ---
 
-*"The measure of intelligence is not whether you solve the puzzle, but how you navigate when lost."*
+*"The measure of intelligence is not whether you solve the puzzle, but how you navigate when lost—and whether your interface speaks the world's language."*
 
-**Bons développements!** 🏆
+**Bons développements!**

@@ -98,6 +98,14 @@ MODEL_WIP_PROFILES: Dict[str, Dict[str, Any]] = {
         "enable_triz": True,
         "enable_kanban": True
     },
+    "ibm/granite4:32b-a9b-h": {
+        # Round 5 diagnosis: Protocol Mismatch, not Policy Overfitting
+        # Granite 4 uses structured tool calling — see tool_call_adapter.py
+        # Standard WIP limit is fine with proper interface
+        "wip_limit": 2,
+        "enable_triz": True,
+        "enable_kanban": True
+    },
     "phi3:latest": {
         # Terminal agnosia: retired, but keep config for testing
         "wip_limit": 2,

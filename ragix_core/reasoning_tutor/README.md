@@ -3,7 +3,7 @@
 **A Game-Theoretic Architecture for Reliable AI-Assisted Shell Operations**
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Version:** 0.2.0 (2025-12-22)
+**Version:** 0.5.0 (2026-02-03)
 
 ---
 
@@ -99,15 +99,15 @@ Instead of fighting LLM limitations, we **leverage LLM strengths**:
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         GAME LOOP                               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   ┌──────────┐         ┌──────────┐         ┌──────────┐        │
-│   │   LLM    │ PROPOSE │  TUTOR   │ EXECUTE │  SHELL   │        │
-│   │ (Player) │────────▶│(Referee) │────────▶│(Sandbox) │        │
+┌──────────────────────────────────────────────────────────────┐
+│                         GAME LOOP                            │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│   ┌──────────┐         ┌──────────┐         ┌──────────┐     │
+│   │   LLM    │ PROPOSE │  TUTOR   │ EXECUTE │  SHELL   │     │
+│   │ (Player) │────────▶│(Referee) │────────▶│(Sandbox)│       │
 │   └──────────┘         └────┬─────┘         └────┬─────┘        │
-│        ▲                    │                    │              │
+│        ▲                    │                    │             │
 │        │                    ▼                    ▼              │
 │        │              ┌──────────┐         ┌──────────┐         │
 │        │              │  RULES   │         │   OBS    │         │
@@ -399,6 +399,56 @@ The B06 Memory Recall benchmark reveals a key limitation of slim LLMs:
 
 ---
 
+## LLM Reasoning Olympics — Round Summary
+
+The benchmark suite has been systematically improved across 5 rounds of testing:
+
+### Round 1 (2025-12-22) — Baseline
+- 11 models tested across 6 benchmarks
+- Gold: `deepseek-r1:14b` (6/6 wins)
+- Finding: Model size ≠ performance
+
+### Round 2 (2025-12-23) — Token Handling
+- Fixed `<think>...</think>` token leakage
+- deepseek-r1 recovered from 33% to 100%
+- Introduced failure detection
+
+### Round 3 (2025-12-24) — Failure Analysis
+- Added failure detector (repetition, circular, cascade)
+- Behavioral fingerprints for each model
+- Finding: Failure patterns are model-specific
+
+### Round 4 (2026-01-15) — TRIZ + Kanban
+- Strategic advisor with TRIZ cards
+- Kanban WIP limits per model
+- granite3.1-moe:3b improved 33% → 100%
+- Finding: Scaffolding equalizes small models
+
+### Round 5 (2026-02-03) — Tool Adapter + Synthesis Controller
+- Tool adapter for structured tool-calling models
+- Synthesis controller for task completion
+- Granite 4: -1770 → +3520 (+5290 improvement)
+- Finding: Interface contract matters as much as model capability
+
+#### Round 5 Final Results
+
+| Model | Size | Wins | Total Score |
+|-------|------|------|-------------|
+| gpt-oss-safeguard:120b | 65 GB | **6/6** | +1615 |
+| deepseek-r1:14b | ~9 GB | **6/6** | +1600 |
+| qwen2.5-coder:7b | ~5 GB | 4/6 | +1720 |
+| ibm/granite4:32b-a9b-h | 19 GB | 3/6 | **+3520** |
+| granite3.1-moe:3b | ~2 GB | 3/6 | +855 |
+
+**Key Findings:**
+1. **Interface Contract > Model Size** — Granite 4 (32B) improved +5290 points with proper adapter
+2. **Scaffolding Equalizes** — 14B DeepSeek = 120B GPT-OSS (both 6/6)
+3. **Efficiency Trade-off** — 3B model: 427.5 pts/GB vs 120B model: 24.8 pts/GB
+
+For complete technical details, see: [`docs/LLM_OLYMPICS_TECHNICAL_APPENDIX.md`](docs/LLM_OLYMPICS_TECHNICAL_APPENDIX.md)
+
+---
+
 ## Scientific Contributions
 
 ### Novelty
@@ -464,6 +514,62 @@ python -m ragix_core.reasoning_tutor.demo --model qwen2.5-coder:7b
 
 ---
 
+## Testing & CI
+
+### Regression Testing Framework
+
+The benchmark suite includes a comprehensive regression testing framework:
+
+```bash
+# List available baselines
+python -m ragix_core.reasoning_tutor.tests.regression_runner list
+
+# Run regression tests with fast model (granite3.1-moe:3b)
+python -m ragix_core.reasoning_tutor.tests.regression_runner run --fast
+
+# Run with gold standard model (deepseek-r1:14b)
+python -m ragix_core.reasoning_tutor.tests.regression_runner run --gold
+
+# Compare historical results against baseline
+python -m ragix_core.reasoning_tutor.tests.regression_runner compare results/round5/final/granite3_3b.jsonl
+```
+
+### Pytest Integration
+
+```bash
+# Quick smoke tests (no Ollama required, ~5 seconds)
+pytest ragix_core/reasoning_tutor/tests/test_benchmarks.py -v -m "smoke"
+
+# Full regression tests (requires Ollama, ~2 minutes)
+pytest ragix_core/reasoning_tutor/tests/test_benchmarks.py -v -m "regression"
+```
+
+### Creating Baselines
+
+```bash
+# Create baseline from fresh run
+python -m ragix_core.reasoning_tutor.tests.regression_runner baseline --model granite3.1-moe:3b
+
+# Create baseline from existing results file
+python -m ragix_core.reasoning_tutor.tests.regression_runner baseline \
+    --from-file results/round5/final/deepseek_14b.jsonl --force
+```
+
+### CI Helper Script
+
+```bash
+# Quick smoke tests
+./ragix_core/reasoning_tutor/tests/ci_test.sh smoke
+
+# Full regression
+./ragix_core/reasoning_tutor/tests/ci_test.sh regression
+
+# Both
+./ragix_core/reasoning_tutor/tests/ci_test.sh all
+```
+
+---
+
 ## File Structure
 
 ```
@@ -474,14 +580,36 @@ ragix_core/reasoning_tutor/
 ├── tutor.py                    # Deterministic referee + CHECK protocol (~430 lines)
 ├── moves.py                    # LLM move parser (~300 lines)
 ├── action_menu.py              # TRIZ-like action menu for slim LLMs
+├── failure_detector.py         # Meta-cognitive failure detection (Round 3)
+├── strategic_advisor.py        # TRIZ + Kanban integration (Round 4)
+├── tool_call_adapter.py        # Structured tool-call adapter (Round 5)
+├── synthesis_controller.py     # EXPLORE → SYNTHESIZE phases (Round 5)
 ├── demo.py                     # Basic interactive demo
 ├── README.md                   # This documentation
 ├── INTERPRET_TUTOR.md          # Full design document
+├── docs/
+│   └── LLM_OLYMPICS_TECHNICAL_APPENDIX.md  # Publication appendix
 ├── schema/
 │   └── rule.schema.json        # JSON Schema for rule validation
 ├── rules/
 │   ├── bash.rules.yaml         # Shell operation rules (25 rules)
 │   └── adhoc/                  # Session rules (auto-generated)
+├── results/
+│   ├── round2/                 # Round 2 results
+│   ├── round5/                 # Round 5 results (latest)
+│   │   └── final/              # Final comparison results
+│   └── comparison_*/           # Cross-round comparisons
+├── tests/
+│   ├── __init__.py             # Test package
+│   ├── regression_runner.py    # CLI for regression testing
+│   ├── test_benchmarks.py      # Pytest test suite
+│   ├── smoke_test.py           # Quick validation script
+│   ├── ci_test.sh              # CI helper script
+│   ├── conftest.py             # Pytest configuration
+│   └── baselines/              # Stored baseline results
+│       ├── baseline_granite3.1-moe_3b.json
+│       ├── baseline_deepseek-r1_14b.json
+│       └── baseline_qwen2.5-coder_7b.json
 └── benchmarks/
     ├── __init__.py             # Benchmark package exports
     ├── metrics.py              # GameMetrics, ModelComparison classes
@@ -496,7 +624,11 @@ ragix_core/reasoning_tutor/
     ├── 03_undecidable_claim.yaml   # Scenario: Force Truth/Dare
     ├── 04_verification_chain.yaml  # Scenario: Multi-step proofs
     ├── 05_session_rules.yaml   # Scenario: Ad-hoc rule generation
-    └── 06_memory_recall.yaml   # Scenario: Context retention test
+    ├── 06_memory_recall.yaml   # Scenario: Context retention test
+    ├── 07_stack_trace.yaml     # Scenario: Causal traceback (B07)
+    ├── 08_diff_analysis.yaml   # Scenario: Semantic diff (B08)
+    ├── 09_cycle_detection.yaml # Scenario: Graph traversal (B09)
+    └── 10_temporal_correlation.yaml  # Scenario: Distributed systems (B10)
 ```
 
 ---
@@ -514,30 +646,52 @@ ragix_core/reasoning_tutor/
 - [x] Metrics collection (GameMetrics, ModelComparison)
 - [x] Model-independence demonstration
 
-### v0.2.0 — Benchmark Suite (Current)
+### v0.2.0 — Benchmark Suite ✓
 - [x] 6 benchmark scenarios (+1 memory recall)
 - [x] Assisted mode with card-based exploration (TRIZ-like RAG)
 - [x] Scored mode with points/penalties system
 - [x] Diagnostic modes for failure analysis
 - [x] Cross-model comparison (granite vs mistral)
 - [x] Action menu as procedural RAG for slim LLMs
-- [ ] 10 benchmark scenarios (4 more needed)
-- [ ] LaTeX export for scientific papers
-- [ ] CI integration for regression testing
 
-### v0.3.0 — Fat LLM Integration
+### v0.3.0 — Failure Analysis ✓
+- [x] Failure detector (repetition, circular, cascade patterns)
+- [x] Behavioral fingerprints per model
+- [x] Reasoning token stripping (`<think>...</think>`)
+
+### v0.4.0 — Strategic Scaffolding ✓
+- [x] TRIZ-inspired strategic advisor
+- [x] Kanban WIP limits per model profile
+- [x] Model-specific intervention thresholds
+
+### v0.5.0 — Tool Adapter & Synthesis (Current)
+- [x] Tool Call Adapter for structured tool-calling models
+- [x] Synthesis Controller (EXPLORE → SYNTHESIZE phases)
+- [x] Goal variable detection per benchmark
+- [x] 5-round Olympics with 15+ model configurations
+- [x] Technical documentation for publication
+- [x] CI integration for regression testing
+- [x] B07: Stack Trace Diagnosis (causal traceback)
+- [x] B08: Diff Analysis (semantic change detection)
+- [x] B09: Dependency Cycle Detection (graph reasoning)
+- [x] B10: Temporal Event Correlation (distributed systems)
+- [ ] LaTeX export for scientific papers
+
+### v0.6.0 — Benchmark Expansion (Planned)
+- [ ] B11+ additional benchmark scenarios
+- [ ] Synthesis Gate for evidence sufficiency
+
+### v0.7.0 — Fat LLM Integration (Planned)
 - [ ] Rule generation from undecidable claims
 - [ ] Automatic rule validation against schema
 - [ ] Rule promotion workflow (session → permanent)
 - [ ] Quality scoring for generated rules
-- [ ] Hybrid mode: slim LLM plays, fat LLM generates rules
 
-### v0.4.0 — Optimization
+### v0.8.0 — Optimization (Planned)
 - [ ] Information-gain action selection
 - [ ] Shortest-path to goal estimation
 - [ ] Multi-goal games with priority ordering
 - [ ] Caching for repeated patterns
-- [ ] Adaptive scoring based on benchmark difficulty
 
 ---
 

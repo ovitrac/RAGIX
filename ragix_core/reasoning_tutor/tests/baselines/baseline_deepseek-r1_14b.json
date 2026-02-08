@@ -1,0 +1,94 @@
+{
+  "model": "deepseek-r1:14b",
+  "created": "2026-02-04T10:36:12.113207Z",
+  "git_commit": "8d93f27b92c4",
+  "metadata": {
+    "source": "ragix_core/reasoning_tutor/results/round5/final/deepseek_14b.jsonl"
+  },
+  "benchmarks": {
+    "01": {
+      "benchmark_id": "01",
+      "benchmark_name": "Find Needle in Haystack",
+      "model": "deepseek-r1:14b",
+      "success": true,
+      "total_turns": 6,
+      "final_score": 220,
+      "own_solutions": 0,
+      "card_solutions": 4,
+      "syntax_errors": 0,
+      "repeated_actions": 0,
+      "latency_ms": 45222,
+      "timestamp": "2026-02-03T17:31:56.639483Z"
+    },
+    "02": {
+      "benchmark_id": "02",
+      "benchmark_name": "Count Lines Challenge",
+      "model": "deepseek-r1:14b",
+      "success": true,
+      "total_turns": 1,
+      "final_score": 275,
+      "own_solutions": 0,
+      "card_solutions": 1,
+      "syntax_errors": 0,
+      "repeated_actions": 0,
+      "latency_ms": 7484,
+      "timestamp": "2026-02-03T17:32:04.135060Z"
+    },
+    "03": {
+      "benchmark_id": "03",
+      "benchmark_name": "Undecidable Claim Recovery",
+      "model": "deepseek-r1:14b",
+      "success": true,
+      "total_turns": 5,
+      "final_score": 245,
+      "own_solutions": 0,
+      "card_solutions": 3,
+      "syntax_errors": 0,
+      "repeated_actions": 0,
+      "latency_ms": 37333,
+      "timestamp": "2026-02-03T17:32:41.488527Z"
+    },
+    "04": {
+      "benchmark_id": "04",
+      "benchmark_name": "Verification Chain",
+      "model": "deepseek-r1:14b",
+      "success": true,
+      "total_turns": 2,
+      "final_score": 300,
+      "own_solutions": 0,
+      "card_solutions": 2,
+      "syntax_errors": 0,
+      "repeated_actions": 0,
+      "latency_ms": 14967,
+      "timestamp": "2026-02-03T17:32:56.464282Z"
+    },
+    "05": {
+      "benchmark_id": "05",
+      "benchmark_name": "Session Rule Generation",
+      "model": "deepseek-r1:14b",
+      "success": true,
+      "total_turns": 1,
+      "final_score": 275,
+      "own_solutions": 0,
+      "card_solutions": 1,
+      "syntax_errors": 0,
+      "repeated_actions": 0,
+      "latency_ms": 7467,
+      "timestamp": "2026-02-03T17:33:03.939211Z"
+    },
+    "06": {
+      "benchmark_id": "06",
+      "benchmark_name": "Memory Recall Challenge",
+      "model": "deepseek-r1:14b",
+      "success": true,
+      "total_turns": 6,
+      "final_score": 285,
+      "own_solutions": 0,
+      "card_solutions": 5,
+      "syntax_errors": 0,
+      "repeated_actions": 0,
+      "latency_ms": 44678,
+      "timestamp": "2026-02-03T17:33:48.637139Z"
+    }
+  }
+}

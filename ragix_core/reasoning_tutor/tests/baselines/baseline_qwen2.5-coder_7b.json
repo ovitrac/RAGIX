@@ -1,0 +1,94 @@
+{
+  "model": "qwen2.5-coder:7b",
+  "created": "2026-02-04T10:36:13.250917Z",
+  "git_commit": "8d93f27b92c4",
+  "metadata": {
+    "source": "ragix_core/reasoning_tutor/results/round5/final/qwen_7b.jsonl"
+  },
+  "benchmarks": {
+    "01": {
+      "benchmark_id": "01",
+      "benchmark_name": "Find Needle in Haystack",
+      "model": "qwen2.5-coder:7b",
+      "success": true,
+      "total_turns": 1,
+      "final_score": 350,
+      "own_solutions": 1,
+      "card_solutions": 0,
+      "syntax_errors": 0,
+      "repeated_actions": 0,
+      "latency_ms": 2080,
+      "timestamp": "2026-02-03T17:33:56.710470Z"
+    },
+    "02": {
+      "benchmark_id": "02",
+      "benchmark_name": "Count Lines Challenge",
+      "model": "qwen2.5-coder:7b",
+      "success": true,
+      "total_turns": 3,
+      "final_score": 280,
+      "own_solutions": 1,
+      "card_solutions": 0,
+      "syntax_errors": 2,
+      "repeated_actions": 1,
+      "latency_ms": 1752,
+      "timestamp": "2026-02-03T17:33:58.475926Z"
+    },
+    "03": {
+      "benchmark_id": "03",
+      "benchmark_name": "Undecidable Claim Recovery",
+      "model": "qwen2.5-coder:7b",
+      "success": false,
+      "total_turns": 10,
+      "final_score": 245,
+      "own_solutions": 3,
+      "card_solutions": 2,
+      "syntax_errors": 0,
+      "repeated_actions": 2,
+      "latency_ms": 13732,
+      "timestamp": "2026-02-03T17:34:12.234641Z"
+    },
+    "04": {
+      "benchmark_id": "04",
+      "benchmark_name": "Verification Chain",
+      "model": "qwen2.5-coder:7b",
+      "success": false,
+      "total_turns": 10,
+      "final_score": 330,
+      "own_solutions": 6,
+      "card_solutions": 0,
+      "syntax_errors": 0,
+      "repeated_actions": 7,
+      "latency_ms": 13082,
+      "timestamp": "2026-02-03T17:34:25.338796Z"
+    },
+    "05": {
+      "benchmark_id": "05",
+      "benchmark_name": "Session Rule Generation",
+      "model": "qwen2.5-coder:7b",
+      "success": true,
+      "total_turns": 3,
+      "final_score": 230,
+      "own_solutions": 0,
+      "card_solutions": 1,
+      "syntax_errors": 0,
+      "repeated_actions": 1,
+      "latency_ms": 6308,
+      "timestamp": "2026-02-03T17:34:31.661453Z"
+    },
+    "06": {
+      "benchmark_id": "06",
+      "benchmark_name": "Memory Recall Challenge",
+      "model": "qwen2.5-coder:7b",
+      "success": true,
+      "total_turns": 6,
+      "final_score": 285,
+      "own_solutions": 0,
+      "card_solutions": 5,
+      "syntax_errors": 0,
+      "repeated_actions": 0,
+      "latency_ms": 12203,
+      "timestamp": "2026-02-03T17:34:43.883965Z"
+    }
+  }
+}
