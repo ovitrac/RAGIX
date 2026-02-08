@@ -1,0 +1,104 @@
+{
+  "description": "v7.2 production baseline regression spec — SIAS 13-chunk integration test",
+  "model": "gpt-oss-safeguard:120b",
+  "date_frozen": "2026-02-07",
+  "kernel_version": "2.2.0",
+  "doc": "Audit_SAT_v7_revised2.md",
+  "scope": "first 13 chunks",
+
+  "aggregate_invariants": {
+    "total_chunks": 13,
+    "parse_success_all": true,
+    "degenerate_max": 0,
+    "json_strict_min": 10,
+    "ops_min": 5
+  },
+
+  "recipe_triggers": {
+    "122-résultats-consolidés_e164dd2c": {
+      "must_trigger_recipe": true,
+      "expected_recipes_superset": ["blockquote_flatten", "emoji_mask"],
+      "fingerprint_blockquote_lines_min": 8,
+      "fingerprint_emoji_count_min": 5
+    },
+    "15-vulnérabilités-et-risques-critiques_b0ce8ba3": {
+      "must_trigger_recipe": true,
+      "expected_recipes_superset": ["table_mask", "synonym_map"],
+      "fingerprint_table_rows_min": 3,
+      "fingerprint_safety_keyword_hits_min": 1
+    }
+  },
+
+  "per_chunk_invariants": [
+    {
+      "chunk_id": "typorapandoc-template-knows-about-them_3e2503d4",
+      "parse_success": true,
+      "degenerate": false,
+      "math_masked": true
+    },
+    {
+      "chunk_id": "analyse-dimpact-de-la-séparation-siasticc_cc6e0b12",
+      "parse_success": true,
+      "degenerate": false
+    },
+    {
+      "chunk_id": "-points-dattention-décisions-humaines-requises_48eeeef8",
+      "parse_success": true,
+      "degenerate": false
+    },
+    {
+      "chunk_id": "sommaire_a4f04e0c",
+      "parse_success": true,
+      "degenerate": false
+    },
+    {
+      "chunk_id": "11-contexte-et-objectif_d132d2a4",
+      "parse_success": true,
+      "degenerate": false,
+      "split": true
+    },
+    {
+      "chunk_id": "121-approche-méthodologique-en-deux-temps_d60c8b8a",
+      "parse_success": true,
+      "degenerate": false
+    },
+    {
+      "chunk_id": "122-résultats-consolidés_e164dd2c",
+      "parse_success": true,
+      "degenerate": false,
+      "math_masked": true,
+      "recipe_required": true
+    },
+    {
+      "chunk_id": "13-insight-stratégique-clé-réunion-grdf-du-6-novembre-2025_1d3d3766",
+      "parse_success": true,
+      "degenerate": false
+    },
+    {
+      "chunk_id": "1411-modules-transverses-et-classes-critiques_9f197056",
+      "parse_success": true,
+      "degenerate": false
+    },
+    {
+      "chunk_id": "1412-classes-partagées-47-classes-critiques_a7af2944",
+      "parse_success": true,
+      "degenerate": false
+    },
+    {
+      "chunk_id": "1413-god-classes-14-classes-critiques_98d8e527",
+      "parse_success": true,
+      "degenerate": false
+    },
+    {
+      "chunk_id": "1414-modules-transverses-60-packages_8d2b8435",
+      "parse_success": true,
+      "degenerate": false
+    },
+    {
+      "chunk_id": "15-vulnérabilités-et-risques-critiques_b0ce8ba3",
+      "parse_success": true,
+      "degenerate": false,
+      "recipe_required": true
+    }
+  ]
+}

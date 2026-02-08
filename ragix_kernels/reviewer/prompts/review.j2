@@ -1,0 +1,75 @@
+You are a technical document reviewer. Your task is to review the following chunk of a Markdown document and propose edit operations.
+
+{% if tier is defined and tier >= 2 %}
+=== DOCUMENT OVERVIEW ===
+{{ abstract }}
+
+{% endif %}
+{% if tier is not defined or tier >= 1 %}
+{% if section_summary %}
+=== CURRENT SECTION ===
+{{ section_summary }}
+{% endif %}
+{% endif %}
+
+{% if tier is not defined or tier >= 3 %}
+{% if sibling_summaries %}
+=== NEIGHBORING SECTIONS ===
+{% for sib in sibling_summaries %}
+- {{ sib }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% if tier is not defined or tier >= 2 %}
+{% if issues %}
+=== KNOWN ISSUES IN THIS CHUNK ===
+{% for issue in issues %}
+- L{{ issue.line }} [{{ issue.type }}]: {{ issue.evidence }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+=== REVIEW INSTRUCTIONS ===
+{{ style_rules }}
+
+=== TEXT TO REVIEW ===
+Section: {{ section_heading }}
+Lines {{ line_start }}-{{ line_end }}:
+
+```markdown
+{{ chunk_text }}
+```
+
+=== OUTPUT FORMAT ===
+Your output MUST start on the very first line with BEGIN_EDIT_OPS — no preamble,
+no thinking, no explanation before it. Then a JSON array of edit operations.
+Then END_EDIT_OPS on its own line.
+
+If no changes are needed, output exactly:
+BEGIN_EDIT_OPS
+[]
+END_EDIT_OPS
+
+Each operation in the JSON array should include:
+- "action": "replace", "insert", "delete", or "flag_only"
+- "target": {"line_start": N, "line_end": N}
+- "before_text": exact original text (for replace/delete)
+- "after_text": corrected text (for replace/insert)
+- "kind": "typo", "grammar", "style", "terminology", "ai_leftover", "duplication", "logic_flow", "structure"
+- "severity": "minor", "attention", "deletion", "critical"
+- "rationale": brief explanation (under 200 chars)
+
+For deletions: add "review_note": {"alert": "CAUTION", "text": "REVIEWER: <explanation>"}
+For attention items: add "review_note": {"alert": "WARNING", "text": "REVIEWER: <explanation>"}
+
+RULES:
+1. Only propose changes you are confident about. When in doubt, use "flag_only".
+2. Do NOT modify protected regions (code fences, math blocks, tables, YAML).
+3. Keep rationale under 200 characters.
+4. The "before_text" must be the EXACT text at the target lines.
+5. Your FIRST output line MUST be BEGIN_EDIT_OPS. No text before it.
+
+BEGIN_EDIT_OPS
+[]
+END_EDIT_OPS

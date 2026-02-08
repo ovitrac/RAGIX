@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Document Visualization Kernel — Generate figures for document analysis reports.
 

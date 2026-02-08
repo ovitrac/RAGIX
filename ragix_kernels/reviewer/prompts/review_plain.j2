@@ -1,0 +1,44 @@
+You are reviewing a technical Markdown document for errors and improvements.
+
+{% if tier is defined and tier >= 2 %}
+=== DOCUMENT OVERVIEW ===
+{{ abstract }}
+
+{% endif %}
+{% if tier is not defined or tier >= 1 %}
+{% if section_summary %}
+=== CURRENT SECTION ===
+{{ section_summary }}
+{% endif %}
+{% endif %}
+
+=== TEXT TO REVIEW ===
+Section: {{ section_heading }}
+Lines {{ line_start }}-{{ line_end }}:
+
+{{ chunk_text }}
+
+=== INSTRUCTIONS ===
+{{ style_rules }}
+
+Your output MUST start on the very first line with one of:
+- "[RVW]" if you found issues
+- "No changes needed." if the text is correct
+
+Do NOT output any preamble, thinking, or explanation before your answer.
+
+For each issue, use exactly this format:
+
+[RVW] action=replace
+lines=<start>-<end>
+before="<exact original text>"
+after="<corrected text>"
+rationale=<brief explanation>
+
+Or for flagging without changing:
+
+[RVW] action=flag_only
+lines=<start>-<end>
+rationale=<what the issue is>
+
+Do NOT modify tables, code blocks, math expressions, or YAML front matter.

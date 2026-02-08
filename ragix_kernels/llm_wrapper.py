@@ -67,6 +67,28 @@ def _call_ollama(
         httpx.HTTPError: On HTTP errors
         Exception: On other failures
     """
+    _, envelope = _call_ollama_with_envelope(
+        model, prompt, temperature, endpoint, timeout, num_predict,
+    )
+    return envelope.get("response", "")
+
+
+def _call_ollama_with_envelope(
+    model: str,
+    prompt: str,
+    temperature: float,
+    endpoint: str,
+    timeout: int,
+    num_predict: Optional[int] = None,
+) -> tuple:
+    """
+    Direct call to Ollama API, returning full response envelope.
+
+    Returns:
+        (http_bytes_len, envelope_dict) where envelope contains all Ollama
+        fields: response, done, done_reason, eval_count, prompt_eval_count,
+        total_duration, load_duration, etc.
+    """
     options = {"temperature": temperature}
     if num_predict:
         options["num_predict"] = num_predict
@@ -82,7 +104,136 @@ def _call_ollama(
         timeout=timeout,
     )
     response.raise_for_status()
-    return response.json().get("response", "")
+    raw_bytes = response.content
+    try:
+        envelope = response.json()
+    except Exception:
+        envelope = {"response": "", "_json_decode_error": True}
+    envelope["_http_bytes"] = len(raw_bytes)
+    return len(raw_bytes), envelope
+
+
+def _call_ollama_streaming(
+    model: str,
+    prompt: str,
+    temperature: float,
+    endpoint: str,
+    timeout: int,
+    num_predict: Optional[int] = None,
+) -> tuple:
+    """
+    Streaming call to Ollama with marker-based short-circuit.
+
+    No token-count early-abort (calibration proved t_first_visible ranges
+    813–1882 for gpt-oss-safeguard:120b, making fixed thresholds unreliable).
+
+    Instead:
+      - Short-circuit on END_EDIT_OPS: stop streaming immediately once the
+        end marker is detected (saves time on successful chunks).
+      - Full instrumentation: t_first_visible, visible_chars, markers.
+      - Degenerate runs (vis=0, no markers at full budget) are classified
+        post-hoc by the kernel, not aborted mid-stream.
+
+    Returns:
+        (response_text, envelope_dict) where envelope includes:
+        - Standard Ollama fields (eval_count, done_reason, etc.) from final chunk
+        - _http_bytes: total bytes received
+        - _tokens_seen: tokens observed before completion/short-circuit
+        - _visible_chars: count of non-whitespace characters in response
+        - _t_first_visible: token index of first visible character (-1 if none)
+        - _begin_seen: whether BEGIN_EDIT_OPS marker was found
+        - _end_seen: whether END_EDIT_OPS marker was found
+        - _short_circuit: "end_marker" if stopped early on END_EDIT_OPS, "" otherwise
+    """
+    import json as _json
+
+    options = {"temperature": temperature}
+    if num_predict:
+        options["num_predict"] = num_predict
+
+    response_fragments = []
+    accumulated = ""
+    tokens_seen = 0
+    visible_chars = 0
+    t_first_visible = -1
+    total_bytes = 0
+    envelope = {}
+    short_circuit = ""
+    begin_seen = False
+    end_seen = False
+
+    try:
+        with httpx.stream(
+            "POST",
+            f"{endpoint}/api/generate",
+            json={
+                "model": model,
+                "prompt": prompt,
+                "stream": True,
+                "options": options,
+            },
+            timeout=timeout,
+        ) as stream:
+            for line in stream.iter_lines():
+                if not line.strip():
+                    continue
+                total_bytes += len(line.encode("utf-8")) + 1  # +1 for newline
+
+                try:
+                    chunk = _json.loads(line)
+                except _json.JSONDecodeError:
+                    continue
+
+                if chunk.get("done"):
+                    # Final chunk: contains full stats
+                    envelope = chunk
+                    break
+
+                # Accumulate response fragment
+                fragment = chunk.get("response", "")
+                response_fragments.append(fragment)
+                accumulated += fragment
+                tokens_seen += 1
+
+                # Count visible (non-whitespace) characters
+                frag_visible = sum(1 for c in fragment if c.strip())
+                if frag_visible > 0:
+                    if t_first_visible < 0:
+                        t_first_visible = tokens_seen
+                    visible_chars += frag_visible
+
+                # Marker detection (only when visible chars exist)
+                if visible_chars > 0:
+                    if not begin_seen and "BEGIN_EDIT_OPS" in accumulated:
+                        begin_seen = True
+                    if begin_seen and not end_seen and "END_EDIT_OPS" in accumulated:
+                        end_seen = True
+                        # Short-circuit: we have the complete payload
+                        short_circuit = "end_marker"
+                        logger.debug(
+                            f"[llm_wrapper] END_EDIT_OPS at token {tokens_seen} "
+                            f"— short-circuit"
+                        )
+                        break
+
+    except httpx.ReadTimeout:
+        envelope = {"response": "", "done": True, "done_reason": "timeout"}
+    except Exception as e:
+        envelope = {"response": "", "done": True, "done_reason": f"error: {e}"}
+
+    response_text = "".join(response_fragments)
+
+    # Merge response text and diagnostics into envelope
+    envelope["response"] = response_text
+    envelope["_http_bytes"] = total_bytes
+    envelope["_tokens_seen"] = tokens_seen
+    envelope["_visible_chars"] = visible_chars
+    envelope["_t_first_visible"] = t_first_visible
+    envelope["_begin_seen"] = begin_seen
+    envelope["_end_seen"] = end_seen
+    envelope["_short_circuit"] = short_circuit
+
+    return response_text, envelope
 
 
 def llm_call(

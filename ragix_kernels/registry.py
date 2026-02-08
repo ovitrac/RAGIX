@@ -86,7 +86,7 @@ class KernelRegistry:
 
             try:
                 module = importlib.import_module(module_name)
-            except ImportError as e:
+            except Exception as e:
                 logger.warning(f"Failed to import {module_name}: {e}")
                 continue
 
@@ -307,6 +307,12 @@ class KernelRegistry:
 
 
 # Convenience functions for module-level access
+def get_registry() -> KernelRegistry:
+    """Return the KernelRegistry class (auto-discovers on first access)."""
+    KernelRegistry._ensure_discovered()
+    return KernelRegistry
+
+
 def discover_kernels() -> int:
     """Discover all available kernels."""
     return KernelRegistry.discover()
