@@ -44,7 +44,7 @@ class ASTScanKernel(Kernel):
     """
 
     name = "ast_scan"
-    version = "1.0.0"
+    version = "1.1.0"
     category = "audit"
     stage = 1
     description = "Extract AST data from source code"
@@ -110,6 +110,9 @@ class ASTScanKernel(Kernel):
 
         # Build symbols data
         symbols_data = self._build_symbols_data(symbols)
+
+        # Enrich symbols with annotations and CC from ASTNode metadata
+        self._enrich_symbols_from_ast(graph, symbols_data)
 
         # Build dependencies data
         deps_data = self._build_dependencies_data(dependencies, symbols_data)
@@ -218,6 +221,51 @@ class ASTScanKernel(Kernel):
                     "type": dep.dep_type.value,
                 })
         return result
+
+    def _enrich_symbols_from_ast(
+        self,
+        graph,
+        symbols_data: List[Dict[str, Any]]
+    ) -> None:
+        """
+        Enrich symbols with annotations and CC from ASTNode tree.
+
+        Walks graph._files to extract decorators (annotations) and
+        cyclomatic_complexity stored in ASTNode.metadata by the Java
+        AST backend. Adds new OPTIONAL fields to each symbol dict:
+          - annotations: List[str]  (class/method/field annotations)
+          - cyclomatic_complexity: int  (method/constructor CC)
+
+        These are additive — existing consumers use .get() and won't break.
+        """
+        # Build lookup: qualified_name → ASTNode
+        from ragix_core.ast_base import NodeType
+        node_map: Dict[str, Any] = {}
+
+        def _collect(node):
+            qname = node.get_qualified_name() if hasattr(node, 'get_qualified_name') else None
+            if qname:
+                node_map[qname] = node
+            for child in getattr(node, 'children', []):
+                _collect(child)
+
+        for _path, ast_node in getattr(graph, '_files', {}).items():
+            _collect(ast_node)
+
+        # Enrich each symbol
+        for sym in symbols_data:
+            qname = sym.get("qualified_name", "")
+            ast_node = node_map.get(qname)
+            if ast_node is None:
+                continue
+            # Annotations (decorators in ASTNode)
+            decorators = getattr(ast_node, 'decorators', [])
+            if decorators:
+                sym["annotations"] = list(decorators)
+            # Cyclomatic complexity from javalang walker
+            cc = ast_node.metadata.get("cyclomatic_complexity") if hasattr(ast_node, 'metadata') else None
+            if cc is not None:
+                sym["cyclomatic_complexity"] = cc
 
     def _count_by_type(self, symbols: List[Dict[str, Any]]) -> Dict[str, int]:
         """Count symbols by type."""

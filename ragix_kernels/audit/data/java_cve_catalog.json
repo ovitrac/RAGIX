@@ -1,0 +1,252 @@
+{
+  "_meta": {
+    "description": "Built-in CVE catalog for common Java libraries (Tier 1)",
+    "version": "2026-02-09",
+    "source": "NVD/OSV curated subset — critical and high severity",
+    "note": "This catalog covers the most impactful CVEs. For comprehensive scanning, provide a full OWASP cache in workspace/data/owasp_cache.json (Tier 2)."
+  },
+  "advisories": [
+    {
+      "cve_id": "CVE-2021-44228",
+      "title": "Log4Shell — Remote Code Execution in Log4j",
+      "severity": "CRITICAL",
+      "cvss": 10.0,
+      "affected": [
+        {"groupId": "org.apache.logging.log4j", "artifactId": "log4j-core", "version_range": "[2.0,2.15.0)"}
+      ],
+      "fixed_in": "2.15.0",
+      "description": "JNDI injection via crafted log messages allows remote code execution."
+    },
+    {
+      "cve_id": "CVE-2021-45046",
+      "title": "Log4j incomplete fix for CVE-2021-44228",
+      "severity": "CRITICAL",
+      "cvss": 9.0,
+      "affected": [
+        {"groupId": "org.apache.logging.log4j", "artifactId": "log4j-core", "version_range": "[2.0,2.16.0)"}
+      ],
+      "fixed_in": "2.16.0",
+      "description": "Incomplete fix for Log4Shell allows DoS and potential RCE in non-default configurations."
+    },
+    {
+      "cve_id": "CVE-2021-45105",
+      "title": "Log4j DoS via recursive lookup",
+      "severity": "HIGH",
+      "cvss": 7.5,
+      "affected": [
+        {"groupId": "org.apache.logging.log4j", "artifactId": "log4j-core", "version_range": "[2.0,2.17.0)"}
+      ],
+      "fixed_in": "2.17.0",
+      "description": "Uncontrolled recursion in lookup evaluation causes StackOverflowError."
+    },
+    {
+      "cve_id": "CVE-2022-22965",
+      "title": "Spring4Shell — RCE via data binding",
+      "severity": "CRITICAL",
+      "cvss": 9.8,
+      "affected": [
+        {"groupId": "org.springframework", "artifactId": "spring-beans", "version_range": "[5.3.0,5.3.18)"},
+        {"groupId": "org.springframework", "artifactId": "spring-beans", "version_range": "[5.2.0,5.2.20)"},
+        {"groupId": "org.springframework", "artifactId": "spring-webmvc", "version_range": "[5.3.0,5.3.18)"}
+      ],
+      "fixed_in": "5.3.18 / 5.2.20",
+      "description": "Data binding with specific JDK9+ class loader allows RCE via WAR deployment."
+    },
+    {
+      "cve_id": "CVE-2022-22950",
+      "title": "Spring Framework DoS via SpEL expression",
+      "severity": "MEDIUM",
+      "cvss": 6.5,
+      "affected": [
+        {"groupId": "org.springframework", "artifactId": "spring-expression", "version_range": "[5.3.0,5.3.17)"}
+      ],
+      "fixed_in": "5.3.17",
+      "description": "Carefully crafted SpEL expression causes DoS."
+    },
+    {
+      "cve_id": "CVE-2023-20861",
+      "title": "Spring Framework SpEL DoS (2023)",
+      "severity": "MEDIUM",
+      "cvss": 6.5,
+      "affected": [
+        {"groupId": "org.springframework", "artifactId": "spring-expression", "version_range": "[6.0.0,6.0.8)"},
+        {"groupId": "org.springframework", "artifactId": "spring-expression", "version_range": "[5.3.0,5.3.27)"}
+      ],
+      "fixed_in": "6.0.8 / 5.3.27",
+      "description": "SpEL expression processing causes OutOfMemoryError."
+    },
+    {
+      "cve_id": "CVE-2023-20863",
+      "title": "Spring Framework SpEL injection",
+      "severity": "HIGH",
+      "cvss": 8.1,
+      "affected": [
+        {"groupId": "org.springframework", "artifactId": "spring-expression", "version_range": "[6.0.0,6.0.8)"},
+        {"groupId": "org.springframework", "artifactId": "spring-expression", "version_range": "[5.3.0,5.3.27)"}
+      ],
+      "fixed_in": "6.0.8 / 5.3.27",
+      "description": "Insufficient SpEL expression length limits."
+    },
+    {
+      "cve_id": "CVE-2023-34035",
+      "title": "Spring Security authorization bypass",
+      "severity": "HIGH",
+      "cvss": 7.5,
+      "affected": [
+        {"groupId": "org.springframework.security", "artifactId": "spring-security-config", "version_range": "[6.1.0,6.1.2)"},
+        {"groupId": "org.springframework.security", "artifactId": "spring-security-config", "version_range": "[6.0.0,6.0.5)"},
+        {"groupId": "org.springframework.security", "artifactId": "spring-security-config", "version_range": "[5.8.0,5.8.5)"}
+      ],
+      "fixed_in": "6.1.2 / 6.0.5 / 5.8.5",
+      "description": "Authorization rules can be bypassed via requestMatchers pattern."
+    },
+    {
+      "cve_id": "CVE-2023-20873",
+      "title": "Spring Boot Actuator exposure on Cloud Foundry",
+      "severity": "HIGH",
+      "cvss": 7.5,
+      "affected": [
+        {"groupId": "org.springframework.boot", "artifactId": "spring-boot-actuator-autoconfigure", "version_range": "[3.0.0,3.0.6)"},
+        {"groupId": "org.springframework.boot", "artifactId": "spring-boot-actuator-autoconfigure", "version_range": "[2.7.0,2.7.12)"}
+      ],
+      "fixed_in": "3.0.6 / 2.7.12",
+      "description": "Actuator endpoints exposed without authentication on Cloud Foundry."
+    },
+    {
+      "cve_id": "CVE-2022-42003",
+      "title": "Jackson Databind DoS via deeply nested object",
+      "severity": "HIGH",
+      "cvss": 7.5,
+      "affected": [
+        {"groupId": "com.fasterxml.jackson.core", "artifactId": "jackson-databind", "version_range": "[2.0.0,2.13.4.1)"}
+      ],
+      "fixed_in": "2.13.4.1",
+      "description": "Deeply nested JSON causes StackOverflowError in BeanDeserializer."
+    },
+    {
+      "cve_id": "CVE-2022-42004",
+      "title": "Jackson Databind DoS via BeanDeserializer",
+      "severity": "HIGH",
+      "cvss": 7.5,
+      "affected": [
+        {"groupId": "com.fasterxml.jackson.core", "artifactId": "jackson-databind", "version_range": "[2.0.0,2.13.4)"}
+      ],
+      "fixed_in": "2.13.4",
+      "description": "Resource exhaustion when processing untrusted content."
+    },
+    {
+      "cve_id": "CVE-2023-46604",
+      "title": "Apache ActiveMQ RCE via ClassInfo deserialization",
+      "severity": "CRITICAL",
+      "cvss": 10.0,
+      "affected": [
+        {"groupId": "org.apache.activemq", "artifactId": "activemq-client", "version_range": "[5.0.0,5.15.16)"},
+        {"groupId": "org.apache.activemq", "artifactId": "activemq-client", "version_range": "[5.16.0,5.16.7)"},
+        {"groupId": "org.apache.activemq", "artifactId": "activemq-client", "version_range": "[5.17.0,5.17.6)"},
+        {"groupId": "org.apache.activemq", "artifactId": "activemq-broker", "version_range": "[5.0.0,5.15.16)"},
+        {"groupId": "org.apache.activemq", "artifactId": "activemq-broker", "version_range": "[5.16.0,5.16.7)"},
+        {"groupId": "org.apache.activemq", "artifactId": "activemq-broker", "version_range": "[5.17.0,5.17.6)"},
+        {"groupId": "org.apache.activemq", "artifactId": "activemq-openwire-legacy", "version_range": "[5.0.0,5.15.16)"},
+        {"groupId": "org.apache.activemq", "artifactId": "activemq-openwire-legacy", "version_range": "[5.16.0,5.16.7)"},
+        {"groupId": "org.apache.activemq", "artifactId": "activemq-openwire-legacy", "version_range": "[5.17.0,5.17.6)"}
+      ],
+      "fixed_in": "5.15.16 / 5.16.7 / 5.17.6",
+      "description": "Remote code execution via OpenWire protocol ClassInfo manipulation."
+    },
+    {
+      "cve_id": "CVE-2023-44487",
+      "title": "HTTP/2 Rapid Reset DoS",
+      "severity": "HIGH",
+      "cvss": 7.5,
+      "affected": [
+        {"groupId": "org.apache.tomcat.embed", "artifactId": "tomcat-embed-core", "version_range": "[10.1.0,10.1.14)"},
+        {"groupId": "org.apache.tomcat.embed", "artifactId": "tomcat-embed-core", "version_range": "[9.0.0,9.0.81)"},
+        {"groupId": "org.apache.tomcat.embed", "artifactId": "tomcat-embed-core", "version_range": "[8.5.0,8.5.94)"},
+        {"groupId": "io.netty", "artifactId": "netty-codec-http2", "version_range": "[4.1.0,4.1.100)"}
+      ],
+      "fixed_in": "Tomcat 10.1.14 / 9.0.81 / Netty 4.1.100",
+      "description": "HTTP/2 rapid stream reset causes excessive resource consumption."
+    },
+    {
+      "cve_id": "CVE-2024-22233",
+      "title": "Spring Framework DoS via HTTP request handling",
+      "severity": "HIGH",
+      "cvss": 7.5,
+      "affected": [
+        {"groupId": "org.springframework", "artifactId": "spring-web", "version_range": "[6.0.15,6.0.16)"},
+        {"groupId": "org.springframework", "artifactId": "spring-web", "version_range": "[6.1.2,6.1.3)"}
+      ],
+      "fixed_in": "6.0.16 / 6.1.3",
+      "description": "Specific HTTP request patterns can cause DoS."
+    },
+    {
+      "cve_id": "CVE-2024-22234",
+      "title": "Spring Security authorization bypass",
+      "severity": "HIGH",
+      "cvss": 7.5,
+      "affected": [
+        {"groupId": "org.springframework.security", "artifactId": "spring-security-core", "version_range": "[6.1.0,6.1.7)"},
+        {"groupId": "org.springframework.security", "artifactId": "spring-security-core", "version_range": "[6.2.0,6.2.2)"}
+      ],
+      "fixed_in": "6.1.7 / 6.2.2",
+      "description": "Broken authentication in AuthenticationTrustResolver."
+    },
+    {
+      "cve_id": "CVE-2021-42550",
+      "title": "Logback RCE via JNDI lookup",
+      "severity": "CRITICAL",
+      "cvss": 9.8,
+      "affected": [
+        {"groupId": "ch.qos.logback", "artifactId": "logback-classic", "version_range": "[1.0.0,1.2.9)"},
+        {"groupId": "ch.qos.logback", "artifactId": "logback-core", "version_range": "[1.0.0,1.2.9)"}
+      ],
+      "fixed_in": "1.2.9",
+      "description": "JNDI lookup in configuration allows remote code execution."
+    },
+    {
+      "cve_id": "CVE-2022-1471",
+      "title": "SnakeYAML RCE via deserialization",
+      "severity": "CRITICAL",
+      "cvss": 9.8,
+      "affected": [
+        {"groupId": "org.yaml", "artifactId": "snakeyaml", "version_range": "[1.0,2.0)"}
+      ],
+      "fixed_in": "2.0",
+      "description": "Arbitrary code execution via crafted YAML with unsafe Constructor."
+    },
+    {
+      "cve_id": "CVE-2020-36518",
+      "title": "Jackson Databind DoS via deeply nested objects",
+      "severity": "HIGH",
+      "cvss": 7.5,
+      "affected": [
+        {"groupId": "com.fasterxml.jackson.core", "artifactId": "jackson-databind", "version_range": "[2.0.0,2.12.6.1)"},
+        {"groupId": "com.fasterxml.jackson.core", "artifactId": "jackson-databind", "version_range": "[2.13.0,2.13.2.1)"}
+      ],
+      "fixed_in": "2.12.6.1 / 2.13.2.1",
+      "description": "Stack overflow with deeply nested arrays/objects."
+    },
+    {
+      "cve_id": "CVE-2024-21634",
+      "title": "Amazon Ion Java DoS",
+      "severity": "HIGH",
+      "cvss": 7.5,
+      "affected": [
+        {"groupId": "com.amazon.ion", "artifactId": "ion-java", "version_range": "[1.0.0,1.10.5)"}
+      ],
+      "fixed_in": "1.10.5",
+      "description": "Denial of service via crafted Ion binary data."
+    },
+    {
+      "cve_id": "CVE-2022-25857",
+      "title": "SnakeYAML DoS via recursive key references",
+      "severity": "HIGH",
+      "cvss": 7.5,
+      "affected": [
+        {"groupId": "org.yaml", "artifactId": "snakeyaml", "version_range": "[1.0,1.31)"}
+      ],
+      "fixed_in": "1.31",
+      "description": "Stack overflow via alias/anchor recursion."
+    }
+  ]
+}

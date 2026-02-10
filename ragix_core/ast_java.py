@@ -311,6 +311,9 @@ class JavaASTBackend(ASTBackend):
                 param_node = self._convert_parameter(param, path)
                 method_node.parameters.append(param_node)
 
+        # Compute cyclomatic complexity from javalang body
+        method_node.metadata["cyclomatic_complexity"] = self._compute_cyclomatic_complexity(node)
+
         # Extract method calls
         calls = self._extract_calls(node)
         if calls:
@@ -346,6 +349,9 @@ class JavaASTBackend(ASTBackend):
                 "throws": [t.name for t in node.throws] if node.throws else [],
             },
         )
+
+        # Compute cyclomatic complexity from javalang body
+        ctor_node.metadata["cyclomatic_complexity"] = self._compute_cyclomatic_complexity(node)
 
         # Add parameters
         if node.parameters:
@@ -525,6 +531,54 @@ class JavaASTBackend(ASTBackend):
                     break
 
         return doc if has_real_content else None
+
+    def _compute_cyclomatic_complexity(self, node) -> int:
+        """
+        Compute cyclomatic complexity by walking javalang AST body nodes.
+
+        Counts branch points: if, for, while, do, switch case, catch,
+        ternary (?:), and boolean operators (&&, ||).
+
+        Args:
+            node: A javalang MethodDeclaration or ConstructorDeclaration
+
+        Returns:
+            Cyclomatic complexity (>= 1)
+        """
+        BRANCH_TYPES = frozenset({
+            'IfStatement', 'ForStatement', 'WhileStatement',
+            'DoStatement', 'CatchClause', 'ConditionalExpression',
+        })
+        cc = 1  # base path
+
+        def _walk(n):
+            nonlocal cc
+            if n is None:
+                return
+            type_name = type(n).__name__
+            if type_name in BRANCH_TYPES:
+                cc += 1
+            elif type_name == 'SwitchStatementCase':
+                # Each case branch (including default) adds a path
+                if getattr(n, 'case', None) is not None:
+                    cc += 1
+            elif type_name == 'BinaryOperation':
+                if getattr(n, 'operator', None) in ('&&', '||'):
+                    cc += 1
+            # Recurse into children
+            if hasattr(n, 'children'):
+                for child in n.children:
+                    if isinstance(child, list):
+                        for item in child:
+                            _walk(item)
+                    elif child is not None:
+                        _walk(child)
+
+        if hasattr(node, 'body') and node.body:
+            for stmt in node.body:
+                _walk(stmt)
+
+        return cc
 
     def _extract_calls(self, node: "MethodDeclaration") -> List[str]:
         """Extract method calls from a method body."""

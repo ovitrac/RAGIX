@@ -134,6 +134,8 @@ class ReportAssembleKernel(Kernel):
             "drift",
             "hotspots",
             "dead_code",
+            "maven",
+            "spring",
             "recommendations",
         ]
 
@@ -273,6 +275,8 @@ class ReportAssembleKernel(Kernel):
             "quality": "section_quality",
             "architecture": "section_architecture",
             "drift": "section_drift",
+            "maven": "section_maven",
+            "spring": "section_spring",
         }
 
         # Stage 3 output directory for fallback lookup
@@ -320,6 +324,9 @@ class ReportAssembleKernel(Kernel):
             ("risk", "section.risk"),
             ("drift", "section.drift"),
             ("hotspots", "section.hotspots"),
+            ("dead_code", "section.dead_code"),
+            ("maven", "section.maven"),
+            ("spring", "section.spring"),
             ("recommendations", "section.recommendations"),
         ]
 

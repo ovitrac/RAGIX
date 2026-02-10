@@ -3,8 +3,8 @@
 **A Sovereign, LLM-Agnostic Platform for AI-Assisted Analysis**
 
 **Author:** Olivier Vitrac, PhD, HDR | Adservio Innovation Lab
-**Version:** 1.3.0
-**Date:** 2026-01-22
+**Version:** 1.4.0
+**Date:** 2026-02-09
 
 KOAS brings the Virtual Hybrid Lab paradigm to automated analysis:
 - **Kernels compute** — Fast, deterministic, scalable
@@ -47,13 +47,14 @@ python run_doc_koas.py --project /path/to/project/src --language fr
 
 ## Kernel Categories
 
-KOAS provides three kernel families for different analysis domains:
+KOAS provides four kernel families for different analysis domains:
 
 | Category | Module | Purpose | Kernels |
 |----------|--------|---------|---------|
-| **audit** | `ragix_kernels.audit` | Code quality analysis | 18 kernels |
-| **docs** | `ragix_kernels.docs` | Document summarization | 11 kernels |
-| **security** | `ragix_kernels.security` | Network/infrastructure security | 11 kernels |
+| **audit** | `ragix_kernels.audit` | Code quality analysis | 27 kernels |
+| **docs** | `ragix_kernels.docs` | Document summarization | 17 kernels |
+| **reviewer** | `ragix_kernels.reviewer` | Traceable Markdown review | 13 kernels |
+| **security** | `ragix_kernels.security` | Network/infrastructure security | 10 kernels |
 
 ---
 
@@ -65,13 +66,15 @@ For source code analysis (Java, Python, etc.)
 
 | Kernel | Description | Output |
 |--------|-------------|--------|
-| `ast_scan` | AST extraction and symbol enumeration | Classes, methods, fields |
+| `ast_scan` (v1.1) | AST extraction, symbols, annotations, CC | Classes, methods, fields |
 | `metrics` | Code metrics (CC, LOC, MI) | Per-file metrics |
 | `dependency` | Dependency graph construction | Import relationships |
 | `partition` | Codebase partitioning | Component clusters |
 | `services` | Service detection | Controllers, services, repos |
 | `timeline` | Component lifecycle profiles | Modification history |
 | `volumetry` | Size and distribution analysis | LOC distributions |
+| `module_group` | Module grouping | Logical boundaries |
+| `maven_deps` | Maven pom.xml extraction | Modules, dependencies, versions |
 
 ### Stage 2: Analysis
 
@@ -84,8 +87,10 @@ For source code analysis (Java, Python, etc.)
 | `entropy` | Information-theoretic analysis | Token entropy |
 | `risk` | Service Life Risk assessment | Risk levels |
 | `drift` | Spec-code alignment | Synchronization status |
-| `module_group` | Module grouping | Logical boundaries |
 | `risk_matrix` | Risk matrix generation | Risk visualization |
+| `maven_graph` | Maven module graph + visualization | Centrality, cycles, SVG/PNG |
+| `maven_cve` | Dependency vulnerability scan | CVE findings, severity |
+| `spring_wiring` | Spring DI resolution | Beans, entry points, wiring |
 
 ### Stage 3: Reporting
 
@@ -94,6 +99,8 @@ For source code analysis (Java, Python, etc.)
 | `section_executive` | Executive summary | Key findings |
 | `section_overview` | Codebase overview | Structure, distributions |
 | `section_drift` | Drift analysis | Alignment tables |
+| `section_maven` | Maven dependencies & supply chain | Modules, graph, CVEs |
+| `section_spring` | Spring architecture & entry points | Beans, wiring, dead code |
 | `section_recommendations` | Prioritized recommendations | Action plan |
 | `report_assemble` | Final assembly | audit_report.md |
 
@@ -116,8 +123,11 @@ For specification and document corpus analysis. See [KOAS_DOCS.md](../docs/KOAS_
 | Kernel | Description | LLM | Output |
 |--------|-------------|-----|--------|
 | `doc_cluster` | Hierarchical document clustering | No | Document groups |
-| `doc_extract` | Quality-filtered sentence extraction | No | Key sentences |
+| `doc_cluster_leiden` | Leiden community detection clustering | No | Optimized partitions |
+| `doc_cluster_reconcile` | Reconcile hierarchical + Leiden clusters | No | Unified clusters |
+| `doc_extract` (v1.2) | Quality-filtered sentence extraction | No | Key sentences |
 | `doc_coverage` | Concept coverage analysis | No | Gaps, overlaps |
+| `doc_quality` | Document quality scoring | No | Quality metrics |
 | `doc_func_extract` | SPD functionality extraction | **Yes** | Structured functionalities |
 
 ### Stage 3: Synthesis
@@ -128,6 +138,7 @@ For specification and document corpus analysis. See [KOAS_DOCS.md](../docs/KOAS_
 | `doc_pyramid` | Hierarchical summary structure | No | 4-level pyramid |
 | `doc_report_assemble` | Report generation | No | doc_report.md |
 | `doc_summarize` | Per-document LLM summaries | **Yes** | Natural language summaries |
+| `doc_summarize_tutored` | Worker+Tutor LLM summaries | **Yes** | Refined summaries |
 | `doc_visualize` | Generate word clouds and charts | No | PNG visualizations |
 | `doc_final_report` | Comprehensive report with appendices | No | final_report.md + A-F appendices |
 
@@ -176,6 +187,50 @@ For network and infrastructure security analysis.
 | Kernel | Description | Output |
 |--------|-------------|--------|
 | `section_security` | Security report section | Findings summary |
+
+---
+
+## Document Reviewer Kernels (`ragix_kernels.reviewer`)
+
+For traceable, reversible review of large Markdown documents (beyond LLM context windows). See [KOAS_REVIEW.md](../docs/KOAS_REVIEW.md) for full documentation.
+
+### Stage 1: Collection (deterministic)
+
+| Kernel | Description | Output |
+|--------|-------------|--------|
+| `md_inventory` | File stats, SHA-256, front-matter detection | Document metadata |
+| `md_structure` | Heading tree, anchors, numbering patterns | Section hierarchy |
+| `md_protected_regions` | Code fences, inline code, YAML, tables, math | Protected spans |
+| `md_chunk` | Structure-aligned chunk plan with hash-stable IDs | Chunk inventory |
+
+### Stage 2: Analysis (deterministic + LLM edge)
+
+| Kernel | Description | LLM | Output |
+|--------|-------------|-----|--------|
+| `md_consistency_scan` (v2.1) | AI leftovers, duplicates, broken refs, tables, term drift | No | Issue list |
+| `md_numbering_control` | Heading/figure/table numbering validation | No | Numbering issues |
+| `md_fingerprint_chunk` | Structural fingerprint for content-recipe routing | No | ChunkFingerprint |
+| `md_pyramid` | Bottom-up hierarchical summaries | No | Multi-level abstracts |
+| `md_edit_plan` (v2.4) | Constrained edit ops per chunk with preflight pipeline | **Yes** | Structured edit ops |
+
+### Stage 3: Reporting (deterministic)
+
+| Kernel | Description | Output |
+|--------|-------------|--------|
+| `md_apply_ops` (v1.1) | Validate + apply edit ops + forward/inverse patches | Patched document |
+| `md_inline_notes_inject` | GitHub alert blocks (REVIEWER: prefix) | Annotated document |
+| `md_review_report_assemble` | Generate REVIEW_doc.md from ledger | Review report |
+| `md_revert` | Selective inverse-patch application by change ID | Reverted document |
+
+### Key Features
+
+- **Preflight pipeline** (v7+): Math masking, sub-chunk splitting, context tiering, content recipes, markdown stripping — all deterministic transforms before LLM call
+- **Adaptive tier escalation**: Automatic retry with skeleton/full context based on degenerate detection
+- **Content recipes**: Fingerprint-driven masking (tables, blockquotes, emojis, code fences, math) to maximize LLM compliance
+- **Full traceability**: Append-only JSONL ledger, RVW-NNNN change IDs, SHA-256 content hashing, forward + inverse patches
+- **Selective revert**: Undo individual changes by ID without affecting others
+- **CLI**: `reviewctl` with review/report/revert/show/grep subcommands
+- **MCP**: 4 tools via `register_reviewer_tools(mcp_server)`
 
 ---
 
@@ -395,7 +450,9 @@ class MyKernel(Kernel):
 |----------|-------------|
 | [KOAS.md](../docs/KOAS.md) | Philosophy and code audit details |
 | [KOAS_DOCS.md](../docs/KOAS_DOCS.md) | Document summarization system |
+| [KOAS_REVIEW.md](../docs/KOAS_REVIEW.md) | Document reviewer pipeline |
 | [KOAS_MCP_REFERENCE.md](../docs/KOAS_MCP_REFERENCE.md) | MCP tool reference |
+| [ROADMAP_KOAS_JAVA_AUDIT.md](../docs/developer/ROADMAP_KOAS_JAVA_AUDIT.md) | Java audit extensions roadmap |
 
 ## Author
 

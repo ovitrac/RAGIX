@@ -634,9 +634,14 @@ class JavaMetricsCalculator:
         if node.location.end_line:
             metrics.lines_of_code = node.location.end_line - node.location.line + 1
 
-        # Estimate complexity from metadata
-        calls = node.metadata.get("calls", [])
-        metrics.cyclomatic_complexity = 1 + len(calls) // 5  # Rough estimate
+        # Read CC from javalang AST walker (computed in ast_java.py)
+        # Falls back to heuristic estimate if not available (pre-v1.1 data)
+        cc_from_ast = node.metadata.get("cyclomatic_complexity")
+        if cc_from_ast is not None:
+            metrics.cyclomatic_complexity = cc_from_ast
+        else:
+            calls = node.metadata.get("calls", [])
+            metrics.cyclomatic_complexity = 1 + len(calls) // 5  # Legacy heuristic
 
         return metrics
 
