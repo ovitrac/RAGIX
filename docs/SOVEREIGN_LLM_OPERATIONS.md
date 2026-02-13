@@ -20,8 +20,8 @@ footer: 📄 ${pageNo} / ${pageCount}
 **A Framework for Confidential Document Analysis in Regulated Environments**
 
 **Author:** Olivier Vitrac, PhD, HDR | Adservio Innovation Lab
-**Version:** 1.4.0
-**Date:** 2026-01-30
+**Version:** 1.5.0
+**Date:** 2026-02-13
 **Classification:** Technical Architecture Document
 
 ---
@@ -124,8 +124,9 @@ This document presents the architectural principles and operational procedures e
 12. [Demo: KOAS Docs Audit](#12-demo-koas-docs-audit)
 13. [Case Study: Metropolitan Infrastructure Audit](#13-case-study-metropolitan-infrastructure-audit)
 14. [Limitations and Mitigations](#14-limitations-and-mitigations)
-15. [Conclusion](#15-conclusion)
-16. [References](#16-references)
+15. [Architecture Souveraine: Positioning](#15-architecture-souveraine-positioning)
+16. [Conclusion](#16-conclusion)
+17. [References](#17-references)
 
 ---
 
@@ -2157,27 +2158,87 @@ $ ragix-koas status --sovereignty-check
 
 ---
 
-## 15. Conclusion
+## 15. Architecture Souveraine: Positioning
 
-The RAGIX/KOAS framework demonstrates that sovereign LLM operations are achievable for document analysis tasks requiring confidentiality. The key architectural decisions enabling this are:
+### 15.1 The Unique Contribution
 
-1. **Local LLM deployment** — Ollama eliminates external API dependencies
-2. **Kernel-LLM separation** — Deterministic computation isolated from stochastic inference
-3. **Comprehensive caching** — Enables LLM-free replay and verification
-4. **Audit trail integrity** — Hash-chained provenance for compliance
-5. **Policy enforcement** — Cache modes control data flow
+RAGIX/KOAS combines five architectural properties that, individually, exist in other systems but are **not found together** in any current audit or document-analysis tooling:
 
-For organizations operating in regulated environments, this approach provides:
-- **Compliance** — Data never leaves controlled perimeter
-- **Auditability** — Every transformation is traceable
-- **Reproducibility** — Results can be independently verified
-- **Cost control** — No per-token API charges
+| Property | RAGIX/KOAS | Cloud-Based Alternatives |
+|----------|-----------|--------------------------|
+| **Deterministic kernels** | 75 kernels — metrics, scores, and reports are computed, not hallucinated | LLM generates all outputs, including metrics |
+| **Sovereign LLM inference** | Ollama on localhost:11434, zero outbound | API calls to OpenAI/Anthropic/Google |
+| **Cryptographic audit trail** | SHA256 hash chain + Merkle roots per document | Log files, no integrity guarantees |
+| **Sovereignty attestation** | `local_only: true` in every event, machine-verifiable | Self-declared compliance |
+| **Broker gateway** | External orchestrator sees metrics only, never content | Full content sent to cloud APIs |
 
-The v0.64.2 release demonstrates continuous improvement in content quality while maintaining sovereignty guarantees, with measurable metrics tracking regressions and improvements across versions.
+### 15.2 Data Containment Theorem (Informal)
+
+Under correct configuration (Ollama on localhost, firewall blocking external LLM APIs, output-level enforcement enabled):
+
+> **No document content traverses the sovereign perimeter.**
+
+This holds because:
+1. KOAS kernels are **pure computation** — no network calls
+2. LLM calls go **only** to Ollama on `localhost:11434`
+3. The broker gateway enforces **scope-based ACL** — external clients receive sanitized metrics only
+4. Output sanitizer **denylist validation** fails the build if internal provenance leaks into external reports
+5. Activity logging captures **metadata only** — no document excerpts in events
+
+### 15.3 Competitive Context
+
+Most AI-assisted audit and document analysis tools operate as cloud-dependent black boxes:
+
+- **Cloud-first tools** send documents to external APIs — incompatible with regulated environments
+- **RAG frameworks** (LangChain, LlamaIndex) provide retrieval but not deterministic computation — metrics are LLM-generated, not kernel-computed
+- **Static analysis tools** (SonarQube, Checkmarx) are deterministic but lack LLM reasoning for interpretation and summarization
+
+RAGIX/KOAS occupies a unique position: **deterministic computation (like static analysis) + LLM reasoning (like cloud AI) + sovereign execution (like air-gapped systems) + cryptographic provenance (like blockchain audit)** — all in a single, local-first framework.
+
+### 15.4 Multi-Model Reasoning Architecture
+
+The v0.66+ architecture uses **tiered local models** rather than a single cloud API:
+
+```
+Planning layer:    DeepSeek-R1 14B / Mistral 7B  (reasoning, strategy)
+Execution layer:   Granite 3B-8B                  (fast inference, summarization)
+Verification:      Granite 3B                     (deterministic validation)
+```
+
+This tiered approach:
+- Allocates compute proportionally to task difficulty
+- Keeps the majority of inference on small, fast models (3B-8B)
+- Uses reasoning-specialized models (DeepSeek-R1) only for planning
+- All models run locally — no per-token API charges
+
+Four reasoning engines are available, each suited to different task profiles: iterative loops, graph-based state machines, tree-based decomposition, and game-theoretic proof games. See [REASONING.md](REASONING.md) for the full guide.
 
 ---
 
-## 16. References
+## 16. Conclusion
+
+The RAGIX/KOAS framework demonstrates that sovereign LLM operations are not only achievable but can match or exceed the analytical rigor of cloud-dependent alternatives for document analysis tasks requiring confidentiality. The key architectural decisions enabling this are:
+
+1. **Local LLM deployment** — Ollama eliminates external API dependencies
+2. **Kernel-LLM separation** — 75 deterministic kernels isolate computation from stochastic inference
+3. **Comprehensive caching** — Enables LLM-free replay and verification
+4. **Audit trail integrity** — SHA256 hash chain + Merkle roots for compliance
+5. **Policy enforcement** — 4-level output sanitization controls data flow
+6. **Broker gateway** — External orchestration without content exposure
+7. **Multi-model reasoning** — Tiered local models (Planner/Worker/Verifier) for cost-efficient inference
+
+For organizations operating in regulated environments, this approach provides:
+- **Compliance** — Data never leaves controlled perimeter (verifiable, not claimed)
+- **Auditability** — Every transformation is traceable with cryptographic provenance
+- **Reproducibility** — Deterministic kernels guarantee same input → same output
+- **Cost control** — No per-token API charges, efficient local models
+- **Sovereignty** — Machine-verifiable attestation per event, not policy-assumed
+
+The v0.66.0 release extends the framework with centralized activity logging, 5 kernel families (75 kernels), and a broker gateway pattern, while maintaining all sovereignty guarantees.
+
+---
+
+## 17. References
 
 ### Academic Foundations
 
@@ -2224,12 +2285,21 @@ Before processing sensitive data, verify:
 | Term | Definition |
 |------|------------|
 | **Air-gapped** | System with no network connectivity |
+| **Broker gateway** | Authenticated proxy mediating external access to KOAS pipelines |
+| **Core-Shell (Onion)** | Layered isolation: content in core, metrics in shell |
+| **Data containment** | Property guaranteeing no content crosses sovereign perimeter |
 | **Gray environment** | Networked but untrusted, external calls prohibited |
+| **Hash chain** | SHA256 chain across kernel executions for tamper evidence |
 | **KOAS** | Kernel-Orchestrated Audit System |
+| **Merkle root** | Cryptographic root hash for pyramidal document provenance |
 | **MoE** | Mixture of Experts (sparse model architecture) |
 | **Ollama** | Local LLM runtime |
+| **Output sanitizer** | 4-level isolation (Internal/External/Orchestrator/Compliance) |
+| **Planner-Worker-Verifier** | Tiered model architecture for reasoning tasks |
 | **RAGIX** | Retrieval-Augmented Generative Interactive eXecution |
 | **Sovereignty** | Data processing within controlled perimeter |
+| **Sovereignty attestation** | Machine-verifiable `local_only: true` claim per event |
+| **Worker + Tutor** | Dual-LLM pattern: small model generates, larger model refines |
 
 ---
 

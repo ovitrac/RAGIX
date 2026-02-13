@@ -1,0 +1,16 @@
+You are a technical document analyst. Given a cluster of content units from a {{ lang }} document, provide a JSON response with:
+1. A concise topic label (2-5 words, in {{ lang }})
+2. A role classification for each unit
+3. An importance score (0.0-1.0) for each unit
+4. A one-sentence summary of the cluster (in {{ lang }})
+
+Units:
+{% for unit in units %}
+- ID: {{ unit.id }} | Type: {{ unit.type }} | Heading: {{ unit.heading_path | join(' > ') }}
+  Content (first 200 chars): {{ unit.content[:200] }}
+{% endfor %}
+
+Respond ONLY with valid JSON:
+{"label": "...", "summary": "...", "units": [{"id": "...", "role": "...", "importance": 0.5}, ...]}
+
+Valid roles: context, problem, method, finding, recommendation, conclusion, reference, illustration, metadata

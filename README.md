@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.62.0
+# RAGIX v0.66.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
@@ -15,8 +15,8 @@
 
 ---
 
-**Version:** 0.62.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Updated:** 2025-12-20 | **Codebase:** 500K+ LOC analyzed in production
+**Version:** 0.66.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Updated:** 2026-02-13 | **Codebase:** 500K+ LOC analyzed in production
 
 ---
 
@@ -26,15 +26,45 @@
 
 ### Sovereignty by Design
 
-- **100% local execution** — No data leaves your infrastructure, air-gapped mode available
-- **Model-agnostic** — Works with Ollama (Mistral, Llama, Qwen, DeepSeek) or commercial APIs
-- **Auditable operations** — SHA256-verified command logs, complete provenance tracking
+- **100% local execution** — All LLM inference runs via Ollama on `localhost:11434`; zero data exfiltration, air-gapped mode available
+- **Model-agnostic** — Works with Ollama (Mistral, Granite, Qwen, DeepSeek-R1) or commercial APIs with explicit opt-in
+- **Sovereignty attestation** — Every operation records `sovereignty.local_only: true`, verifiable per-event
+- **Auditable operations** — SHA256 hash chain on command logs, Merkle roots for pyramidal provenance
 
-### Production-Ready Architecture
+### Production-Ready Architecture: KOAS
 
-- **Deterministic kernels** — KOAS (Kernel-Orchestrated Audit System) ensures reproducible results
-- **Hybrid reasoning** — LLMs for planning, kernels for computation—no hallucinated metrics
-- **MCP protocol** — Standard tool exposure for Claude Code, custom agents, and multi-server collaboration
+**KOAS** (Kernel-Orchestrated Audit System) is the computational core — **75 deterministic kernels** across 5 families:
+
+| Family | Kernels | Purpose |
+|--------|---------|---------|
+| **audit** | 27 | Code quality: AST, complexity, coupling, risk matrices, CVE scanning |
+| **docs** | 17 | Document analysis: hierarchical summarization, clustering, discrepancy detection |
+| **presenter** | 8 | Slide generation: MARP decks from document corpora (full/compressed/executive) |
+| **reviewer** | 13 | Traceable Markdown review: chunk-level edits with selective revert |
+| **security** | 10 | Infrastructure: network discovery, vulnerability assessment, compliance |
+
+**Architectural guarantee:** Kernels compute deterministically — LLMs are used only for planning and reasoning, never for metrics. No hallucinated numbers.
+
+### Multi-Model Reasoning
+
+- **Planner-Worker-Verifier** — Tiered model selection: reasoning models (7B+) for planning, fast models (3B) for execution, validation models for verification
+- **Worker + Tutor** — Two-stage LLM pattern in KOAS: small model drafts, larger model refines
+- **4 reasoning engines** — ReasoningLoop, ReasoningGraph (v30), ContractiveReasoner, Interpreter-Tutor (PCG)
+
+### Centralized Activity Logging
+
+- **Append-only JSONL** event stream at `.KOAS/activity/events.jsonl`
+- **SHA256 hash chain** for tamper-evidence
+- **Sovereignty flag** per event (`sovereignty.local_only: true`)
+- **Actor tracking** — system, operator, external orchestrator, auditor
+
+### Broker Gateway (Optional)
+
+For regulated environments requiring strict access control:
+
+- **Core-Shell architecture** — External orchestrators (Claude, GPT-4) can trigger and monitor audits **without ever seeing document content**
+- **ACL with scopes** — `docs.trigger`, `docs.status`, `docs.export_external` (no `docs.export_internal`)
+- **Output sanitization** — 4 isolation levels: INTERNAL, EXTERNAL, ORCHESTRATOR, COMPLIANCE
 
 ### Enterprise Capabilities
 
@@ -313,10 +343,22 @@ Production-ready RAG for document processing (tenders, CVs, reports).
 | Document | Description |
 |----------|-------------|
 | [docs/INDEX.md](docs/INDEX.md) | **Documentation navigation hub** |
-| [docs/MCP.md](docs/MCP.md) | Model Context Protocol in RAGIX |
-| [docs/REASONING.md](docs/REASONING.md) | Reasoning engines (ContractiveReasoner, v30) |
-| [docs/KOAS.md](docs/KOAS.md) | Kernel-Orchestrated Audit System |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture |
+| [docs/SOVEREIGN_LLM_OPERATIONS.md](docs/SOVEREIGN_LLM_OPERATIONS.md) | Sovereignty and confidential AI operations |
+| [docs/MCP.md](docs/MCP.md) | Model Context Protocol in RAGIX |
+| [docs/REASONING.md](docs/REASONING.md) | Reasoning engines (ContractiveReasoner, v30, Interpreter-Tutor) |
+
+### 📁 **KOAS Kernel Documentation**
+
+| Document | Description |
+|----------|-------------|
+| [docs/KOAS.md](docs/KOAS.md) | KOAS philosophy and architecture (5 families, 75 kernels) |
+| [docs/KOAS_DOCS.md](docs/KOAS_DOCS.md) | Document summarization system (17 kernels) |
+| [docs/KOAS_PRESENTER.md](docs/KOAS_PRESENTER.md) | Slide deck generation from documents (8 kernels) |
+| [docs/KOAS_REVIEW.md](docs/KOAS_REVIEW.md) | Traceable Markdown review (13 kernels) |
+| [docs/KOAS_ACTIVITY.md](docs/KOAS_ACTIVITY.md) | Centralized activity logging and governance |
+| [docs/KOAS_MCP_REFERENCE.md](docs/KOAS_MCP_REFERENCE.md) | KOAS MCP tool reference |
+| [ragix_kernels/README.md](ragix_kernels/README.md) | Kernel developer reference (v1.4.0) |
 
 ### 📁 **Guides & References**
 
@@ -326,7 +368,6 @@ Production-ready RAG for document processing (tenders, CVs, reports).
 | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | REST API documentation |
 | [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md) | Command-line interface |
 | [docs/AST_GUIDE.md](docs/AST_GUIDE.md) | AST analysis guide |
-| [docs/KOAS_MCP_REFERENCE.md](docs/KOAS_MCP_REFERENCE.md) | KOAS MCP tool reference |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 
 ---
@@ -576,24 +617,32 @@ Full CLI reference: [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md)
 
 ```
 RAGIX/
-├── ragix_core/          # Core libraries
-│   ├── agents/          # Agent implementations
-│   ├── reasoning_slim/  # Reasoning engine
-│   ├── ast_*.py         # AST analysis
-│   └── rag_*.py         # RAG components
+├── ragix_core/          # Core platform (131 modules, ~50K LOC)
+│   ├── agents/          # Agent implementations (code, doc, git, test)
+│   ├── reasoning_slim/  # ContractiveReasoner (tree-based, entropy)
+│   ├── reasoning_v30/   # ReasoningGraph (graph state machine)
+│   ├── reasoning_tutor/ # Interpreter-Tutor (game-theoretic PCG)
+│   ├── rag_project/     # Project RAG (ChromaDB, knowledge graph)
+│   ├── ast_*.py         # AST analysis (Java, Python)
+│   └── llm_backends.py  # Sovereign/Cloud LLM abstraction
+├── ragix_kernels/       # KOAS kernels (127 files, 75 kernels)
+│   ├── audit/           # Code audit (27 kernels)
+│   ├── docs/            # Document analysis (17 kernels)
+│   ├── presenter/       # Slide generation (8 kernels)
+│   ├── reviewer/        # Markdown review (13 kernels)
+│   ├── security/        # Security scanning (10 kernels)
+│   ├── activity.py      # Centralized activity logging
+│   ├── merkle.py        # SHA256 Merkle provenance
+│   └── orchestrator.py  # Kernel execution with hash chain
 ├── ragix_web/           # Web application
-│   ├── server.py        # FastAPI server
-│   ├── routers/         # API routes
-│   └── static/          # Frontend
-├── ragix_unix/          # Unix tools
-│   ├── unix_rag_agent.py
-│   └── radial_server.py
-├── ragix_audit/         # Audit tools
-│   └── partitioner.py
-├── MCP/                 # MCP integration
-├── docs/                # Documentation
+│   ├── server.py        # FastAPI server (port 8080)
+│   ├── routers/         # API routes (10 routers)
+│   └── static/          # Frontend (D3.js visualizations)
+├── ragix_unix/          # Unix-RAG agent
+├── MCP/                 # MCP integration (38 tools)
+├── docs/                # Documentation (see Index)
 ├── tests/               # Test suite
-└── examples/            # Usage examples
+└── examples/            # Usage examples (audit, security)
 ```
 
 ---
@@ -618,17 +667,19 @@ pytest tests/ --cov=ragix_core --cov-report=html
 
 See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
-**Latest: v0.62.0** (2025-12-20)
-- **KOAS MCP Consolidation**: 38 MCP tools total, 16 KOAS-specific tools optimized for LLM consumption
-- **Interactive Demo UI**: FastAPI + WebSocket demo with model selection, tool trace, chat interface
-- **Academic Documentation**: Comprehensive MCP.md and REASONING.md with protocol-first perspective
-- **Markdown Chat**: Proper markdown rendering in demo UI with history sidebar
-- **Documentation Index**: docs/INDEX.md linking all documentation with reading guides
+**Latest: v0.66.0** (2026-01-30)
+- **Centralized Activity Logging**: Append-only JSONL event stream with sovereignty attestation per event
+- **Broker Gateway**: Optional FastAPI gateway with ACL scopes for regulated environments
+- **KOAS Reviewer**: 13-kernel traceable Markdown review with preflight pipeline, selective revert
+- **KOAS Presenter**: 8-kernel slide deck generation (MARP) with 3 compression modes
+- **Output Sanitizer**: 4 isolation levels (INTERNAL/EXTERNAL/ORCHESTRATOR/COMPLIANCE)
+- **Merkle Provenance**: SHA256 Merkle roots for pyramidal document hashing
 
 **Recent highlights:**
+- v0.64.2: Boilerplate detection in KOAS docs, code fence protection
+- v0.63.0: New docs kernels for hierarchical large document corpus auditing
+- v0.62.0: MCP consolidation (38 tools), demo UI, documentation index
 - v0.61.0: KOAS Security Kernels (10 kernels), ANSSI/NIST/CIS compliance frameworks
-- v0.60.0: KOAS Volumetry Kernels for traffic-weighted risk assessment
-- v0.58.0: Partitioner UI polish with search filter and accordion pagination
 
 ---
 
@@ -639,11 +690,18 @@ See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 | ✅ | Multi-agent workflows | Complete |
 | ✅ | Hybrid RAG (BM25 + Vector) | Complete |
 | ✅ | AST analysis (Java/Python) | Complete |
-| ✅ | Code audit & partitioning | Complete |
-| ✅ | MCP integration | Complete |
-| 🔄 | Enhanced reasoning traces | In progress |
+| ✅ | Code audit (27 kernels) & partitioning | Complete |
+| ✅ | Document analysis (17 kernels) | Complete |
+| ✅ | Security scanning (10 kernels) | Complete |
+| ✅ | Traceable Markdown review (13 kernels) | Complete |
+| ✅ | Slide deck generation (8 kernels) | Complete |
+| ✅ | MCP integration (38 tools) | Complete |
+| ✅ | Centralized activity logging | Complete |
+| ✅ | Broker Gateway with ACL | Complete |
+| 🔄 | KOAS Presenter LLM normalization | Phase 1 done (deterministic) |
+| 🔄 | Interpreter-Tutor reasoning engine | Research (v0.5.0) |
 | 📋 | Multi-language AST (Go, Rust) | Planned |
-| 📋 | Distributed agent execution | Planned |
+| 📋 | Editable PPTX export (python-pptx) | Planned |
 
 ---
 

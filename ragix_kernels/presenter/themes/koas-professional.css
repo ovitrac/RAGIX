@@ -1,0 +1,370 @@
+/* @theme koas-professional */
+/* KOAS Presenter — Professional theme for MARP slide decks.
+ *
+ * Extends the MARP default theme with Adservio brand colors
+ * and professional styling for technical presentations.
+ *
+ * Usage in MARP frontmatter:
+ *   theme: koas-professional
+ *
+ * Usage with marp-cli:
+ *   npx @marp-team/marp-cli --theme koas-professional.css deck.md
+ *
+ * Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+ */
+
+@import 'default';
+
+/* ---------------------------------------------------------------------------
+ * CSS Variables — brand palette
+ * --------------------------------------------------------------------------- */
+:root {
+    --koas-primary: #0066cc;
+    --koas-accent: #e17055;
+    --koas-text: #2d3436;
+    --koas-text-light: #636e72;
+    --koas-bg: #ffffff;
+    --koas-bg-alt: #f8f9fa;
+    --koas-border: #dfe6e9;
+    --koas-code-bg: #f1f3f5;
+    --koas-table-header: #0066cc;
+    --koas-table-stripe: #f0f4f8;
+}
+
+/* ---------------------------------------------------------------------------
+ * Base slide
+ * --------------------------------------------------------------------------- */
+section {
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: var(--koas-text);
+    background-color: var(--koas-bg);
+    font-size: 26px;
+    line-height: 1.5;
+    padding: 50px 60px 40px 60px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Headings
+ * --------------------------------------------------------------------------- */
+section h1 {
+    color: var(--koas-primary);
+    font-weight: 700;
+    border-bottom: none;
+    margin-bottom: 0.4em;
+}
+
+section h2 {
+    color: var(--koas-primary);
+    font-weight: 600;
+    font-size: 1.3em;
+    border-bottom: 2px solid var(--koas-border);
+    padding-bottom: 0.2em;
+    margin-bottom: 0.5em;
+}
+
+section h3 {
+    color: var(--koas-text);
+    font-weight: 600;
+    font-size: 1.1em;
+}
+
+/* ---------------------------------------------------------------------------
+ * Lead / title slides — class="lead"
+ * --------------------------------------------------------------------------- */
+section.lead {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background-color: var(--koas-primary);
+    color: #ffffff;
+}
+
+section.lead h1 {
+    color: #ffffff;
+    font-size: 2.2em;
+    border-bottom: none;
+}
+
+section.lead h2 {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 1.2em;
+    border-bottom: none;
+    font-weight: 400;
+}
+
+section.lead p {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+section.lead a {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* ---------------------------------------------------------------------------
+ * Section divider slides — class="section"
+ * --------------------------------------------------------------------------- */
+section.section {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    background: linear-gradient(135deg, var(--koas-primary) 0%, #004a99 100%);
+    color: #ffffff;
+}
+
+section.section h1 {
+    color: #ffffff;
+    font-size: 2.0em;
+    border-bottom: 3px solid rgba(255, 255, 255, 0.3);
+    padding-bottom: 0.3em;
+}
+
+/* ---------------------------------------------------------------------------
+ * Two-column layout — class="columns"
+ * --------------------------------------------------------------------------- */
+section .columns {
+    display: flex;
+    gap: 40px;
+    width: 100%;
+}
+
+section .columns .column {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Lists
+ * --------------------------------------------------------------------------- */
+section ul,
+section ol {
+    margin-left: 0.3em;
+    padding-left: 1.2em;
+}
+
+section li {
+    margin-bottom: 0.3em;
+    line-height: 1.45;
+}
+
+section li::marker {
+    color: var(--koas-primary);
+}
+
+/* ---------------------------------------------------------------------------
+ * Tables
+ * --------------------------------------------------------------------------- */
+section table {
+    width: auto;
+    border-collapse: collapse;
+    font-size: 0.85em;
+    margin: 0.5em 0;
+}
+
+section table th {
+    background-color: var(--koas-table-header);
+    color: #ffffff;
+    font-weight: 600;
+    padding: 8px 14px;
+    text-align: left;
+    border: 1px solid var(--koas-primary);
+}
+
+section table td {
+    padding: 7px 14px;
+    border: 1px solid var(--koas-border);
+}
+
+section table tr:nth-child(even) {
+    background-color: var(--koas-table-stripe);
+}
+
+section table tr:hover {
+    background-color: #e8f0fe;
+}
+
+/* ---------------------------------------------------------------------------
+ * Code blocks
+ * --------------------------------------------------------------------------- */
+section code {
+    background-color: var(--koas-code-bg);
+    color: var(--koas-text);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    font-size: 0.88em;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+section pre {
+    background-color: var(--koas-code-bg);
+    border: 1px solid var(--koas-border);
+    border-radius: 6px;
+    padding: 16px 20px;
+    font-size: 0.78em;
+    line-height: 1.5;
+    overflow-x: auto;
+}
+
+section pre code {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+}
+
+/* ---------------------------------------------------------------------------
+ * Blockquotes
+ * --------------------------------------------------------------------------- */
+section blockquote {
+    border-left: 4px solid var(--koas-accent);
+    margin: 0.5em 0;
+    padding: 0.4em 1em;
+    background-color: var(--koas-bg-alt);
+    color: var(--koas-text-light);
+    font-style: italic;
+}
+
+section blockquote p {
+    margin: 0.2em 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Images
+ * --------------------------------------------------------------------------- */
+section img {
+    max-height: 70%;
+    object-fit: contain;
+}
+
+/* Inline figure layout (v1.2 — all images rendered inline, no MARP bg cropping) */
+
+/* Portrait image — side panel (float left, text wraps right) */
+section .figure {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 50%;
+    float: left;
+    margin-right: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+section .figure img {
+    max-height: 60vh;
+    max-width: 100%;
+    object-fit: contain;
+}
+
+/* Landscape image — full-width top, text below */
+section .figure-landscape {
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin: 0.3em 0;
+}
+
+section .figure-landscape img {
+    max-height: 50vh;
+    max-width: 95%;
+    object-fit: contain;
+}
+
+/* Full-slide image — maximum area */
+section .figure-full {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin: 0 auto;
+}
+
+section .figure-full img {
+    max-height: 75vh;
+    max-width: 95%;
+    object-fit: contain;
+}
+
+/* Table density scaling (v1.1) */
+section .table-small table {
+    font-size: 0.65em;
+}
+
+section .table-small th,
+section .table-small td {
+    padding: 4px 10px;
+}
+
+section .table-tiny table {
+    font-size: 0.50em;
+}
+
+section .table-tiny th,
+section .table-tiny td {
+    padding: 3px 6px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Links
+ * --------------------------------------------------------------------------- */
+section a {
+    color: var(--koas-primary);
+    text-decoration: none;
+}
+
+section a:hover {
+    text-decoration: underline;
+}
+
+/* ---------------------------------------------------------------------------
+ * Header & Footer
+ * --------------------------------------------------------------------------- */
+header {
+    font-size: 14px;
+    color: var(--koas-text-light);
+    font-weight: 500;
+}
+
+footer {
+    font-size: 12px;
+    color: var(--koas-text-light);
+}
+
+/* Hide header/footer on lead and section slides */
+section.lead header,
+section.lead footer,
+section.section header,
+section.section footer {
+    display: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * KaTeX math
+ * --------------------------------------------------------------------------- */
+section .katex {
+    font-size: 1.05em;
+}
+
+/* Display math — centered with spacing */
+section .katex-display {
+    margin: 0.6em 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Emphasis & strong
+ * --------------------------------------------------------------------------- */
+section strong {
+    color: var(--koas-text);
+    font-weight: 700;
+}
+
+section em {
+    color: var(--koas-text-light);
+}
+
+/* Accent highlight class */
+section .accent {
+    color: var(--koas-accent);
+    font-weight: 600;
+}

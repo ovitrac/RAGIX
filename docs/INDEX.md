@@ -3,8 +3,8 @@
 **Retrieval-Augmented Generative Interactive eXecution Agent**
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Version:** 0.62.0
-**Updated:** 2025-12-20
+**Version:** 0.66.0
+**Updated:** 2026-02-13
 
 ---
 
@@ -29,17 +29,27 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
     │ Architecture  │         │   Protocols   │         │   Reasoning   │
     │               │         │               │         │               │
     │ ARCHITECTURE  │         │     MCP       │         │  REASONING    │
-    │ KOAS          │         │               │         │               │
-    └───────┬───────┘         └───────┬───────┘         └───────┬───────┘
-            │                         │                         │
-            ▼                         ▼                         ▼
-    ┌───────────────┐         ┌───────────────┐         ┌───────────────┐
-    │   Guides      │         │  References   │         │   Advanced    │
-    │               │         │               │         │               │
-    │ CLI_GUIDE     │         │ API_REFERENCE │         │ WASP_GUIDE    │
-    │ AST_GUIDE     │         │ TOOLS_INV     │         │ PLAYBOOK      │
-    │               │         │ KOAS_MCP_REF  │         │               │
-    └───────────────┘         └───────────────┘         └───────────────┘
+    │ KOAS ─────────┼─┐       │               │         │               │
+    └───────┬───────┘ │       └───────┬───────┘         └───────┬───────┘
+            │         │               │                         │
+            ▼         │               ▼                         ▼
+    ┌───────────────┐ │       ┌───────────────┐         ┌───────────────┐
+    │   Guides      │ │       │  References   │         │   Advanced    │
+    │               │ │       │               │         │               │
+    │ CLI_GUIDE     │ │       │ API_REFERENCE │         │ SOVEREIGN_LLM │
+    │ AST_GUIDE     │ │       │ TOOLS_INV     │         │ WASP_GUIDE    │
+    │               │ │       │ KOAS_MCP_REF  │         │ PLAYBOOK      │
+    └───────────────┘ │       └───────────────┘         └───────────────┘
+                      │
+    ┌─────────────────▼──────────────────────────────────┐
+    │              KOAS Kernel Families                   │
+    │                                                    │
+    │  KOAS_DOCS      (17 kernels — document analysis)   │
+    │  KOAS_PRESENTER (8 kernels — slide generation)     │
+    │  KOAS_REVIEW    (13 kernels — Markdown review)     │
+    │  KOAS_ACTIVITY  (centralized activity logging)     │
+    │  + audit (27) and security (10) in KOAS.md         │
+    └────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -115,16 +125,31 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
 
 ### Kernel System (KOAS)
 
-**Learn about deterministic computation kernels.**
+**Learn about deterministic computation kernels — 75 kernels across 5 families.**
 
-- **[KOAS.md](KOAS.md)** — KOAS architecture
-  - Three-stage pipeline
-  - Kernel development
-  - Security kernels
-  - Audit kernels
+- **[KOAS.md](KOAS.md)** — KOAS philosophy and architecture
+  - Three-stage pipeline, 5 kernel families
+  - Kernel development patterns
+  - Deterministic guarantee: kernels compute, LLMs reason
+
+- **[KOAS_DOCS.md](KOAS_DOCS.md)** — Document summarization (17 kernels)
+  - Hierarchical analysis, dual clustering (Pyramidal + Leiden)
+  - Worker + Tutor LLM pattern
+
+- **[KOAS_PRESENTER.md](KOAS_PRESENTER.md)** — Slide deck generation (8 kernels)
+  - MARP output, 3 compression modes (full/compressed/executive)
+  - Deterministic default, optional LLM normalization
+
+- **[KOAS_REVIEW.md](KOAS_REVIEW.md)** — Traceable Markdown review (13 kernels)
+  - Chunk-level edits, selective revert, preflight pipeline
+  - Append-only ledger with RVW-NNNN change IDs
+
+- **[KOAS_ACTIVITY.md](KOAS_ACTIVITY.md)** — Centralized activity logging
+  - Event schema (koas.event/1.0), actor model, hash chain
+  - Sovereignty attestation per event
 
 - **Source Documentation:**
-  - `ragix_kernels/README.md` — Kernel development guide
+  - `ragix_kernels/README.md` — Kernel developer reference (v1.4.0, all 75 kernels)
 
 ### Sovereignty and Compliance
 
@@ -172,13 +197,19 @@ User Goal
 ┌─────────────────────────────────────────────────────────────┐
 │                         KOAS                                │
 │          (Deterministic Kernel Execution)                   │
+│    ┌──────────┬──────────┬──────────┬──────────┐            │
+│    │  audit   │   docs   │presenter │ reviewer │ security   │
+│    │  (27)    │   (17)   │  (8)     │  (13)    │  (10)      │
+│    └──────────┴──────────┴──────────┴──────────┘            │
 └─────────────────────────────────────────────────────────────┘
     │
-    ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Tool Execution                           │
-│        Security Scans │ Code Audits │ Analysis              │
-└─────────────────────────────────────────────────────────────┘
+    ├─────────────────────────────────────────────────────────┐
+    │                                                         │
+    ▼                                                         ▼
+┌─────────────────────────────┐         ┌─────────────────────────────┐
+│      Tool Execution         │         │      Activity Logging       │
+│  Security │ Audits │ Docs   │         │  Events │ Sovereignty │ ACL │
+└─────────────────────────────┘         └─────────────────────────────┘
 ```
 
 ### Reading Order by Goal
@@ -205,10 +236,31 @@ User Goal
 2. [MCP.md](MCP.md) § Security Tools → Tool reference
 3. [KOAS_MCP_REFERENCE.md](KOAS_MCP_REFERENCE.md) → Detailed parameters
 
+**"I want to summarize large documents"**
+1. [KOAS_DOCS.md](KOAS_DOCS.md) → 17-kernel pipeline
+2. [KOAS.md](KOAS.md) → Three-stage architecture
+3. [KOAS_MCP_REFERENCE.md](KOAS_MCP_REFERENCE.md) → MCP tool interface
+
+**"I want to generate slide decks from documents"**
+1. [KOAS_PRESENTER.md](KOAS_PRESENTER.md) → 8-kernel pipeline, presenterctl CLI
+2. [KOAS_DOCS.md](KOAS_DOCS.md) → Upstream document analysis (required input)
+3. [KOAS.md](KOAS.md) → Kernel orchestration
+
+**"I want to review and edit Markdown documents"**
+1. [KOAS_REVIEW.md](KOAS_REVIEW.md) → 13-kernel pipeline, selective revert
+2. [KOAS.md](KOAS.md) → KOAS philosophy
+3. [KOAS_MCP_REFERENCE.md](KOAS_MCP_REFERENCE.md) → MCP tool interface
+
+**"I want to understand activity logging and compliance"**
+1. [KOAS_ACTIVITY.md](KOAS_ACTIVITY.md) → Event schema, actor model, hash chain
+2. [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) → Sovereignty architecture
+3. [KOAS.md](KOAS.md) → Audit trail mechanisms
+
 **"I need to ensure data sovereignty/compliance"**
 1. [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) → Complete guide
-2. [ARCHITECTURE.md](ARCHITECTURE.md) → System topology
-3. [KOAS.md](KOAS.md) → Audit trail mechanisms
+2. [KOAS_ACTIVITY.md](KOAS_ACTIVITY.md) → Sovereignty attestation per event
+3. [ARCHITECTURE.md](ARCHITECTURE.md) → System topology
+4. [KOAS.md](KOAS.md) → Audit trail mechanisms
 
 ---
 
@@ -219,15 +271,23 @@ User Goal
 | **MCP** | Model Context Protocol — standardized tool communication | [MCP.md](MCP.md) |
 | **KOAS** | Kernel-Orchestrated Audit System — deterministic computation | [KOAS.md](KOAS.md) |
 | **Kernel** | Deterministic computation unit (no LLM inside) | [KOAS.md](KOAS.md) |
+| **Kernel Family** | Group of kernels sharing a scope (audit, docs, presenter, reviewer, security) | [KOAS.md](KOAS.md) |
+| **Three-Stage Pipeline** | Data collection → Analysis → Reporting architecture | [KOAS.md](KOAS.md) |
+| **Worker + Tutor** | Dual-LLM pattern: small model generates, larger model refines | [KOAS_DOCS.md](KOAS_DOCS.md) |
+| **Broker Gateway** | Core-Shell access layer mediating external orchestrator requests | [KOAS_ACTIVITY.md](KOAS_ACTIVITY.md) |
+| **Activity Logging** | Centralized append-only event stream (`koas.event/1.0`) | [KOAS_ACTIVITY.md](KOAS_ACTIVITY.md) |
+| **Hash Chain** | SHA256 chain across kernel executions for tamper evidence | [KOAS_ACTIVITY.md](KOAS_ACTIVITY.md) |
+| **Merkle Root** | Cryptographic root hash for pyramidal provenance | [KOAS_DOCS.md](KOAS_DOCS.md) |
 | **ContractiveReasoner** | Tree-based reasoning with entropy decomposition | [REASONING.md](REASONING.md) |
 | **Reasoning v30** | Graph-based state machine reasoning | [REASONING.md](REASONING.md) |
 | **Unix-RAG** | Unix tools for retrieval, LLM for generation | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| **Workspace** | Isolated directory for audit/scan results | [KOAS.md](KOAS.md) |
+| **Workspace** | Isolated `.KOAS/` directory for pipeline results and audit trail | [KOAS.md](KOAS.md) |
 | **Entropy** | Uncertainty measure for decomposition decisions | [REASONING.md](REASONING.md) |
 | **Peer Review** | External LLM validation of reasoning | [REASONING.md](REASONING.md) |
 | **Sovereignty** | Data processing within controlled perimeter | [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) |
 | **Gray Environment** | Networked but untrusted context | [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) |
-| **Attestation** | Cryptographic proof of sovereignty | [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) |
+| **Attestation** | Cryptographic proof of sovereignty (`sovereignty.local_only: true`) | [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) |
+| **Output Sanitizer** | 4-level isolation (Internal/External/Orchestrator/Compliance) | [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) |
 
 ---
 
@@ -260,6 +320,7 @@ Documentation follows these principles:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.66.0 | 2026-02-13 | Added KOAS_PRESENTER, KOAS_REVIEW, KOAS_ACTIVITY; 5-family kernel map; new glossary entries and reading paths |
 | 0.64.2 | 2026-01-29 | Added SOVEREIGN_LLM_OPERATIONS.md |
 | 0.62.0 | 2025-12-20 | Added MCP.md, REASONING.md, INDEX.md |
 | 0.61.0 | 2025-12-19 | KOAS security kernels |
@@ -267,6 +328,6 @@ Documentation follows these principles:
 
 ---
 
-**Document Version:** 1.1.0
-**Last Updated:** 2026-01-29
+**Document Version:** 2.0.0
+**Last Updated:** 2026-02-13
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio

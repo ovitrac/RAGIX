@@ -3,8 +3,8 @@
 **From Local LLMs to Deep Reasoners: Architectural Patterns for Sovereign AI**
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Version:** 0.62.0
-**Updated:** 2025-12-20
+**Version:** 0.66.0
+**Updated:** 2026-02-13
 
 ---
 
@@ -12,14 +12,16 @@
 
 1. [The Reasoning Challenge](#1-the-reasoning-challenge)
 2. [RAGIX Reasoning Architecture](#2-ragix-reasoning-architecture)
-3. [ContractiveReasoner: Branching Contractive Reasoning](#3-contractivereasoner)
-4. [Reasoning v30: Graph-Based Reflective Reasoning](#4-reasoning-v30)
-5. [Comparison and Selection Guide](#5-comparison-and-selection-guide)
-6. [Integration with MCP Tools](#6-integration-with-mcp-tools)
-7. [Collective Intelligence: Multi-Agent Reasoning](#7-collective-intelligence)
-8. [Configuration Reference](#8-configuration-reference)
-9. [Benchmarking and Evaluation](#9-benchmarking-and-evaluation)
-10. [Related Documentation](#10-related-documentation)
+3. [The Four Reasoning Engines](#3-the-four-reasoning-engines)
+4. [ContractiveReasoner: Branching Contractive Reasoning](#4-contractivereasoner)
+5. [Reasoning v30: Graph-Based Reflective Reasoning](#5-reasoning-v30)
+6. [Multi-Model Architecture](#6-multi-model-architecture)
+7. [Comparison and Selection Guide](#7-comparison-and-selection-guide)
+8. [Integration with MCP Tools](#8-integration-with-mcp-tools)
+9. [Collective Intelligence: Multi-Agent Reasoning](#9-collective-intelligence)
+10. [Configuration Reference](#10-configuration-reference)
+11. [Benchmarking and Evaluation](#11-benchmarking-and-evaluation)
+12. [Related Documentation](#12-related-documentation)
 
 ---
 
@@ -60,20 +62,22 @@ Externalized:
 - **Iterative:** Can retry failed steps
 - **Composable:** Different strategies for different problems
 
-### 1.3 RAGIX's Dual Approach
+### 1.3 RAGIX's Four-Engine Approach
 
-RAGIX provides two complementary reasoning engines:
+RAGIX provides four complementary reasoning engines, each suited to different task profiles:
 
-| Engine | Paradigm | Best For |
-|--------|----------|----------|
-| **ContractiveReasoner** | Tree-based decomposition | Deep exploration, uncertainty handling |
-| **Reasoning v30** | Graph-based state machine | Structured workflows, tool integration |
+| Engine | Paradigm | Best For | Location |
+|--------|----------|----------|----------|
+| **ReasoningLoop** (v1) | Iterative plan-execute | Production agent sessions | `ragix_core/reasoning.py` |
+| **ReasoningGraph** (v30) | Graph state machine | Structured workflows, tool integration | `ragix_core/reasoning_v30/` |
+| **ContractiveReasoner** | Tree-based decomposition | Deep exploration, uncertainty handling | `ragix_core/reasoning_slim/` |
+| **Interpreter-Tutor** | Game-theoretic proof game | Hallucination suppression in slim LLMs | `ragix_core/reasoning_tutor/` |
 
-Both engines:
-- Work with local Ollama models
-- Are fully auditable
-- Support peer review
-- Can be combined with MCP tools
+All four engines:
+- Work with local Ollama models (3B-14B)
+- Are fully auditable with event traces
+- Support sovereignty constraints (local-only inference)
+- Can be combined with MCP tools and KOAS kernels
 
 ---
 
@@ -85,24 +89,25 @@ Both engines:
 ┌─────────────────────────────────────────────────────────────┐
 │                      User Query                             │
 └─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
+                                 │
+                                 ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   Reasoning Engine                          │
-│    ContractiveReasoner  │  Reasoning v30  │  Custom         │
-│    (Tree-based)         │  (Graph-based)  │  (Your impl)    │
+│                   Reasoning Engines                         │
+│  ReasoningLoop │ ReasoningGraph │ Contractive │ Interp-Tutor│
+│  (Iterative)   │ (Graph v30)    │ (Tree)      │ (Proof Game)│
 └─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
+                                 │
+                                 ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                       Tool Layer                            │
-│          MCP Tools  │  Shell Commands  │  APIs              │
+│    MCP Tools  │  Shell Commands  │  KOAS Kernels  │  APIs   │
 └─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
+                                 │
+                                 ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                        LLM Layer                             │
-│         Ollama (Mistral, Qwen, Llama, Granite, etc.)         │
+│                     LLM Layer (Ollama)                      │
+│  Planner: DeepSeek-R1/Mistral  │  Worker: Granite 3B-8B     │
+│  Tutor: Mistral 7B             │  Verifier: Granite 3B      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -135,7 +140,57 @@ Query → [Classify Complexity] → [Plan/Decompose] → [Execute Steps]
 
 ---
 
-## 3. ContractiveReasoner
+## 3. The Four Reasoning Engines
+
+RAGIX provides four reasoning engines, progressively more sophisticated. Each addresses a different class of problems and failure modes.
+
+### 3.1 ReasoningLoop (v1) — Production Agent Baseline
+
+The original reasoning engine, used in `ragix_unix/agent.py` and `ragix_web/server.py` for production agent sessions.
+
+- **Architecture:** Iterative plan-execute loop with configurable retry
+- **States:** Classify → Plan → Execute → Verify → Respond
+- **Strengths:** Simple, predictable, battle-tested in production
+- **Integration:** Default engine for CLI and web UI sessions
+- **Source:** `ragix_core/reasoning.py:470` (`class ReasoningLoop`)
+
+### 3.2 ReasoningGraph (v30) — Reflective Graph
+
+The advanced graph-based engine with reflective capabilities. Covered in detail in §5.
+
+- **Architecture:** Graph state machine with 7 node types
+- **States:** START → CLASSIFY → DIRECT_EXEC | (PLAN → EXECUTE → REFLECT → VERIFY) → RESPOND
+- **Strengths:** Reflection on failures, experience corpus learning, task complexity classification
+- **Integration:** Available in web UI and CLI via `--reasoning=graph`
+- **Source:** `ragix_core/reasoning_v30/`
+
+### 3.3 ContractiveReasoner — Deep Exploration
+
+Tree-based reasoning with entropy-driven decomposition. Covered in detail in §4.
+
+- **Architecture:** Tree of reasoning nodes with automatic branching
+- **States:** NEW → NORMALIZE → DECOMPOSE → SOLVE → PRE-REVIEW → PEER-REVIEW → COLLAPSE → DONE
+- **Strengths:** Handles uncertainty, built-in peer review, mathematical foundations (Banach contraction)
+- **Integration:** Available via API, partial web integration
+- **Source:** `ragix_core/reasoning_slim/`
+
+### 3.4 Interpreter-Tutor — Hallucination Suppression
+
+A game-theoretic architecture that transforms unreliable slim LLMs into disciplined agents. Instead of asking LLMs to reason, interaction is framed as a **turn-based proof game**: the LLM proposes moves, a deterministic Tutor validates them against evidence.
+
+- **Architecture:** Turn-based proof game (PCG — Proof-Carrying Graph)
+- **Key innovation:** Hallucination suppression by structure — illegal moves are rejected, truths require evidence proofs
+- **Benchmarked:** 300+ game sessions across 10 benchmarks, 4 capability bands (search, formal reasoning, governance, engineering diagnosis)
+- **Models tested:** DeepSeek-R1 14B, Granite 3B-8B, Mistral 7B, and others
+- **Integration:** Standalone research engine (not yet wired into ragix-web)
+- **Source:** `ragix_core/reasoning_tutor/`
+- **Publication:** Research manuscript in preparation (see `ragix_core/reasoning_tutor/PUBLICATION_SUMMARY_v5a.md` for a summary of findings)
+
+> **Note:** The Interpreter-Tutor is the subject of an ongoing research publication. Only a summary of the architecture and benchmark results is available in the repository. Full details will be published separately.
+
+---
+
+## 4. ContractiveReasoner
 
 ### 3.1 Overview
 
@@ -309,7 +364,7 @@ deep:       # Thorough - deep trees, many iterations
 
 ---
 
-## 4. Reasoning v30
+## 5. Reasoning v30
 
 ### 4.1 Overview
 
@@ -461,30 +516,80 @@ traces:
 
 ---
 
-## 5. Comparison and Selection Guide
+## 6. Multi-Model Architecture
 
-### 5.1 Feature Comparison
+RAGIX supports **tiered model assignment**, where different reasoning roles use models optimized for their purpose. This is a key differentiator from single-model architectures.
 
-| Feature | ContractiveReasoner | Reasoning v30 |
-|---------|---------------------|---------------|
-| **Paradigm** | Tree decomposition | Graph state machine |
-| **Branching** | Automatic (entropy-based) | Explicit (complexity) |
-| **Peer Review** | Built-in | Custom node |
-| **Tool Integration** | External | Built-in nodes |
-| **Learning** | Per-session | Persistent corpus |
-| **Visualization** | Mermaid diagrams | Event traces |
-| **Complexity** | Higher | Moderate |
+### 6.1 Planner-Worker-Verifier (Agent Sessions)
 
-### 5.2 When to Use What
+Used in `ragix_web` and `ragix_unix` agent sessions. Configurable per session.
+
+| Role | Default Model | Purpose | Config Parameter |
+|------|---------------|---------|------------------|
+| **Planner** | Mistral 7B / DeepSeek-R1 14B | Task classification, plan generation | `planner_model` |
+| **Worker** | Granite 3B-8B | Step execution, fast inference | `worker_model` |
+| **Verifier** | Granite 3B | Output validation, deterministic checks | `verifier_model` |
+
+### 6.2 Worker + Tutor (KOAS Kernel Families)
+
+Used in the `docs` and `reviewer` kernel families for LLM-assisted steps.
+
+| Role | Model | Purpose |
+|------|-------|---------|
+| **Worker** | Granite 3B-8B | Generate initial summary / edit plan (fast, cheap) |
+| **Tutor** | Mistral 7B | Refine, critique, and improve Worker output (domain knowledge) |
+
+### 6.3 Tiered LLM Budget (Presenter)
+
+The `presenter` family uses a graduated compute budget:
+
+| Tier | LLM Usage | When |
+|------|-----------|------|
+| T0 | No LLM | Default: pure deterministic layout |
+| T1 | Top-K clusters only | When semantic normalization requested |
+| T2 | All clusters | Full normalization mode |
+| T3 | Full polish | Executive mode with extensive rewriting |
+
+### 6.4 Which Engine Uses Which Model
+
+| Engine | Where Used | Model Assignment |
+|--------|-----------|------------------|
+| **ReasoningLoop** | ragix_web, ragix_unix | Planner-Worker-Verifier |
+| **ReasoningGraph** (v30) | ragix_web, demos | Planner-Worker-Verifier |
+| **ContractiveReasoner** | API, research | Single model (any 7B+) |
+| **Interpreter-Tutor** | Research, benchmarks | Player (any LLM) + deterministic Tutor |
+| **KOAS docs/reviewer** | KOAS pipelines | Worker + Tutor |
+| **KOAS presenter** | KOAS pipelines | Tiered (T0-T3) |
+
+---
+
+## 7. Comparison and Selection Guide
+
+### 7.1 Feature Comparison
+
+| Feature | ReasoningLoop | ReasoningGraph v30 | ContractiveReasoner | Interpreter-Tutor |
+|---------|---------------|---------------------|---------------------|-------------------|
+| **Paradigm** | Iterative loop | Graph state machine | Tree decomposition | Turn-based proof game |
+| **Branching** | None | Explicit (complexity) | Automatic (entropy) | Deterministic validation |
+| **Reflection** | Retry on failure | Built-in reflect node | Built-in peer review | Tutor rejects illegal moves |
+| **Tool Integration** | Shell + MCP | Built-in nodes | External | Shell (deterministic Tutor) |
+| **Learning** | None | Persistent corpus | Per-session | Session traces |
+| **Hallucination Control** | Verification step | Reflect + verify | Peer review | Structural suppression |
+| **Production-ready** | Yes | Yes | Partial | Research |
+| **Min Model Size** | Any | Any | 7B+ | 3B+ |
+
+### 7.2 When to Use What
 
 | Scenario | Recommended Engine | Rationale |
 |----------|-------------------|-----------|
-| **Research questions** | ContractiveReasoner | Deep exploration needed |
-| **Multi-step workflows** | Reasoning v30 | Structured execution |
-| **Uncertainty handling** | ContractiveReasoner | Entropy-based branching |
-| **Tool-heavy tasks** | Reasoning v30 | Native tool support |
+| **Production agent sessions** | ReasoningLoop | Simple, predictable, battle-tested |
+| **Multi-step workflows** | ReasoningGraph v30 | Structured execution with reflection |
+| **Research questions** | ContractiveReasoner | Deep exploration, entropy-based branching |
+| **Uncertainty handling** | ContractiveReasoner | Automatic decomposition |
+| **Tool-heavy tasks** | ReasoningGraph v30 | Native tool support |
+| **Slim LLM reliability** | Interpreter-Tutor | Structural hallucination suppression |
 | **Academic analysis** | ContractiveReasoner | Peer review built-in |
-| **Production systems** | Reasoning v30 | Predictable behavior |
+| **Benchmark evaluation** | Interpreter-Tutor | Game-theoretic scoring |
 
 ### 5.3 Combining Engines
 
@@ -511,7 +616,7 @@ async def hybrid_reasoning(query: str):
 
 ---
 
-## 6. Integration with MCP Tools
+## 8. Integration with MCP Tools
 
 ### 6.1 Tool Access Patterns
 
@@ -576,7 +681,7 @@ KOAS kernels provide deterministic results for reasoning:
 
 ---
 
-## 7. Collective Intelligence
+## 9. Collective Intelligence
 
 ### 7.1 Multi-Agent Patterns
 
@@ -642,7 +747,7 @@ Reasoning agents exchange structured data:
 
 ---
 
-## 8. Configuration Reference
+## 10. Configuration Reference
 
 ### 8.1 ContractiveReasoner Parameters
 
@@ -726,7 +831,7 @@ profiles:
 
 ---
 
-## 9. Benchmarking and Evaluation
+## 11. Benchmarking and Evaluation
 
 ### 9.1 ContractiveReasoner Benchmarks
 
@@ -779,7 +884,7 @@ def evaluate_result(result, expected_keywords):
 
 ---
 
-## 10. Related Documentation
+## 12. Related Documentation
 
 ### Core Documentation
 
@@ -793,8 +898,13 @@ def evaluate_result(result, expected_keywords):
 
 | Resource | Location |
 |----------|----------|
+| ReasoningLoop (v1) | `ragix_core/reasoning.py` |
+| ReasoningGraph (v30) API | `ragix_core/reasoning_v30/__init__.py` |
 | ContractiveReasoner README | `ragix_core/reasoning_slim/README.md` |
-| Reasoning v30 API | `ragix_core/reasoning_v30/__init__.py` |
+| Interpreter-Tutor README | `ragix_core/reasoning_tutor/README.md` |
+| Interpreter-Tutor publication summary | `ragix_core/reasoning_tutor/PUBLICATION_SUMMARY_v5a.md` |
+| Reasoning v30 demo | `demos/reasoning_v30_demo.py` |
+| Multi-model benchmark runner | `demos/run_reasoning_benchmark.sh` |
 | Benchmark configs | `ragix_core/reasoning_slim/benchmarks/configs/` |
 
 ### External Resources
@@ -808,6 +918,14 @@ def evaluate_result(result, expected_keywords):
 ---
 
 ## Appendix A: Reasoning Engine Quick Reference
+
+### ReasoningLoop (v1) States
+
+```
+CLASSIFY → PLAN → EXECUTE → VERIFY → RESPOND
+                     │          │
+                     └──────────┘ (retry on failure)
+```
 
 ### ContractiveReasoner States
 
@@ -827,19 +945,33 @@ START → CLASSIFY → DIRECT_EXEC ───────────────
                                     └──────────┘ (retry loop)
 ```
 
+### Interpreter-Tutor States
+
+```
+PLAYER (LLM)              TUTOR (Deterministic)
+────────────              ─────────────────────
+Propose move       ──▶    Validate legality
+                   ◀──    Accept / Reject + reason
+Execute (if legal) ──▶    Verify outcome
+                   ◀──    Score + next prompt
+Repeat until goal or budget exhausted
+```
+
 ### Decision Matrix
 
 | Query Type | Complexity | Engine | Strategy |
 |------------|------------|--------|----------|
 | Greeting | BYPASS | v30 | Direct response |
-| Factual Q&A | SIMPLE | v30 | Direct exec |
-| Multi-step task | MODERATE | v30 | Light planning |
+| Factual Q&A | SIMPLE | ReasoningLoop | Direct exec |
+| Multi-step task | MODERATE | ReasoningLoop / v30 | Light planning |
 | Research question | COMPLEX | Contractive | Deep exploration |
 | Uncertain problem | HIGH ENTROPY | Contractive | Decomposition |
 | Tool workflow | STRUCTURED | v30 | Plan + Execute |
+| Slim LLM task | RELIABILITY | Interpreter-Tutor | Proof game |
+| Benchmark eval | SCORING | Interpreter-Tutor | Game sessions |
 
 ---
 
-**Document Version:** 1.0.0
-**Last Updated:** 2025-12-20
+**Document Version:** 2.0.0
+**Last Updated:** 2026-02-13
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio

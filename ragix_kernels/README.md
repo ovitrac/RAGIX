@@ -47,12 +47,13 @@ python run_doc_koas.py --project /path/to/project/src --language fr
 
 ## Kernel Categories
 
-KOAS provides four kernel families for different analysis domains:
+KOAS provides five kernel families for different analysis domains:
 
 | Category | Module | Purpose | Kernels |
 |----------|--------|---------|---------|
 | **audit** | `ragix_kernels.audit` | Code quality analysis | 27 kernels |
 | **docs** | `ragix_kernels.docs` | Document summarization | 17 kernels |
+| **presenter** | `ragix_kernels.presenter` | Slide deck generation from documents | 8 kernels |
 | **reviewer** | `ragix_kernels.reviewer` | Traceable Markdown review | 13 kernels |
 | **security** | `ragix_kernels.security` | Network/infrastructure security | 10 kernels |
 
@@ -156,6 +157,46 @@ The `doc_final_report` kernel generates six appendices:
 | **F** | Artifacts Catalog — links to visualizations (word clouds, graphs) |
 
 Appendices D and E display **human-readable file names** instead of internal IDs.
+
+---
+
+## Presenter Kernels (`ragix_kernels.presenter`)
+
+For generating slide decks (MARP) from document folders. See [KOAS_PRESENTER.md](../docs/KOAS_PRESENTER.md) for full documentation.
+
+**Core principle:** Content generation (S1+S2) is fully separated from layout rendering (S3). The `SlideDeck` JSON schema is the contract between them.
+
+### Stage 1: Collection (deterministic)
+
+| Kernel | Description | LLM | Output |
+|--------|-------------|-----|--------|
+| `pres_folder_scan` | Recursive folder discovery + file inventory | No | FileEntry list |
+| `pres_content_extract` | Markdown/text parsing, heading trees, semantic units | No | ContentCorpus |
+| `pres_asset_catalog` | Image/diagram/equation extraction + fingerprinting | No | AssetCatalog |
+
+### Stage 2: Structuring (deterministic + LLM edge)
+
+| Kernel | Description | LLM | Output |
+|--------|-------------|-----|--------|
+| `pres_semantic_normalize` | Topic clustering, role tagging, importance scoring | **Yes** (tiered) | NormalizedCorpus |
+| `pres_slide_plan` | Budget allocation, slide sequencing, provenance | No | SlideDeck (content) |
+| `pres_layout_assign` | Template + class assignment per slide type | No | SlideDeck (with layout) |
+
+### Stage 3: Rendering (deterministic)
+
+| Kernel | Description | LLM | Output |
+|--------|-------------|-----|--------|
+| `pres_marp_render` | SlideDeck → MARP Markdown with KaTeX, images, themes | No | .md (MARP) |
+| `pres_marp_export` | marp-cli → PDF, HTML, PPTX | No | Exported files |
+
+### Key Features
+
+- **LLM isolation**: LLM operates exclusively inside `pres_semantic_normalize`; all other kernels are deterministic
+- **Tiered LLM budget**: T0 (no LLM) → T1 (top-K clusters) → T2 (all clusters) → T3 (full polish), auto-selected by corpus size
+- **Identity fallback**: Clean, well-structured input bypasses normalization entirely (T0)
+- **Two architectural boundaries**: `NormalizedCorpus` (S1→S2) and `SlideDeck` JSON schema (S2→S3)
+- **CLI**: `presctl` with scan/build/render/export subcommands
+- **MCP**: 4 tools via `register_presenter_tools(mcp_server)`
 
 ---
 
@@ -450,6 +491,7 @@ class MyKernel(Kernel):
 |----------|-------------|
 | [KOAS.md](../docs/KOAS.md) | Philosophy and code audit details |
 | [KOAS_DOCS.md](../docs/KOAS_DOCS.md) | Document summarization system |
+| [KOAS_PRESENTER.md](../docs/KOAS_PRESENTER.md) | Slide deck generation from documents |
 | [KOAS_REVIEW.md](../docs/KOAS_REVIEW.md) | Document reviewer pipeline |
 | [KOAS_MCP_REFERENCE.md](../docs/KOAS_MCP_REFERENCE.md) | MCP tool reference |
 | [ROADMAP_KOAS_JAVA_AUDIT.md](../docs/developer/ROADMAP_KOAS_JAVA_AUDIT.md) | Java audit extensions roadmap |

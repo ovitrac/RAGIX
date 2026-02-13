@@ -2,9 +2,10 @@
 
 **Philosophy, Origins, and Application**
 
-**Author:** Olivier Vitrac, PhD, HDR | Adservio Innovation Lab
-**Version:** 1.0
-**Date:** 2025-12-14
+**Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Version:** 2.0
+**Date:** 2026-02-13
+**RAGIX Version:** 0.66+
 
 ---
 
@@ -16,16 +17,18 @@
 4. [KOAS Architecture](#4-koas-architecture)
 5. [Kernel Philosophy](#5-kernel-philosophy)
 6. [The Three-Stage Pipeline](#6-the-three-stage-pipeline)
-7. [Orchestration and Execution](#7-orchestration-and-execution)
-8. [RAG Integration](#8-rag-integration)
-9. [Quality Standards](#9-quality-standards)
-10. [References](#10-references)
+7. [Kernel Families](#7-kernel-families)
+8. [Orchestration and Execution](#8-orchestration-and-execution)
+9. [Activity Logging and Audit Trail](#9-activity-logging-and-audit-trail)
+10. [RAG Integration](#10-rag-integration)
+11. [Quality Standards](#11-quality-standards)
+12. [References](#12-references)
 
 ---
 
 ## 1. Introduction
 
-**KOAS (Kernel-Orchestrated Audit System)** is a sovereign, local-first code analysis framework that applies scientific computation principles to software quality assessment. It combines Abstract Syntax Tree (AST) analysis, graph-based metrics, and structured reporting into a reproducible, auditable pipeline.
+**KOAS (Kernel-Orchestrated Audit System)** is a sovereign, local-first computation framework that applies scientific kernel principles to software audits, document analysis, slide generation, Markdown review, and security scanning. As of v0.66, KOAS comprises **75 deterministic kernels across 5 families**, each following the three-stage pipeline pattern (data collection → analysis → reporting).
 
 ### Core Principles
 
@@ -301,7 +304,82 @@ Generates human-readable documentation:
 
 ---
 
-## 7. Orchestration and Execution
+## 7. Kernel Families
+
+As of v0.66, KOAS organizes 75 kernels into 5 families. Each family follows the three-stage pipeline and has its own dedicated documentation.
+
+### Overview
+
+| Family | Scope | Kernels | Documentation |
+|--------|-------|---------|---------------|
+| **audit** | Java codebase analysis (AST, metrics, coupling, risk) | 27 | This document (§6) |
+| **docs** | Document summarization (hierarchical, dual clustering) | 17 | [KOAS_DOCS.md](KOAS_DOCS.md) |
+| **presenter** | Slide deck generation (MARP, 3 compression modes) | 8 | [KOAS_PRESENTER.md](KOAS_PRESENTER.md) |
+| **reviewer** | Traceable Markdown review (chunk edits, selective revert) | 13 | [KOAS_REVIEW.md](KOAS_REVIEW.md) |
+| **security** | Vulnerability scanning and dependency analysis | 10 | §6 / [KOAS_MCP_REFERENCE.md](KOAS_MCP_REFERENCE.md) |
+
+### Family Architecture
+
+All families share the same execution model:
+
+```
+                    ┌────────────────────────────────────────┐
+                    │          KOAS Orchestrator              │
+                    │   (dependency resolution, scheduling)   │
+                    └──────────────────┬─────────────────────┘
+                                       │
+           ┌────────────┬──────────────┼────────────┬──────────────┐
+           │            │              │            │              │
+           ▼            ▼              ▼            ▼              ▼
+      ┌──────────┐ ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+      │  audit   │ │   docs   │  │presenter │  │ reviewer │  │ security │
+      │  27 K    │ │   17 K   │  │   8 K    │  │  13 K    │  │  10 K    │
+      │          │ │          │  │          │  │          │  │          │
+      │ AST,     │ │ Pyramidal│  │ MARP,    │  │ Chunk    │  │ CVE,     │
+      │ metrics, │ │ + Leiden │  │ layout,  │  │ edits,   │  │ deps,    │
+      │ coupling │ │ clusters │  │ compress │  │ ledger   │  │ secrets  │
+      └──────────┘ └──────────┘  └──────────┘  └──────────┘  └──────────┘
+```
+
+### Shared Principles
+
+1. **Kernels compute, LLMs reason** — No LLM logic inside kernels; LLMs are invoked at orchestration boundaries (Worker + Tutor pattern in `docs` and `reviewer` families)
+2. **Three-stage pipeline** — Stage 1 (data collection), Stage 2 (analysis), Stage 3 (reporting)
+3. **Deterministic by default** — Same input → same output; optional LLM normalization is clearly marked
+4. **Sovereignty attestation** — Every kernel execution logged with `sovereignty.local_only: true`
+5. **Hash chain integrity** — SHA256 chain across executions for tamper evidence
+
+### Audit Family (27 Kernels)
+
+The original KOAS family, described in detail in §6 above. Covers Java codebase analysis: AST scanning, complexity metrics, coupling analysis (Martin), dead code detection, risk assessment, and report assembly.
+
+### Docs Family (17 Kernels)
+
+Hierarchical document summarization with dual clustering (Pyramidal + Leiden). Uses the Worker + Tutor LLM pattern: a small model (e.g., Granite 3B) generates summaries, a larger model (e.g., Mistral 7B) refines them.
+
+See **[KOAS_DOCS.md](KOAS_DOCS.md)** for the full 17-kernel pipeline, provenance tracking (Merkle root), and LLM cache integration.
+
+### Presenter Family (8 Kernels)
+
+Generates MARP-compatible slide decks from document analysis. Three compression modes (full/compressed/executive), layout intelligence, and deterministic slide generation with optional LLM normalization.
+
+See **[KOAS_PRESENTER.md](KOAS_PRESENTER.md)** for `presenterctl` CLI, SlideDeck JSON schema, and production benchmarks.
+
+### Reviewer Family (13 Kernels)
+
+Traceable Markdown review with chunk-level edits, selective revert, and preflight pipeline. Uses an append-only ledger with RVW-NNNN change IDs for full traceability.
+
+See **[KOAS_REVIEW.md](KOAS_REVIEW.md)** for the review pipeline, change tracking, and acceptance/revert workflow.
+
+### Security Family (10 Kernels)
+
+Vulnerability scanning, dependency analysis, secret detection, and compliance checks. Operates on the same three-stage pipeline as other families.
+
+See **[KOAS_MCP_REFERENCE.md](KOAS_MCP_REFERENCE.md)** for MCP tool interfaces.
+
+---
+
+## 8. Orchestration and Execution
 
 ### Dependency Resolution
 
@@ -355,7 +433,37 @@ This creates a blockchain-style integrity chain that can be verified at any time
 
 ---
 
-## 8. RAG Integration
+## 9. Activity Logging and Audit Trail
+
+Every kernel execution is recorded in a centralized, append-only event stream (`.KOAS/activity/events.jsonl`), providing a complete audit trail for all KOAS operations.
+
+### Event Schema (`koas.event/1.0`)
+
+Each event captures:
+- **Who**: Actor identity (system, operator, external orchestrator, auditor)
+- **What**: Kernel name, version, stage, scope
+- **When**: ISO 8601 timestamp with milliseconds
+- **Result**: Success/failure, duration, item count, cache hit/miss
+- **Sovereignty**: `local_only: true` attestation per event
+
+### Hash Chain
+
+The orchestrator maintains a SHA256 chain across kernel executions. Each entry's hash incorporates the previous entry, creating a tamper-evident chain. Additionally, the Merkle tree module computes `inputs_merkle_root` for document-level provenance.
+
+### Broker Gateway
+
+When external orchestrators (Claude, GPT-4) access KOAS through the broker gateway, activity logging captures:
+- Authentication events (`system.auth` scope)
+- Actor type: `external_orchestrator` with `api_key` or `hmac` auth
+- Scope enforcement: external clients see only `docs.status` and `docs.export_external`
+
+See **[KOAS_ACTIVITY.md](KOAS_ACTIVITY.md)** for the complete event schema, actor model, querying examples, and configuration reference.
+
+**Source:** `ragix_kernels/activity.py` (731 lines)
+
+---
+
+## 10. RAG Integration
 
 ### Semantic Code Search
 
@@ -399,7 +507,7 @@ After kernel execution, RAG helps interpret results:
 
 ---
 
-## 9. Quality Standards
+## 11. Quality Standards
 
 ### Complexity Metrics (McCabe)
 
@@ -454,7 +562,7 @@ Where remediation_time is based on industry benchmarks for each violation type.
 
 ---
 
-## 10. References
+## 12. References
 
 ### Academic Foundations
 
@@ -497,4 +605,10 @@ This architecture enables industrial-scale code analysis while maintaining scien
 
 *KOAS is part of the RAGIX project — Retrieval-Augmented Generative Interactive eXecution Agent*
 
-*Adservio Innovation Lab | 2025*
+*Adservio Innovation Lab | 2025–2026*
+
+---
+
+**Document Version:** 2.0
+**Last Updated:** 2026-02-13
+**Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio

@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ragix.adservio.fr/schemas/presenter/slide_deck_v1.json",
+  "title": "KOAS Presenter — Slide Deck Schema v1.0",
+  "description": "The contract between content generation (S1+S2) and layout rendering (S3). Everything upstream produces this; everything downstream consumes it.",
+  "type": "object",
+  "required": ["metadata", "slides"],
+  "properties": {
+
+    "metadata": {
+      "type": "object",
+      "required": ["title", "author"],
+      "properties": {
+        "title":         { "type": "string" },
+        "subtitle":      { "type": "string" },
+        "author":        { "type": "string" },
+        "organization":  { "type": "string" },
+        "date":          { "type": "string" },
+        "version":       { "type": "string" },
+        "source_folder": { "type": "string" },
+        "generated_by":  { "type": "string", "const": "koas-presenter" },
+        "lang":          { "type": "string" }
+      }
+    },
+
+    "theme": {
+      "type": "object",
+      "properties": {
+        "name":       { "type": "string", "default": "default" },
+        "custom_css": { "type": "string" },
+        "size":       { "type": "string", "default": "16:9", "enum": ["16:9", "4:3"] },
+        "math":       { "type": "string", "enum": ["katex", "mathjax"], "default": "katex" }
+      }
+    },
+
+    "slides": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/slide"
+      }
+    }
+  },
+
+  "$defs": {
+
+    "slide": {
+      "type": "object",
+      "required": ["id", "type", "content"],
+      "properties": {
+
+        "id": {
+          "type": "string",
+          "pattern": "^slide-[0-9]{3}$"
+        },
+
+        "type": {
+          "type": "string",
+          "enum": [
+            "title", "section", "content", "two_column",
+            "image_text", "image_full", "equation", "table",
+            "code", "quote", "summary", "blank"
+          ]
+        },
+
+        "content": { "$ref": "#/$defs/slideContent" },
+        "notes":   { "type": "string" },
+        "provenance": { "$ref": "#/$defs/slideProvenance" },
+        "layout":  { "$ref": "#/$defs/slideLayout" }
+      }
+    },
+
+    "slideContent": {
+      "type": "object",
+      "properties": {
+        "heading":    { "type": "string" },
+        "subheading": { "type": "string" },
+        "body":       { "type": "array", "items": { "type": "string" } },
+        "bullets":    { "type": "array", "items": { "type": "string" } },
+        "numbered":   { "type": "array", "items": { "type": "string" } },
+        "code": {
+          "type": "object",
+          "properties": {
+            "language": { "type": "string" },
+            "text":     { "type": "string" }
+          }
+        },
+        "equation": { "type": "string" },
+        "table": {
+          "type": "object",
+          "properties": {
+            "headers": { "type": "array", "items": { "type": "string" } },
+            "rows":    { "type": "array", "items": { "type": "array", "items": { "type": "string" } } },
+            "caption": { "type": "string" }
+          }
+        },
+        "image": { "$ref": "#/$defs/slideImage" },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "width":   { "type": "string", "default": "50%" },
+              "body":    { "type": "array", "items": { "type": "string" } },
+              "bullets": { "type": "array", "items": { "type": "string" } },
+              "image":   { "$ref": "#/$defs/slideImage" }
+            }
+          }
+        }
+      }
+    },
+
+    "slideImage": {
+      "type": "object",
+      "properties": {
+        "asset_id": { "type": "string" },
+        "path":     { "type": "string" },
+        "alt":      { "type": "string" },
+        "caption":  { "type": "string" }
+      }
+    },
+
+    "slideProvenance": {
+      "type": "object",
+      "properties": {
+        "source_file":  { "type": "string" },
+        "source_lines": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
+        "heading_path": { "type": "array", "items": { "type": "string" } },
+        "unit_ids":     { "type": "array", "items": { "type": "string" } },
+        "method": {
+          "type": "string",
+          "enum": ["extracted", "synthesized", "user_outline", "auto_section"]
+        }
+      }
+    },
+
+    "slideLayout": {
+      "type": "object",
+      "properties": {
+        "template":         { "type": "string" },
+        "class":            { "type": "string" },
+        "paginate":         { "type": "boolean", "default": true },
+        "background_color": { "type": "string" },
+        "background_image": { "type": "string" },
+        "bg_position":      { "type": "string", "enum": ["left", "right", "center", "full"] },
+        "bg_size":          { "type": "string" },
+        "bg_filter":        { "type": "string" }
+      }
+    }
+  }
+}
