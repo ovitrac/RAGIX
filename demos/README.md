@@ -10,12 +10,13 @@
 
 ## Overview
 
-This directory contains executable demonstrations covering three areas of RAGIX:
+This directory contains executable demonstrations covering four areas of RAGIX:
 
 | Demo | Directory/File | What It Shows |
 |------|---------------|---------------|
 | **KOAS Docs Audit** | `koas_docs_audit/` | Activity logging, broker gateway, ACL enforcement |
 | **KOAS MCP Interactive** | `koas_mcp_demo/` | Web UI for KOAS tools via MCP (16 tools, scenarios) |
+| **KOAS Memory Pipe** | `koas_pipe_demo/` | Ingest + FTS5 recall via single `pipe` command (no LLM needed) |
 | **Reasoning v30 Benchmark** | `reasoning_v30_demo.py` + scripts | Reasoning Graph with real LLM calls and multi-model comparison |
 
 ---
@@ -89,8 +90,12 @@ demos/
 │   │   └── js/koas_client.js       # Client-side logic
 │   └── scenarios/                  # Pre-built workflow definitions
 │
-├── reasoning_v30_demo.py           # Demo 3a — Reasoning Graph demo
-├── run_reasoning_benchmark.sh      # Demo 3b — Multi-model benchmark runner
+├── koas_pipe_demo/                 # Demo 3 — Memory Pipe (ingest + recall)
+│   ├── README.md                   # Full documentation + expected output
+│   └── run_demo.sh                 # Self-contained demo (no LLM needed)
+│
+├── reasoning_v30_demo.py           # Demo 4a — Reasoning Graph demo
+├── run_reasoning_benchmark.sh      # Demo 4b — Multi-model benchmark runner
 ├── test_classification.py          # Test — task classification
 ├── test_simple_execution.py        # Test — SIMPLE task flow
 └── test_moderate_execution.py      # Test — MODERATE task flow
@@ -180,7 +185,39 @@ See [`koas_mcp_demo/README.md`](koas_mcp_demo/README.md) for programmatic usage 
 
 ---
 
-## Demo 3: Reasoning v30 Benchmark
+## Demo 3: KOAS Memory Pipe
+
+**Purpose:** Demonstrate the `ragix-memory pipe` command — a single CLI invocation that ingests RAGIX source files into a SQLite memory store and retrieves relevant chunks via FTS5 full-text search. No LLM or Ollama required.
+
+### Quick Start
+
+```bash
+cd demos/koas_pipe_demo
+./run_demo.sh
+```
+
+### What It Exercises
+
+1. **Paragraph-aware chunking** — files split at `\n\n` boundaries, merged up to token budget
+2. **SHA-256 deduplication** — re-running is idempotent (zero new chunks on re-ingest)
+3. **FTS5 BM25 search** — full-text search with differentiated, query-relevant results
+4. **Token-budgeted injection** — output is capped to fit within an LLM context window
+5. **Anti-context-poisoning** — raw ingest defaults to `injectable=false`; `pipe` uses `injectable=true` for interactive use
+
+### Key Difference from Other Demos
+
+| Feature | Docs Audit / MCP | Memory Pipe |
+|---------|-----------------|-------------|
+| Requires LLM | Yes (Ollama) | No (pure deterministic) |
+| Focus | Kernel execution, UI | Data ingestion + retrieval |
+| Output | Reports, web UI | Injection block (text) |
+| Composability | Standalone | Pipes into LLM tools |
+
+See [`koas_pipe_demo/README.md`](koas_pipe_demo/README.md) for expected output and technical details.
+
+---
+
+## Demo 4: Reasoning v30 Benchmark
 
 **Purpose:** Exercise the full Reasoning Graph v30 pipeline (classify → plan → execute → reflect → verify) with real Ollama LLM calls and compare accuracy across models.
 
@@ -239,28 +276,27 @@ python test_moderate_execution.py
 ## Comparison of Demos
 
 ```
-                    ┌───────────────────────────────────────────┐
-                    │             RAGIX Demos                   │
-                    └──────────────────┬────────────────────────┘
-                                       │
-          ┌────────────────────────────┼────────────────────────────┐
-          │                            │                            │
-          ▼                            ▼                            ▼
-   ┌──────────────┐         ┌──────────────────┐         ┌──────────────────┐
-   │  Docs Audit  │         │  MCP Interactive │         │ Reasoning v30    │
-   │              │         │                  │         │                  │
-   │ Activity log │         │  Web UI          │         │ Graph pipeline   │
-   │ Broker + ACL │         │  16 KOAS tools   │         │ Multi-model      │
-   │ 2 modes      │         │  Scenarios       │         │ Benchmarks       │
-   │              │         │  WebSocket       │         │                  │
-   │ ragix_kernels│         │ ragix_kernels    │         │ ragix_core       │
-   │  + activity  │         │  + MCP server    │         │  reasoning_v30   │
-   └──────────────┘         └──────────────────┘         └──────────────────┘
-          │                           │                            │
-          │                           │                            │
-          ▼                           ▼                            ▼
-     Sovereignty              Tool orchestration             LLM reasoning
-     & compliance                & integration               & benchmarking
+                         ┌───────────────────────────────────────────┐
+                         │             RAGIX Demos                   │
+                         └──────────────────┬────────────────────────┘
+                                            │
+     ┌──────────────────┬───────────────────┼───────────────────┬──────────────────┐
+     │                  │                   │                   │                  │
+     ▼                  ▼                   ▼                   ▼                  │
+┌──────────┐   ┌────────────────┐   ┌──────────────┐   ┌──────────────┐          │
+│Docs Audit│   │MCP Interactive │   │ Memory Pipe  │   │Reasoning v30 │          │
+│          │   │                │   │              │   │              │          │
+│Activity  │   │ Web UI         │   │ Ingest+Recall│   │Graph pipeline│          │
+│Broker+ACL│   │ 16 KOAS tools  │   │ FTS5/BM25   │   │Multi-model   │          │
+│2 modes   │   │ Scenarios      │   │ No LLM      │   │Benchmarks    │          │
+│          │   │ WebSocket      │   │ Composable   │   │              │          │
+│ragix_    │   │ ragix_kernels  │   │ ragix_core   │   │ragix_core    │          │
+│ kernels  │   │  + MCP server  │   │  memory      │   │ reasoning_v30│          │
+└────┬─────┘   └───────┬────────┘   └──────┬───────┘   └──────┬───────┘          │
+     │                 │                    │                  │                  │
+     ▼                 ▼                    ▼                  ▼                  │
+ Sovereignty     Tool orchestration   Data retrieval     LLM reasoning           │
+ & compliance      & integration      & injection       & benchmarking           │
 ```
 
 ---
@@ -286,6 +322,8 @@ python test_moderate_execution.py
 | [docs/KOAS.md](../docs/KOAS.md) | KOAS architecture and philosophy (5 families, 75 kernels) |
 | [docs/KOAS_ACTIVITY.md](../docs/KOAS_ACTIVITY.md) | Activity logging reference (event schema, actor model) |
 | [docs/KOAS_DOCS.md](../docs/KOAS_DOCS.md) | Document summarization kernels (17 kernels) |
+| [docs/KOAS_MEMORY_MCP.md](../docs/KOAS_MEMORY_MCP.md) | Memory MCP server (17 tools) |
+| [docs/developer/ROADMAP_MEMORY_PIPE.md](../docs/developer/ROADMAP_MEMORY_PIPE.md) | Memory pipe implementation roadmap (v3.0) |
 | [docs/REASONING.md](../docs/REASONING.md) | Reasoning engines deep dive |
 | [docs/MCP.md](../docs/MCP.md) | MCP protocol and tool reference |
 | [ragix_kernels/README.md](../ragix_kernels/README.md) | Kernel developer reference (all 75 kernels) |

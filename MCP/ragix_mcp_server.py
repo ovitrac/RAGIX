@@ -3563,7 +3563,80 @@ def koas_audit_report(
 
 
 # ---------------------------------------------------------------------------
-# 12. Entry point
+# 12. Memory MCP tools (optional, config-gated)
+# ---------------------------------------------------------------------------
+
+def _register_memory_tools() -> bool:
+    """
+    Register RAGIX Memory tools alongside existing tools.
+
+    Config from environment:
+        RAGIX_MEMORY_DB         — SQLite path (default: memory.db)
+        RAGIX_MEMORY_EMBEDDER   — mock|ollama (default: mock)
+        RAGIX_MEMORY_FTS        — fr|en|raw (default: fr)
+        RAGIX_MEMORY_ENABLED    — 0|1 (default: 0)
+        RAGIX_MEMORY_RATE_LIMIT — 0|1 (default: 1)
+
+    Returns True if successfully registered, False otherwise.
+    """
+    if os.environ.get("RAGIX_MEMORY_ENABLED", "0") not in ("1", "true", "yes"):
+        return False
+
+    try:
+        from ragix_core.memory.config import (
+            EmbedderConfig,
+            MemoryConfig,
+            RateLimitConfig,
+            StoreConfig,
+        )
+        from ragix_core.memory.mcp.metrics import MetricsCollector
+        from ragix_core.memory.mcp.rate_limiter import RateLimiter
+        from ragix_core.memory.mcp.session import SessionManager
+        from ragix_core.memory.mcp.tools import register_memory_tools
+        from ragix_core.memory.mcp.workspace import WorkspaceRouter
+        from ragix_core.memory.store import FTS_TOKENIZER_PRESETS
+        from ragix_core.memory.tools import create_dispatcher
+
+        db_path = os.environ.get("RAGIX_MEMORY_DB", "memory.db")
+        embedder = os.environ.get("RAGIX_MEMORY_EMBEDDER", "mock")
+        fts_key = os.environ.get("RAGIX_MEMORY_FTS", "fr")
+        fts_tok = FTS_TOKENIZER_PRESETS.get(fts_key, fts_key)
+        rate_limit_enabled = os.environ.get(
+            "RAGIX_MEMORY_RATE_LIMIT", "1"
+        ) in ("1", "true", "yes")
+
+        config = MemoryConfig(
+            store=StoreConfig(db_path=db_path, fts_tokenizer=fts_tok),
+            embedder=EmbedderConfig(backend=embedder),
+            rate_limit=RateLimitConfig(enabled=rate_limit_enabled),
+        )
+        dispatcher = create_dispatcher(config)
+        session_mgr = SessionManager(dispatcher.store._conn)
+        workspace_router = WorkspaceRouter(dispatcher.store._conn)
+        metrics_collector = MetricsCollector()
+        rate_limiter = RateLimiter(config.rate_limit)
+
+        register_memory_tools(
+            mcp, dispatcher,
+            session_mgr=session_mgr,
+            workspace_router=workspace_router,
+            metrics=metrics_collector,
+            rate_limiter=rate_limiter,
+        )
+        return True
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Memory tools registration failed (continuing without memory): {e}"
+        )
+        return False
+
+
+_memory_registered = _register_memory_tools()
+
+
+# ---------------------------------------------------------------------------
+# 13. Entry point
 # ---------------------------------------------------------------------------
 
 def main() -> None:

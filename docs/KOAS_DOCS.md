@@ -106,16 +106,16 @@ Key insight: **The RAG index already contains structured metadata** (file → ch
 │            │                                                        │
 │            ▼                                                        │
 │   ┌────────────────────────────────────────────────────────┐        │
-│   │              STAGE 1: Collection                        │        │
-│   │  ┌──────────┐  ┌──────────┐  ┌──────────┐              │        │
-│   │  │doc_meta  │  │doc_concept│ │doc_struct│              │        │
-│   │  │data      │  │s         │  │ure       │              │        │
-│   │  └──────────┘  └──────────┘  └──────────┘              │        │
+│   │              STAGE 1: Collection                       │        │
+│   │  ┌────────────┐  ┌────────────┐  ┌─────────────┐       │        │
+│   │  │doc_metadata|  │doc_concepts│  │doc_structure│       │        │
+│   │  │            │  │            │  │             │       │        │
+│   │  └────────────┘  └────────────┘  └─────────────┘       │        │
 │   └────────────────────────┬───────────────────────────────┘        │
 │                            │                                        │
 │                            ▼                                        │
 │   ┌────────────────────────────────────────────────────────┐        │
-│   │              STAGE 2: Analysis                          │        │
+│   │              STAGE 2: Analysis                         │        │
 │   │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐ │        │
 │   │  │doc_      │  │doc_      │  │doc_      │  │doc_func │ │        │
 │   │  │cluster   │  │extract   │  │coverage  │  │_extract │ │        │
@@ -124,7 +124,7 @@ Key insight: **The RAG index already contains structured metadata** (file → ch
 │                            │                                        │
 │                            ▼                                        │
 │   ┌────────────────────────────────────────────────────────┐        │
-│   │              STAGE 3: Synthesis                         │        │
+│   │              STAGE 3: Synthesis                        │        │
 │   │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐ │        │
 │   │  │doc_      │  │doc_      │  │doc_report│  │doc_     │ │        │
 │   │  │pyramid   │  │compare   │  │_assemble │  │summarize│ │        │
@@ -133,10 +133,10 @@ Key insight: **The RAG index already contains structured metadata** (file → ch
 │                            │                                        │
 │                            ▼                                        │
 │   ┌────────────────────────────────────────────────────────┐        │
-│   │                    OUTPUTS                              │        │
-│   │  • audit_trail.json      (full provenance)              │        │
-│   │  • doc_report.md         (markdown report)              │        │
-│   │  • summaries/*.md        (per-domain summaries)         │        │
+│   │                    OUTPUTS                             │        │
+│   │  • audit_trail.json      (full provenance)             │        │
+│   │  • doc_report.md         (markdown report)             │        │
+│   │  • summaries/*.md        (per-domain summaries)        │        │
 │   └────────────────────────────────────────────────────────┘        │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
@@ -674,14 +674,14 @@ For document summarization, LLM time dominates because the primary output *is* n
 ### Design Principle: LLM at the Edge
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    LLM INTEGRATION PATTERN                          │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌─────────────────────────────────────────────────────────────┐    │
+┌──────────────────────────────────────────────────────────────────────┐
+│                    LLM INTEGRATION PATTERN                           │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐    │
 │  │                    PURE COMPUTATION                          │    │
 │  │                                                              │    │
-│  │  doc_metadata ──▶ doc_concepts ──▶ doc_cluster              │    │
+│  │  doc_metadata ──▶ doc_concepts ──▶ doc_cluster               │    │
 │  │       │               │               │                      │    │
 │  │       └───────────────┴───────────────┘                      │    │
 │  │                       │                                      │    │
@@ -689,9 +689,9 @@ For document summarization, LLM time dominates because the primary output *is* n
 │  │                  doc_pyramid                                 │    │
 │  │                       │                                      │    │
 │  └───────────────────────┼──────────────────────────────────────┘    │
-│                          │                                          │
-│                          ▼                                          │
-│  ┌───────────────────────────────────────────────────────────────┐  │
+│                          │                                           │
+│                          ▼                                           │
+│  ┌────────────────────────────────────────────────────────────────┐  │
 │  │                    LLM EDGE                                    │  │
 │  │                                                                │  │
 │  │  Structured JSON ──▶ Prompt Template ──▶ LLM ──▶ Parsed Output │  │
@@ -700,8 +700,8 @@ For document summarization, LLM time dominates because the primary output *is* n
 │  │  • doc_summarize (per-document summaries)                      │  │
 │  │                                                                │  │
 │  └────────────────────────────────────────────────────────────────┘  │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### LLM Configuration
@@ -719,12 +719,12 @@ llm_config = {
 
 ### Supported Models
 
-| Model | Size | Use Case |
-|-------|------|----------|
-| granite3.1-moe:3b | 3B | Default, laptop-friendly |
-| mistral:7b | 7B | Better quality, more VRAM |
-| llama3:8b | 8B | Alternative |
-| qwen2:7b | 7B | Multilingual |
+| Model             | Size | Use Case                  |
+| ----------------- | ---- | ------------------------- |
+| granite3.1-moe:3b | 3B   | Default, laptop-friendly  |
+| mistral:7b        | 7B   | Better quality, more VRAM |
+| llama3:8b         | 8B   | Alternative               |
+| qwen2:7b          | 7B   | Multilingual              |
 
 ### Fallback Strategy
 

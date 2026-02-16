@@ -6,6 +6,138 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.67.0 — KOAS Memory, Summary & Memory Pipe (2026-02-16)
+
+### Highlights
+
+**RAGIX v0.67.0 introduces three major subsystems: episodic memory with policy-driven storage and MCP exposure, multi-document summarization with Graph-RAG and secrecy tiers, and a pipe-based demo for Claude integration.**
+
+| Feature | Status |
+|---------|--------|
+| KOAS Memory (12 core + 9 MCP modules) | ✅ 17 MCP tools, FTS5+BM25 retrieval, Q\*-search |
+| Memory CLI (`ragix-memory`) | ✅ 11 subcommands (search, recall, ingest, pipe, palace...) |
+| Memory Palace (spatial metaphor) | ✅ Room/loci placement, guided tours |
+| STM→MTM→LTM promotion | ✅ Policy-driven with SHA-256 corpus dedup |
+| KOAS Summary (12 kernels) | ✅ 3-stage pipeline, Graph-RAG, secrecy tiers |
+| Summary CLI (`summaryctl`) | ✅ `--graph/--no-graph`, `--secrecy` flags |
+| Graph-RAG integration | ✅ Entity extraction → graph store → community detection |
+| Secrecy tiers (S0/S2/S3) | ✅ Deterministic redaction before LLM exposure |
+| Memory Pipe Demo | ✅ 6-act narrative with live Claude inference |
+| Shared utilities | ✅ `gpu_detect`, `text_utils` in `ragix_core/shared/` |
+| MCP memory integration | ✅ Config-gated `_register_memory_tools()` |
+| Tests | ✅ 511 passing across 15 test files |
+
+### New Module: KOAS Memory (`ragix_core/memory/`)
+
+Episodic memory subsystem with policy-driven storage and multi-tier promotion:
+
+```python
+from ragix_core.memory import MemoryStore, MemoryPolicy
+
+store = MemoryStore(db_path="memories.db")
+policy = MemoryPolicy.default()
+
+# Store with automatic tier assignment
+store.add("The API uses JWT tokens for auth", tags=["api", "auth"])
+
+# Retrieve with FTS5 + BM25 scoring
+results = store.search("authentication method", top_k=5)
+```
+
+**Core modules (12):** types, store, embedder, policy, tools, proposer, middleware, recall, qsearch, palace, consolidate, cli
+
+**Key features:**
+- **FTS5 + BM25** full-text search with SQLite
+- **Q\*-style search** — iterative deepening with relevance feedback
+- **Memory Palace** — spatial metaphor with rooms, loci, guided tours
+- **STM→MTM→LTM** tier promotion based on access frequency and recency
+- **SHA-256 corpus dedup** — prevents duplicate memory storage
+- **Consolidation** — merge related memories, prune stale entries
+
+### New Module: KOAS Summary (`ragix_kernels/summary/`)
+
+Multi-document summarization with Graph-RAG and secrecy:
+
+```bash
+# Standard summarization
+summaryctl summarize ./workspace --format markdown
+
+# With Graph-RAG (entity extraction + community detection)
+summaryctl summarize ./workspace --graph
+
+# With secrecy tier redaction
+summaryctl summarize ./workspace --secrecy S2
+```
+
+**12 kernels** following the 3-stage pipeline:
+- **S1 (Collection):** `summary_collect`, `summary_ingest`, `summary_extract_entities`, `summary_build_graph`
+- **S2 (Analysis):** `summary_generate`, `summary_consolidate`, `summary_drift`, `summary_redact`, `summary_capabilities`, `summary_budgeted_recall`, `summary_verify`
+- **S3 (Reporting):** `summary_report`
+
+**Graph-RAG pipeline:** Entity extraction → Graph store (shared SQLite) → Community detection → Budgeted recall
+
+### New Module: Memory MCP (`ragix_core/memory/mcp/`)
+
+17 MCP tools for memory operations, exposed via the main RAGIX MCP server:
+
+```python
+# In MCP/ragix_mcp_server.py (line 3569)
+if os.environ.get("RAGIX_MEMORY_ENABLED"):
+    _register_memory_tools(mcp)
+```
+
+**MCP modules (9):** server, tools, session, workspace, metrics, rate_limiter, formatting, prompts, `__main__`
+
+### Memory Pipe Demo (`demos/koas_pipe_demo/`)
+
+6-act narrative demonstrating memory-augmented Claude inference:
+
+```bash
+# Ingest documents into memory, then query via pipe
+ragix-memory pipe "What authentication methods are used?" \
+    --source docs/ | claude
+
+# Source accepts files, directories, and globs
+ragix-memory pipe "Summarize security findings" \
+    --source "reports/*.md"
+```
+
+**Features:**
+- `resolve_sources()` — `--source` accepts files, directories, globs
+- Last-DB reuse via `~/.cache/ragix/last_memory_db`
+- 6 acts: corpus measurement → ingest → surgical recalls → numbers → synthesis → live inference
+
+### Integration Points
+
+| File | Changes |
+|------|---------|
+| `ragix_core/memory/` | **NEW** — 12 core modules, episodic memory subsystem |
+| `ragix_core/memory/mcp/` | **NEW** — 9 MCP modules, 17 tools |
+| `ragix_core/memory/tests/` | **NEW** — 15 test files, 511 tests |
+| `ragix_core/memory/skills/` | **NEW** — 4 skill files (memory.md + 3 aliases) |
+| `ragix_kernels/summary/` | **NEW** — 12 kernels, CLI, MCP tools, visualization APIs |
+| `ragix_core/shared/` | **NEW** — `gpu_detect.py`, `text_utils.py` |
+| `demos/koas_pipe_demo/` | **NEW** — Memory pipe demo (4 files) |
+| `docs/KOAS_MEMORY_MCP.md` | **NEW** — Memory MCP documentation (v2.0.0, 636 lines) |
+| `docs/KOAS_MEMORY_ARCHITECTURE.md` | **NEW** — Memory architecture documentation |
+| `docs/KOAS_SUMMARY.md` | **NEW** — Summary subsystem documentation |
+| `MCP/ragix_mcp_server.py` | **MODIFIED** — `_register_memory_tools()` (config-gated) |
+| `pyproject.toml` | **MODIFIED** — Version 0.62.0 → 0.67.0, `ragix-memory` entry point |
+| `unix-rag-agent.py` | **MODIFIED** — Memory middleware hooks |
+| `demos/README.md` | **MODIFIED** — Added pipe demo documentation |
+
+### Documentation
+
+| Document | Version | Lines | Content |
+|----------|---------|-------|---------|
+| `docs/KOAS_MEMORY_MCP.md` | v2.0.0 | 636 | 17 MCP tools, workspace router, metrics, rate limiting |
+| `docs/KOAS_MEMORY_ARCHITECTURE.md` | v1.0.0 | — | Core architecture, tier model, consolidation |
+| `docs/KOAS_SUMMARY.md` | v1.0.0 | — | Summary pipeline, Graph-RAG, secrecy |
+| `docs/developer/ROADMAP_MEMORY.md` | — | — | Memory subsystem blueprint |
+| `docs/developer/PLAN_MEMORY_MCP_SKILL.md` | v1.2.0 | — | MCP skill implementation plan |
+
+---
+
 ## v0.66.0 — Centralized Activity Logging & Broker Gateway (2026-01-30)
 
 ### Highlights
@@ -1912,6 +2044,7 @@ mcp:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **v0.67.0** | 2026-02-16 | KOAS Memory (17 MCP tools), Summary (12 kernels, Graph-RAG), Memory Pipe demo |
 | **v0.66.0** | 2026-01-30 | Centralized Activity Logging, Broker Gateway, Demo setup |
 | **v0.64.2** | 2026-01-29 | Boilerplate detection (changelog patterns), output path fix |
 | **v0.64** | 2026-01-22 | Two-tier caching (LLM + kernel), 16x speedup on cached runs |

@@ -476,12 +476,32 @@ class UnixRAGAgent:
     shell: ShellSandbox
     system_prompt: str = AGENT_SYSTEM_PROMPT
     history: List[Dict[str, str]] = field(default_factory=list)
+    # V3.3: Optional persistent memory middleware (config-gated)
+    memory_enabled: bool = False
+    memory_config: Optional[Dict[str, Any]] = None
+    _memory: Any = field(default=None, init=False, repr=False)
+    _turn_id: int = field(default=0, init=False, repr=False)
 
     def __post_init__(self):
         """
         After initialization, run a project overview command and store its
         result as part of the initial context.
         """
+        # Wire memory middleware if enabled
+        if self.memory_enabled:
+            try:
+                from ragix_core.memory.middleware import MemoryMiddleware
+                from ragix_core.memory.tools import create_dispatcher
+                from ragix_core.memory.config import MemoryConfig
+                mem_cfg = MemoryConfig.from_dict(self.memory_config or {})
+                dispatcher = create_dispatcher(mem_cfg)
+                self._memory = MemoryMiddleware(dispatcher, mem_cfg)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Memory middleware init failed (continuing without memory): {e}"
+                )
+                self._memory = None
         overview_cmd = (
             "find . -maxdepth 4 -type f "
             "\\( -name '*.py' -o -name '*.ipynb' -o -name 'Makefile' "
@@ -565,56 +585,76 @@ class UnixRAGAgent:
         - CommandResult or None (if no bash command executed)
         - Natural-language response or None
         """
+        self._turn_id += 1
+
+        # Hook 1: inject relevant memory into system context
+        effective_prompt = self.system_prompt
+        if self._memory:
+            effective_prompt = self._memory.pre_call(
+                user_text, self.system_prompt, turn_id=str(self._turn_id)
+            )
+
         # Feed user message into history
         self._add_message("user", user_text)
 
         # Query the LLM for the next action
-        raw = self.llm.generate(self.system_prompt, self.history)
+        raw = self.llm.generate(effective_prompt, self.history)
         self._add_message("assistant", raw)
+
+        # Hook 2: parse proposals, govern, store accepted items
+        if self._memory:
+            raw, _summary = self._memory.post_call(
+                raw, tool_calls=[], turn_id=str(self._turn_id)
+            )
 
         # Parse JSON action
         action = extract_json_object(raw)
         if action is None:
             # Fallback: treat entire raw output as a message.
-            return None, raw
-
-        kind = action.get("action")
-
-        # -------- case: execute bash command only --------
-        if kind == "bash":
-            cmd = action.get("command", "")
-            result = self.shell.run(cmd)
-            # Feed command result back as context
-            self._add_message("user", "Command result:\n" + result.as_text_block())
-            return result, None
-
-        # -------- case: bash + respond --------
-        elif kind == "bash_and_respond":
-            cmd = action.get("command", "")
-            msg = action.get("message", "")
-            result = self.shell.run(cmd)
-            self._add_message("user", "Command result:\n" + result.as_text_block())
-            return result, msg or None
-
-        # -------- case: respond only --------
-        elif kind == "respond":
-            msg = action.get("message", "")
-            return None, msg or None
-
-        # -------- case: edit_file tool --------
-        elif kind == "edit_file":
-            path = action.get("path", "").strip()
-            old = action.get("old", "")
-            new = action.get("new", "")
-            summary = self._edit_file(path, old, new)
-            # Feed summary into the conversation so the model can follow up with git diff, etc.
-            self._add_message("user", f"Edit_file result for '{path}': {summary}")
-            # We return a "response" to the human as well.
-            return None, summary
-
-        # -------- unknown action fallback --------
+            cmd_result, response = None, raw
         else:
-            return None, f"Unknown action kind: {kind!r}"
+            kind = action.get("action")
+
+            # -------- case: execute bash command only --------
+            if kind == "bash":
+                cmd = action.get("command", "")
+                result = self.shell.run(cmd)
+                self._add_message("user", "Command result:\n" + result.as_text_block())
+                cmd_result, response = result, None
+
+            # -------- case: bash + respond --------
+            elif kind == "bash_and_respond":
+                cmd = action.get("command", "")
+                msg = action.get("message", "")
+                result = self.shell.run(cmd)
+                self._add_message("user", "Command result:\n" + result.as_text_block())
+                cmd_result, response = result, msg or None
+
+            # -------- case: respond only --------
+            elif kind == "respond":
+                msg = action.get("message", "")
+                cmd_result, response = None, msg or None
+
+            # -------- case: edit_file tool --------
+            elif kind == "edit_file":
+                path = action.get("path", "").strip()
+                old = action.get("old", "")
+                new = action.get("new", "")
+                summary = self._edit_file(path, old, new)
+                self._add_message("user", f"Edit_file result for '{path}': {summary}")
+                cmd_result, response = None, summary
+
+            # -------- unknown action fallback --------
+            else:
+                cmd_result, response = None, f"Unknown action kind: {kind!r}"
+
+        # Hook 3: Q*-search recall pass before final response
+        if self._memory and response:
+            response, _catalog = self._memory.pre_return(
+                user_text, response, turn_id=str(self._turn_id)
+            )
+
+        return cmd_result, response
 
     def interactive_loop(self):
         """

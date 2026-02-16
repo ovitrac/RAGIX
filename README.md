@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.66.0
+# RAGIX v0.67.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
@@ -15,8 +15,8 @@
 
 ---
 
-**Version:** 0.66.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Updated:** 2026-02-13 | **Codebase:** 500K+ LOC analyzed in production
+**Version:** 0.67.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Updated:** 2026-02-16 | **Codebase:** 500K+ LOC analyzed in production
 
 ---
 
@@ -33,7 +33,7 @@
 
 ### Production-Ready Architecture: KOAS
 
-**KOAS** (Kernel-Orchestrated Audit System) is the computational core — **75 deterministic kernels** across 5 families:
+**KOAS** (Kernel-Orchestrated Audit System) is the computational core — **87 deterministic kernels** across 6 families:
 
 | Family | Kernels | Purpose |
 |--------|---------|---------|
@@ -42,6 +42,7 @@
 | **presenter** | 8 | Slide generation: MARP decks from document corpora (full/compressed/executive) |
 | **reviewer** | 13 | Traceable Markdown review: chunk-level edits with selective revert |
 | **security** | 10 | Infrastructure: network discovery, vulnerability assessment, compliance |
+| **summary** | 12 | Multi-document summarization: Graph-RAG, secrecy tiers, drift detection |
 
 **Architectural guarantee:** Kernels compute deterministically — LLMs are used only for planning and reasoning, never for metrics. No hallucinated numbers.
 
@@ -71,6 +72,18 @@ For regulated environments requiring strict access control:
 - **Code audit & metrics** — AST analysis, complexity hotspots, tech debt estimation, risk matrices
 - **Security scanning** — Network discovery, vulnerability assessment, compliance checking (ANSSI/NIST/CIS)
 - **Multiple interfaces** — Web UI, CLI, REST API, MCP server, WebSocket streaming
+
+### Episodic Memory System
+
+Policy-driven memory with multi-tier promotion and MCP exposure:
+
+- **FTS5 + BM25 retrieval** — SQLite-backed full-text search with relevance scoring
+- **Q\*-style search** — Iterative deepening with relevance feedback
+- **Memory Palace** — Spatial metaphor for memory organization (rooms, loci, guided tours)
+- **STM→MTM→LTM promotion** — Access frequency and recency-based tier advancement
+- **SHA-256 corpus dedup** — Prevents duplicate storage
+- **17 MCP tools** — Full memory operations exposed to Claude Desktop / Claude Code
+- **Pipe command** — Feed memory-augmented context to Claude: `ragix-memory pipe "question" --source docs/ | claude`
 
 ### Development Platform
 
@@ -185,6 +198,7 @@ ragix-web
 | `ragix-batch` | Batch processing pipelines |
 | `ragix-vault` | Encrypted credential vault |
 | `ragix-wasp` | WASP security scanner |
+| `ragix-memory` | Episodic memory CLI (search, recall, ingest, pipe, palace) |
 
 > **Without install:** `PYTHONPATH=. python ragix_web/server.py`
 
@@ -352,11 +366,14 @@ Production-ready RAG for document processing (tenders, CVs, reports).
 
 | Document | Description |
 |----------|-------------|
-| [docs/KOAS.md](docs/KOAS.md) | KOAS philosophy and architecture (5 families, 75 kernels) |
+| [docs/KOAS.md](docs/KOAS.md) | KOAS philosophy and architecture (6 families, 87 kernels) |
 | [docs/KOAS_DOCS.md](docs/KOAS_DOCS.md) | Document summarization system (17 kernels) |
+| [docs/KOAS_SUMMARY.md](docs/KOAS_SUMMARY.md) | Multi-document summarization with Graph-RAG (12 kernels) |
 | [docs/KOAS_PRESENTER.md](docs/KOAS_PRESENTER.md) | Slide deck generation from documents (8 kernels) |
 | [docs/KOAS_REVIEW.md](docs/KOAS_REVIEW.md) | Traceable Markdown review (13 kernels) |
 | [docs/KOAS_ACTIVITY.md](docs/KOAS_ACTIVITY.md) | Centralized activity logging and governance |
+| [docs/KOAS_MEMORY_MCP.md](docs/KOAS_MEMORY_MCP.md) | Episodic memory MCP tools (17 tools) |
+| [docs/KOAS_MEMORY_ARCHITECTURE.md](docs/KOAS_MEMORY_ARCHITECTURE.md) | Memory architecture and design |
 | [docs/KOAS_MCP_REFERENCE.md](docs/KOAS_MCP_REFERENCE.md) | KOAS MCP tool reference |
 | [ragix_kernels/README.md](ragix_kernels/README.md) | Kernel developer reference (v1.4.0) |
 
@@ -617,20 +634,27 @@ Full CLI reference: [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md)
 
 ```
 RAGIX/
-├── ragix_core/          # Core platform (131 modules, ~50K LOC)
+├── ragix_core/          # Core platform (150+ modules, ~60K LOC)
 │   ├── agents/          # Agent implementations (code, doc, git, test)
+│   ├── memory/          # Episodic memory (12 core + 9 MCP + 15 tests)
+│   │   ├── mcp/         # MCP tools (17 tools, workspace router, metrics)
+│   │   ├── tests/       # 511 tests across 15 files
+│   │   └── skills/      # Memory skills (4 files)
+│   ├── shared/          # Shared utilities (gpu_detect, text_utils)
 │   ├── reasoning_slim/  # ContractiveReasoner (tree-based, entropy)
 │   ├── reasoning_v30/   # ReasoningGraph (graph state machine)
 │   ├── reasoning_tutor/ # Interpreter-Tutor (game-theoretic PCG)
 │   ├── rag_project/     # Project RAG (ChromaDB, knowledge graph)
 │   ├── ast_*.py         # AST analysis (Java, Python)
 │   └── llm_backends.py  # Sovereign/Cloud LLM abstraction
-├── ragix_kernels/       # KOAS kernels (127 files, 75 kernels)
+├── ragix_kernels/       # KOAS kernels (160+ files, 87 kernels)
 │   ├── audit/           # Code audit (27 kernels)
 │   ├── docs/            # Document analysis (17 kernels)
 │   ├── presenter/       # Slide generation (8 kernels)
 │   ├── reviewer/        # Markdown review (13 kernels)
 │   ├── security/        # Security scanning (10 kernels)
+│   ├── summary/         # Multi-document summarization (12 kernels)
+│   ├── shared/          # Shared kernel utilities (md_renumber, md_toc)
 │   ├── activity.py      # Centralized activity logging
 │   ├── merkle.py        # SHA256 Merkle provenance
 │   └── orchestrator.py  # Kernel execution with hash chain
@@ -639,7 +663,8 @@ RAGIX/
 │   ├── routers/         # API routes (10 routers)
 │   └── static/          # Frontend (D3.js visualizations)
 ├── ragix_unix/          # Unix-RAG agent
-├── MCP/                 # MCP integration (38 tools)
+├── MCP/                 # MCP integration (55 tools)
+├── demos/               # Demos (koas_pipe_demo, koas_docs_audit)
 ├── docs/                # Documentation (see Index)
 ├── tests/               # Test suite
 └── examples/            # Usage examples (audit, security)
@@ -667,19 +692,19 @@ pytest tests/ --cov=ragix_core --cov-report=html
 
 See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
-**Latest: v0.66.0** (2026-01-30)
-- **Centralized Activity Logging**: Append-only JSONL event stream with sovereignty attestation per event
-- **Broker Gateway**: Optional FastAPI gateway with ACL scopes for regulated environments
-- **KOAS Reviewer**: 13-kernel traceable Markdown review with preflight pipeline, selective revert
-- **KOAS Presenter**: 8-kernel slide deck generation (MARP) with 3 compression modes
-- **Output Sanitizer**: 4 isolation levels (INTERNAL/EXTERNAL/ORCHESTRATOR/COMPLIANCE)
-- **Merkle Provenance**: SHA256 Merkle roots for pyramidal document hashing
+**Latest: v0.67.0** (2026-02-16)
+- **KOAS Memory**: Episodic memory with 12 core modules + 17 MCP tools, FTS5+BM25 retrieval, Q\*-search, Memory Palace
+- **KOAS Summary**: 12 kernels for multi-document summarization with Graph-RAG and secrecy tiers (S0/S2/S3)
+- **Memory Pipe Demo**: 6-act narrative for Claude integration (`ragix-memory pipe "question" --source docs/ | claude`)
+- **87 kernels** across 6 families (was 75 across 5)
+- **55 MCP tools** (was 38) — 17 new memory tools
+- **511 tests** for memory subsystem across 15 test files
 
 **Recent highlights:**
+- v0.66.0: Centralized activity logging, broker gateway with ACL scopes
 - v0.64.2: Boilerplate detection in KOAS docs, code fence protection
 - v0.63.0: New docs kernels for hierarchical large document corpus auditing
-- v0.62.0: MCP consolidation (38 tools), demo UI, documentation index
-- v0.61.0: KOAS Security Kernels (10 kernels), ANSSI/NIST/CIS compliance frameworks
+- v0.62.0: MCP consolidation, demo UI, documentation index
 
 ---
 
@@ -695,9 +720,13 @@ See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 | ✅ | Security scanning (10 kernels) | Complete |
 | ✅ | Traceable Markdown review (13 kernels) | Complete |
 | ✅ | Slide deck generation (8 kernels) | Complete |
-| ✅ | MCP integration (38 tools) | Complete |
+| ✅ | MCP integration (55 tools) | Complete |
 | ✅ | Centralized activity logging | Complete |
 | ✅ | Broker Gateway with ACL | Complete |
+| ✅ | Episodic memory (17 MCP tools, Memory Palace) | Complete |
+| ✅ | Multi-document summarization (12 kernels) | Complete |
+| ✅ | Graph-RAG (entity extraction, community detection) | Complete |
+| ✅ | Memory Pipe demo for Claude integration | Complete |
 | 🔄 | KOAS Presenter LLM normalization | Phase 1 done (deterministic) |
 | 🔄 | Interpreter-Tutor reasoning engine | Research (v0.5.0) |
 | 📋 | Multi-language AST (Go, Rust) | Planned |

@@ -323,51 +323,51 @@ This document inventories all reusable tools in `ragix_audit/` and `ragix_core/`
                     PROJECT PATH
                          │
                          ▼
-┌────────────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────────────────────┐
 │                    STAGE 1: DATA COLLECTION                 │
-├────────────────────────────────────────────────────────────┤
-│                                                            │
-│  ast_scan ──────► DependencyGraph.add_directory()          │
-│      │                    │                                │
-│      │                    ▼                                │
-│      │           symbols, dependencies                     │
-│      │                    │                                │
-│      ▼                    ▼                                │
-│  metrics ◄──── calculate_metrics_from_graph()              │
-│      │                                                     │
-│      ▼                                                     │
-│  dependency ◄── DependencyGraph.get_stats()                │
-│      │              detect_cycles()                        │
-│      │                                                     │
-│      ▼                                                     │
-│  partition ◄─── CodebasePartitioner.partition()            │
-│      │                                                     │
-│      ▼                                                     │
-│  services ◄──── ServiceDetector.detect()                   │
-│      │                                                     │
-│      ▼                                                     │
-│  timeline ◄──── TimelineScanner.build_component_timelines()│
-│                                                            │
-└────────────────────────────────────────────────────────────┘
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ast_scan ──────► DependencyGraph.add_directory()           │
+│      │                    │                                 │
+│      │                    ▼                                 │
+│      │           symbols, dependencies                      │
+│      │                    │                                 │
+│      ▼                    ▼                                 │
+│  metrics ◄──── calculate_metrics_from_graph()               │
+│      │                                                      │
+│      ▼                                                      │
+│  dependency ◄── DependencyGraph.get_stats()                 │
+│      │              detect_cycles()                         │
+│      │                                                      │
+│      ▼                                                      │
+│  partition ◄─── CodebasePartitioner.partition()             │
+│      │                                                      │
+│      ▼                                                      │
+│  services ◄──── ServiceDetector.detect()                    │
+│      │                                                      │
+│      ▼                                                      │
+│  timeline ◄──── TimelineScanner.build_component_timelines() │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
                          │
                          ▼
-┌────────────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────────────────────┐
 │                    STAGE 2: ANALYSIS                        │
-├────────────────────────────────────────────────────────────┤
-│                                                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
 │  stats_summary ◄── StatisticsComputer.compute_from_metrics()│
-│                                                            │
-│  coupling ◄─────── CouplingComputer.compute_from_graph()   │
-│                                                            │
-│  dead_code ◄────── DeadCodeDetector.analyze()              │
-│                                                            │
-│  entropy ◄──────── EntropyComputer.compute_all()           │
-│                                                            │
-│  hotspots ◄─────── (from metrics.hotspots)                 │
-│                                                            │
-│  risk ◄─────────── RiskScorer.score_all()                  │
-│                                                            │
-└────────────────────────────────────────────────────────────┘
+│                                                             │
+│  coupling ◄─────── CouplingComputer.compute_from_graph()    │
+│                                                             │
+│  dead_code ◄────── DeadCodeDetector.analyze()               │
+│                                                             │
+│  entropy ◄──────── EntropyComputer.compute_all()            │
+│                                                             │
+│  hotspots ◄─────── (from metrics.hotspots)                  │
+│                                                             │
+│  risk ◄─────────── RiskScorer.score_all()                   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---

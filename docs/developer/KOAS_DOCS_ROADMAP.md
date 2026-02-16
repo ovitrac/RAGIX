@@ -282,27 +282,27 @@ Use a **larger tutor model** (`mistral:7b-instruct`) to verify summaries generat
 ### Design
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    TUTOR VERIFICATION PATTERN                       │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  Document Chunks ──▶ Worker (Granite 3B) ──▶ Draft Summary          │
-│                                                     │               │
-│                                                     ▼               │
-│                                            ┌───────────────┐        │
-│                                            │ Tutor Check   │        │
-│                                            │ (Mistral 7B)  │        │
-│                                            └───────┬───────┘        │
-│                                                    │                │
-│                              ┌─────────────────────┼────────────┐   │
-│                              ▼                     ▼            ▼   │
-│                         [ACCEPT]              [REFINE]      [REJECT]│
-│                              │                     │            │   │
-│                              ▼                     ▼            ▼   │
-│                        Use draft          Tutor corrects   Re-generate│
-│                                            summary         with tutor │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                    TUTOR VERIFICATION PATTERN                          │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  Document Chunks ──▶ Worker (Granite 3B) ──▶ Draft Summary             │
+│                                                     │                  │
+│                                                     ▼                  │
+│                                            ┌───────────────┐           │
+│                                            │ Tutor Check   │           │
+│                                            │ (Mistral 7B)  │           │
+│                                            └───────┬───────┘           │
+│                                                    │                   │
+│                              ┌─────────────────────┼────────────┐      │
+│                              ▼                     ▼            ▼      │
+│                         [ACCEPT]              [REFINE]      [REJECT]   │
+│                              │                     │            │      │
+│                              ▼                     ▼            ▼      │
+│                        Use draft          Tutor corrects   Re-generate │
+│                                            summary         with tutor  │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Tutor Prompt

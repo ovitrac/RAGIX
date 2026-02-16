@@ -3,8 +3,8 @@
 **Retrieval-Augmented Generative Interactive eXecution Agent**
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Version:** 0.66.0
-**Updated:** 2026-02-13
+**Version:** 0.67.0
+**Updated:** 2026-02-16
 
 ---
 
@@ -44,10 +44,13 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
     ┌─────────────────▼──────────────────────────────────┐
     │              KOAS Kernel Families                   │
     │                                                    │
-    │  KOAS_DOCS      (17 kernels — document analysis)   │
-    │  KOAS_PRESENTER (8 kernels — slide generation)     │
-    │  KOAS_REVIEW    (13 kernels — Markdown review)     │
-    │  KOAS_ACTIVITY  (centralized activity logging)     │
+    │  KOAS_DOCS       (17 kernels — document analysis)   │
+    │  KOAS_PRESENTER  (8 kernels — slide generation)    │
+    │  KOAS_REVIEW     (13 kernels — Markdown review)    │
+    │  KOAS_SUMMARY    (12 kernels — summarization)      │
+    │  KOAS_ACTIVITY   (centralized activity logging)    │
+    │  KOAS_MEMORY_MCP (17 tools — episodic memory)      │
+    │  KOAS_MEMORY_ARCHITECTURE (core memory design)     │
     │  + audit (27) and security (10) in KOAS.md         │
     └────────────────────────────────────────────────────┘
 ```
@@ -99,7 +102,7 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
 - **[MCP.md](MCP.md)** — Comprehensive MCP guide
   - What MCP really is (protocol, not system)
   - Common misconceptions addressed
-  - 38 tools reference
+  - 55 tools reference
   - Deployment topologies
   - Hybrid backends (stochastic/deterministic)
   - Collective intelligence patterns
@@ -125,16 +128,20 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
 
 ### Kernel System (KOAS)
 
-**Learn about deterministic computation kernels — 75 kernels across 5 families.**
+**Learn about deterministic computation kernels — 87 kernels across 6 families.**
 
 - **[KOAS.md](KOAS.md)** — KOAS philosophy and architecture
-  - Three-stage pipeline, 5 kernel families
+  - Three-stage pipeline, 6 kernel families
   - Kernel development patterns
   - Deterministic guarantee: kernels compute, LLMs reason
 
 - **[KOAS_DOCS.md](KOAS_DOCS.md)** — Document summarization (17 kernels)
   - Hierarchical analysis, dual clustering (Pyramidal + Leiden)
   - Worker + Tutor LLM pattern
+
+- **[KOAS_SUMMARY.md](KOAS_SUMMARY.md)** — Multi-document summarization (12 kernels)
+  - Graph-RAG: entity extraction → graph store → community detection
+  - Secrecy tiers (S0/S2/S3) for redaction before LLM exposure
 
 - **[KOAS_PRESENTER.md](KOAS_PRESENTER.md)** — Slide deck generation (8 kernels)
   - MARP output, 3 compression modes (full/compressed/executive)
@@ -148,8 +155,16 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
   - Event schema (koas.event/1.0), actor model, hash chain
   - Sovereignty attestation per event
 
+- **[KOAS_MEMORY_MCP.md](KOAS_MEMORY_MCP.md)** — Episodic memory MCP tools (17 tools)
+  - Policy-driven storage, FTS5+BM25, Q\*-search, Memory Palace
+  - Workspace router, metrics, rate limiting
+
+- **[KOAS_MEMORY_ARCHITECTURE.md](KOAS_MEMORY_ARCHITECTURE.md)** — Memory architecture
+  - 12 core modules, STM→MTM→LTM promotion, consolidation
+  - SHA-256 corpus dedup, spatial metaphor (Memory Palace)
+
 - **Source Documentation:**
-  - `ragix_kernels/README.md` — Kernel developer reference (v1.4.0, all 75 kernels)
+  - `ragix_kernels/README.md` — Kernel developer reference (v1.4.0, all 87 kernels)
 
 ### Sovereignty and Compliance
 
@@ -197,10 +212,10 @@ User Goal
 ┌─────────────────────────────────────────────────────────────┐
 │                         KOAS                                │
 │          (Deterministic Kernel Execution)                   │
-│    ┌──────────┬──────────┬──────────┬──────────┐            │
-│    │  audit   │   docs   │presenter │ reviewer │ security   │
-│    │  (27)    │   (17)   │  (8)     │  (13)    │  (10)      │
-│    └──────────┴──────────┴──────────┴──────────┘            │
+│    ┌────────┬────────┬──────────┬────────┬────────┬────────┐  │
+│    │ audit  │  docs  │presenter │reviewer│summary │security│  │
+│    │  (27)  │  (17)  │   (8)    │  (13)  │  (12)  │  (10)  │  │
+│    └────────┴────────┴──────────┴────────┴────────┴────────┘  │
 └─────────────────────────────────────────────────────────────┘
     │
     ├─────────────────────────────────────────────────────────┐
@@ -256,6 +271,16 @@ User Goal
 2. [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) → Sovereignty architecture
 3. [KOAS.md](KOAS.md) → Audit trail mechanisms
 
+**"I want to use episodic memory with MCP"**
+1. [KOAS_MEMORY_ARCHITECTURE.md](KOAS_MEMORY_ARCHITECTURE.md) → Core design, tier model
+2. [KOAS_MEMORY_MCP.md](KOAS_MEMORY_MCP.md) → 17 MCP tools, workspace router
+3. [KOAS.md](KOAS.md) → Kernel orchestration patterns
+
+**"I want to summarize documents with Graph-RAG"**
+1. [KOAS_SUMMARY.md](KOAS_SUMMARY.md) → 12-kernel pipeline, secrecy tiers
+2. [KOAS_DOCS.md](KOAS_DOCS.md) → Upstream document analysis
+3. [KOAS.md](KOAS.md) → Three-stage architecture
+
 **"I need to ensure data sovereignty/compliance"**
 1. [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) → Complete guide
 2. [KOAS_ACTIVITY.md](KOAS_ACTIVITY.md) → Sovereignty attestation per event
@@ -278,6 +303,11 @@ User Goal
 | **Activity Logging** | Centralized append-only event stream (`koas.event/1.0`) | [KOAS_ACTIVITY.md](KOAS_ACTIVITY.md) |
 | **Hash Chain** | SHA256 chain across kernel executions for tamper evidence | [KOAS_ACTIVITY.md](KOAS_ACTIVITY.md) |
 | **Merkle Root** | Cryptographic root hash for pyramidal provenance | [KOAS_DOCS.md](KOAS_DOCS.md) |
+| **Episodic Memory** | Policy-driven storage with STM→MTM→LTM tier promotion | [KOAS_MEMORY_ARCHITECTURE.md](KOAS_MEMORY_ARCHITECTURE.md) |
+| **Memory Palace** | Spatial metaphor for memory organization (rooms, loci, tours) | [KOAS_MEMORY_MCP.md](KOAS_MEMORY_MCP.md) |
+| **Q\*-Search** | Iterative deepening search with relevance feedback | [KOAS_MEMORY_MCP.md](KOAS_MEMORY_MCP.md) |
+| **Graph-RAG** | Entity extraction → graph store → community detection → recall | [KOAS_SUMMARY.md](KOAS_SUMMARY.md) |
+| **Secrecy Tier** | S0/S2/S3 redaction levels before LLM exposure | [KOAS_SUMMARY.md](KOAS_SUMMARY.md) |
 | **ContractiveReasoner** | Tree-based reasoning with entropy decomposition | [REASONING.md](REASONING.md) |
 | **Reasoning v30** | Graph-based state machine reasoning | [REASONING.md](REASONING.md) |
 | **Unix-RAG** | Unix tools for retrieval, LLM for generation | [ARCHITECTURE.md](ARCHITECTURE.md) |
@@ -320,6 +350,7 @@ Documentation follows these principles:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.67.0 | 2026-02-16 | Added KOAS_SUMMARY, KOAS_MEMORY_MCP, KOAS_MEMORY_ARCHITECTURE; 6-family kernel map (87 kernels); Memory/Summary reading paths and glossary entries |
 | 0.66.0 | 2026-02-13 | Added KOAS_PRESENTER, KOAS_REVIEW, KOAS_ACTIVITY; 5-family kernel map; new glossary entries and reading paths |
 | 0.64.2 | 2026-01-29 | Added SOVEREIGN_LLM_OPERATIONS.md |
 | 0.62.0 | 2025-12-20 | Added MCP.md, REASONING.md, INDEX.md |
@@ -328,6 +359,6 @@ Documentation follows these principles:
 
 ---
 
-**Document Version:** 2.0.0
-**Last Updated:** 2026-02-13
+**Document Version:** 3.0.0
+**Last Updated:** 2026-02-16
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
