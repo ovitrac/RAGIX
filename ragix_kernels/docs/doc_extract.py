@@ -47,7 +47,7 @@ class DocExtractKernel(Kernel):
     - Information density weighting
     - Deduplication across chunks
 
-    Enhanced v1.2.0 features (VDP fix):
+    Enhanced v1.2.0 features (DOCSET fix):
     - Boilerplate detection: document control panels, revision history
     - Dashed separator line penalties
     - Formatting-heavy content detection
@@ -99,7 +99,7 @@ class DocExtractKernel(Kernel):
     HAS_ENTITIES = re.compile(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b')
     ACTION_VERBS = re.compile(r'\b(permet|permet de|définit|décrit|spécifie|gère|assure|contrôle|surveille|affiche|exporte|importe|configure|valide|vérifie|creates|defines|manages|controls|displays|exports|imports|validates)\b', re.IGNORECASE)
 
-    # Boilerplate detection patterns (v0.64.1 - VDP fix)
+    # Boilerplate detection patterns (v0.64.1 - DOCSET fix)
     # Compiled dynamically from config in __init__ or compute()
     _boilerplate_vocab_pattern: Optional[re.Pattern] = None
     _dashed_line_pattern: Optional[re.Pattern] = None
@@ -463,7 +463,7 @@ class DocExtractKernel(Kernel):
         - Information density (entities, numbers)
         - Action verbs (descriptive content)
         - Length appropriateness
-        - Boilerplate detection (v0.64.1 - VDP fix)
+        - Boilerplate detection (v0.64.1 - DOCSET fix)
 
         Uses parameters from QualityConfig instead of hardcoded values.
         """
@@ -501,7 +501,7 @@ class DocExtractKernel(Kernel):
         if sentence.count('|') > 3:
             score -= config.table_fragment_penalty
 
-        # === Boilerplate penalties (v0.64.1 - VDP fix) ===
+        # === Boilerplate penalties (v0.64.1 - DOCSET fix) ===
         # === Code protection (v0.65.0 - MUST M4: sovereign compliance) ===
 
         # Protect code blocks from boilerplate matching

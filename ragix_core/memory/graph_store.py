@@ -96,7 +96,7 @@ _PRODUCT_VOCABULARY = {
     "vmware", "esxi", "vsphere", "hyper-v", "kvm", "xen",
     "active directory", "ad", "dns", "dhcp", "ntp",
     "firewall", "iptables", "nftables", "pfsense",
-    # V2.2: corpus-driven additions (GRDF RIE)
+    # V2.2: corpus-driven additions (CORP-ENERGY RIE)
     "crowdstrike", "sql server", "proftpd", "argo", "weblogic",
     "openssh", "php", "nas", "san", "angular",
 }

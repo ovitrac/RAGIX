@@ -762,7 +762,7 @@ echo '```python\n# Table of Contents\nprint("hello")\n```' | ragix-extract --std
 
 1. **Feature flags** — Gate new behavior behind `RAGIX_SOVEREIGN_V2=1` env var
 2. **Parallel caches** — Store v1 and v2 caches side-by-side during transition
-3. **Canary runs** — Test on VDP corpus before enabling globally
+3. **Canary runs** — Test on DOCSET corpus before enabling globally
 4. **Version bump** — v0.65.0 enables new behavior, v0.64.x remains stable
 
 ### 8.7 Rollback Procedures

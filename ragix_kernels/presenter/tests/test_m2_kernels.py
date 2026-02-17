@@ -771,16 +771,19 @@ class TestPresLayoutAssign:
             },
         ))
         assert plan_out.success
-        return plan_out
+        return plan_out, catalog_out
 
     def test_title_layout(self, sample_project, workspace):
-        plan_out = self._run_plan(sample_project, workspace)
+        plan_out, catalog_out = self._run_plan(sample_project, workspace)
 
         kernel = PresLayoutAssignKernel()
         inp = KernelInput(
             workspace=workspace,
             config={},
-            dependencies={"pres_slide_plan": plan_out.output_file},
+            dependencies={
+                "pres_slide_plan": plan_out.output_file,
+                "pres_asset_catalog": catalog_out.output_file,
+            },
         )
         output = kernel.run(inp)
         assert output.success
@@ -792,13 +795,16 @@ class TestPresLayoutAssign:
         assert title_slide.layout.paginate is False
 
     def test_default_layout(self, sample_project, workspace):
-        plan_out = self._run_plan(sample_project, workspace)
+        plan_out, catalog_out = self._run_plan(sample_project, workspace)
 
         kernel = PresLayoutAssignKernel()
         inp = KernelInput(
             workspace=workspace,
             config={},
-            dependencies={"pres_slide_plan": plan_out.output_file},
+            dependencies={
+                "pres_slide_plan": plan_out.output_file,
+                "pres_asset_catalog": catalog_out.output_file,
+            },
         )
         output = kernel.run(inp)
         deck = SlideDeck.from_dict(output.data)
@@ -809,13 +815,16 @@ class TestPresLayoutAssign:
             assert cs.layout.paginate is True
 
     def test_all_slides_have_layout(self, sample_project, workspace):
-        plan_out = self._run_plan(sample_project, workspace)
+        plan_out, catalog_out = self._run_plan(sample_project, workspace)
 
         kernel = PresLayoutAssignKernel()
         inp = KernelInput(
             workspace=workspace,
             config={},
-            dependencies={"pres_slide_plan": plan_out.output_file},
+            dependencies={
+                "pres_slide_plan": plan_out.output_file,
+                "pres_asset_catalog": catalog_out.output_file,
+            },
         )
         output = kernel.run(inp)
         deck = SlideDeck.from_dict(output.data)
@@ -824,13 +833,16 @@ class TestPresLayoutAssign:
             assert slide.layout is not None, f"Slide {slide.id} has no layout"
 
     def test_theme_colors(self, sample_project, workspace):
-        plan_out = self._run_plan(sample_project, workspace)
+        plan_out, catalog_out = self._run_plan(sample_project, workspace)
 
         kernel = PresLayoutAssignKernel()
         inp = KernelInput(
             workspace=workspace,
             config={"theme": {"colors": {"primary": "#ff0000"}}},
-            dependencies={"pres_slide_plan": plan_out.output_file},
+            dependencies={
+                "pres_slide_plan": plan_out.output_file,
+                "pres_asset_catalog": catalog_out.output_file,
+            },
         )
         output = kernel.run(inp)
         deck = SlideDeck.from_dict(output.data)

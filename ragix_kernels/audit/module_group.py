@@ -33,16 +33,16 @@ logger = logging.getLogger(__name__)
 # Default patterns for common Java project structures
 # Note: Using (?i) for case-insensitive matching
 DEFAULT_PATTERNS = [
-    # IOWIZME-style: module-name-master/module-name-submodule
+    # ACME-ERP-style: module-name-master/module-name-submodule
     r"(?i).*/([a-z]+-[a-z]+-[a-z0-9]+-[a-z0-9]+-[a-z0-9]+)-master/.*",  # e.g., iow-iok-sk10-11-12-master
     r"(?i).*/([a-z]+-[a-z]+-[a-z]+-[a-z0-9]+)-master/.*",  # e.g., iow-iok-sg01-02-master
-    r"(?i).*/([a-z]+-[a-z]+-[a-z0-9]+)-master/.*",      # e.g., iow-ech-sias-master
-    r"(?i).*/([a-z]+-[a-z]+-[a-z]+)-master/.*",         # e.g., iog-support-commons-master
+    r"(?i).*/([a-z]+-[a-z]+-[a-z0-9]+)-master/.*",      # e.g., acme-msg-hub-master
+    r"(?i).*/([a-z]+-[a-z]+-[a-z]+)-master/.*",         # e.g., acme-support-commons-master
     # Maven/Gradle multi-module patterns (fallback)
-    r"(?i).*/([a-z]+-[a-z]+-[a-z0-9]+)/src/.*",         # e.g., iow-ech-sias/src
-    r"(?i).*/([a-z]+-[a-z]+)/src/.*",                   # e.g., iog-support/src
+    r"(?i).*/([a-z]+-[a-z]+-[a-z0-9]+)/src/.*",         # e.g., acme-msg-hub/src
+    r"(?i).*/([a-z]+-[a-z]+)/src/.*",                   # e.g., acme-support/src
     # Package-based patterns (last resort)
-    r"(?i).*/com/([a-z]+/[a-z]+)/.*",                   # e.g., com/iowizmi/ech
+    r"(?i).*/com/([a-z]+/[a-z]+)/.*",                   # e.g., com/acme/ech
 ]
 
 
@@ -67,7 +67,7 @@ class ModuleGrouperKernel(Kernel):
               - regex: ".*/([a-z]+-[a-z]+-[a-z0-9]+)/.*"
                 group: 1
             mapping:
-              iow-ech-sias: "Exchange SIAS"
+              acme-msg-hub: "Exchange MSG-HUB"
               iow-iok-sk01: "SC01 Processing"
     """
 

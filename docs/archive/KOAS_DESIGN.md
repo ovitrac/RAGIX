@@ -19,7 +19,7 @@ date: "2025-12-12"
 <table>
   <tr>
     <td style="text-align:center;">
-      <img src="SIAS/v7/assets/adservio-logo.svg" alt="adservio-logo" style="zoom:60%;" />
+      <img src="MSG-HUB/v7/assets/adservio-logo.svg" alt="adservio-logo" style="zoom:60%;" />
     </td>
     <td style="text-align:center;">
       <b>KOAS — Kernel-Orchestrated Audit System<br/>Design Document | v1.0 DRAFT | 2025-12-12</b>
@@ -688,7 +688,7 @@ ragix/
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         CLAUDE CODE / CLAUDE DESKTOP                         │
 │                                                                             │
-│  User: "Audit the IOWIZME codebase and identify risks"                     │
+│  User: "Audit the ACME-ERP codebase and identify risks"                     │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
                     ┌─────────────────┼─────────────────┐
@@ -862,7 +862,7 @@ Each audit is configured via `manifest.yaml`:
 # METADATA
 # ============================================================================
 audit:
-  name: "IOWIZME Technical Audit"
+  name: "ACME-ERP Technical Audit"
   version: "1.0"
   date: "2025-12-12"
   author: "Olivier Vitrac, PhD, HDR | Adservio"
@@ -871,8 +871,8 @@ audit:
 # PROJECT DEFINITION
 # ============================================================================
 project:
-  name: "IOWIZME"
-  path: "/path/to/IOWIZME/src"
+  name: "ACME-ERP"
+  path: "/path/to/ACME-ERP/src"
   language: "java"
 
   # Multi-module support
@@ -948,7 +948,7 @@ stage1:
   partition:
     enabled: true
     options:
-      preset: "sias_ticc"
+      preset: "enterprise_pattern"
       propagation_iterations: 5
       confidence_threshold: 0.7
       # Graph propagation algorithm settings
@@ -1084,7 +1084,7 @@ output:
 ## 6.2 | Workspace Structure
 
 ```
-/home/olivi/Documents/Adservio/audit/IOWIZME/
+/path/to/enterprise-audit/
 ├── manifest.yaml                 # Configuration
 │
 ├── stage1/                       # Raw kernel outputs
@@ -1115,8 +1115,8 @@ output:
 │   └── 08_recommendations.md
 │
 ├── report/                       # Final assembled report
-│   ├── Audit_IOWIZME_2025-12-12.md
-│   └── Audit_IOWIZME_2025-12-12.pdf
+│   ├── Audit_ACME-ERP_2025-12-12.md
+│   └── Audit_ACME-ERP_2025-12-12.pdf
 │
 ├── assets/                       # Report assets
 │   ├── adservio-logo.svg
@@ -1199,9 +1199,9 @@ output:
 
 | Task | Description |
 |------|-------------|
-| **7.1** | Test on IOWIZME codebase |
+| **7.1** | Test on ACME-ERP codebase |
 | **7.2** | Generate 50+ page report |
-| **7.3** | Validate with SIAS audit format |
+| **7.3** | Validate with MSG-HUB audit format |
 | **7.4** | Performance optimization |
 
 ---

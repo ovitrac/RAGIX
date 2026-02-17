@@ -193,7 +193,7 @@ my recommendation for **sovereignty, auditability, low operational complexity, a
   "scope": "docs.audit",
   "kernel": {"name":"doc_extract","ver":"0.6.2"},
   "stage": "representative_sentences",
-  "node_ref": {"level":"doc","id":"doc:VDP:013"},
+  "node_ref": {"level":"doc","id":"doc:DOCSET:013"},
   "io": {"inputs_root":"sha256:...","outputs_root":"sha256:..."},
   "decision": {"cache":"hit","llm":"disabled"},
   "metrics": {"sentences":42,"kept":5,"score_mean":0.71},

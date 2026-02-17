@@ -423,7 +423,7 @@ if __name__ == "__main__":
     import sys
     import json
 
-    path = sys.argv[1] if len(sys.argv) > 1 else "/home/olivi/Documents/Adservio/audit/IOWIZME/src"
+    path = sys.argv[1] if len(sys.argv) > 1 else "/path/to/enterprise-audit/src"
 
     print(f"Scanning {path}...")
     scanner = TimelineScanner()

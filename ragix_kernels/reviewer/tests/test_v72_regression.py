@@ -2,7 +2,7 @@
 Regression test for v7.2 production baseline.
 
 Validates that a completed integration test run meets the frozen invariants
-from the SIAS 13-chunk benchmark.  Does NOT run the LLM — it reads the
+from the MSG-HUB 13-chunk benchmark.  Does NOT run the LLM — it reads the
 status.jsonl and fingerprint artifacts produced by a prior run and checks
 expected properties.
 
@@ -12,7 +12,7 @@ Usage:
         --status-jsonl /path/to/workspace/stage2/ops/status.jsonl \
         --fingerprint-json /path/to/workspace/stage2/md_fingerprint_chunk.json
 
-    # Or with defaults (SIAS workspace):
+    # Or with defaults (MSG-HUB workspace):
     python -m pytest ragix_kernels/reviewer/tests/test_v72_regression.py
 
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-02-07
@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional
 
 import pytest
 
-_FIXTURE = Path(__file__).parent / "fixtures" / "sias_v72_regression.json"
+_FIXTURE = Path(__file__).parent / "fixtures" / "msg_hub_v72_regression.json"
 
 
 # ---------------------------------------------------------------------------

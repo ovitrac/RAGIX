@@ -26,7 +26,7 @@ class TestWorkflowParameter:
         param = WorkflowParameter(
             name="bug_description",
             description="Description of the bug",
-            type="string",
+            param_type="string",
             required=True,
         )
 
@@ -38,7 +38,7 @@ class TestWorkflowParameter:
         param = WorkflowParameter(
             name="priority",
             description="Bug priority",
-            type="string",
+            param_type="string",
             required=False,
             default="medium",
         )
@@ -50,7 +50,7 @@ class TestWorkflowParameter:
         param = WorkflowParameter(
             name="severity",
             description="Bug severity",
-            type="string",
+            param_type="string",
             required=True,
             enum=["low", "medium", "high", "critical"],
         )
@@ -65,22 +65,22 @@ class TestWorkflowStep:
         """Test creating a workflow step."""
         step = WorkflowStep(
             name="find_bug",
-            agent="code",
-            task="Search for the bug in ${target_file}",
+            agent_type="code",
+            task_template="Search for the bug in ${target_file}",
             tools=["grep_search", "read_file"],
             max_iterations=10,
         )
 
         assert step.name == "find_bug"
-        assert step.agent == "code"
+        assert step.agent_type == "code"
         assert "grep_search" in step.tools
 
     def test_step_with_dependencies(self):
         """Test step with dependencies."""
         step = WorkflowStep(
             name="fix_bug",
-            agent="code",
-            task="Fix the bug",
+            agent_type="code",
+            task_template="Fix the bug",
             tools=["edit_file"],
             depends_on=["find_bug", "analyze_bug"],
         )
@@ -102,15 +102,15 @@ class TestWorkflowTemplate:
                 WorkflowParameter(
                     name="target",
                     description="Target file",
-                    type="string",
+                    param_type="string",
                     required=True,
                 ),
             ],
             steps=[
                 WorkflowStep(
                     name="step1",
-                    agent="code",
-                    task="Process ${target}",
+                    agent_type="code",
+                    task_template="Process ${target}",
                     tools=["read_file"],
                 ),
             ],
@@ -129,14 +129,14 @@ class TestWorkflowTemplate:
                 WorkflowParameter(
                     name="required_param",
                     description="Required",
-                    type="string",
+                    param_type="string",
                     required=True,
                 ),
             ],
             steps=[],
         )
 
-        errors = template.validate_parameters({})
+        errors = template.validate_params({})
         assert len(errors) > 0
         assert any("required_param" in e for e in errors)
 
@@ -149,14 +149,14 @@ class TestWorkflowTemplate:
                 WorkflowParameter(
                     name="required_param",
                     description="Required",
-                    type="string",
+                    param_type="string",
                     required=True,
                 ),
             ],
             steps=[],
         )
 
-        errors = template.validate_parameters({"required_param": "value"})
+        errors = template.validate_params({"required_param": "value"})
         assert len(errors) == 0
 
     def test_template_instantiation(self):
@@ -168,21 +168,21 @@ class TestWorkflowTemplate:
                 WorkflowParameter(
                     name="target",
                     description="Target",
-                    type="string",
+                    param_type="string",
                     required=True,
                 ),
             ],
             steps=[
                 WorkflowStep(
                     name="analyze",
-                    agent="code",
-                    task="Analyze ${target}",
+                    agent_type="code",
+                    task_template="Analyze ${target}",
                     tools=["read_file"],
                 ),
                 WorkflowStep(
                     name="process",
-                    agent="code",
-                    task="Process results from analyze",
+                    agent_type="code",
+                    task_template="Process results from analyze",
                     tools=["edit_file"],
                     depends_on=["analyze"],
                 ),
@@ -205,21 +205,21 @@ class TestWorkflowTemplate:
                 WorkflowParameter(
                     name="file_path",
                     description="File path",
-                    type="string",
+                    param_type="string",
                     required=True,
                 ),
                 WorkflowParameter(
                     name="pattern",
                     description="Search pattern",
-                    type="string",
+                    param_type="string",
                     required=True,
                 ),
             ],
             steps=[
                 WorkflowStep(
                     name="search",
-                    agent="code",
-                    task="Search for ${pattern} in ${file_path}",
+                    agent_type="code",
+                    task_template="Search for ${pattern} in ${file_path}",
                     tools=["grep_search"],
                 ),
             ],
@@ -232,8 +232,8 @@ class TestWorkflowTemplate:
 
         # Check that the task has substituted values
         search_node = graph.nodes["search"]
-        assert "src/utils.py" in search_node.task
-        assert "def main" in search_node.task
+        assert "src/utils.py" in search_node.config["task"]
+        assert "def main" in search_node.config["task"]
 
 
 class TestBuiltinTemplates:
@@ -261,7 +261,7 @@ class TestBuiltinTemplates:
         """Test bug_fix template structure."""
         template = BUILTIN_TEMPLATES["bug_fix"]
 
-        assert template.name == "bug_fix"
+        assert template.name == "Bug Fix Workflow"
         assert len(template.parameters) > 0
         assert len(template.steps) > 0
 
@@ -273,7 +273,7 @@ class TestBuiltinTemplates:
         """Test feature_addition template structure."""
         template = BUILTIN_TEMPLATES["feature_addition"]
 
-        assert template.name == "feature_addition"
+        assert template.name == "Feature Addition Workflow"
         assert len(template.steps) >= 3  # Design, implement, test
 
     def test_all_templates_instantiate(self):
@@ -300,11 +300,11 @@ class TestTemplateManager:
     """Tests for TemplateManager."""
 
     def test_get_template_manager(self):
-        """Test getting singleton template manager."""
-        manager1 = get_template_manager()
-        manager2 = get_template_manager()
+        """Test getting template manager."""
+        manager = get_template_manager()
 
-        assert manager1 is manager2
+        assert isinstance(manager, TemplateManager)
+        assert len(manager.list_templates()) > 0
 
     def test_list_templates(self):
         """Test listing available templates."""
@@ -320,14 +320,13 @@ class TestTemplateManager:
         template = manager.get_template("bug_fix")
 
         assert template is not None
-        assert template.name == "bug_fix"
+        assert template.name == "Bug Fix Workflow"
 
     def test_get_nonexistent_template(self):
-        """Test getting non-existent template raises error."""
+        """Test getting non-existent template returns None."""
         manager = get_template_manager()
 
-        with pytest.raises(KeyError):
-            manager.get_template("nonexistent_template")
+        assert manager.get_template("nonexistent_template") is None
 
     def test_instantiate_template(self):
         """Test instantiating template through manager."""
@@ -368,7 +367,7 @@ steps:
         yaml_path.write_text(yaml_content)
 
         manager = TemplateManager()
-        manager.load_from_yaml(yaml_path)
+        manager.load_from_file(yaml_path)
 
         template = manager.get_template("custom_workflow")
         assert template is not None

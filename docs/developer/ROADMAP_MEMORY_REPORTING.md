@@ -180,7 +180,7 @@ def generate_report(
 ```
 ragix-memory report \
   --db path/to/memory.db \
-  --workspace rie-grdf \
+  --workspace rie-corp_energy \
   --scenario summarize_content \
   [--config path/to/config.yml] \
   [--set recall.budgets=500,1500,4000] \
@@ -225,13 +225,13 @@ queries:
       query: "plan remediation priorite"
     - question: "Quels RIE definissent les regles pour Oracle ?"
       query: "oracle 19c exadata support"
-    - question: "IOWIZME peut-il migrer vers Kubernetes ?"
+    - question: "ACME-ERP peut-il migrer vers Kubernetes ?"
       query: "kubernetes rancher containerisation"
     - question: "Quelles sont les derogations en cours ?"
       query: "derogation formelle echeance"
     - question: "Quels sont les risques de securite identifies ?"
       query: "vulnerabilite securite risque CVE"
-    - question: "Quel est le cadre commun d'hebergement GRDF ?"
+    - question: "Quel est le cadre commun d'hebergement CORP-ENERGY ?"
       query: "cadre commun hebergement EDGAR"
       tags: cadre-commun
     - question: "Quels composants sont hors perimetre ?"
@@ -276,7 +276,7 @@ crossrefs:
           type_filter: note
 
 recall:
-  query: "non-conformite critique IOWIZME oracle centos postgresql"
+  query: "non-conformite critique ACME-ERP oracle centos postgresql"
   budgets: [500, 1500, 4000]
   truncation_chars: 3000
 
@@ -347,18 +347,18 @@ search:
   queries:
     - "oracle conformite critique"
     - "migration java rhel kubernetes"
-    - "derogation formelle iowizme"
+    - "derogation formelle acme_erp"
     - "sauvegarde commvault ransomware"
     - "spring4shell cve securite"
     - "postgresql azure cloud edgar"
     - "weblogic version cluster"
     - "centos rhel fin de vie"
     - "kubernetes rancher argocd"
-    - "ports reseau jms sias"
+    - "ports reseau jms msg_hub"
 
 recall:
   runs:
-    - query: "non-conformite critique iowizme oracle centos postgresql"
+    - query: "non-conformite critique acme_erp oracle centos postgresql"
       budget_tokens: 3000
     - query: "plan remediation derogation migration"
       budget_tokens: 1500
@@ -387,7 +387,7 @@ search:
     - "postgresql azure cloud"
 
 recall:
-  query: "non-conformite critique iowizme oracle centos postgresql"
+  query: "non-conformite critique acme_erp oracle centos postgresql"
   budget_tokens: 800
   truncation_chars: 1200
 
@@ -546,7 +546,7 @@ from ragix_core.memory.reporting import generate_report
 
 md = generate_report(
     db_path="memory_bench/rie_bench.db",
-    workspace="rie-grdf",
+    workspace="rie-corp_energy",
     scenario="summarize_content",
     out_path="report.md",
 )
@@ -556,19 +556,19 @@ md = generate_report(
 
 ```bash
 # Content report
-ragix-memory report --db rie_bench.db --workspace rie-grdf \
+ragix-memory report --db rie_bench.db --workspace rie-corp_energy \
   --scenario summarize_content --out report.md
 
 # Benchmark
-ragix-memory report --db rie_bench.db --workspace rie-grdf \
+ragix-memory report --db rie_bench.db --workspace rie-corp_energy \
   --scenario benchmarks --out benchmark.md
 
 # Regression smoke (CI)
-ragix-memory report --db rie_bench.db --workspace rie-grdf \
+ragix-memory report --db rie_bench.db --workspace rie-corp_energy \
   --scenario regression_min --out regression.md
 
 # Custom config + overrides
-ragix-memory report --db rie_bench.db --workspace rie-grdf \
+ragix-memory report --db rie_bench.db --workspace rie-corp_energy \
   --scenario summarize_content \
   --config ./custom_queries.yml \
   --set recall.budgets=500,2000 \

@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 _DEFAULT_WS = Path(
-    "/home/olivi/Documents/Adservio/audit/SIAS/v7_revised/"
+    "/home/olivi/Documents/Adservio/audit/MSG-HUB/v7_revised/"
     "koas_review_test/workspace_oss"
 )
 

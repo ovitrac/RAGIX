@@ -361,7 +361,7 @@ Report history tracking established with KQI (Key Quality Indicators) metrics fo
 
 ### Performance Impact
 
-**VDP src2 audit (137 documents):**
+**DOCSET src2 audit (137 documents):**
 
 | Configuration | Stage 1 | Stage 2 | Stage 3 | Total |
 |--------------|---------|---------|---------|-------|
@@ -492,13 +492,13 @@ Both caches track sovereignty metadata:
 **Scenario 1: Initial audit**
 ```bash
 # Populate both caches (normal run)
-ragix-koas run --workspace VDP/src2 --all
+ragix-koas run --workspace DOCSET/src2 --all
 ```
 
 **Scenario 2: Iterate on report templates**
 ```bash
 # Use cached kernel outputs + cached LLM responses
-ragix-koas run --workspace VDP/src2 --all \
+ragix-koas run --workspace DOCSET/src2 --all \
     --llm-cache=read_only \
     --kernel-cache=read_only
 # Result: ~45 seconds instead of ~12 minutes
@@ -507,7 +507,7 @@ ragix-koas run --workspace VDP/src2 --all \
 **Scenario 3: Update LLM prompts**
 ```bash
 # Invalidate LLM cache, keep kernel cache
-ragix-koas run --workspace VDP/src2 --all \
+ragix-koas run --workspace DOCSET/src2 --all \
     --llm-cache=off \
     --kernel-cache=read_only
 ```
@@ -515,7 +515,7 @@ ragix-koas run --workspace VDP/src2 --all \
 **Scenario 4: Fresh run after code changes**
 ```bash
 # Bypass all caches
-ragix-koas run --workspace VDP/src2 --all \
+ragix-koas run --workspace DOCSET/src2 --all \
     --llm-cache=off \
     --kernel-cache=off
 ```
@@ -529,7 +529,7 @@ ragix-koas run --workspace VDP/src2 --all \
 3. **Output consistency**: Cached outputs written to expected file locations
 4. **Fail-fast**: `read_only` mode logs warnings on cache miss
 
-**Tested on VDP audit**: All stages completed successfully with identical outputs.
+**Tested on DOCSET audit**: All stages completed successfully with identical outputs.
 
 ---
 
@@ -625,7 +625,7 @@ Document clustering combines two algorithms:
 | `ragix_kernels/docs/doc_final_report.py` | Appendix D/E/F generation, file ID mapping |
 | `ragix_kernels/README.md` | v1.2.0, --use-cache docs, dual LLM/reconstruction |
 
-### Tested on VDP Corpus
+### Tested on DOCSET Corpus
 
 - **159 documents** (DOCX, PDF, PPTX, XLSX)
 - **5,515 chunks** indexed
@@ -770,7 +770,7 @@ Optimized for testing on DELL GB10 (NVIDIA OEM, 128GB VRAM):
 | Security Kernels | ✅ 10 kernels implemented |
 | Compliance Framework | ✅ ANSSI, NIST CSF, CIS Controls v8 |
 | Security Examples | ✅ 4 workspaces with demo script |
-| Audit Examples | ✅ 4 IOWIZME-based workspaces |
+| Audit Examples | ✅ 4 ACME-ERP-based workspaces |
 | Interactive Demos | ✅ Menu-driven bash scripts |
 
 ### New Security Kernels (`ragix_kernels/security/`)
@@ -816,7 +816,7 @@ examples/security/
 
 ### Audit Examples (`examples/audit/`)
 
-Based on IOWIZME/SIAS enterprise architecture (4M messages/day):
+Based on ACME-ERP/MSG-HUB enterprise architecture (4M messages/day):
 
 ```
 examples/audit/
@@ -852,7 +852,7 @@ Ingest operational volumetry data:
 ```yaml
 # Example volumetry.yaml
 flows:
-  - name: SIAS
+  - name: MSG-HUB
     volume_day: 4_000_000
     peak_hour: 5
     peak_window: "00:00-10:00"

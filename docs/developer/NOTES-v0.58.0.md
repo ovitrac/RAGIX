@@ -44,8 +44,8 @@ Version 0.58.0 focuses on **Partitioner UI polish** — improving the user exper
 **Problem:** When search filter was active, accordion titles still showed total counts, not filtered counts.
 
 **Solution:**
-- Titles now show: "SIAS (150 of 6821 classes)" when search is active
-- Reverts to "SIAS (6821 classes)" when search is cleared
+- Titles now show: "MSG-HUB (150 of 6821 classes)" when search is active
+- Reverts to "MSG-HUB (6821 classes)" when search is cleared
 - Updates dynamically as search term changes
 
 **Files Changed:**

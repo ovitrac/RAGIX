@@ -1,14 +1,14 @@
 # Design: Volumetry-Aware Audit Kernels
 
 **Date:** 2025-12-16
-**Context:** IOWIZME audit revealed need for production workload analysis
+**Context:** ACME-ERP audit revealed need for production workload analysis
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr
 
 ---
 
 ## 1. Problem Statement
 
-The current KOAS kernels analyze **code structure** (LOC, complexity, coupling) but don't consider **production workload**. The IOWIZME analysis showed that:
+The current KOAS kernels analyze **code structure** (LOC, complexity, coupling) but don't consider **production workload**. The ACME-ERP analysis showed that:
 
 - A module with 683 LOC can be **more critical** than one with 15,260 LOC if it processes 4M messages/day
 - Risk assessment without volumetry misses operational hotspots
@@ -87,7 +87,7 @@ class VolumetryKernel(Kernel):
 ```yaml
 # Operational data from client
 flows:
-  - name: "SIAS"
+  - name: "MSG-HUB"
     volume_day: 4_000_000
     unit: "messages"
     peak_hour: 5
@@ -100,18 +100,18 @@ flows:
     peak_hour: null
 
 modules:
-  - name: "iow-ech-sias"
-    flows: ["SIAS"]
+  - name: "acme-msg-hub"
+    flows: ["MSG-HUB"]
     role: "entry_point"
 
-  - name: "iow-iok-sk04"
+  - name: "acme-core-sk04"
     flows: ["RGDS"]
     role: "processor"
 
 incidents:
   - date: "2025-01"
     type: "saturation"
-    module: "iow-ech-sias"
+    module: "acme-msg-hub"
     cause: "peak_overflow"
 ```
 
@@ -120,7 +120,7 @@ incidents:
 ```json
 {
   "flows": {
-    "SIAS": {
+    "MSG-HUB": {
       "volume_day": 4000000,
       "volume_sec_avg": 46,
       "volume_sec_peak": 500,
@@ -129,8 +129,8 @@ incidents:
     }
   },
   "module_volumetry": {
-    "iow-ech-sias": {
-      "flow": "SIAS",
+    "acme-msg-hub": {
+      "flow": "MSG-HUB",
       "volume_day": 4000000,
       "criticality": "HIGH"
     }
@@ -150,7 +150,7 @@ class ModuleGrouperKernel(Kernel):
     Group files into functional modules.
 
     Uses:
-        - Path-based patterns (iow-*, iog-*, etc.)
+        - Path-based patterns (acme-*, iog-*, etc.)
         - Package structure
         - Maven/Gradle module detection
 
@@ -185,8 +185,8 @@ module_group:
         group: 1
     # Or explicit mapping
     mapping:
-      "iow-ech-sias": "Exchange SIAS"
-      "iow-iok-sk01": "SC01 Processing"
+      "acme-msg-hub": "Exchange MSG-HUB"
+      "acme-core-sk01": "SC01 Processing"
 ```
 
 **Output:**
@@ -194,13 +194,13 @@ module_group:
 ```json
 {
   "modules": {
-    "iow-ech-sias": {
-      "display_name": "Exchange SIAS",
+    "acme-msg-hub": {
+      "display_name": "Exchange MSG-HUB",
       "files": 20,
       "loc": 2374,
       "classes": 17,
       "methods": 54,
-      "file_list": ["EchSiasJmsQddcListener.java", ...]
+      "file_list": ["MsgHubJmsListener.java", ...]
     }
   },
   "summary": {
@@ -273,7 +273,7 @@ risk_matrix:
 {
   "matrix": [
     {
-      "module": "iog-support-commons",
+      "module": "acme-support-commons",
       "loc": 11523,
       "loc_norm": 7.7,
       "complexity_norm": 5.8,
@@ -284,10 +284,10 @@ risk_matrix:
     }
   ],
   "ranking": [
-    {"module": "iog-support-commons", "risk": 7.9, "level": "CRITICAL"},
-    {"module": "iow-iog-models", "risk": 6.6, "level": "HIGH"}
+    {"module": "acme-support-commons", "risk": 7.9, "level": "CRITICAL"},
+    {"module": "acme-iog-models", "risk": 6.6, "level": "HIGH"}
   ],
-  "critical_path": ["iow-ech-sias", "iow-iok-sk01", "iog-support-commons"],
+  "critical_path": ["acme-msg-hub", "acme-core-sk01", "acme-support-commons"],
   "summary": {
     "critical": 1,
     "high": 4,
@@ -370,19 +370,19 @@ code_pattern:
 ```json
 {
   "by_module": {
-    "iog-support-commons": {
+    "acme-support-commons": {
       "dto": {"files": 45, "loc": 5200, "percent": 45},
       "utils": {"files": 12, "loc": 2800, "percent": 24},
       "factory": {"files": 8, "loc": 1500, "percent": 13}
     },
-    "iow-ech-sias": {
+    "acme-msg-hub": {
       "listener": {"files": 7, "loc": 1050, "percent": 44},
       "dto": {"files": 5, "loc": 600, "percent": 25}
     }
   },
   "critical_patterns": [
-    {"module": "iow-ech-sias", "pattern": "listener", "count": 7, "throughput_risk": "HIGH"},
-    {"module": "iog-support-commons", "pattern": "utils", "count": 12, "cpu_risk": "HIGH"}
+    {"module": "acme-msg-hub", "pattern": "listener", "count": 7, "throughput_risk": "HIGH"},
+    {"module": "acme-support-commons", "pattern": "utils", "count": 12, "cpu_risk": "HIGH"}
   ]
 }
 ```
@@ -457,7 +457,7 @@ load_model:
 ```json
 {
   "modules": {
-    "iow-ech-sias": {
+    "acme-msg-hub": {
       "sync_time_ms": 15.2,
       "async_time_ms": 0.9,
       "capacity_sync": 66,
@@ -469,7 +469,7 @@ load_model:
   "recommendations": {
     "async_candidates": [
       {
-        "module": "iow-ech-sias",
+        "module": "acme-msg-hub",
         "current_capacity": 66,
         "required_capacity": 1000,
         "gap": 934,
@@ -609,35 +609,35 @@ stage3:
 ```bash
 # 1. Initialize workspace with volumetry
 ragix-koas init \
-  --workspace ./audit/iowizme \
-  --project /path/to/iowizme \
-  --name "IOWIZME"
+  --workspace ./audit/acme-erp \
+  --project /path/to/acme-erp \
+  --name "ACME-ERP"
 
 # 2. Add volumetry data
-cat > ./audit/iowizme/data/volumetry.yaml << 'EOF'
+cat > ./audit/acme-erp/data/volumetry.yaml << 'EOF'
 flows:
-  - name: SIAS
+  - name: MSG-HUB
     volume_day: 4000000
     peak_hour: 5
     peak_window: "00:00-10:00"
 modules:
-  - name: iow-ech-sias
-    flows: [SIAS]
+  - name: acme-msg-hub
+    flows: [MSG-HUB]
 EOF
 
 # 3. Run analysis
-ragix-koas run --workspace ./audit/iowizme --all --parallel
+ragix-koas run --workspace ./audit/acme-erp --all --parallel
 
 # 4. View results
-cat ./audit/iowizme/stage2/risk_matrix.json
-cat ./audit/iowizme/stage2/load_model.json
+cat ./audit/acme-erp/stage2/risk_matrix.json
+cat ./audit/acme-erp/stage2/load_model.json
 ```
 
 ---
 
 ## 7. Benefits
 
-### For IOWIZME-like Audits
+### For ACME-ERP-like Audits
 
 - **Automated risk matrix** with volumetry weighting
 - **Capacity estimation** without manual calculation

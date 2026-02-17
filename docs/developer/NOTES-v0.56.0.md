@@ -23,7 +23,7 @@ This release transforms RAGIX from a development assistant into a **professional
 | **Partitioner** | MDS Layout | Eigendecomposition-based positioning for <500 nodes |
 | **Partitioner** | Partition-Based Layout | O(n) circular layout for >500 nodes (17K+ supported) |
 | **Partitioner** | Export System | SVG, PNG, JSON, CSV formats |
-| **Audit** | Service Pattern Presets | IOWIZME (SK/SC/SG), Enterprise (spre##), Combined |
+| **Audit** | Service Pattern Presets | ACME-ERP (SK/SC/SG), Enterprise (spre##), Combined |
 | **Audit** | Multi-Module Maven | Auto-detect `app-*/src/main/java/` structures |
 | **Audit** | Risk Analysis | Timeline-based risk scoring with configurable weights |
 | **Audit** | Service Lifecycle | NEW/ACTIVE/MATURE/LEGACY categorization |
@@ -304,7 +304,7 @@ The Audit Settings modal includes a **Service Detection Patterns** section:
 │ │ spre\d{2}(?:ws)?        │   │ │ com\..*\.jms\.spre          │ │
 │ │ sprebpm(?:ws)?          │   │ └─────────────────────────────┘ │
 │ │ spremail                │   │                                 │
-│ └─────────────────────────┘   │ Presets: [IOWIZME ▼]           │
+│ └─────────────────────────┘   │ Presets: [ACME-ERP ▼]           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -312,7 +312,7 @@ The Audit Settings modal includes a **Service Detection Patterns** section:
 
 | Preset | Patterns |
 |--------|----------|
-| **IOWIZME** | `SK\d{2}`, `SC\d{2}`, `SG\d{2}` |
+| **ACME-ERP** | `SK\d{2}`, `SC\d{2}`, `SG\d{2}` |
 | **Enterprise** | `spre\d{2}(?:ws)?`, `sprebpm(?:ws)?`, `spremail`, `s[A-Z][a-zA-Z]+` |
 | **Combined** | All patterns from both presets |
 

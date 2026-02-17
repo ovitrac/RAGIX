@@ -13,20 +13,20 @@ with support for:
 
 Usage:
     # Initialize workspace for document analysis
-    python -m ragix_kernels.run_doc_koas init --workspace ./audit/vdp --project /path/to/docs
+    python -m ragix_kernels.run_doc_koas init --workspace ./audit/project --project /path/to/docs
 
     # Run all stages with caching
-    python -m ragix_kernels.run_doc_koas run --workspace ./audit/vdp --all --cache
+    python -m ragix_kernels.run_doc_koas run --workspace ./audit/project --all --cache
 
     # Run with custom models
-    python -m ragix_kernels.run_doc_koas run --workspace ./audit/vdp --all \
+    python -m ragix_kernels.run_doc_koas run --workspace ./audit/project --all \
         --worker-model granite3.1-moe:3b --tutor-model mistral:7b-instruct
 
     # Clear cache and re-run
-    python -m ragix_kernels.run_doc_koas run --workspace ./audit/vdp --all --no-cache
+    python -m ragix_kernels.run_doc_koas run --workspace ./audit/project --all --no-cache
 
     # Run pre-flight checks only
-    python -m ragix_kernels.run_doc_koas preflight --workspace ./audit/vdp
+    python -m ragix_kernels.run_doc_koas preflight --workspace ./audit/project
 
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-01-18
 """
@@ -906,24 +906,24 @@ def main():
 Examples:
   # Initialize workspace
   python -m ragix_kernels.run_doc_koas init \\
-    --workspace ./audit/vdp \\
+    --workspace ./audit/project \\
     --project /path/to/docs
 
   # Run all stages with caching
   python -m ragix_kernels.run_doc_koas run \\
-    --workspace ./audit/vdp --all
+    --workspace ./audit/project --all
 
   # Run with custom models
   python -m ragix_kernels.run_doc_koas run \\
-    --workspace ./audit/vdp --all \\
+    --workspace ./audit/project --all \\
     --worker-model granite3.1-moe:3b \\
     --tutor-model mistral:7b-instruct
 
   # Show status
-  python -m ragix_kernels.run_doc_koas status --workspace ./audit/vdp
+  python -m ragix_kernels.run_doc_koas status --workspace ./audit/project
 
   # Clear cache
-  python -m ragix_kernels.run_doc_koas cache --workspace ./audit/vdp --clear
+  python -m ragix_kernels.run_doc_koas cache --workspace ./audit/project --clear
         """,
     )
 

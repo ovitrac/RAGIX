@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-KOAS-Docs v1.2 successfully implemented dual clustering (Hierarchical + Leiden) with tutor-verified LLM summaries. This roadmap addresses identified improvements from the VDP audit run to enhance report quality, visualization, and performance.
+KOAS-Docs v1.2 successfully implemented dual clustering (Hierarchical + Leiden) with tutor-verified LLM summaries. This roadmap addresses identified improvements from the DOCSET audit run to enhance report quality, visualization, and performance.
 
 ---
 
@@ -425,7 +425,7 @@ leidenalg>=0.10.0
 
 ## 8. Testing Checklist
 
-- [ ] Leiden hierarchical tree on VDP corpus
+- [ ] Leiden hierarchical tree on DOCSET corpus
 - [ ] Batch LLM calls performance benchmark
 - [ ] Cache hit rate > 80% on re-run
 - [ ] Artifact isolation (no pollution of src/)

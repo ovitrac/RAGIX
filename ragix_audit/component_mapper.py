@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 
 class ComponentType(Enum):
     """Type of business component."""
-    SERVICE = "service"      # SK01-SK14: Service Keys / SIAS: spre##, sprebpm
+    SERVICE = "service"      # SK01-SK14: Service Keys / MSG-HUB: spre##, sprebpm
     SCREEN = "screen"        # SC01-SC08: Screen Codes
     GENERAL = "general"      # SG01+: General Services
-    JMS = "jms"              # SIAS: JMS handlers (spre## in jms dir)
-    TASK = "task"            # SIAS: s[ActionName] task operations
+    JMS = "jms"              # MSG-HUB: JMS handlers (spre## in jms dir)
+    TASK = "task"            # MSG-HUB: s[ActionName] task operations
     UNKNOWN = "unknown"      # Unclassified
 
 
@@ -53,7 +53,7 @@ class ComponentMapper:
 
     Detection strategies:
     1. Path-based: /sk02/, /SC04/, etc.
-    2. Package-based: fr.iowizmi.iok.sk02
+    2. Package-based: fr.acme.iok.sk02
     3. Content-based: @Service("SK02"), class SK02Service
     4. Filename-based: SK02Handler.java
     """
@@ -72,7 +72,7 @@ class ComponentMapper:
         r'\bSG[0-9]{2}\b': ComponentType.GENERAL,
         r'\bsg[0-9]{2}\b': ComponentType.GENERAL,
 
-        # SIAS: spre## services (e.g., spre13, spre28ws)
+        # MSG-HUB: spre## services (e.g., spre13, spre28ws)
         r'\bspre[0-9]{2}(?:ws)?\b': ComponentType.SERVICE,
         r'\bsprebpm(?:ws)?\b': ComponentType.SERVICE,
         r'\bspremail\b': ComponentType.SERVICE,
@@ -80,15 +80,15 @@ class ComponentMapper:
 
     # Package patterns for component detection
     PACKAGE_PATTERNS = {
-        r'fr\.iowizmi\.iok\.sk': ComponentType.SERVICE,
-        r'fr\.iowizmi\.iok\.sc': ComponentType.SCREEN,
-        r'fr\.iowizmi\.iok\.sg': ComponentType.GENERAL,
-        r'fr\.iowizmi\.ui\.': ComponentType.SCREEN,
-        r'fr\.iowizmi\.service\.': ComponentType.SERVICE,
-        # SIAS: Enterprise service patterns
-        r'com\.grdf\..*\.ws\.spre': ComponentType.SERVICE,
-        r'com\.grdf\..*\.jms\.spre': ComponentType.JMS,
-        r'com\.grdf\..*\.jms\.traitementmasse': ComponentType.TASK,
+        r'fr\.acme\.iok\.sk': ComponentType.SERVICE,
+        r'fr\.acme\.iok\.sc': ComponentType.SCREEN,
+        r'fr\.acme\.iok\.sg': ComponentType.GENERAL,
+        r'fr\.acme\.ui\.': ComponentType.SCREEN,
+        r'fr\.acme\.service\.': ComponentType.SERVICE,
+        # MSG-HUB: Enterprise service patterns
+        r'com\.corp-energy\..*\.ws\.spre': ComponentType.SERVICE,
+        r'com\.corp-energy\..*\.jms\.spre': ComponentType.JMS,
+        r'com\.corp-energy\..*\.jms\.traitementmasse': ComponentType.TASK,
     }
 
     def __init__(self):
@@ -278,20 +278,20 @@ def detect_component_id(text: str) -> Optional[str]:
     if match:
         return match.group(0).upper()
 
-    # Try SIAS spre patterns
+    # Try MSG-HUB spre patterns
     spre_pattern = re.compile(r'\b(spre[0-9]{2}(?:ws)?|sprebpm(?:ws)?|spremail)\b', re.IGNORECASE)
     match = spre_pattern.search(text)
     if match:
-        return match.group(0).lower()  # SIAS uses lowercase
+        return match.group(0).lower()  # MSG-HUB uses lowercase
 
     return None
 
 
 if __name__ == "__main__":
-    # Test with IOWIZME
+    # Test with ACME-ERP
     import sys
 
-    path = sys.argv[1] if len(sys.argv) > 1 else "/home/olivi/Documents/Adservio/audit/IOWIZME/src"
+    path = sys.argv[1] if len(sys.argv) > 1 else "/path/to/enterprise-audit/src"
 
     mapper = ComponentMapper()
     components = mapper.scan_directory(Path(path))

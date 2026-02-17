@@ -463,7 +463,7 @@ if __name__ == "__main__":
     import json
     from ragix_audit.timeline import TimelineScanner
 
-    path = sys.argv[1] if len(sys.argv) > 1 else "/home/olivi/Documents/Adservio/audit/IOWIZME"
+    path = sys.argv[1] if len(sys.argv) > 1 else "/path/to/enterprise-audit"
 
     print(f"Analyzing drift for {path}...")
 

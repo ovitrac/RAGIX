@@ -184,14 +184,14 @@ class ServiceDetector:
 
     # Annotation patterns for service detection
     ANNOTATION_PATTERNS = [
-        # IOWIZME: SK/SC/SG patterns
+        # ACME-ERP: SK/SC/SG patterns
         re.compile(r'@Service\s*\(\s*["\']?(SK|SC|SG)\d{2}["\']?\s*\)', re.IGNORECASE),
         re.compile(r'@Component\s*\(\s*["\']?(SK|SC|SG)\d{2}["\']?\s*\)', re.IGNORECASE),
         re.compile(r'@Named\s*\(\s*["\']?(SK|SC|SG)\d{2}["\']?\s*\)', re.IGNORECASE),
-        # SIAS: spre## patterns (e.g., @Service("spre28ws"), @Component(value = "spre13"))
+        # MSG-HUB: spre## patterns (e.g., @Service("spre28ws"), @Component(value = "spre13"))
         re.compile(r'@Service\s*\(\s*["\']?(spre\d{2}(?:ws)?|sprebpm(?:ws)?|spremail)["\']?\s*\)', re.IGNORECASE),
         re.compile(r'@Component\s*\(\s*(?:value\s*=\s*)?["\']?(spre\d{2}(?:ws)?|sprebpm(?:ws)?|spremail)["\']?\s*\)', re.IGNORECASE),
-        # SIAS: s[ActionName] patterns for task operations
+        # MSG-HUB: s[ActionName] patterns for task operations
         re.compile(r'@Component\s*\(\s*(?:value\s*=\s*)?["\'](s[A-Z][a-zA-Z]+)["\']\s*\)', re.IGNORECASE),
     ]
 
@@ -200,12 +200,12 @@ class ServiceDetector:
         re.compile(r'Service\s+(?:Key\s+)?(SK\d{2})\s*[-:]\s*(.+?)(?:\n|$)', re.IGNORECASE),
         re.compile(r'Screen\s+(?:Code\s+)?(SC\d{2})\s*[-:]\s*(.+?)(?:\n|$)', re.IGNORECASE),
         re.compile(r'(S[KCG]\d{2})\s*[-:=]\s*["\'"]?([^"\'"\n]{5,50})["\'"]?', re.IGNORECASE),
-        # SIAS: spre## service patterns
+        # MSG-HUB: spre## service patterns
         re.compile(r'(spre\d{2}(?:ws)?)\s*[-:=]\s*["\'"]?([^"\'"\n]{5,50})["\'"]?', re.IGNORECASE),
     ]
 
-    # SIAS-specific component patterns for broader detection
-    SIAS_COMPONENT_PATTERNS = [
+    # MSG-HUB-specific component patterns for broader detection
+    ENTERPRISE_COMPONENT_PATTERNS = [
         re.compile(r'\b(spre\d{2}(?:ws)?)\b', re.IGNORECASE),
         re.compile(r'\b(sprebpm(?:ws)?)\b', re.IGNORECASE),
         re.compile(r'\b(spremail)\b', re.IGNORECASE),
@@ -440,8 +440,8 @@ class ServiceDetector:
                 svc.annotations.append(match.group(0))
                 svc.add_source(DetectionSource.CONTENT_ANNOTATION)
 
-        # Also check for SIAS patterns in file content (directory structure patterns)
-        for pattern in self.SIAS_COMPONENT_PATTERNS:
+        # Also check for MSG-HUB patterns in file content (directory structure patterns)
+        for pattern in self.ENTERPRISE_COMPONENT_PATTERNS:
             for match in pattern.finditer(content):
                 comp_id = match.group(1)  # Will be uppercased in _get_or_create_service
                 comp_type = self._id_to_type(comp_id)
@@ -464,9 +464,9 @@ class ServiceDetector:
                     svc.doc_version = f"V{version}"
                 svc.add_source(DetectionSource.CONTENT_JAVADOC)
 
-            # Also check SIAS patterns
-            for sias_pattern in self.SIAS_COMPONENT_PATTERNS:
-                for comp_match in sias_pattern.finditer(content):
+            # Also check MSG-HUB patterns
+            for msg_hub_pattern in self.ENTERPRISE_COMPONENT_PATTERNS:
+                for comp_match in msg_hub_pattern.finditer(content):
                     comp_id = comp_match.group(1)  # Will be uppercased
                     comp_type = self._id_to_type(comp_id)
 
@@ -499,16 +499,16 @@ class ServiceDetector:
         """Convert component ID prefix to type."""
         comp_lower = comp_id.lower()
 
-        # SIAS patterns
+        # MSG-HUB patterns
         if comp_lower.startswith('spre'):
             if 'ws' in comp_lower:
                 return ComponentType.SERVICE  # Web service
             return ComponentType.SERVICE  # JMS or general service
         if comp_lower.startswith('s') and len(comp_id) > 4 and comp_id[1].isupper():
-            # SIAS task operations like sAffecterTache
+            # MSG-HUB task operations like sAffecterTache
             return ComponentType.SERVICE
 
-        # IOWIZME patterns
+        # ACME-ERP patterns
         prefix = comp_id[:2].upper()
         if prefix == "SK":
             return ComponentType.SERVICE
@@ -620,7 +620,7 @@ if __name__ == "__main__":
     import sys
     import json
 
-    path = sys.argv[1] if len(sys.argv) > 1 else "/home/olivi/Documents/Adservio/audit/IOWIZME"
+    path = sys.argv[1] if len(sys.argv) > 1 else "/path/to/enterprise-audit"
 
     print(f"Detecting services in {path}...")
 

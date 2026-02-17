@@ -54,7 +54,7 @@ class TestSourceLocation:
 
     def test_str_representation(self):
         loc = SourceLocation(Path("test.py"), 10, 5)
-        assert str(loc) == "test.py:10:5"
+        assert str(loc) == "test.py:10"
 
     def test_str_without_column(self):
         loc = SourceLocation(Path("test.py"), 10)

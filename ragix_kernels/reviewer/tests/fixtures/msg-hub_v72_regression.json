@@ -1,9 +1,9 @@
 {
-  "description": "v7.2 production baseline regression spec — SIAS 13-chunk integration test",
+  "description": "v7.2 production baseline regression spec — MSG-HUB 13-chunk integration test",
   "model": "gpt-oss-safeguard:120b",
   "date_frozen": "2026-02-07",
   "kernel_version": "2.2.0",
-  "doc": "Audit_SAT_v7_revised2.md",
+  "doc": "Audit_TARGET_v7_revised2.md",
   "scope": "first 13 chunks",
 
   "aggregate_invariants": {
@@ -37,7 +37,7 @@
       "math_masked": true
     },
     {
-      "chunk_id": "analyse-dimpact-de-la-séparation-siasticc_cc6e0b12",
+      "chunk_id": "analyse-dimpact-de-la-séparation-msg-hubticc_cc6e0b12",
       "parse_success": true,
       "degenerate": false
     },
@@ -70,7 +70,7 @@
       "recipe_required": true
     },
     {
-      "chunk_id": "13-insight-stratégique-clé-réunion-grdf-du-6-novembre-2025_1d3d3766",
+      "chunk_id": "13-insight-stratégique-clé-réunion-corp-energy-du-6-novembre-2025_1d3d3766",
       "parse_success": true,
       "degenerate": false
     },

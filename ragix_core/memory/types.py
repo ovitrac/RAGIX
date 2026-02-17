@@ -114,7 +114,7 @@ class MemoryItem:
     # Domain-specific identifiers
     rule_id: Optional[str] = None  # e.g. "RIE-RHEL-042" for RIE documents
     # V3.0: Corpus identity for cross-corpus operations
-    corpus_id: Optional[str] = None  # e.g. "grdf-rie-2026Q1"
+    corpus_id: Optional[str] = None  # e.g. "corp_energy-rie-2026Q1"
     # Supersession tracking
     superseded_by: Optional[str] = None
     archived: bool = False
@@ -302,13 +302,13 @@ class CorpusMetadata:
     """
     Metadata for a corpus version — enables cross-corpus drift detection.
 
-    A corpus is a versioned collection of documents (e.g., "grdf-rie-2026Q1").
+    A corpus is a versioned collection of documents (e.g., "corp_energy-rie-2026Q1").
     Parent corpus enables lineage tracking (e.g., Q1 evolved from Q4).
     """
 
-    corpus_id: str = ""             # e.g. "grdf-rie-2026Q1"
-    corpus_label: str = ""          # human-readable, e.g. "GRDF RIE — Q1 2026"
-    parent_corpus_id: Optional[str] = None  # e.g. "grdf-rie-2025Q4"
+    corpus_id: str = ""             # e.g. "corp_energy-rie-2026Q1"
+    corpus_label: str = ""          # human-readable, e.g. "CORP-ENERGY RIE — Q1 2026"
+    parent_corpus_id: Optional[str] = None  # e.g. "corp_energy-rie-2025Q4"
     doc_count: int = 0
     item_count: int = 0
     scope: str = "project"

@@ -351,7 +351,7 @@ if __name__ == "__main__":
     import sys
     import json
 
-    path = sys.argv[1] if len(sys.argv) > 1 else "/home/olivi/Documents/Adservio/audit/IOWIZME/src"
+    path = sys.argv[1] if len(sys.argv) > 1 else "/path/to/enterprise-audit/src"
 
     print(f"Computing risks for {path}...")
     result = compute_risks_for_project(path)

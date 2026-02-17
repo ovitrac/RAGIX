@@ -397,7 +397,8 @@ class GraphExecutor:
     ) -> AsyncIterator[StreamEvent]:
         """Execute a single node with streaming events."""
         node.status = NodeStatus.RUNNING
-        yield StreamEvent(event_type="node_started", node_id=node.id, data={"task": node.task[:100]})
+        task_desc = node.config.get("task", node.name) if node.config else node.name
+        yield StreamEvent(event_type="node_started", node_id=node.id, data={"task": task_desc[:100]})
 
         try:
             # Create agent instance

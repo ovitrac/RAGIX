@@ -26,12 +26,12 @@ class TestCorpusMetadata:
 
     def test_create(self):
         cm = CorpusMetadata(
-            corpus_id="grdf-rie-2026Q1",
-            corpus_label="GRDF RIE — Q1 2026",
+            corpus_id="corp_energy-rie-2026Q1",
+            corpus_label="CORP-ENERGY RIE — Q1 2026",
             doc_count=27,
             item_count=1199,
         )
-        assert cm.corpus_id == "grdf-rie-2026Q1"
+        assert cm.corpus_id == "corp_energy-rie-2026Q1"
         assert cm.parent_corpus_id is None
 
     def test_to_dict(self):
@@ -78,14 +78,14 @@ class TestStoreCorpusMetadata:
 
     def test_list_corpora_with_scope(self, store):
         store.write_corpus_metadata(CorpusMetadata(
-            corpus_id="a", corpus_label="A", scope="grdf",
+            corpus_id="a", corpus_label="A", scope="corp_energy",
         ))
         store.write_corpus_metadata(CorpusMetadata(
             corpus_id="b", corpus_label="B", scope="other",
         ))
-        grdf = store.list_corpora(scope="grdf")
-        assert len(grdf) == 1
-        assert grdf[0].corpus_id == "a"
+        corp_energy = store.list_corpora(scope="corp_energy")
+        assert len(corp_energy) == 1
+        assert corp_energy[0].corpus_id == "a"
 
     def test_parent_corpus(self, store):
         store.write_corpus_metadata(CorpusMetadata(
@@ -104,9 +104,9 @@ class TestItemCorpusId:
         item = MemoryItem(
             title="Test",
             content="Content",
-            corpus_id="grdf-rie-2026Q1",
+            corpus_id="corp_energy-rie-2026Q1",
         )
-        assert item.corpus_id == "grdf-rie-2026Q1"
+        assert item.corpus_id == "corp_energy-rie-2026Q1"
 
     def test_item_corpus_id_default_none(self):
         item = MemoryItem(title="Test", content="Content")

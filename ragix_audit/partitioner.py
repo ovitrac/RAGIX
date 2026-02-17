@@ -12,7 +12,7 @@ Uses:
 2. Graph propagation (neighbor majority voting)
 3. Evidence chains for traceability
 
-Inspired by SIAS audit methodology (codebase_partition.py).
+Inspired by MSG-HUB audit methodology (codebase_partition.py).
 
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-11
 """
@@ -99,7 +99,7 @@ class ApplicationFingerprint:
     Fingerprint patterns for detecting an application.
 
     Attributes:
-        app_id: Application identifier (e.g., "SIAS", "TICC", "APP_A")
+        app_id: Application identifier (e.g., "MSG-HUB", "TICC", "APP_A")
         package_patterns: Package name patterns (glob-style or regex)
         class_patterns: Class name patterns (glob-style)
         annotation_patterns: Annotation patterns to match
@@ -1107,18 +1107,18 @@ def partition_from_graph(
     return partitioner.partition()
 
 
-def create_sias_ticc_config() -> PartitionConfig:
+def create_enterprise_pattern_config() -> PartitionConfig:
     """
-    Create configuration for SIAS/TICC separation (enterprise pattern).
+    Create configuration for MSG-HUB/TICC separation (enterprise pattern).
     """
     return PartitionConfig(
         applications=[
             ApplicationFingerprint(
-                app_id="SIAS",
-                package_patterns=["*sias*", "*supervision*", "*accompagnement*", "*pre*"],
-                class_patterns=["*Sias*", "*Supervision*", "*Pre*"],
-                keyword_patterns=["sias", "supervision", "accompagnement", "pre"],
-                entry_point_patterns=["*SiasController*", "*PreController*"],
+                app_id="MSG-HUB",
+                package_patterns=["*msg-hub*", "*supervision*", "*accompagnement*", "*pre*"],
+                class_patterns=["*MsgHub*", "*Supervision*", "*Pre*"],
+                keyword_patterns=["msg-hub", "supervision", "accompagnement", "pre"],
+                entry_point_patterns=["*MainController*", "*PreController*"],
                 color="#3498db"  # Blue
             ),
             ApplicationFingerprint(

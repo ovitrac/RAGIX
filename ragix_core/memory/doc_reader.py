@@ -102,7 +102,7 @@ You are a technical compliance analyst extracting rules from a regulatory docume
 
 **Document**: {doc_name}
 **Section**: {heading}
-**Context**: This is a "Référentiel d'Ingénierie et d'Exploitation" (RIE) from GRDF.
+**Context**: This is a "Référentiel d'Ingénierie et d'Exploitation" (RIE) from CORP-ENERGY.
 
 Read the following chunk and extract ALL rules, constraints, definitions, and decisions.
 For each, output a JSON array of objects with these fields:

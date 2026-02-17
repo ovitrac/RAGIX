@@ -272,7 +272,7 @@ ragix-ast matrix ./src --level package    # DSM with cycle detection
 | **Risk Matrix** | Visual risk assessment with configurable weights |
 | **Drift Tracking** | Monitor code changes over time |
 | **Dead Code Detection** | Find isolated classes (no callers AND no callees) |
-| **Service Detection** | Enterprise patterns (SIAS, IOWIZME) |
+| **Service Detection** | Enterprise patterns (MSG-HUB, ACME-ERP) |
 | **Compliance Reports** | PDF/HTML audit reports |
 
 ### 🧩 **Codebase Partitioner**
@@ -620,7 +620,7 @@ Full API documentation: [docs/API_REFERENCE.md](docs/API_REFERENCE.md)
 
 | Example | Description |
 |---------|-------------|
-| `volumetry_analysis/` | Risk weighted by traffic (IOWIZME 4M msg/day) |
+| `volumetry_analysis/` | Risk weighted by traffic (ACME-ERP 4M msg/day) |
 | `microservices/` | Service catalog & dependency analysis |
 | `java_monolith/` | Complexity hotspots & refactoring |
 | `full_audit/` | Comprehensive system audit |

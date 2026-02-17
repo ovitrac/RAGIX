@@ -4188,7 +4188,7 @@ try:
         ApplicationFingerprint,
         PartitionResult,
         partition_from_graph,
-        create_sias_ticc_config,
+        create_enterprise_pattern_config,
     )
     PARTITIONER_AVAILABLE = True
 except ImportError:
@@ -4207,7 +4207,7 @@ async def get_partition_status():
     return {
         "available": PARTITIONER_AVAILABLE,
         "ast_available": AST_AVAILABLE,
-        "presets": ["sias_ticc", "generic_two_apps", "generic_three_apps"] if PARTITIONER_AVAILABLE else []
+        "presets": ["enterprise_pattern", "generic_two_apps", "generic_three_apps"] if PARTITIONER_AVAILABLE else []
     }
 
 
@@ -4218,10 +4218,10 @@ async def get_partition_presets():
         raise HTTPException(status_code=503, detail="Partitioner module not available")
 
     presets = {
-        "sias_ticc": {
-            "name": "SIAS/TICC (Enterprise Pattern)",
+        "enterprise_pattern": {
+            "name": "MSG-HUB/TICC (Enterprise Pattern)",
             "description": "Two-application separation pattern used in enterprise audits",
-            "config": create_sias_ticc_config().to_dict()
+            "config": create_enterprise_pattern_config().to_dict()
         },
         "generic_two_apps": {
             "name": "Generic Two Applications",
@@ -4378,8 +4378,8 @@ async def export_partition(
 
         # Get partition config from preset
         partition_config = None
-        if preset == "sias_ticc":
-            partition_config = create_sias_ticc_config()
+        if preset == "enterprise_pattern":
+            partition_config = create_enterprise_pattern_config()
         elif preset == "generic_two_apps":
             partition_config = PartitionConfig.default_two_apps()
 

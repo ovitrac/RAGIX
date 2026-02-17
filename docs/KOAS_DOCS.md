@@ -527,7 +527,7 @@ Level 4: CORPUS SUMMARY
 {
   "pyramid": {
     "level_4_corpus": {
-      "title": "VDP Technical Specifications",
+      "title": "DOCSET Technical Specifications",
       "file_count": 137,
       "domain_count": 10,
       "key_concepts": ["SURF4", "Interopérabilité", "Trafic"]
@@ -635,7 +635,7 @@ Stage 3 (Synthesis):
 
 ### Performance Characteristics
 
-Measured on VDP corpus (137 documents, 5,481 chunks, 236 MB):
+Measured on DOCSET corpus (137 documents, 5,481 chunks, 236 MB):
 
 | Kernel | Time | Notes |
 |--------|------|-------|
@@ -862,7 +862,7 @@ Threshold: sentences with Q(s) < 0.3 are filtered.
 # KOAS-Docs manifest.yaml
 
 audit:
-  name: "VDP Technical Documentation Audit"
+  name: "DOCSET Technical Documentation Audit"
   version: "1.0"
   type: "docs"  # Indicates document analysis mode
 

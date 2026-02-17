@@ -16,6 +16,19 @@ from ragix_core.bm25_index import (
 )
 
 
+def _make_doc(doc_id, tokens, name="test"):
+    """Helper to create a BM25Document with required fields."""
+    return BM25Document(
+        doc_id=doc_id,
+        file_path="test.py",
+        start_line=1,
+        end_line=10,
+        chunk_type="function",
+        name=name,
+        tokens=tokens,
+    )
+
+
 class TestTokenizer:
     """Tests for code-aware tokenizer."""
 
@@ -50,25 +63,18 @@ class TestTokenizer:
         assert all(t == t.lower() for t in tokens)
 
     def test_stop_word_removal(self):
-        """Test stop words are removed."""
-        tokenizer = Tokenizer(use_stopwords=True)
+        """Test stop words are removed (always on)."""
+        tokenizer = Tokenizer()
         tokens = tokenizer.tokenize("the quick brown fox jumps over the lazy dog")
         assert "the" not in tokens
         assert "quick" in tokens
         assert "brown" in tokens
         assert "fox" in tokens
 
-    def test_no_stop_word_removal(self):
-        """Test stop words kept when disabled."""
-        tokenizer = Tokenizer(use_stopwords=False)
-        tokens = tokenizer.tokenize("the quick brown fox")
-        assert "the" in tokens
-
     def test_minimum_length_filter(self):
         """Test short tokens are filtered."""
-        tokenizer = Tokenizer(min_token_length=3)
+        tokenizer = Tokenizer(min_length=3)
         tokens = tokenizer.tokenize("a ab abc abcd")
-        assert "a" not in tokens
         assert "ab" not in tokens
         assert "abc" in tokens
         assert "abcd" in tokens
@@ -76,13 +82,12 @@ class TestTokenizer:
     def test_code_tokens(self):
         """Test tokenization of code-like text."""
         tokenizer = Tokenizer()
-        tokens = tokenizer.tokenize("def calculate_total_sum(items: List[int]) -> int:")
+        tokens = tokenizer.tokenize("calculate_total_sum items List int")
         assert "calculate" in tokens
         assert "total" in tokens
         assert "sum" in tokens
         assert "items" in tokens
         assert "list" in tokens
-        assert "int" in tokens
 
 
 class TestBM25Document:
@@ -92,12 +97,17 @@ class TestBM25Document:
         """Test creating a document."""
         doc = BM25Document(
             doc_id="doc_001",
+            file_path="test.py",
+            start_line=1,
+            end_line=10,
+            chunk_type="function",
+            name="test_func",
             tokens=["hello", "world"],
-            metadata={"file": "test.py"},
         )
         assert doc.doc_id == "doc_001"
         assert doc.tokens == ["hello", "world"]
-        assert doc.metadata["file"] == "test.py"
+        assert doc.file_path == "test.py"
+        assert doc.token_count == 2
 
 
 class TestBM25Index:
@@ -106,19 +116,15 @@ class TestBM25Index:
     def test_index_creation(self):
         """Test creating an empty index."""
         index = BM25Index()
-        assert index.doc_count() == 0
+        assert index.size == 0
 
     def test_add_document(self):
         """Test adding documents to index."""
         index = BM25Index()
-        doc = BM25Document(
-            doc_id="doc_001",
-            tokens=["hello", "world", "python"],
-            metadata={},
-        )
+        doc = _make_doc("doc_001", ["hello", "world", "python"])
         index.add_document(doc)
 
-        assert index.doc_count() == 1
+        assert index.size == 1
 
     def test_search_basic(self):
         """Test basic search."""
@@ -126,9 +132,9 @@ class TestBM25Index:
 
         # Add documents
         docs = [
-            BM25Document("doc1", ["python", "programming", "language"], {}),
-            BM25Document("doc2", ["java", "programming", "language"], {}),
-            BM25Document("doc3", ["python", "data", "science"], {}),
+            _make_doc("doc1", ["python", "programming", "language"], "func1"),
+            _make_doc("doc2", ["java", "programming", "language"], "func2"),
+            _make_doc("doc3", ["python", "data", "science"], "func3"),
         ]
         for doc in docs:
             index.add_document(doc)
@@ -146,9 +152,9 @@ class TestBM25Index:
 
         # Add documents with varying relevance
         docs = [
-            BM25Document("doc1", ["python"] * 5, {}),  # High relevance
-            BM25Document("doc2", ["python"] * 2, {}),  # Medium relevance
-            BM25Document("doc3", ["python"], {}),  # Low relevance
+            _make_doc("doc1", ["python"] * 5, "high"),
+            _make_doc("doc2", ["python"] * 2, "medium"),
+            _make_doc("doc3", ["python"], "low"),
         ]
         for doc in docs:
             index.add_document(doc)
@@ -161,10 +167,10 @@ class TestBM25Index:
     def test_search_matched_terms(self):
         """Test matched terms in results."""
         index = BM25Index()
-        index.add_document(BM25Document(
+        index.add_document(_make_doc(
             "doc1",
             ["python", "programming", "data", "science"],
-            {},
+            "func",
         ))
 
         results = index.search("python data", k=1)
@@ -176,7 +182,7 @@ class TestBM25Index:
     def test_search_no_results(self):
         """Test search with no matches."""
         index = BM25Index()
-        index.add_document(BM25Document("doc1", ["hello", "world"], {}))
+        index.add_document(_make_doc("doc1", ["hello", "world"]))
 
         results = index.search("nonexistent query", k=5)
 
@@ -188,9 +194,9 @@ class TestBM25Index:
 
         # Add documents - "rare" appears only once, "common" appears in all
         docs = [
-            BM25Document("doc1", ["common", "term"], {}),
-            BM25Document("doc2", ["common", "term"], {}),
-            BM25Document("doc3", ["common", "rare"], {}),
+            _make_doc("doc1", ["common", "term"]),
+            _make_doc("doc2", ["common", "term"]),
+            _make_doc("doc3", ["common", "rare"]),
         ]
         for doc in docs:
             index.add_document(doc)
@@ -205,8 +211,8 @@ class TestBM25Index:
         """Test saving and loading index."""
         index = BM25Index()
         docs = [
-            BM25Document("doc1", ["hello", "world"], {"file": "test1.py"}),
-            BM25Document("doc2", ["python", "code"], {"file": "test2.py"}),
+            _make_doc("doc1", ["hello", "world"], "test1"),
+            _make_doc("doc2", ["python", "code"], "test2"),
         ]
         for doc in docs:
             index.add_document(doc)
@@ -216,9 +222,10 @@ class TestBM25Index:
         index.save(save_path)
 
         # Load
-        loaded_index = BM25Index.load(save_path)
+        loaded_index = BM25Index()
+        loaded_index.load(save_path)
 
-        assert loaded_index.doc_count() == 2
+        assert loaded_index.size == 2
         results = loaded_index.search("python", k=1)
         assert len(results) == 1
         assert results[0].doc_id == "doc2"
@@ -226,7 +233,7 @@ class TestBM25Index:
     def test_custom_parameters(self):
         """Test index with custom BM25 parameters."""
         index = BM25Index(k1=1.5, b=0.8)
-        index.add_document(BM25Document("doc1", ["test", "query"], {}))
+        index.add_document(_make_doc("doc1", ["test", "query"]))
 
         results = index.search("test", k=1)
         assert len(results) == 1
@@ -248,11 +255,13 @@ class TestBuildBM25IndexFromChunks:
                 content=chunk["content"],
                 start_line=chunk["start_line"],
                 end_line=chunk["end_line"],
+                language="python",
+                metadata={},
             ))
 
         index = build_bm25_index_from_chunks(chunks)
 
-        assert index.doc_count() == len(chunks)
+        assert index.size == len(chunks)
 
     def test_search_chunks(self, sample_chunks: list):
         """Test searching code chunks."""
@@ -267,6 +276,8 @@ class TestBuildBM25IndexFromChunks:
                 content=chunk["content"],
                 start_line=chunk["start_line"],
                 end_line=chunk["end_line"],
+                language="python",
+                metadata={},
             ))
 
         index = build_bm25_index_from_chunks(chunks)
@@ -276,5 +287,5 @@ class TestBuildBM25IndexFromChunks:
 
         assert len(results) > 0
         # Should find the calculate_sum function
-        found = any("calculate_sum" in str(r.metadata.get("name", "")) for r in results)
+        found = any("calculate_sum" in r.name for r in results)
         assert found

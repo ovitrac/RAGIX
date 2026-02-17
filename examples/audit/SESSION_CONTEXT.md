@@ -7,7 +7,7 @@
 
 ## Summary
 
-This session completed the creation of comprehensive audit examples for RAGIX KOAS using IOWIZME/SIAS enterprise architecture patterns.
+This session completed the creation of comprehensive audit examples for RAGIX KOAS using ACME-ERP/MSG-HUB enterprise architecture patterns.
 
 ## Completed Work
 
@@ -20,7 +20,7 @@ examples/audit/
 ├── volumetry_analysis/
 │   ├── manifest.yaml
 │   └── data/
-│       ├── volumetry.yaml      # IOWIZME 4M msg/day patterns
+│       ├── volumetry.yaml      # ACME-ERP 4M msg/day patterns
 │       └── code_metrics.yaml   # Module metrics
 ├── microservices/
 │   ├── manifest.yaml
@@ -59,17 +59,17 @@ The `run_audit_demo.sh` script provides:
 ./run_audit_demo.sh --help           # Show help
 ```
 
-### 3. IOWIZME Data Patterns
+### 3. ACME-ERP Data Patterns
 
 **Volumetry:**
-- SIAS Message Ingestion: 4,000,000 msg/day
+- MSG-HUB Message Ingestion: 4,000,000 msg/day
 - Peak Hour: 05:00 UTC
 - Peak Rate: ~1,000 msg/sec
 - Peak Multiplier: 3.5x average
 
 **Modules:**
-- iog-support-commons: 13,290 LOC (shared library)
-- iow-ech-sias: 1,430 LOC (gateway)
+- acme-support-commons: 13,290 LOC (shared library)
+- acme-msg-hub: 1,430 LOC (gateway)
 - iow-ioc-sc02: 1,570 LOC (orchestration)
 - iow-iok-sk01: 990 LOC (business logic)
 - iow-iok-sk04: 14,350 LOC (batch processing)
@@ -77,7 +77,7 @@ The `run_audit_demo.sh` script provides:
 
 **Critical Path:**
 ```
-iow-ech-sias → iow-ioc-sc02 → iow-iok-sk01 → iog-support-commons
+acme-msg-hub → iow-ioc-sc02 → iow-iok-sk01 → acme-support-commons
 ```
 
 ### 4. Risk Calculation

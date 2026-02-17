@@ -633,7 +633,7 @@ Produce a **consolidated final report** that:
 ```markdown
 # Document Analysis Report
 
-**Project:** VDP Technical Specifications
+**Project:** DOCSET Technical Specifications
 **Date:** 2026-01-18
 **Run ID:** run_20260118_134851_7bd0c4
 **RAGIX Version:** 0.5.x

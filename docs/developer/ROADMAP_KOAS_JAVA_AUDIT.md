@@ -9,7 +9,7 @@
 
 ## 1. Context & Motivation
 
-The IOWIZME audit (Dec 2025 – Jan 2026) exposed specific gaps in KOAS when applied to a production Java/Spring Boot codebase (24 Maven modules, 60K LOC, 4M SIAS messages/day). Three categories of issues were identified:
+The ACME-ERP audit (Dec 2025 – Jan 2026) exposed specific gaps in KOAS when applied to a production Java/Spring Boot codebase (24 Maven modules, 60K LOC, 4M MSG-HUB messages/day). Three categories of issues were identified:
 
 **Parser failures (root cause of most anomalies):**
 - CC=1.0 for all 2 704 methods → MI=100 → Grade A (all artificial)
@@ -74,7 +74,7 @@ class MyKernel(Kernel):
 **Problem:** CC=1.0 for all methods. The `javalang` parser extracts class/method structure but the CC counter doesn't walk statement-level nodes.
 **Root cause to investigate:**
 
-1. Does `javalang.parse.parse()` succeed on IOWIZME files? (113 errors suggest partial failures)
+1. Does `javalang.parse.parse()` succeed on ACME-ERP files? (113 errors suggest partial failures)
 2. Are `IfStatement`, `ForStatement`, `WhileStatement`, `SwitchStatement`, `CatchClause` nodes counted?
 3. Are boolean operators (`&&`, `||`) in conditions counted?
 
@@ -101,9 +101,9 @@ def _compute_cc_java(method_node) -> int:
     return cc
 ```
 
-**Validation:** Re-run on `EchSiasJmsQddcListener.java` (170 LOC, known to contain try/catch + conditional routing). Expected CC > 1.
+**Validation:** Re-run on `EchMsg-HubJmsQddcListener.java` (170 LOC, known to contain try/catch + conditional routing). Expected CC > 1.
 
-**Deliverable:** Patch to `ast_scan.py`, regression test with 3 IOWIZME Java files.
+**Deliverable:** Patch to `ast_scan.py`, regression test with 3 ACME-ERP Java files.
 
 ### 3.2 FIX: `ast_scan` — Spring Annotation Detection
 
@@ -192,9 +192,9 @@ class MavenDepsKernel(Kernel):
 {
   "modules": [
     {
-      "module_path": "iow-ech-sias-master",
+      "module_path": "iow-ech-msg_hub-master",
       "groupId": "com.iowizmi.ech",
-      "artifactId": "iow-ech-sias",
+      "artifactId": "iow-ech-msg_hub",
       "version": "1.2.0",
       "packaging": "jar",
       "parent": {"groupId": "...", "artifactId": "..."},
@@ -205,7 +205,7 @@ class MavenDepsKernel(Kernel):
     }
   ],
   "all_dependencies": [
-    {"groupId": "org.springframework.boot", "artifactId": "spring-boot-starter-activemq", "version": "2.7.18", "used_by": ["iow-ech-sias", "iow-iok-sk01"], "scope": "compile"}
+    {"groupId": "org.springframework.boot", "artifactId": "spring-boot-starter-activemq", "version": "2.7.18", "used_by": ["iow-ech-msg_hub", "iow-iok-sk01"], "scope": "compile"}
   ],
   "statistics": {
     "pom_files_parsed": 76,
@@ -252,17 +252,17 @@ class MavenGraphKernel(Kernel):
 ```json
 {
   "graph": {
-    "nodes": ["iow-ech-sias", "iog-support-commons", ...],
+    "nodes": ["iow-ech-msg_hub", "iog-support-commons", ...],
     "edges": [
-      {"from": "iow-ech-sias", "to": "iog-support-commons", "type": "compile"},
-      {"from": "iow-ech-sias", "to": "iow-iog-models", "type": "compile"}
+      {"from": "iow-ech-msg_hub", "to": "iog-support-commons", "type": "compile"},
+      {"from": "iow-ech-msg_hub", "to": "iow-iog-models", "type": "compile"}
     ]
   },
   "centrality": {
     "iog-support-commons": {"betweenness": 0.85, "in_degree": 18, "out_degree": 3},
     ...
   },
-  "critical_path": ["iow-ech-sias", "iog-support-commons", "iog-support-platform"],
+  "critical_path": ["iow-ech-msg_hub", "iog-support-commons", "iog-support-platform"],
   "cycles": [],
   "roots": ["parent-acq"],
   "leaves": ["iow-iok-sk05", "iow-iok-sk06", ...]
@@ -313,7 +313,7 @@ class MavenCveKernel(Kernel):
       "cvss": 8.1,
       "description": "...",
       "fixed_in": "2.7.19",
-      "modules_affected": ["iow-ech-sias", "iow-iok-sk01"]
+      "modules_affected": ["iow-ech-msg_hub", "iow-iok-sk01"]
     }
   ],
   "statistics": {
@@ -374,10 +374,10 @@ class SpringWiringKernel(Kernel):
 ```json
 {
   "beans": [
-    {"class": "com.iowizmi.ech.sias.infra.EchSiasJmsQddcListener", "type": "component", "annotation": "JmsListener", "entry_point": true}
+    {"class": "com.iowizmi.ech.msg_hub.infra.EchMsg-HubJmsQddcListener", "type": "component", "annotation": "JmsListener", "entry_point": true}
   ],
   "wiring": [
-    {"from": "EchSiasJmsQddcListener", "to": "ConcentrateurEchRepo", "type": "autowired"}
+    {"from": "EchMsg-HubJmsQddcListener", "to": "ConcentrateurEchRepo", "type": "autowired"}
   ],
   "entry_points": {
     "jms_listeners": 7,
@@ -488,12 +488,12 @@ Topological sort resolves to:
 
 | Task | File | Effort | Validation |
 |------|------|--------|------------|
-| A1. CC walker for Java AST | ast_scan.py | 4h | CC > 1 on IOWIZME sample files |
+| A1. CC walker for Java AST | ast_scan.py | 4h | CC > 1 on ACME-ERP sample files |
 | A2. Annotation extraction | ast_scan.py | 2h | `@Service` detected in SK04Controller |
 | A3. JAXB error tolerance | ast_scan.py | 2h | 113 errors → partial results, not failures |
 | A4. Re-run full pipeline | — | 1h | MI ≠ 100, Grade ≠ A, recommendations > 0 |
 
-**Acceptance criteria:** On IOWIZME snapshot, `metrics` kernel produces CC distribution with mean > 1.0, `services` kernel detects > 0 services, `section_recommendations` produces > 0 recommendations.
+**Acceptance criteria:** On ACME-ERP snapshot, `metrics` kernel produces CC distribution with mean > 1.0, `services` kernel detects > 0 services, `section_recommendations` produces > 0 recommendations.
 
 ### Phase B — Maven Kernels (3 days)
 
@@ -505,7 +505,7 @@ Topological sort resolves to:
 | B4. `maven_cve` kernel | maven_cve.py | 4h | Scan against catalog, ≥0 findings |
 | B5. `section_maven` kernel | section_maven.py | 4h | Markdown section generated |
 
-**Acceptance criteria:** `maven_deps` parses all 76 IOWIZME pom.xml files. `maven_graph` confirms `iog-support-commons` centrality. `maven_cve` runs without error on extracted dependencies.
+**Acceptance criteria:** `maven_deps` parses all 76 ACME-ERP pom.xml files. `maven_graph` confirms `iog-support-commons` centrality. `maven_cve` runs without error on extracted dependencies.
 
 ### Phase C — Spring Wiring (2 days)
 
@@ -515,7 +515,7 @@ Topological sort resolves to:
 | C2. Dead code integration | (config change) | 2h | Dead code drops from 98% to < 20% |
 | C3. `section_spring` kernel | section_spring.py | 4h | Report section with bean catalog |
 
-**Acceptance criteria:** `spring_wiring` identifies ≥ 7 JMS listener entry points in ECH-SIAS. `dead_code` re-run with augmented entry points produces < 20% dead code ratio.
+**Acceptance criteria:** `spring_wiring` identifies ≥ 7 JMS listener entry points in ECH-MSG-HUB. `dead_code` re-run with augmented entry points produces < 20% dead code ratio.
 
 ### Phase D — Integration & Report (1 day)
 
@@ -524,7 +524,7 @@ Topological sort resolves to:
 | D1. Update `report_assemble` to include new sections | 2h | New sections appear in report |
 | D2. Update manifest.yaml schema for new kernels | 1h | New kernels configurable |
 | D3. MCP tool registration for new kernels | 2h | Callable from Claude Desktop |
-| D4. Full pipeline re-run on IOWIZME | 2h | Complete report with all new data |
+| D4. Full pipeline re-run on ACME-ERP | 2h | Complete report with all new data |
 
 ---
 
@@ -549,7 +549,7 @@ ragix_kernels/audit/tests/
 
 ### Integration Test
 
-Re-run the full KOAS pipeline on IOWIZME and compare:
+Re-run the full KOAS pipeline on ACME-ERP and compare:
 
 | Metric | Before (v0.62) | After | Pass condition |
 |--------|:--------------:|:-----:|----------------|
@@ -583,7 +583,7 @@ All kernels remain **local-only, deterministic, no LLM, no network**. The CVE ca
 
 | Risk | Probability | Mitigation |
 |------|:-----------:|------------|
-| `javalang` cannot parse CC for IOWIZME files | Medium | Fallback: regex-based CC counter on raw Java source |
+| `javalang` cannot parse CC for ACME-ERP files | Medium | Fallback: regex-based CC counter on raw Java source |
 | JAXB files still unparseable | Low | Already handled: partial results + `parse_errors` count |
 | Maven property resolution incomplete (`${project.version}`) | Medium | Conservative: report unresolved as-is with warning |
 | CVE catalog incomplete | Certain | Tier 1 covers critical CVEs only; Tier 2 optional |
@@ -591,7 +591,7 @@ All kernels remain **local-only, deterministic, no LLM, no network**. The CVE ca
 
 ---
 
-## 12. Relation to IOWIZME Baseline
+## 12. Relation to ACME-ERP Baseline
 
 This roadmap addresses items from `ANALYSE_ECARTS.md`:
 

@@ -1,7 +1,7 @@
 # Plan: Generic Hierarchical Document Summarization System
 
 **Project:** RAGIX
-**Context:** VDP Audit (159 documents, 5,515 chunks indexed)
+**Context:** DOCSET Audit (159 documents, 5,515 chunks indexed)
 **Goal:** Design a generic KOAS-based pyramidal summarization system
 **Date:** 2025-01-18
 
@@ -16,7 +16,7 @@ The user needs to:
 4. Maintain **sovereignty** (no external API calls for raw data)
 5. Use **slim LLMs** (Granite) for processing
 
-### Current RAG State (VDP)
+### Current RAG State (DOCSET)
 - **159 files indexed** (69 DOCX, 51 PDF, 9 PPTX, 7 XLSX)
 - **5,515 chunks** in ChromaDB
 - **Knowledge Graph**: File → Chunk → Concept hierarchy
@@ -242,7 +242,7 @@ class DocClusterKernel(Kernel):
 {
   "pyramid": {
     "level_4_corpus": {
-      "title": "VDP Technical Specifications",
+      "title": "DOCSET Technical Specifications",
       "file_count": 159,
       "chunk_count": 5515,
       "domain_count": 6,
@@ -396,25 +396,25 @@ stage3:
 ## 8. Verification Plan
 
 ### Unit Tests
-1. Test `doc_metadata` on VDP project → expect 159 files, correct statistics
+1. Test `doc_metadata` on DOCSET project → expect 159 files, correct statistics
 2. Test `doc_concepts` → expect concepts extracted from graph
 3. Test `doc_cluster` → expect coherent groupings
 
 ### Integration Test
 ```bash
-# Initialize workspace for VDP
+# Initialize workspace for DOCSET
 python -m ragix_kernels.orchestrator init \
-  --workspace ./audit/VDP/workspace \
-  --project /home/olivi/Documents/Adservio/audit/VDP/src \
+  --workspace ./audit/DOCSET/workspace \
+  --project /home/olivi/Documents/Adservio/audit/DOCSET/src \
   --language docs
 
 # Run all stages
 python -m ragix_kernels.orchestrator run \
-  --workspace ./audit/VDP/workspace \
+  --workspace ./audit/DOCSET/workspace \
   --all
 
 # Check pyramid output
-cat ./audit/VDP/workspace/stage3/doc_pyramid.json | jq '.pyramid.level_4_corpus'
+cat ./audit/DOCSET/workspace/stage3/doc_pyramid.json | jq '.pyramid.level_4_corpus'
 ```
 
 ### Expected Output
@@ -461,7 +461,7 @@ This plan creates a **generic document summarization system** that:
 1. Phase A: Stage 1 kernels (foundation)
 2. Phase B: Stage 2 kernels (analysis)
 3. Phase C: Stage 3 kernel (synthesis)
-4. Phase D: Integration tests on VDP
+4. Phase D: Integration tests on DOCSET
 
 ---
 

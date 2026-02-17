@@ -269,20 +269,20 @@ Each workspace maps a human-friendly name to a `(scope, corpus_id)` pair, enabli
 Six tools accept an optional `workspace` parameter: `memory_recall`, `memory_search`, `memory_propose`, `memory_write`, `memory_consolidate`, `memory_stats`. When provided, `workspace` resolves to `(scope, corpus_id)` via the WorkspaceRouter, overriding the explicit `scope` parameter.
 
 ```
-# Register a workspace for the SIAS audit
-memory_workspace_register(name="sias", scope="sias-audit", corpus_id="sias-v7",
-                          description="SIAS technical audit 2026")
+# Register a workspace for the MSG-HUB audit
+memory_workspace_register(name="msg_hub", scope="msg_hub-audit", corpus_id="msg_hub-v7",
+                          description="MSG-HUB technical audit 2026")
 
 # All subsequent calls use workspace= instead of scope=
-memory_search(query="oracle CVE", workspace="sias")
-memory_propose(items='[...]', workspace="sias")
-memory_recall(query="migration risks", workspace="sias")
+memory_search(query="oracle CVE", workspace="msg_hub")
+memory_propose(items='[...]', workspace="msg_hub")
+memory_recall(query="migration risks", workspace="msg_hub")
 ```
 
 ### 4.3 Scope Isolation
 
 - `workspace="default"` or omitted → scope=`"project"` (all items)
-- `workspace="sias"` → scope=`"sias-audit"`, corpus_id=`"sias-v7"`
+- `workspace="msg_hub"` → scope=`"msg_hub-audit"`, corpus_id=`"msg_hub-v7"`
 - `workspace=None` with `scope=None` → unfiltered cross-workspace query
 - Unknown workspace → immediate error response (`"Unknown workspace: ..."`)
 

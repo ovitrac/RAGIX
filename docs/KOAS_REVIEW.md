@@ -814,7 +814,7 @@ This eliminates the off-by-one class of harmful edits deterministically. The gua
 
 #### Integration Test (13 Chunks)
 
-Tested on a 5,600-line French technical audit document (SIAS v7), 13 chunks, using `gpt-oss-safeguard:120b` (sovereign model via Ollama).
+Tested on a 5,600-line French technical audit document (MSG-HUB v7), 13 chunks, using `gpt-oss-safeguard:120b` (sovereign model via Ollama).
 
 | Metric | v6 (baseline) | v7.0 (preflight) | v7.1 (adaptive tier) | v7.2 (content recipes) |
 |--------|:---:|:---:|:---:|:---:|
@@ -839,7 +839,7 @@ Tested on a 5,600-line French technical audit document (SIAS v7), 13 chunks, usi
 
 #### Production Run (249 Chunks, v7.3.1)
 
-Full-document production run on the same SIAS v7 document (5,609 lines, 249 chunks), `gpt-oss-safeguard:120b`.
+Full-document production run on the same MSG-HUB v7 document (5,609 lines, 249 chunks), `gpt-oss-safeguard:120b`.
 
 | Metric | v7.3 (expanded triggers) | v7.3.1 (+ Policy D) |
 |--------|:---:|:---:|
@@ -871,7 +871,7 @@ Full-document production run on the same SIAS v7 document (5,609 lines, 249 chun
 
 #### Quality Assessment (v7.3.2 Applied Ops)
 
-Manual review of the 169 applied ops on the SIAS document:
+Manual review of the 169 applied ops on the MSG-HUB document:
 
 | Category | Count | Percentage | Description |
 |----------|:-----:|:----------:|-------------|
@@ -969,7 +969,7 @@ All 474 ops pass the same v7.3.2 acceptance normalization pipeline. Hash recompu
 
 ### Production Baseline Contract (v7.3.2)
 
-v7.3.2 delivers a fully traceable, reversible Markdown reviewer pipeline for `gpt-oss-safeguard:120b`, validated on a 249-chunk production run (5,609-line SIAS v7 document). The pipeline achieves 100% parse success, 100% op acceptance, and produces 169 edit operations with full traceability. Reliability comes from six layers of deterministic kernel controls:
+v7.3.2 delivers a fully traceable, reversible Markdown reviewer pipeline for `gpt-oss-safeguard:120b`, validated on a 249-chunk production run (5,609-line MSG-HUB v7 document). The pipeline achieves 100% parse success, 100% op acceptance, and produces 169 edit operations with full traceability. Reliability comes from six layers of deterministic kernel controls:
 
 1. **Extraction ladder** (v2) — 6-level tolerant parsing
 2. **Streaming artifacts** (v6) — per-chunk raw output + status log
@@ -1042,7 +1042,7 @@ Each step is a kernel-side intervention — the model, prompt template, and temp
 
 #### Regression Suite
 
-The SIAS 13-chunk baseline is frozen as `tests/fixtures/sias_v72_regression.json`. The regression suite (`test_v72_regression.py`) validates:
+The MSG-HUB 13-chunk baseline is frozen as `tests/fixtures/msg_hub_v72_regression.json`. The regression suite (`test_v72_regression.py`) validates:
 
 - **Aggregate invariants**: total_chunks=13, parse_success_all=true, degenerate_max=0, json_strict_min=10, ops_min=5
 - **Per-chunk invariants**: each of 13 chunks checked for parse success and non-degenerate status

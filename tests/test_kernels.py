@@ -85,7 +85,7 @@ class TestKernelRegistry:
 
         info = KernelRegistry.get_info("ast_scan")
         assert info["name"] == "ast_scan"
-        assert info["version"] == "1.0.0"
+        assert info["version"] == "1.1.0"
         assert info["category"] == "audit"
         assert info["stage"] == 1
         assert info["requires"] == []

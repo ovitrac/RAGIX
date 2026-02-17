@@ -104,7 +104,7 @@ class TestToolExecutor:
     @pytest.fixture
     def sandbox(self, sample_project: Path):
         """Create a sandbox in the sample project."""
-        return ShellSandbox(root=sample_project)
+        return ShellSandbox(root=str(sample_project), dry_run=False, profile="dev")
 
     @pytest.fixture
     def executor(self, sandbox):
@@ -182,7 +182,7 @@ class TestToolExecutorParallel:
     @pytest.fixture
     def sandbox(self, sample_project: Path):
         """Create a sandbox in the sample project."""
-        return ShellSandbox(root=sample_project)
+        return ShellSandbox(root=str(sample_project), dry_run=False, profile="dev")
 
     @pytest.fixture
     def executor(self, sandbox):

@@ -56,7 +56,7 @@ def _get_source_path(project_path: Path) -> Path:
     """
     Get the source path for a project, handling multi-module Maven structures.
 
-    For projects like SIAS where src/ exists but contains no code,
+    For projects like MSG-HUB where src/ exists but contains no code,
     scans from project root instead.
     """
     src_path = project_path / "src"

@@ -76,14 +76,14 @@ class VolumetryKernel(Kernel):
 
     Example volumetry.yaml:
         flows:
-          - name: SIAS
+          - name: MSG-HUB
             volume_day: 4000000
             peak_hour: 5
             peak_window: "00:00-10:00"
             peak_multiplier: 10
         modules:
-          - name: iow-ech-sias
-            flows: [SIAS]
+          - name: acme-msg-hub
+            flows: [MSG-HUB]
             role: entry_point
     """
 

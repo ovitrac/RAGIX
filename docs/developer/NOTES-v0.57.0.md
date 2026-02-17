@@ -297,7 +297,7 @@ The Audit Settings modal includes a **Service Detection Patterns** section:
 │ │ spre\d{2}(?:ws)?        │   │ │ com\..*\.jms\.spre          │ │
 │ │ sprebpm(?:ws)?          │   │ └─────────────────────────────┘ │
 │ │ spremail                │   │                                 │
-│ └─────────────────────────┘   │ Presets: [IOWIZME ▼]           │
+│ └─────────────────────────┘   │ Presets: [ACME-ERP ▼]           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -305,7 +305,7 @@ The Audit Settings modal includes a **Service Detection Patterns** section:
 
 | Preset | Patterns |
 |--------|----------|
-| **IOWIZME** | `SK\d{2}`, `SC\d{2}`, `SG\d{2}` |
+| **ACME-ERP** | `SK\d{2}`, `SC\d{2}`, `SG\d{2}` |
 | **Enterprise** | `spre\d{2}(?:ws)?`, `sprebpm(?:ws)?`, `spremail`, `s[A-Z][a-zA-Z]+` |
 | **Combined** | All patterns from both presets |
 

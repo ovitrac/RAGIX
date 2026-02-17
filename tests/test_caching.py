@@ -330,9 +330,9 @@ class TestLLMCache:
 
         cache.clear()
 
-        assert cache.get("query1") is None
         assert cache.stats["hits"] == 0
         assert cache.stats["misses"] == 0
+        assert cache.get("query1") is None
 
 
 class TestToolResultCache:

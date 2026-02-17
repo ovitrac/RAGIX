@@ -4,7 +4,7 @@ Stage: 1 (Data Collection)
 Wraps: ragix_audit.partitioner.CodebasePartitioner
 
 Partitions a codebase into logical applications:
-- Identifies application fingerprints (SIAS, TICC, etc.)
+- Identifies application fingerprints (MSG-HUB, TICC, etc.)
 - Classifies classes using graph propagation algorithm
 - Detects shared/common code
 - Identifies dead code candidates
@@ -27,11 +27,11 @@ class PartitionKernel(Kernel):
     Partition codebase into logical applications.
 
     This kernel uses the graph propagation algorithm to classify
-    classes into application groups (SIAS, TICC, etc.) or
+    classes into application groups (MSG-HUB, TICC, etc.) or
     identify them as shared code, unknown, or dead code.
 
     Configuration options:
-        preset: Predefined configuration (e.g., "sias_ticc", "grdf")
+        preset: Predefined configuration (e.g., "enterprise_pattern", "corp-energy")
         applications: List of application fingerprints
         propagation_iterations: Max propagation iterations (default: 5)
         confidence_threshold: Minimum confidence for classification (default: 0.7)
@@ -61,15 +61,15 @@ class PartitionKernel(Kernel):
 
     # Preset configurations
     PRESETS = {
-        "sias_ticc": {
+        "enterprise_pattern": {
             "applications": [
-                {"name": "SIAS", "patterns": ["*sias*", "*Sias*", "SIAS*"]},
+                {"name": "MSG-HUB", "patterns": ["*msg-hub*", "*MsgHub*", "MSG-HUB*"]},
                 {"name": "TICC", "patterns": ["*ticc*", "*Ticc*", "TICC*"]},
             ]
         },
-        "grdf": {
+        "corp-energy": {
             "applications": [
-                {"name": "GRDF", "patterns": ["*grdf*", "*Grdf*", "GRDF*"]},
+                {"name": "CORP-ENERGY", "patterns": ["*corp-energy*", "*CORP-ENERGY*"]},
             ]
         },
         "generic": {

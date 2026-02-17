@@ -678,7 +678,7 @@ class TestReasoningStrategy:
         with patch.dict(os.environ, {}, clear=True):
             strategy = get_reasoning_strategy()
             # Default depends on implementation
-            assert strategy in [ReasoningStrategy.LOOP_V1, ReasoningStrategy.GRAPH_V2]
+            assert strategy in [ReasoningStrategy.LOOP_V1, ReasoningStrategy.GRAPH_V2, ReasoningStrategy.GRAPH_V30]
 
     def test_env_var_strategy(self):
         """Test strategy from environment variable."""

@@ -153,7 +153,7 @@ pytest tests/test_mcp_server.py -v
 
 ## Performance Benchmarks
 
-### IOWIZME Audit (Java, 60K LOC)
+### ACME-ERP Audit (Java, 60K LOC)
 
 | Metric | Value |
 |--------|-------|

@@ -84,8 +84,8 @@ Every LLM call must declare what it is summarizing:
 
 node_ref:
   level: chunk | doc | group | domain | corpus
-  node_id: "doc:VDP:doc_013"
-  parents: ["group:VDP:g_02", "domain:VDP:d_05"]
+  node_id: "doc:DOCSET:doc_013"
+  parents: ["group:DOCSET:g_02", "domain:DOCSET:d_05"]
   children: ["chunk:doc_013:c_001", "chunk:doc_013:c_002", ...]
 
 2.2 Store input digests for all children used

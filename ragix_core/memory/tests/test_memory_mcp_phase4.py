@@ -94,14 +94,14 @@ class TestWorkspaceRouter:
 
     def test_register_auto_scope(self, router):
         """When scope is None, workspace name is used as scope."""
-        info = router.register("audit-sias", description="SIAS audit")
-        assert info.scope == "audit-sias"
+        info = router.register("audit-msg_hub", description="MSG-HUB audit")
+        assert info.scope == "audit-msg_hub"
         assert info.corpus_id == ""
 
     def test_register_explicit_scope(self, router):
         """Explicit scope and corpus_id are honored."""
         info = router.register(
-            "iowizme", scope="audit", corpus_id="CORP-001", description="IOWIZME"
+            "acme_erp", scope="audit", corpus_id="CORP-001", description="ACME-ERP"
         )
         assert info.scope == "audit"
         assert info.corpus_id == "CORP-001"

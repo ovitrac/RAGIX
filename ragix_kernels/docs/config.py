@@ -142,7 +142,7 @@ class QualityConfig:
     artifact_penalty: float = 0.3
     table_fragment_penalty: float = 0.2
 
-    # Boilerplate penalties (v0.64.1 - VDP fix)
+    # Boilerplate penalties (v0.64.1 - DOCSET fix)
     boilerplate_penalty: float = 0.4  # Heavy penalty for document control content
     formatting_penalty: float = 0.25  # Penalty for formatting-heavy lines
     dashed_line_min_length: int = 10  # Minimum dashes to trigger penalty
@@ -173,7 +173,7 @@ class QualityConfig:
         r"Approval\s*:",
         r"Distribution\s*:",
     ])
-    # Release changelog / version tracking patterns (v0.64.2 - VDP fix)
+    # Release changelog / version tracking patterns (v0.64.2 - DOCSET fix)
     boilerplate_changelog: List[str] = field(default_factory=lambda: [
         r"\d+\.\d+\.\d+\.\d+\s*.*?(?:MERGED|RELEASED|issues)",  # X.X.X.X ... MERGED/RELEASED
         r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}\s+\d+\s+issues",  # Month YYYY N issues

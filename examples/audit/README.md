@@ -1,24 +1,24 @@
 # Code Audit Kernel Examples
 
 This directory contains example workspaces demonstrating the RAGIX Code Audit kernels,
-based on real-world patterns from IOWIZME/SIAS enterprise architecture.
+based on real-world patterns from ACME-ERP/MSG-HUB enterprise architecture.
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-12-17
 
 ---
 
-## Architecture Context: IOWIZME/SIAS
+## Architecture Context: ACME-ERP/MSG-HUB
 
 The examples are based on a real enterprise integration platform:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        IOWIZME Platform                              │
+│                        ACME-ERP Platform                              │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │   ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐     │
-│   │ iow-ech  │───▶│ iow-ioc  │───▶│ iow-iok  │───▶│ iog-support│    │
-│   │  -sias   │    │  -sc02   │    │  -sk01   │    │  -commons  │    │
+│   │ iow-ech  │───▶│ iow-ioc  │───▶│ iow-iok  │───▶│ acme-support│    │
+│   │  -msg-hub   │    │  -sc02   │    │  -sk01   │    │  -commons  │    │
 │   │          │    │          │    │          │    │            │    │
 │   │ Gateway  │    │ Orchestr │    │ Business │    │  Shared    │    │
 │   │ 4M/day   │    │ 4M/day   │    │ 4M/day   │    │  Libs      │    │
@@ -30,15 +30,15 @@ The examples are based on a real enterprise integration platform:
 │                  │  DTOs    │                                        │
 │                  └──────────┘                                        │
 │                                                                      │
-│   Peak: 05:00 UTC | 500-1000 msg/sec | 4M SIAS messages/day         │
+│   Peak: 05:00 UTC | 500-1000 msg/sec | 4M MSG-HUB messages/day         │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 **Key Metrics:**
-- **4,000,000** SIAS messages/day through gateway
+- **4,000,000** MSG-HUB messages/day through gateway
 - **Peak hours:** 05:00-07:00 UTC
 - **Processing rate:** 500-1000 messages/second at peak
-- **Critical path:** iow-ech-sias → iow-ioc-sc02 → iow-iok-sk01
+- **Critical path:** acme-msg-hub → iow-ioc-sc02 → iow-iok-sk01
 
 ---
 
@@ -49,7 +49,7 @@ The examples are based on a real enterprise integration platform:
 | `java_monolith/` | Large Java codebase analysis | file_inventory, code_metrics |
 | `microservices/` | Multi-module microservices | module_group, dependency analysis |
 | `volumetry_analysis/` | Traffic-weighted risk assessment | volumetry, risk_matrix |
-| `full_audit/` | Complete IOWIZME-style audit | All audit kernels |
+| `full_audit/` | Complete ACME-ERP-style audit | All audit kernels |
 
 ---
 
@@ -113,8 +113,8 @@ cat stage2/risk_matrix.json | python -m json.tool
 ```
 Module                Risk   Level    LOC    Vol/day   Primary Factor
 ──────────────────────────────────────────────────────────────────────
-iog-support-commons   8.2    CRIT    13,290  4,011,500  volumetry
-iow-ech-sias          6.8    HIGH     1,430  4,000,000  volumetry
+acme-support-commons   8.2    CRIT    13,290  4,011,500  volumetry
+acme-msg-hub          6.8    HIGH     1,430  4,000,000  volumetry
 iow-iog-models        6.5    HIGH     4,500  4,011,500  volumetry
 iow-ioc-sc02          6.2    HIGH     1,570  4,000,000  volumetry
 iow-iok-sk01          5.7    HIGH       990  4,000,000  volumetry
@@ -161,13 +161,13 @@ The `volumetry.yaml` file defines operational traffic:
 ```yaml
 # Flow definitions
 flows:
-  - name: "SIAS Gateway"
+  - name: "MSG-HUB Gateway"
     source: "external"
-    target: "iow-ech-sias"
+    target: "acme-msg-hub"
     volume_per_day: 4000000
     peak_hour: 5
     peak_multiplier: 3.5
-    description: "SIAS message ingestion"
+    description: "MSG-HUB message ingestion"
 
 # Batch processing
 batches:
@@ -180,7 +180,7 @@ batches:
 # Incidents (affect risk scoring)
 incidents:
   - date: "2024-11-15"
-    module: "iow-ech-sias"
+    module: "acme-msg-hub"
     severity: "high"
     description: "Gateway timeout under peak load"
 ```

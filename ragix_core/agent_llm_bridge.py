@@ -743,7 +743,7 @@ def create_agent_executor(
     """
     # Create components
     llm = OllamaLLM(model=model)
-    sandbox = ShellSandbox(root=sandbox_root)
+    sandbox = ShellSandbox(root=str(sandbox_root), dry_run=False, profile="dev")
     tool_executor = ToolExecutor(sandbox, index_path=index_path)
 
     return LLMAgentExecutor(

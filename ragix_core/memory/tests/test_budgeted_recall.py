@@ -21,7 +21,7 @@ from ragix_core.memory.budgeted_recall import (
 class TestExtractDomainFromFilename:
     """V2.3 dynamic domain extraction."""
 
-    # --- GRDF RIE corpus (27 documents) ---
+    # --- CORP-ENERGY RIE corpus (27 documents) ---
 
     @pytest.mark.parametrize("filename,expected", [
         ("RIE - RHEL.pdf", "rhel"),
@@ -52,7 +52,7 @@ class TestExtractDomainFromFilename:
         ("RIE-ANGULAR.pdf", "angular"),
         ("FAQ - RHEL.pdf", "rhel"),
     ])
-    def test_grdf_rie_corpus(self, filename, expected):
+    def test_corp_energy_rie_corpus(self, filename, expected):
         result = _extract_domain_from_filename(filename)
         assert result == expected, f"{filename} → {result}, expected {expected}"
 

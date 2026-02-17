@@ -46,7 +46,7 @@
 
 | Task | Status |
 |------|--------|
-| **volumetry_analysis/** - IOWIZME volumetry data | ✅ Done |
+| **volumetry_analysis/** - ACME-ERP volumetry data | ✅ Done |
 | **microservices/** - Service catalog & dependencies | ✅ Done |
 | **java_monolith/** - Complexity & refactoring | ✅ Done |
 | **full_audit/** - Comprehensive system audit | ✅ Done |
@@ -69,7 +69,7 @@
 | **Volumetry Kernel** - Stage 1, operational data ingestion | ✅ Done |
 | **Module Grouper Kernel** - Stage 1, file grouping by module | ✅ Done |
 | **Risk Matrix Kernel** - Stage 2, volumetry-weighted risk | ✅ Done |
-| **IOWIZME Test Data** - volumetry.yaml with 4M SIAS messages | ✅ Done |
+| **ACME-ERP Test Data** - volumetry.yaml with 4M MSG-HUB messages | ✅ Done |
 | **Design Document** - VOLUMETRY_KERNELS_DESIGN.md | ✅ Done |
 
 **Pending (Code Audit):**
@@ -88,15 +88,15 @@
 
 ---
 
-## Session Completed (2025-12-11 - v0.55.0 Sprint 2: SIAS Audit)
+## Session Completed (2025-12-11 - v0.55.0 Sprint 2: MSG-HUB Audit)
 
-### SIAS Service Detection & Audit Improvements
+### MSG-HUB Service Detection & Audit Improvements
 
 | Task | Status |
 |------|--------|
-| **SIAS Service Patterns** - `spre##`, `sprebpm`, `spremail`, `s[ActionName]` detection | ✅ Done |
+| **MSG-HUB Service Patterns** - `spre##`, `sprebpm`, `spremail`, `s[ActionName]` detection | ✅ Done |
 | **Multi-Module Maven Support** - Auto-detect `app-pre-main/.../src/` structures | ✅ Done |
-| **Service Pattern Presets** - IOWIZME, SIAS, Combined in Audit Settings | ✅ Done |
+| **Service Pattern Presets** - ACME-ERP, MSG-HUB, Combined in Audit Settings | ✅ Done |
 | **Audit Settings UI** - Service Detection Patterns section with textarea inputs | ✅ Done |
 | **ID Normalization** - Uppercase IDs for consistency (service_detector ↔ timeline) | ✅ Done |
 | **MDS Graph Layout** - Eigendecomposition-based positioning for small graphs | ✅ Done |
@@ -107,16 +107,16 @@
 | **Risk Analysis Fix** - Services now match timeline IDs for risk scoring | ✅ Done |
 
 **Key Files Created/Modified:**
-- `ragix_audit/component_mapper.py` - SIAS patterns (spre##, JMS, TASK types)
-- `ragix_audit/service_detector.py` - SIAS annotations, multi-module path handling
+- `ragix_audit/component_mapper.py` - MSG-HUB patterns (spre##, JMS, TASK types)
+- `ragix_audit/service_detector.py` - MSG-HUB annotations, multi-module path handling
 - `ragix_audit/partitioner.py` - `compute_layout()`, MDS, partition-based layout
 - `ragix_web/routers/audit.py` - `_get_source_path()` helper for multi-module projects
 - `ragix_web/static/index.html` - Service patterns UI, presets, label fixes, line slider
 - `ragix_web/static/style.css` - Textarea styling, label text-shadow
 
 **Results:**
-- SIAS: 46 services detected (was 0), 26 with risk scores
-- IOWIZME: 27 services (unchanged, still working)
+- MSG-HUB: 46 services detected (was 0), 26 with risk scores
+- ACME-ERP: 27 services (unchanged, still working)
 - Partition analysis: 0.28s for 17K nodes (was timing out)
 
 ---
@@ -129,7 +129,7 @@
 |------|--------|
 | **Partitioner API Endpoints** - POST /api/ast/partition, GET /presets, GET /export | ✅ Done |
 | **Partitioner Section UI** - Config panel with application cards, patterns, shared patterns | ✅ Done |
-| **Preset Configurations** - SIAS/TICC, Generic Two Apps, Generic Three Apps | ✅ Done |
+| **Preset Configurations** - MSG-HUB/TICC, Generic Two Apps, Generic Three Apps | ✅ Done |
 | **Force-Directed Visualization** - D3.js physics simulation with partition clustering | ✅ Done |
 | **Accordion Class Lists** - Expandable groups by partition with class details | ✅ Done |
 | **Export System** - JSON, CSV, XLSX formats with file paths, confidence, evidence | ✅ Done |
@@ -191,8 +191,8 @@
 
 | Task | Priority | Status |
 |------|----------|--------|
-| **SIAS Full Audit Test** - End-to-end test with all 46 services | High | Pending |
-| **IOWIZME Regression Test** - Verify SK/SC/SG detection unchanged | High | Pending |
+| **MSG-HUB Full Audit Test** - End-to-end test with all 46 services | High | Pending |
+| **ACME-ERP Regression Test** - Verify SK/SC/SG detection unchanged | High | Pending |
 | **Pattern Preset Validation** - Test all presets generate expected results | Medium | Pending |
 
 ---
@@ -259,8 +259,8 @@
 - Zones: Pain, Uselessness, Main Sequence, Balanced counts
 
 **Test Projects:**
-- IOWIZME: 10 outliers, 14 complex methods, 4094 dead code candidates, 225 coupling issues
-- SIAS: Available for testing (see `tests/audit/`)
+- ACME-ERP: 10 outliers, 14 complex methods, 4094 dead code candidates, 225 coupling issues
+- MSG-HUB: Available for testing (see `tests/audit/`)
 
 ---
 

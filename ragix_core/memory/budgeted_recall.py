@@ -2,7 +2,7 @@
 Budgeted Recall — Per-Domain Quota Retrieval
 
 Retrieves memory items with per-domain quota to prevent single-domain
-domination. Addresses the GRDF RIE benchmark failure where RHEL items
+domination. Addresses the CORP-ENERGY RIE benchmark failure where RHEL items
 (97/272) dwarfed Java (5), Tomcat (10), etc.
 
 Strategy:

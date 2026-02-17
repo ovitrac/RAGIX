@@ -168,7 +168,7 @@ pip install -e .
 
 ```bash
 python -m ragix_kernels.summary.cli.summaryctl ingest /path/to/documents \
-  --scope grdf-rie \
+  --scope corp_energy-rie \
   --model ibm/granite4:32b-a9b-h \
   -v
 ```
@@ -183,7 +183,7 @@ python -m ragix_kernels.summary.cli.summaryctl ingest /path/to/documents \
 - `--strategy {pages,headings,windows}` — Chunking strategy (default: pages)
 - `--max-chunk-tokens N` — Max tokens per chunk (default: 800)
 - `--delta` — Only process new/modified files (requires `--corpus-id`)
-- `--corpus-id ID` — Corpus version label for cross-corpus tracking (e.g., `grdf-rie-2026Q1`)
+- `--corpus-id ID` — Corpus version label for cross-corpus tracking (e.g., `corp_energy-rie-2026Q1`)
 - `-v` — Verbose output
 
 #### 2. Generate summary
@@ -246,7 +246,7 @@ python -m ragix_kernels.summary.cli.summaryctl query summary_workspace/ \
 
 ```bash
 python -m ragix_kernels.summary.cli.summaryctl run /path/to/documents \
-  --scope grdf-rie \
+  --scope corp_energy-rie \
   --model ibm/granite4:32b-a9b-h \
   --language French \
   --secrecy S2 \
@@ -276,15 +276,15 @@ summaryctl ingest <corpus_folder> [OPTIONS]
 - `--embedder-model NAME` — Embedding model (default: `nomic-embed-text`)
 - `--ollama-url URL` — Ollama API endpoint (default: `http://localhost:11434`)
 - `--delta` — Delta mode: only process new/modified files (requires `--corpus-id`)
-- `--corpus-id ID` — Corpus version ID (e.g., `grdf-rie-2026Q1`)
+- `--corpus-id ID` — Corpus version ID (e.g., `corp_energy-rie-2026Q1`)
 - `-v, --verbose` — Verbose output
 
 **Example:**
 ```bash
-summaryctl ingest /data/grdf-rie-docs \
+summaryctl ingest /data/corp_energy-rie-docs \
   --workspace /mnt/workspace \
-  --scope grdf-rie \
-  --corpus-id grdf-rie-2026Q1 \
+  --scope corp_energy-rie \
+  --corpus-id corp_energy-rie-2026Q1 \
   --delta \
   -v
 ```
@@ -499,7 +499,7 @@ summaryctl show /mnt/workspace --format json
   "events": 3891,
   "corpora": [
     {
-      "corpus_id": "grdf-rie-2026Q1",
+      "corpus_id": "corp_energy-rie-2026Q1",
       "item_count": 1247,
       "doc_count": 89,
       "parent": null
@@ -866,7 +866,7 @@ class MemoryItem:
     confidence: float                # 0.0 – 1.0
     validation: ValidationState      # "unverified" | "verified" | "contested" | "retracted"
     scope: str                       # "project" (multi-tenancy namespace)
-    corpus_id: Optional[str]         # "grdf-rie-2026Q1" (cross-corpus tracking)
+    corpus_id: Optional[str]         # "corp_energy-rie-2026Q1" (cross-corpus tracking)
     rule_id: Optional[str]           # "RIE-RHEL-042" (domain-specific ID)
     usage_count: int                 # Incremented on each recall
     superseded_by: Optional[str]     # MEM-newid (if merged during consolidation)
@@ -881,7 +881,7 @@ class MemoryItem:
 @dataclass
 class MemoryProvenance:
     source_kind: SourceKind          # "doc" | "chat" | "tool" | "mixed"
-    source_id: str                   # "grdf-rie-rhel-8.6-hardening.pdf"
+    source_id: str                   # "corp_energy-rie-rhel-8.6-hardening.pdf"
     chunk_ids: List[str]             # ["CHUNK-001", "CHUNK-002"]
     content_hashes: List[str]        # ["sha256:a1b2c3...", "sha256:d4e5f6..."]
     created_at: str                  # ISO-8601 timestamp
@@ -910,7 +910,7 @@ class MemoryProvenance:
 | **decision** | "Team approved migration to Kubernetes 1.28" | Historical choices |
 | **pattern** | "Always use TLS 1.3 for external APIs" | Recurring best practices |
 | **todo** | "Audit OpenSSL dependencies by Q2 2026" | Action items |
-| **pointer** | "See section 4.3 in GRDF-RIE-RHEL-042" | Cross-references (avoids duplicating long content) |
+| **pointer** | "See section 4.3 in CORP-ENERGY-RIE-RHEL-042" | Cross-references (avoids duplicating long content) |
 | **note** | "Reviewer noted potential conflict with Oracle policy" | Annotations |
 
 ### SQLite Schema (6 Tables)
@@ -1032,7 +1032,7 @@ python -m ragix_core.memory.cli palace /path/to/memory.db --domain rhel
 
 | Kind | Label Format | Example | Created By |
 |------|--------------|---------|------------|
-| `doc` | `source_id` | `grdf-rie-rhel-8.6.pdf` | `summary_collect` |
+| `doc` | `source_id` | `corp_energy-rie-rhel-8.6.pdf` | `summary_collect` |
 | `chunk` | `CHUNK-NNN` | `CHUNK-042` | `summary_ingest` |
 | `item` | `MEM-abc123...` | `MEM-4f8a2b1c9d3e` | `summary_ingest` |
 | `entity` | Controlled vocabulary | `CVE-2024-1234`, `nginx`, `RHEL 8.6` | `summary_extract_entities` |
@@ -1067,7 +1067,7 @@ python -m ragix_core.memory.cli palace /path/to/memory.db --domain rhel
 
 ### Graph Build Performance
 
-**Benchmark** (GRDF-RIE corpus, 89 PDFs, 1,247 memory items):
+**Benchmark** (CORP-ENERGY-RIE corpus, 89 PDFs, 1,247 memory items):
 
 | Step | Time | Nodes | Edges |
 |------|------|-------|-------|
@@ -1086,8 +1086,8 @@ python -m ragix_core.memory.cli palace /path/to/memory.db --domain rhel
 **Without graph (embedding-only clustering):**
 ```
 Cluster: "RHEL firewall rules"
-  - MEM-001 from grdf-rie-2026Q1.pdf (RHEL 8.6 iptables)
-  - MEM-234 from grdf-rie-2026Q2.pdf (RHEL 9.0 nftables)
+  - MEM-001 from corp_energy-rie-2026Q1.pdf (RHEL 8.6 iptables)
+  - MEM-234 from corp_energy-rie-2026Q2.pdf (RHEL 9.0 nftables)
   → Merged into mega-item, loses version distinction
 ```
 
@@ -1095,8 +1095,8 @@ Cluster: "RHEL firewall rules"
 ```
 Cluster candidates: MEM-001, MEM-234 (cosine similarity 0.89)
   → Check 2-hop neighborhood:
-    MEM-001 → CHUNK-042 → grdf-rie-2026Q1.pdf
-    MEM-234 → CHUNK-198 → grdf-rie-2026Q2.pdf
+    MEM-001 → CHUNK-042 → corp_energy-rie-2026Q1.pdf
+    MEM-234 → CHUNK-198 → corp_energy-rie-2026Q2.pdf
   → No shared provenance → separate clusters
   → MEM-001 stays in Q1 cluster, MEM-234 in Q2 cluster
 ```
@@ -1306,8 +1306,8 @@ All KOAS Summary kernels accept a `config` dict in `KernelInput`. Key sections:
 #### `input_folder` / `scope` / `model`
 ```python
 config = {
-    "input_folder": "/data/grdf-rie-docs",
-    "scope": "grdf-rie",
+    "input_folder": "/data/corp_energy-rie-docs",
+    "scope": "corp_energy-rie",
     "model": "ibm/granite4:32b-a9b-h",
 }
 ```
@@ -1366,7 +1366,7 @@ config = {
 ```python
 config = {
     "delta": True,                           # Delta mode (only new/modified files)
-    "corpus_id": "grdf-rie-2026Q2",          # Corpus version ID
+    "corpus_id": "corp_energy-rie-2026Q2",          # Corpus version ID
     "new_item_ids": ["MEM-abc", "MEM-def"],  # V3.0: for neighborhood consolidation
 }
 ```
@@ -1395,7 +1395,7 @@ export SUMMARY_WORKSPACE=/mnt/summary_workspace
 
 ## 12. Performance
 
-### Benchmarks (GRDF-RIE Corpus)
+### Benchmarks (CORP-ENERGY-RIE Corpus)
 
 **System:** Ubuntu 24.04, AMD Ryzen 9 7950X (16C/32T), 64 GB RAM, Ollama local
 

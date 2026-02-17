@@ -108,9 +108,9 @@ class TestGraphExecutor:
     def simple_graph(self):
         """Create a simple 3-node linear graph."""
         graph = AgentGraph(name="test_workflow")
-        graph.add_node(AgentNode(id="step1", agent_type="code", task="Task 1"))
-        graph.add_node(AgentNode(id="step2", agent_type="code", task="Task 2"))
-        graph.add_node(AgentNode(id="step3", agent_type="code", task="Task 3"))
+        graph.add_node(AgentNode(id="step1", agent_type="code", name="step1", config={"task": "Task 1"}))
+        graph.add_node(AgentNode(id="step2", agent_type="code", name="step2", config={"task": "Task 2"}))
+        graph.add_node(AgentNode(id="step3", agent_type="code", name="step3", config={"task": "Task 3"}))
         graph.add_edge(AgentEdge(source_id="step1", target_id="step2"))
         graph.add_edge(AgentEdge(source_id="step2", target_id="step3"))
         return graph
@@ -119,10 +119,10 @@ class TestGraphExecutor:
     def parallel_graph(self):
         """Create a graph with parallel branches."""
         graph = AgentGraph(name="parallel_workflow")
-        graph.add_node(AgentNode(id="start", agent_type="code", task="Start"))
-        graph.add_node(AgentNode(id="branch1", agent_type="code", task="Branch 1"))
-        graph.add_node(AgentNode(id="branch2", agent_type="code", task="Branch 2"))
-        graph.add_node(AgentNode(id="end", agent_type="code", task="End"))
+        graph.add_node(AgentNode(id="start", agent_type="code", name="start", config={"task": "Start"}))
+        graph.add_node(AgentNode(id="branch1", agent_type="code", name="branch1", config={"task": "Branch 1"}))
+        graph.add_node(AgentNode(id="branch2", agent_type="code", name="branch2", config={"task": "Branch 2"}))
+        graph.add_node(AgentNode(id="end", agent_type="code", name="end", config={"task": "End"}))
 
         graph.add_edge(AgentEdge(source_id="start", target_id="branch1"))
         graph.add_edge(AgentEdge(source_id="start", target_id="branch2"))
@@ -195,21 +195,30 @@ class TestGraphExecutor:
 
     @pytest.mark.asyncio
     async def test_cancel_execution(self, simple_graph):
-        """Test cancelling execution."""
-        slow_factory = lambda wid, node: Mock(
-            run=AsyncMock(side_effect=lambda ctx: asyncio.sleep(1))
-        )
+        """Test cancelling execution via streaming (which supports cancel)."""
+        async def slow_run(ctx):
+            await asyncio.sleep(5)
+            return "Done"
+
+        def slow_factory(wid, node):
+            agent = Mock(spec=["run"])
+            agent.run = slow_run
+            return agent
 
         executor = GraphExecutor(simple_graph)
 
-        # Start execution in background
-        task = asyncio.create_task(executor.execute(slow_factory))
+        async def run_streaming():
+            async for item in executor.execute_streaming(slow_factory):
+                pass
+
+        # Start streaming execution in background
+        task = asyncio.create_task(run_streaming())
 
         # Cancel after short delay
         await asyncio.sleep(0.1)
         executor.cancel()
 
-        result = await task
+        await task
         assert executor.status == ExecutionStatus.CANCELLED
 
 
@@ -220,16 +229,16 @@ class TestGraphExecutorStreaming:
     def simple_graph(self):
         """Create a simple 2-node graph."""
         graph = AgentGraph(name="test_workflow")
-        graph.add_node(AgentNode(id="step1", agent_type="code", task="Task 1"))
-        graph.add_node(AgentNode(id="step2", agent_type="code", task="Task 2"))
+        graph.add_node(AgentNode(id="step1", agent_type="code", name="step1", config={"task": "Task 1"}))
+        graph.add_node(AgentNode(id="step2", agent_type="code", name="step2", config={"task": "Task 2"}))
         graph.add_edge(AgentEdge(source_id="step1", target_id="step2"))
         return graph
 
     @pytest.fixture
     def mock_agent_factory(self):
-        """Create a mock agent factory."""
+        """Create a mock agent factory (without run_streaming to avoid async iter issues)."""
         def factory(workflow_id, node):
-            agent = Mock()
+            agent = Mock(spec=["run"])
             agent.run = AsyncMock(return_value=f"Result from {node.id}")
             return agent
         return factory
@@ -297,10 +306,13 @@ class TestSyncGraphExecutor:
     @pytest.fixture
     def simple_graph(self):
         """Create a simple graph."""
-        return create_linear_workflow([
-            ("step1", "code", "Task 1"),
-            ("step2", "code", "Task 2"),
-        ])
+        return create_linear_workflow(
+            name="test_sync",
+            agent_sequence=[
+                ("step1", "code", ["read_file"]),
+                ("step2", "code", ["read_file"]),
+            ],
+        )
 
     def test_sync_execution(self, simple_graph):
         """Test synchronous execution."""
@@ -326,9 +338,9 @@ class TestConditionalTransitions:
     def conditional_graph(self):
         """Create a graph with conditional transitions."""
         graph = AgentGraph(name="conditional_workflow")
-        graph.add_node(AgentNode(id="analyze", agent_type="code", task="Analyze"))
-        graph.add_node(AgentNode(id="fix", agent_type="code", task="Fix (on success)"))
-        graph.add_node(AgentNode(id="report", agent_type="doc", task="Report (on failure)"))
+        graph.add_node(AgentNode(id="analyze", agent_type="code", name="analyze", config={"task": "Analyze"}))
+        graph.add_node(AgentNode(id="fix", agent_type="code", name="fix", config={"task": "Fix (on success)"}))
+        graph.add_node(AgentNode(id="report", agent_type="doc", name="report", config={"task": "Report (on failure)"}))
 
         graph.add_edge(AgentEdge(
             source_id="analyze",

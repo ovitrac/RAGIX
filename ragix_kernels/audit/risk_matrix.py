@@ -229,7 +229,7 @@ class RiskMatrixKernel(Kernel):
         # If no direct mapping, check if module name is part of any volumetry module
         if not vol_info:
             for vol_module, vol_data in module_volumetry.items():
-                # Check for partial match (e.g., iow-ech-sias matches iow-ech-sias-infra)
+                # Check for partial match (e.g., acme-msg-hub matches acme-msg-hub-infra)
                 if module_name.startswith(vol_module) or vol_module.startswith(module_name):
                     volume_day = vol_data.get("volume_day", 0)
                     incident_count = vol_data.get("incident_count", 0)

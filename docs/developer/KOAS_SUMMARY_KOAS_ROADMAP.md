@@ -4,7 +4,7 @@ Below is a **full, implementation-ready roadmap** for **KOAS Summary**, designed
 * implement a **flexible 3-stage KOAS pipeline** (collect → analyze → report), consistent with KOAS v2.0 conventions ,
 * expose **autodiscoverable capabilities** so even a “public very fat LLM” can ask **RAGIX KOAS**: “summarize this folder” **without direct access** to the folder (the kernels read locally; the external model only sees structured summaries) ,
 * support **secrecy levels** via deterministic redaction + policy gating (your memory governance already has hard blocks + provenance, we extend it to Summary outputs) ,
-* improve the exact pain points you measured in the GRDF RIE benchmark (domain truncation by injection cap, consultative style, weak proof of memory usage) .
+* improve the exact pain points you measured in the CORP-ENERGY RIE benchmark (domain truncation by injection cap, consultative style, weak proof of memory usage) .
 
 ---
 
@@ -104,7 +104,7 @@ This follows KOAS’s three-stage pipeline model and kernel output contract  .
 * `stage1/*`
 * configuration:
 
-  * `scope` (e.g., `grdf-rie`)
+  * `scope` (e.g., `corp_energy-rie`)
   * `secrecy_level` (see section E)
   * `embedder_backend` (ollama or sentence-transformers fallback) 
   * consolidation thresholds
@@ -434,10 +434,10 @@ Provide one high-level entrypoint:
 ```bash
 koas summary run \
   --input folder:/path/to/corpus \
-  --scope grdf-rie \
+  --scope corp_energy-rie \
   --profile rules \
   --secrecy S2 \
-  --memory-scope grdf-rie \
+  --memory-scope corp_energy-rie \
   --consolidator granite3.2b \
   --writer gpt-oss-120b \
   --ctx-trigger 0.15 \

@@ -192,7 +192,10 @@ def _run_s1_s2_pipeline(sample_project, workspace, config=None):
     layout_out = layout_k.run(KernelInput(
         workspace=workspace,
         config=config,
-        dependencies={"pres_slide_plan": plan_out.output_file},
+        dependencies={
+            "pres_slide_plan": plan_out.output_file,
+            "pres_asset_catalog": catalog_out.output_file,
+        },
     ))
     assert layout_out.success
 
@@ -533,7 +536,10 @@ class TestFullPipeline:
         o6 = k6.run(KernelInput(
             workspace=workspace,
             config=config,
-            dependencies={"pres_slide_plan": o5.output_file},
+            dependencies={
+                "pres_slide_plan": o5.output_file,
+                "pres_asset_catalog": o3.output_file,
+            },
         ))
         assert o6.success, f"K6 failed: {o6.errors}"
 

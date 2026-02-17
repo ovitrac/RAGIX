@@ -21,7 +21,7 @@
 10. [Compression Modes (v1.2)](#compression-modes-v12)
 11. [Layout Intelligence (v1.2)](#layout-intelligence-v12)
 12. [Design Decisions](#design-decisions)
-13. [Production Benchmark: IOWIZME Audit](#production-benchmark-iowizme-audit)
+13. [Production Benchmark: ACME-ERP Audit](#production-benchmark-acme_erp-audit)
 14. [Requirements](#requirements)
 15. [Implementation Status](#implementation-status)
 16. [Future Directions](#future-directions)
@@ -385,7 +385,7 @@ presenterctl render ./report/ -f pdf --theme koas-professional
 # Full pipeline with explicit options (archive mode, 120 slides)
 presenterctl render ./report/ \
   -w ./workspace/ \
-  --title "Audit IOWIZME" --author "Olivier Vitrac" \
+  --title "Audit ACME-ERP" --author "Olivier Vitrac" \
   --organization "Adservio" --max-slides 120 \
   --format both --theme koas-professional -v
 
@@ -726,7 +726,7 @@ only `pres_slide_plan`). The catalog provides image dimensions for aspect-ratio 
 
 ---
 
-## 13. Production Benchmark: IOWIZME Audit
+## 13. Production Benchmark: ACME-ERP Audit
 
 Full pipeline run on a 14-document French technical audit report (2,831 units, 149K tokens, 27 SVG figures).
 
@@ -734,7 +734,7 @@ Full pipeline run on a 14-document French technical audit report (2,831 units, 1
 
 | Metric | Value |
 |--------|-------|
-| Source folder | `/home/olivi/Documents/Adservio/audit/IOWIZME/report/` |
+| Source folder | `/home/olivi/Documents/Adservio/audit/ACME-ERP/report/` |
 | Documents | 14 Markdown files |
 | Total files | 41 (14 docs, 27 assets) |
 | Semantic units | 2,831 |
@@ -793,7 +793,7 @@ Full pipeline run on a 14-document French technical audit report (2,831 units, 1
 | Ch.3 Methodologie | 11 | 2 | 2 | 15 |
 | Ch.4 Architecture | 5 | 3 | 4 | 12 |
 | Ch.5 Dette technique | 4 | 4 | 3 | 11 |
-| Ch.6 Analyse ECH-SIAS | 6 | 3 | 2 | 11 |
+| Ch.6 Analyse ECH-MSG-HUB | 6 | 3 | 2 | 11 |
 | Ch.7 Revue documentaire | 4 | 3 | 3 | 10 |
 | Ch.8 Conformite RIE | 3 | 1 | 1 | 5 |
 | Ch.9 Estimation MCO | 5 | 3 | 3 | 11 |
@@ -842,7 +842,7 @@ that can be opened in VS Code with the Marp extension.
 - `SlideLayout.image_class` field: `""` | `"figure"` | `"figure-landscape"` | `"figure-full"`
 - Path-based asset lookup: `AssetCatalog.get_by_path()` with basename fallback
 - Tuned CSS: `.figure` width 50%, `.figure-full` max-height 75vh
-- IOWIZME: 22 landscape + 1 portrait inline, 0 MARP bg (figures now readable in PDF)
+- ACME-ERP: 22 landscape + 1 portrait inline, 0 MARP bg (figures now readable in PDF)
 - New shared tool: `ragix_kernels/shared/md_renumber.py` — section/figure/table/cross-ref auto-renumbering
 
 ### v1.2 — Structural Compression (2026-02-12)
@@ -853,7 +853,7 @@ that can be opened in VS Code with the Marp extension.
 - Per-section budget cap (default 8 in compressed mode)
 - Executive role filter: FINDING/RECOMMENDATION/PROBLEM + high-importance IMAGE_REF/TABLE
 - Executive auto-cap: 25 slides when no explicit `--max-slides`
-- IOWIZME validation: full 120 -> compressed 60 (50%) -> executive 25 (79%)
+- ACME-ERP validation: full 120 -> compressed 60 (50%) -> executive 25 (79%)
 
 ### v1.1 — Layout Intelligence (2026-02-12)
 
@@ -861,7 +861,7 @@ that can be opened in VS Code with the Marp extension.
 - Table density scaling: `table-small` (cells > 40) and `table-tiny` (cells > 80) CSS classes
 - `pres_layout_assign` now depends on `pres_asset_catalog` for image dimensions
 - New CSS: `.figure`, `.figure-full`, `.table-small`, `.table-tiny` in `koas-professional.css`
-- IOWIZME: 9 tables auto-scaled (7 small, 2 tiny), 0 inline images (all SVGs landscape)
+- ACME-ERP: 9 tables auto-scaled (7 small, 2 tiny), 0 inline images (all SVGs landscape)
 - Superseded by v1.2.1 for image rendering (landscape images still used MARP bg in v1.1)
 
 ### v5 Quality Fixes (2026-02-12)

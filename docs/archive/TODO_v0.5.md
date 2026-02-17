@@ -3,7 +3,7 @@
 **Version:** v0.5.0
 **Updated:** 2025-12-10
 **Reference:** `FORREVIEW_AUDIT.md`, `PLAN_v0.40_AUDIT.md`
-**Target:** Industrial-grade audit for legacy Java applications (IOWIZME, SIAS)
+**Target:** Industrial-grade audit for legacy Java applications (ACME-ERP, MSG-HUB)
 
 ---
 
@@ -265,10 +265,10 @@ The "Main Sequence" is the line $A + I = 1$ in the A-I plane.
 ├───────────────────────────────────────────────────────────────────┤
 │ Package              │  Ca │  Ce │   I   │   A   │   D   │ Zone  │
 ├──────────────────────┼─────┼─────┼───────┼───────┼───────┼───────┤
-│ fr.iowizmi.iok.sk04  │  12 │  47 │  0.80 │  0.05 │  0.15 │ OK    │
-│ fr.iowizmi.iok.sk02  │   8 │  23 │  0.74 │  0.12 │  0.14 │ OK    │
-│ fr.iowizmi.domain    │  34 │   5 │  0.13 │  0.08 │  0.79 │ PAIN  │
-│ fr.iowizmi.api       │  45 │   2 │  0.04 │  0.85 │  0.11 │ OK    │
+│ fr.acme.iok.sk04  │  12 │  47 │  0.80 │  0.05 │  0.15 │ OK    │
+│ fr.acme.iok.sk02  │   8 │  23 │  0.74 │  0.12 │  0.14 │ OK    │
+│ fr.acme.domain    │  34 │   5 │  0.13 │  0.08 │  0.79 │ PAIN  │
+│ fr.acme.api       │  45 │   2 │  0.04 │  0.85 │  0.11 │ OK    │
 └───────────────────────────────────────────────────────────────────┘
 ```
 
@@ -292,8 +292,8 @@ Detect entry points automatically:
 # ragix_audit_config.yaml
 entry_points:
   include:
-    - "fr.iowizmi.api.*Controller"
-    - "fr.iowizmi.batch.*Job"
+    - "fr.acme.api.*Controller"
+    - "fr.acme.batch.*Job"
   exclude:
     - "*Test*"
     - "*Mock*"
@@ -355,8 +355,8 @@ def find_unreachable_code(
 │ Potential cleanup savings:     ~92 hours (at 200 LOC/hour)          │
 ├─────────────────────────────────────────────────────────────────────┤
 │ Top Orphan Packages (no incoming deps):                             │
-│ - fr.iowizmi.legacy.util (23 classes, 4,200 LOC)                   │
-│ - fr.iowizmi.deprecated.v1 (12 classes, 1,800 LOC)                 │
+│ - fr.acme.legacy.util (23 classes, 4,200 LOC)                   │
+│ - fr.acme.deprecated.v1 (12 classes, 1,800 LOC)                 │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -403,7 +403,7 @@ Given a list of files to change, compute:
 
 **Interactive Query:**
 ```
-> ragix-audit impact --files src/fr/iowizmi/iok/sk04/SK04Service.java
+> ragix-audit impact --files src/fr/acme/iok/sk04/SK04Service.java
 
 Impact Analysis for SK04Service.java:
 ├── Direct dependents: 12 classes
@@ -532,7 +532,7 @@ Add sections (already partially done in v0.40):
 **Key metrics at a glance:**
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ IOWIZME Code Health Dashboard                                   │
+│ ACME-ERP Code Health Dashboard                                   │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  Components: 17          Structural Entropy: 3.42               │
@@ -577,8 +577,8 @@ Add sections (already partially done in v0.40):
 - [ ] Layer violation report
 
 ### Sprint 5: Integration & Validation (Week 5)
-- [ ] Full integration test on IOWIZME
-- [ ] Full integration test on SIAS
+- [ ] Full integration test on ACME-ERP
+- [ ] Full integration test on MSG-HUB
 - [ ] Calibrate MCO weights against historical audit data
 - [ ] Update all HTML report templates
 - [ ] Documentation and examples
