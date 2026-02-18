@@ -6,6 +6,159 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.68.0 — Multi-Format Extract, Memory Demo & CLI Hardening (2026-02-18)
+
+### Highlights
+
+**RAGIX v0.68.0 extends memory ingestion to 46 file formats (including Office binaries and PDF), adds a flagship 8-act demo with dual LLM reasoning (Ollama + Claude), and hardens the CLI with `init`, `pull`, `serve` subcommands and environment variable support.**
+
+| Feature | Status |
+|---------|--------|
+| Multi-format text extraction (46 extensions) | ✅ Markdown, source code, config, Office, PDF |
+| Binary format support (docx/odt/pptx/odp/xlsx/ods/pdf) | ✅ Optional deps via `ragix[docs]` |
+| Memory CLI hardening (15 subcommands) | ✅ `init`, `pull`, `serve` added |
+| Environment variables (`RAGIX_MEMORY_DB`, `RAGIX_MEMORY_BUDGET`) | ✅ CLI override chain |
+| 8-act flagship demo with LLM reasoning | ✅ Ollama (Granite) + Claude backends |
+| Claude isolation pattern for clean piping | ✅ `--system-prompt` + `--tools ""` + `cd /tmp` |
+| Per-question timing & logging infrastructure | ✅ Elapsed time, token rate, full I/O logs |
+| Test infrastructure (contracts, CLI UX) | ✅ Fixtures + 2 test files |
+
+### New Module: `ragix_core/memory/extract.py`
+
+Unified text extraction layer supporting 46 file extensions:
+
+```python
+from ragix_core.memory.extract import read_file_text, ALL_INGESTABLE_EXTS, BINARY_EXTS
+
+# Transparently handles text and binary formats
+text = read_file_text("report.docx")   # python-docx
+text = read_file_text("slides.pptx")   # python-pptx
+text = read_file_text("data.xlsx")     # openpyxl
+text = read_file_text("doc.odt")       # odfpy
+text = read_file_text("paper.pdf")     # pdftotext (existing doc_tools)
+text = read_file_text("code.py")       # direct read (utf-8)
+```
+
+**Key design decisions:**
+- Single dispatch: `read_file_text(path)` handles all formats transparently
+- Binary extractors are optional — missing library raises `ImportError` with install hint
+- `ALL_INGESTABLE_EXTS` is the canonical set imported by `ingest.py` (prevents drift)
+- PDF delegates to existing `doc_tools.extract_pdf_text()` (no duplication)
+
+**Supported binary formats (7):**
+
+| Format | Library | Install |
+|--------|---------|---------|
+| `.docx` | python-docx | `pip install ragix[docs]` |
+| `.odt` | odfpy | `pip install ragix[docs]` |
+| `.pptx` | python-pptx | `pip install ragix[docs]` |
+| `.odp` | odfpy | `pip install ragix[docs]` |
+| `.xlsx` | openpyxl | `pip install ragix[docs]` |
+| `.ods` | odfpy | `pip install ragix[docs]` |
+| `.pdf` | pdftotext (poppler) | system package |
+
+### Memory CLI Hardening (`ragix_core/memory/cli.py`)
+
+CLI expanded from 11 to **15 subcommands** (812 lines, +235 lines):
+
+**New subcommands:**
+- **`init [path]`** — Create memory workspace (SQLite DB, `config.yaml`, `.gitignore`)
+- **`pull`** — Capture LLM output from stdin into memory (structured proposal parsing with fallback)
+- **`serve`** — Start MCP server for memory tools (config-gated)
+- **`push`** — Alias for `pipe` (ingest + recall)
+
+**New environment variables:**
+- `RAGIX_MEMORY_DB` — Override database path (precedence: CLI > env > last-db cache > `memory.db`)
+- `RAGIX_MEMORY_BUDGET` — Default token budget for pipe/recall
+
+**DB resolution chain:** `--db` flag → `RAGIX_MEMORY_DB` env → `~/.cache/ragix/last_memory_db` → `memory.db`
+
+### Flagship Demo: `demos/ragix_memory_demo/`
+
+8-act narrative demonstrating the complete ragix-memory lifecycle:
+
+| Act | Title | What it demonstrates |
+|-----|-------|---------------------|
+| 1 | Init | Workspace creation |
+| 2 | Ingest | Corpus ingestion (markdown docs, explicit glob patterns) |
+| 3 | Search & Recall | FTS5/BM25 queries (4 diverse topics) |
+| 4 | Idempotency | SHA-256 dedup proof (re-ingest → 0 new chunks) |
+| 5 | Pull | Capture simulated LLM output → memory |
+| 6 | Stats & Palace | Store statistics + spatial memory palace |
+| 7 | Export | JSONL export with Unix pipe composability |
+| 8 | LLM Reasoning | Dual-backend: Ollama (Q1-Q2) + Claude (Q3-Q4) |
+
+**Act 8 — LLM Reasoning highlights:**
+- **Ollama section:** 2 questions answered by `granite3.1-moe:3b` (local, sovereign)
+- **Claude section:** 2 harder questions requiring deeper analysis
+- **Per-question metrics:** elapsed time, estimated tokens, tok/s rate
+- **Full I/O logging:** `$WORKSPACE/llm_logs/Q{n}_{context,input,output}.txt`
+- **Graceful degradation:** skips if Ollama/Claude unavailable; `--no-llm` skips Act 8 entirely
+
+**Claude isolation pattern** (prevents CLAUDE.md leaks into answers):
+```bash
+# cd to /tmp prevents project CLAUDE.md injection
+# --system-prompt replaces default system prompt
+# --tools "" disables all tools (pure LLM, no Bash/Read/Grep)
+# --setting-sources "" skips project/local settings
+cd /tmp && claude \
+    --system-prompt "You are a doc analyst. Answer only from stdin." \
+    --tools "" \
+    --setting-sources "" \
+    --no-session-persistence \
+    -p < recalled_context.txt
+```
+
+**Demo options:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--keep` | cleanup | Keep workspace after demo |
+| `--workspace DIR` | `/tmp/ragix_memory_demo` | Custom workspace |
+| `--budget N` | `2000` | Token budget for recall |
+| `--skip-ingest` | false | Skip Act 2 (reuse existing DB) |
+| `--corpus DIR` | `docs/` | Source corpus directory |
+| `--model MODEL` | `granite3.1-moe:3b` | Ollama model for Act 8 |
+| `--no-llm` | false | Skip Act 8 entirely |
+
+### Integration Points
+
+| File | Changes |
+|------|---------|
+| `ragix_core/memory/extract.py` | **NEW** — 280 lines, 46 extensions, 7 binary extractors |
+| `ragix_core/memory/cli.py` | **MODIFIED** — +235 lines, `init`/`pull`/`serve`/`push`, env vars |
+| `ragix_core/memory/ingest.py` | **MODIFIED** — Uses `extract.read_file_text()`, extended `_EXT_TAG_MAP` (+18 entries) |
+| `demos/ragix_memory_demo/run_demo.sh` | **NEW** — 843 lines, 8-act demo with LLM logging |
+| `demos/ragix_memory_demo/README.md` | **NEW** — 331 lines, architecture diagrams, format table |
+| `ragix_core/memory/tests/test_cli_ux.py` | **NEW** — CLI UX test suite |
+| `ragix_core/memory/tests/test_contracts.py` | **NEW** — Contract tests |
+| `ragix_core/memory/tests/fixtures/contracts.json` | **NEW** — Test fixtures (7 entries) |
+| `pyproject.toml` | **MODIFIED** — v0.68.0, added `docs` optional deps, `ragix-memory` entry point |
+| `ragix_core/version.py` | **MODIFIED** — v0.68.0 |
+
+### Ingestion Pipeline Change
+
+Before v0.68.0, `ingest_file()` used `Path.read_text()` — binary files would fail silently or produce garbage. Now:
+
+```
+ingest_file(path)
+    └─→ read_file_text(path)        # from extract.py
+        ├─→ .docx → _extract_docx() # python-docx
+        ├─→ .pptx → _extract_pptx() # python-pptx
+        ├─→ .xlsx → _extract_xlsx() # openpyxl
+        ├─→ .odt/.odp/.ods → _extract_odf() # odfpy
+        ├─→ .pdf → doc_tools.extract_pdf_text()
+        └─→ .* → Path.read_text(encoding="utf-8", errors="replace")
+```
+
+`_INGESTABLE_EXTS` in `ingest.py` now imports from `extract.py` (`ALL_INGESTABLE_EXTS`) — single source of truth.
+
+### Demo Ingestion Fix
+
+Act 2 uses **explicit glob patterns** (`docs/*.md`, `docs/developer/*.md`, `docs/archive/*.md`) instead of recursive directory walk. This avoids ingesting machine-generated logs (`.KOAS/runs/`) and binary noise that would pollute FTS5 search results.
+
+---
+
 ## v0.67.0 — KOAS Memory, Summary & Memory Pipe (2026-02-16)
 
 ### Highlights
@@ -2044,6 +2197,7 @@ mcp:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **v0.68.0** | 2026-02-18 | Multi-format extract (46 exts), 8-act Memory Demo, CLI hardening (init/pull/serve) |
 | **v0.67.0** | 2026-02-16 | KOAS Memory (17 MCP tools), Summary (12 kernels, Graph-RAG), Memory Pipe demo |
 | **v0.66.0** | 2026-01-30 | Centralized Activity Logging, Broker Gateway, Demo setup |
 | **v0.64.2** | 2026-01-29 | Boilerplate detection (changelog patterns), output path fix |

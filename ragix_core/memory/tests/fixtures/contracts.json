@@ -1,0 +1,69 @@
+{
+  "contract_version": "1.0.0",
+  "description": "Shared contracts between memctl and RAGIX memory subsystem. Both repos must pass test_contracts.py against this fixture. Changes to this file require synchronized updates in both repositories.",
+  "schema": {
+    "required_tables": [
+      "memory_items",
+      "memory_revisions",
+      "memory_events",
+      "memory_links",
+      "memory_embeddings",
+      "corpus_hashes",
+      "corpus_metadata"
+    ],
+    "fts_virtual_table": "memory_items_fts",
+    "required_columns_memory_items": [
+      "id",
+      "tier",
+      "type",
+      "title",
+      "content",
+      "tags",
+      "entities",
+      "links_json",
+      "provenance_json",
+      "confidence",
+      "validation",
+      "scope",
+      "expires_at",
+      "usage_count",
+      "last_used_at",
+      "created_at",
+      "updated_at",
+      "rule_id",
+      "superseded_by",
+      "archived",
+      "content_hash",
+      "corpus_id",
+      "injectable"
+    ]
+  },
+  "fts_presets": {
+    "fr": "unicode61 remove_diacritics 2",
+    "en": "porter unicode61 remove_diacritics 2",
+    "raw": "unicode61"
+  },
+  "injection_format": {
+    "format_version": 1
+  },
+  "mcp": {
+    "core_tool_names": [
+      "memory_recall",
+      "memory_search",
+      "memory_propose",
+      "memory_write",
+      "memory_read",
+      "memory_stats",
+      "memory_consolidate"
+    ]
+  },
+  "policy": {
+    "minimum_categories": {
+      "secret_patterns": 1,
+      "injection_patterns": 1,
+      "instructional_block_patterns": 1,
+      "instructional_quarantine_patterns": 1
+    },
+    "note": "RAGIX may have more patterns than memctl. Contract requires minimum presence per category, not count equality."
+  }
+}

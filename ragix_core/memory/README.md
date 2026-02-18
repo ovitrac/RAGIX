@@ -53,6 +53,8 @@ graph TD
     I --> K
     K --> L[cli.py]
     B --> L
+    N[extract.py] --> O[ingest.py]
+    O --> L
     B --> M[graph_store.py]
     M --> H
 ```
@@ -71,7 +73,8 @@ graph TD
 - **proposer.py:** LLM output parser (tool calls + delimiter blocks)
 - **tools.py:** JSON API dispatcher (`memory.*` namespace)
 - **middleware.py:** Chat pipeline hooks (pre_call, post_call, pre_return, intercept)
-- **cli.py:** Command-line interface for dev/debug
+- **extract.py:** Unified text extraction for 46 file formats (text + binary: docx, pptx, xlsx, odt, odp, ods, pdf)
+- **cli.py:** Unix-composable CLI with 15 subcommands (`ragix-memory`)
 
 ---
 
@@ -655,40 +658,95 @@ Detects patterns: `recall`, `what do we know about`, `from memory`, `remember wh
 ### Installation
 
 ```bash
-cd /home/olivi/Documents/Adservio/Projects/RAGIX
-python -m ragix_core.memory.cli --help
+pip install -e .                   # installs ragix-memory entry point
+pip install -e ".[docs]"           # + Office format support (docx, pptx, xlsx, odt, odp, ods)
+ragix-memory --help
 ```
 
-### Commands
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `RAGIX_MEMORY_DB` | Path to SQLite database (overrides last-db cache) |
+| `RAGIX_MEMORY_BUDGET` | Default token budget for pipe/recall |
+
+**DB resolution chain:** `--db` flag → `RAGIX_MEMORY_DB` env → `~/.cache/ragix/last_memory_db` → `memory.db`
+
+### Commands (15 subcommands)
+
+**Init — create memory workspace:**
+
+```bash
+ragix-memory init ./my_workspace
+# Creates: memory.db, config.yaml, .gitignore
+```
+
+**Ingest — load files into memory:**
+
+```bash
+# Single files, directories, or globs (46 supported formats)
+ragix-memory --db $DB ingest --source docs/ --injectable --format auto --tags project
+ragix-memory --db $DB ingest --source report.docx slides.pptx data.xlsx
+```
 
 **Search:**
 
 ```bash
-python -m ragix_core.memory.cli search "architecture database" --tier ltm --k 10
+ragix-memory --db $DB search "architecture database" --tier ltm --k 10
+```
+
+**Recall — token-budgeted injection block:**
+
+```bash
+ragix-memory --db $DB recall "security policy" --budget 2000
+```
+
+**Pipe — ingest + recall in one shot (alias: push):**
+
+```bash
+# Pipe to local LLM (Ollama)
+ragix-memory --db $DB pipe "summarize" --source docs/ --budget 3000 \
+    | { cat; echo '---'; echo 'Summarize in 5 bullets.'; } \
+    | ollama run granite3.1-moe:3b
+
+# Pipe to Claude (cloud) — use --system-prompt + --tools "" for clean isolation
+ragix-memory --db $DB pipe "summarize" --budget 4000 \
+    | claude --system-prompt "Doc analyst." --tools "" -p
+```
+
+**Pull — capture LLM output into memory:**
+
+```bash
+echo "Analysis results..." | ragix-memory --db $DB pull --tags analysis --title "My Analysis"
+
+# Full RAG feedback loop: recall → LLM → capture
+ragix-memory --db $DB pipe "topic" --budget 3000 \
+    | ollama run mistral \
+    | ragix-memory --db $DB pull --tags summary --title "Topic Summary"
 ```
 
 **Show item:**
 
 ```bash
-python -m ragix_core.memory.cli show MEM-abc123defg4567
+ragix-memory --db $DB show MEM-abc123defg4567
 ```
 
 **Statistics:**
 
 ```bash
-python -m ragix_core.memory.cli stats
+ragix-memory --db $DB stats
 ```
 
 **Consolidation:**
 
 ```bash
-python -m ragix_core.memory.cli consolidate --scope project --tiers stm,mtm --no-promote
+ragix-memory --db $DB consolidate --scope project --tiers stm,mtm --no-promote
 ```
 
 **Export (with secrecy redaction):**
 
 ```bash
-python -m ragix_core.memory.cli export -o memory_export.jsonl --tier S2
+ragix-memory --db $DB export -o memory_export.jsonl --tier S2
 ```
 
 Secrecy tiers:
@@ -700,14 +758,37 @@ Secrecy tiers:
 **Import:**
 
 ```bash
-python -m ragix_core.memory.cli import memory_export.jsonl
+ragix-memory --db $DB import memory_export.jsonl
 ```
 
 **Palace browse:**
 
 ```bash
-python -m ragix_core.memory.cli palace default/architecture
+ragix-memory --db $DB palace default/architecture
 ```
+
+**Serve — start MCP server:**
+
+```bash
+ragix-memory --db $DB serve --fts-tokenizer fr
+```
+
+### Supported File Formats (46 extensions)
+
+| Category     | Extensions                                        | Method            |
+|--------------|---------------------------------------------------|-------------------|
+| Markdown     | `.md`                                             | Direct read       |
+| Text         | `.txt`, `.rst`, `.csv`, `.tsv`                    | Direct read       |
+| Source code  | `.py`, `.java`, `.js`, `.ts`, `.go`, `.rs`, etc.  | Direct read       |
+| Config       | `.yaml`, `.yml`, `.json`, `.toml`, `.xml`         | Direct read       |
+| Web          | `.html`, `.htm`, `.css`                           | Direct read       |
+| Shell        | `.sh`, `.bash`, `.sql`                            | Direct read       |
+| Office docs  | `.docx`, `.odt`                                   | python-docx/odfpy |
+| Slides       | `.pptx`, `.odp`                                   | python-pptx/odfpy |
+| Spreadsheets | `.xlsx`, `.ods`                                   | openpyxl/odfpy    |
+| PDF          | `.pdf`                                            | pdftotext/poppler |
+
+Install Office format support: `pip install ragix[docs]`
 
 ---
 
@@ -972,6 +1053,7 @@ consolidator = ConsolidationPipeline(store, embedder, config, graph=graph)
 
 ## Changelog
 
+- **V3.2 (2026-02-18):** Multi-format extract (46 exts, 7 binary), CLI hardening (init/pull/serve, 15 subcommands), env vars, `ragix-memory` entry point, `ragix[docs]` optional deps
 - **V3.1 (2026-02-14):** FTS5 full-text search, FAISS acceleration, merge confidence formula
 - **V3.0 (2026-02-14):** Cross-corpus edges, corpus metadata, secrecy tiers
 - **V2.4 (2026-02-13):** Delta mode, corpus hash registry, edge cap enforcement

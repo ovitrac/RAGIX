@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ragix"
-version = "0.62.0"
+version = "0.68.0"
 description = "RAGIX - Retrieval-Augmented Generative Interactive eXecution Agent"
 authors = [
     {name = "Olivier Vitrac", email = "olivier.vitrac@adservio.fr"}
@@ -36,8 +36,9 @@ ci = ["pyyaml>=6.0"]
 wasm = ["wasmtime>=14.0.0"]
 ast = ["javalang>=0.13.0", "jsonschema>=4.17.0"]
 reports = ["jinja2>=3.1.0", "weasyprint>=60.0"]
+docs = ["python-docx>=1.0.0", "python-pptx>=0.6.21", "openpyxl>=3.1.0", "odfpy>=1.4.1"]
 koas = ["ragix[ast]"]  # KOAS kernels require AST tools
-all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports,koas]"]
+all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports,koas,docs]"]
 
 [project.scripts]
 ragix = "ragix_core.cli:main"
@@ -49,6 +50,7 @@ ragix-vault = "ragix_unix.vault_cli:main"
 ragix-wasp = "ragix_unix.wasp_cli:main"
 ragix-ast = "ragix_unix.ast_cli:main"
 ragix-koas = "ragix_kernels.orchestrator:main"
+ragix-memory = "ragix_core.memory.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/ovitrac/RAGIX"

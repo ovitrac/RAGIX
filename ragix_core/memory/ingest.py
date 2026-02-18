@@ -12,7 +12,7 @@ Public API:
     resolve_sources(args) -> [path, ...]  (expand dirs, globs, extensions)
     corpus_stats(file_paths) -> dict   (lines, tokens, per-file breakdown)
 
-Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-02-16
+Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-02-18
 """
 
 from __future__ import annotations
@@ -67,7 +67,8 @@ def corpus_stats(file_paths: List[str]) -> Dict[str, Any]:
     total_chars = 0
     per_file: List[Dict[str, Any]] = []
     for p in file_paths:
-        text = Path(p).read_text(encoding="utf-8", errors="replace")
+        from ragix_core.memory.extract import read_file_text
+        text = read_file_text(p)
         lines = text.count("\n") + 1
         chars = len(text)
         tokens = chars // 4
@@ -97,6 +98,26 @@ _EXT_TAG_MAP = {
     ".json": "json",
     ".csv": "csv",
     ".rst": "rst",
+    ".html": "html",
+    ".htm": "html",
+    ".xml": "xml",
+    ".toml": "toml",
+    ".js": "javascript",
+    ".ts": "typescript",
+    ".go": "go",
+    ".rs": "rust",
+    ".c": "c",
+    ".cpp": "cpp",
+    ".sh": "shell",
+    ".sql": "sql",
+    ".css": "css",
+    ".docx": "docx",
+    ".odt": "odt",
+    ".pptx": "pptx",
+    ".odp": "odp",
+    ".xlsx": "xlsx",
+    ".ods": "ods",
+    ".pdf": "pdf",
 }
 
 
@@ -209,11 +230,8 @@ def _infer_tags_from_path(path: str) -> List[str]:
 # ---------------------------------------------------------------------------
 
 # File extensions accepted when recursing directories
-_INGESTABLE_EXTS = {
-    ".md", ".txt", ".rst", ".py", ".js", ".ts", ".java", ".go", ".rs",
-    ".c", ".h", ".cpp", ".hpp", ".css", ".html", ".xml", ".json", ".yaml",
-    ".yml", ".toml", ".sh", ".bash", ".sql", ".r", ".jl", ".lua",
-}
+# (import canonical set from extract module to avoid drift)
+from ragix_core.memory.extract import ALL_INGESTABLE_EXTS as _INGESTABLE_EXTS
 
 
 def resolve_sources(raw: List[str]) -> List[str]:
@@ -305,8 +323,9 @@ def ingest_file(
     """
     abs_path = os.path.abspath(path)
 
-    # Read file
-    text = Path(abs_path).read_text(encoding="utf-8", errors="replace")
+    # Read file (dispatches to binary extractors for Office/PDF formats)
+    from ragix_core.memory.extract import read_file_text
+    text = read_file_text(abs_path)
 
     # Compute SHA-256 for dedup
     sha256 = _file_sha256(abs_path)

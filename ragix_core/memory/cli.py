@@ -1,7 +1,10 @@
 """
-Memory CLI Utilities — Dev/Debug Commands
+Memory CLI Utilities — Unix-Composable Memory Commands
 
 Commands:
+    ragix-memory init [path]                      Create memory workspace
+    ragix-memory push "query" --source files...   Ingest + recall (alias: pipe)
+    ragix-memory pull --tags t --title "T"        Store LLM output from stdin
     ragix-memory search "query" --tier ltm --k 10
     ragix-memory show <id>
     ragix-memory stats
@@ -12,11 +15,16 @@ Commands:
     ragix-memory recall "query" --budget 1500 -w <workspace>
     ragix-memory ingest --source file1.md file2.md --tags doc -w default
     ragix-memory pipe "query" --source files... --budget 2000
+    ragix-memory serve --fts-tokenizer fr         Start MCP server
+
+Environment variables:
+    RAGIX_MEMORY_DB      Path to SQLite database (overrides last-db cache)
+    RAGIX_MEMORY_BUDGET  Token budget default for pipe/recall
 
 Usage:
-    python -m ragix_core.memory.cli <command> [args]
+    ragix-memory <command> [args]
 
-Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-02-16
+Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-02-18
 """
 
 from __future__ import annotations
@@ -24,11 +32,24 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+
+def _env_int(name: str, default: int) -> int:
+    """Parse integer env var with fallback. Never raises on bad input."""
+    v = os.environ.get(name)
+    if not v:
+        return default
+    try:
+        return int(v)
+    except ValueError:
+        return default
 
 _LAST_DB_FILE = Path.home() / ".cache" / "ragix" / "last_memory_db"
 
@@ -438,14 +459,171 @@ def cmd_palace(args: argparse.Namespace) -> None:
         print(f"  {name}{extra}")
 
 
+# ---------------------------------------------------------------------------
+# Default config for init command
+# ---------------------------------------------------------------------------
+
+_DEFAULT_CONFIG_YAML = """\
+# RAGIX Memory workspace configuration
+# See: https://github.com/ovitrac/RAGIX
+store:
+  wal_mode: true
+  fts_tokenizer: "unicode61 remove_diacritics 2"
+policy:
+  secret_patterns_enabled: true
+  injection_patterns_enabled: true
+  instructional_content_enabled: true
+  max_content_length: 2000
+"""
+
+
+def cmd_init(args: argparse.Namespace) -> None:
+    """Initialize a new memory workspace directory."""
+    target = Path(args.path).resolve()
+    target.mkdir(parents=True, exist_ok=True)
+
+    db_path = target / "memory.db"
+    config_path = target / "config.yaml"
+    gitignore_path = target / ".gitignore"
+
+    if db_path.exists() and not args.force:
+        print(f"Workspace already exists: {target}", file=sys.stderr)
+        print(f"  Use --force to reinitialize.", file=sys.stderr)
+        sys.exit(1)
+
+    # Create database with schema + FTS5
+    from ragix_core.memory.store import MemoryStore
+    store = MemoryStore(db_path=str(db_path))
+    store.close()
+
+    # Write default config (if absent)
+    if not config_path.exists():
+        config_path.write_text(_DEFAULT_CONFIG_YAML, encoding="utf-8")
+
+    # Write .gitignore (if absent)
+    if not gitignore_path.exists():
+        gitignore_path.write_text(
+            "*.db\n*.db-wal\n*.db-shm\n", encoding="utf-8"
+        )
+
+    # Save as last-used DB
+    _save_last_db(str(db_path))
+
+    print(f"Memory workspace initialized: {target}")
+    print(f"  Database:  {db_path}")
+    print(f"  Config:    {config_path}")
+    print(f"  Gitignore: {gitignore_path}")
+    print(f"\nSet environment variable for db-free commands:")
+    print(f"  export RAGIX_MEMORY_DB=\"{db_path}\"")
+
+
+def cmd_pull(args: argparse.Namespace) -> None:
+    """Capture LLM output from stdin and store as memory items."""
+    text = sys.stdin.read()
+    if not text.strip():
+        print("[pull] No input received on stdin.", file=sys.stderr)
+        sys.exit(1)
+
+    dispatcher = _get_dispatcher(args.db)
+    tags = [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else []
+
+    # Attempt structured proposal extraction
+    proposals = []
+    try:
+        from ragix_core.memory.proposer import MemoryProposer
+        proposer = MemoryProposer()
+        _, proposals = proposer.parse_response_text(text)
+    except Exception as e:
+        logger.debug(f"Proposer parse failed: {e}")
+
+    if proposals:
+        # Structured: multiple atomic items via governance pipeline
+        items_data = [p.to_dict() if hasattr(p, "to_dict") else p for p in proposals]
+        for it in items_data:
+            if tags:
+                it.setdefault("tags", []).extend(tags)
+            it.setdefault("scope", args.scope)
+        result = dispatcher.dispatch("propose", {"items": items_data})
+        accepted = result.get("accepted", 0)
+        rejected = result.get("rejected", 0)
+        print(
+            f"[pull] Stored {accepted} item(s) from proposals "
+            f"({rejected} rejected by policy)",
+            file=sys.stderr,
+        )
+    else:
+        # Fallback: store entire text as a single note
+        print("[pull] no structured proposals found \u2014 storing as single note",
+              file=sys.stderr)
+        title = args.title or f"LLM capture {datetime.now():%Y-%m-%d %H:%M}"
+        content = text.strip()
+        if len(content) > 2000:
+            # Split into chunks if too long for a single item
+            from ragix_core.memory.ingest import chunk_paragraphs
+            chunks = chunk_paragraphs(content, max_tokens=1800)
+            for i, (chunk_text, _, _) in enumerate(chunks):
+                chunk_title = f"{title} \u00b7 part {i+1}/{len(chunks)}" if len(chunks) > 1 else title
+                dispatcher.dispatch("write", {
+                    "title": chunk_title,
+                    "content": chunk_text,
+                    "tags": tags,
+                    "tier": "stm",
+                    "type": "note",
+                    "scope": args.scope,
+                })
+            print(
+                f"[pull] Stored as {len(chunks)} note(s): {title}",
+                file=sys.stderr,
+            )
+        else:
+            result = dispatcher.dispatch("write", {
+                "title": title,
+                "content": content,
+                "tags": tags,
+                "tier": "stm",
+                "type": "note",
+                "scope": args.scope,
+            })
+            item_id = result.get("id", "unknown")
+            print(f"[pull] Stored as note {item_id}: {title}", file=sys.stderr)
+
+
+def cmd_serve(args: argparse.Namespace) -> None:
+    """Start the RAGIX Memory MCP server in foreground."""
+    try:
+        from ragix_core.memory.mcp.server import create_server, build_parser
+    except ImportError:
+        print(
+            "MCP dependencies not installed. Run: pip install ragix[mcp]",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Build server args from CLI args
+    server_argv = ["--db", args.db]
+    if hasattr(args, "fts_tokenizer") and args.fts_tokenizer:
+        server_argv.extend(["--fts-tokenizer", args.fts_tokenizer])
+    if args.verbose:
+        server_argv.append("--verbose")
+
+    server_args = build_parser().parse_args(server_argv)
+    mcp, _ = create_server(server_args)
+
+    print(f"Starting RAGIX Memory MCP server (db={args.db})", file=sys.stderr)
+    print("Press Ctrl+C to stop.", file=sys.stderr)
+    mcp.run()
+
+
 def main() -> None:
     """CLI entry point."""
     parser = argparse.ArgumentParser(
         prog="ragix-memory",
         description="RAGIX Memory Subsystem CLI",
     )
+    # Precedence: CLI --db > RAGIX_MEMORY_DB env > last-db cache > memory.db
+    _env_db = os.environ.get("RAGIX_MEMORY_DB")
     _last = _load_last_db()
-    _db_default = _last if _last else "memory.db"
+    _db_default = _env_db or _last or "memory.db"
     parser.add_argument(
         "--db", default=_db_default,
         help=f"Path to SQLite database (default: {_db_default})",
@@ -522,8 +700,9 @@ def main() -> None:
     # recall
     p_recall = sub.add_parser("recall", help="Token-budgeted recall (injection block)")
     p_recall.add_argument("query", help="Natural language query")
-    p_recall.add_argument("--budget", type=int, default=1500,
-                          help="Token budget (default: 1500)")
+    _recall_budget = _env_int("RAGIX_MEMORY_BUDGET", 1500)
+    p_recall.add_argument("--budget", type=int, default=_recall_budget,
+                          help=f"Token budget (default: {_recall_budget})")
     p_recall.add_argument("-w", "--workspace", default=None,
                           help="Named workspace")
     p_recall.add_argument("--tier", default=None,
@@ -553,24 +732,59 @@ def main() -> None:
                           help="Corpus ID")
     p_ingest.set_defaults(func=cmd_ingest)
 
+    # Shared argument extractor for pipe/push (prevents silent drift)
+    _budget_default = _env_int("RAGIX_MEMORY_BUDGET", 2000)
+
+    def _add_pipe_arguments(p: argparse.ArgumentParser) -> None:
+        """Register pipe/push arguments on a parser. Single source of truth."""
+        p.add_argument("query", help="Natural language query")
+        p.add_argument("--source", nargs="+", default=None,
+                       help="Files, directories, or globs to ingest (skipped if unchanged)")
+        p.add_argument("--budget", type=int, default=_budget_default,
+                       help=f"Token budget (default: {_budget_default})")
+        p.add_argument("-w", "--workspace", default=None,
+                       help="Named workspace")
+        p.add_argument("--tier", default=None,
+                       help="Filter by tier (stm/mtm/ltm)")
+        p.add_argument("--chunk-tokens", type=int, default=1800,
+                       help="Max tokens per chunk (default: 1800)")
+        p.add_argument("--tags", default=None,
+                       help="Comma-separated tags for ingested files")
+        p.add_argument("--scope", default="audit",
+                       help="Item scope (default: audit)")
+        p.set_defaults(func=cmd_pipe)
+
     # pipe (unified: ingest + recall)
     p_pipe = sub.add_parser("pipe", help="Ingest + recall in one shot")
-    p_pipe.add_argument("query", help="Natural language query")
-    p_pipe.add_argument("--source", nargs="+", default=None,
-                        help="Files, directories, or globs to ingest (skipped if unchanged)")
-    p_pipe.add_argument("--budget", type=int, default=2000,
-                        help="Token budget (default: 2000)")
-    p_pipe.add_argument("-w", "--workspace", default=None,
-                        help="Named workspace")
-    p_pipe.add_argument("--tier", default=None,
-                        help="Filter by tier (stm/mtm/ltm)")
-    p_pipe.add_argument("--chunk-tokens", type=int, default=1800,
-                        help="Max tokens per chunk (default: 1800)")
-    p_pipe.add_argument("--tags", default=None,
-                        help="Comma-separated tags for ingested files")
-    p_pipe.add_argument("--scope", default="audit",
+    _add_pipe_arguments(p_pipe)
+
+    # push (alias for pipe — same handler, same args, zero drift)
+    p_push = sub.add_parser("push", help="Ingest + recall in one shot (alias for pipe)")
+    _add_pipe_arguments(p_push)
+
+    # init
+    p_init = sub.add_parser("init", help="Initialize a memory workspace")
+    p_init.add_argument("path", nargs="?", default=".memory",
+                        help="Workspace directory (default: .memory)")
+    p_init.add_argument("--force", action="store_true",
+                        help="Reinitialize existing workspace")
+    p_init.set_defaults(func=cmd_init)
+
+    # pull
+    p_pull = sub.add_parser("pull", help="Store LLM output from stdin into memory")
+    p_pull.add_argument("--tags", default=None,
+                        help="Comma-separated tags for stored items")
+    p_pull.add_argument("--title", default=None,
+                        help="Title for the stored note (fallback mode)")
+    p_pull.add_argument("--scope", default="audit",
                         help="Item scope (default: audit)")
-    p_pipe.set_defaults(func=cmd_pipe)
+    p_pull.set_defaults(func=cmd_pull)
+
+    # serve
+    p_serve = sub.add_parser("serve", help="Start MCP server")
+    p_serve.add_argument("--fts-tokenizer", default=None,
+                         help="FTS5 tokenizer preset (fr/en/raw)")
+    p_serve.set_defaults(func=cmd_serve)
 
     # palace
     p_palace = sub.add_parser("palace", help="Browse memory palace")
