@@ -6,6 +6,141 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.69.0 — Bounded Recall-Answer Loop & Fixed-Point Convergence (2026-02-19)
+
+### Highlights
+
+**RAGIX v0.69.0 implements a bounded recall-answer loop with fixed-point convergence detection, two-tier text similarity (lexical + cosine), and a deterministic mock-LLM demo proving algorithm correctness — completing the full ROADMAP_LOOP.md (phases R1–R5).**
+
+| Feature | Status |
+|---------|--------|
+| Text similarity module (Tier A lexical + Tier B cosine) | ✅ `similarity.py` — 160 LOC |
+| Bounded recall-answer loop controller | ✅ `loop.py` — 310 LOC, 5 stopping conditions |
+| `ragix-memory loop` CLI subcommand (16 flags) | ✅ 16 total subcommands |
+| Act 9a — Deterministic mock LLM demo (JSON protocol) | ✅ Always runs, no LLM dependency |
+| Act 9b — Live LLM loop demo (passive protocol) | ✅ Real model with safety bounds |
+| 106 new tests (similarity + loop + interop) | ✅ 43 + 33 + 30 tests |
+| Passive mode fix (no protocol injection) | ✅ `include_protocol` parameter |
+| MockEmbedder removal from production CLI | ✅ Auto mode falls back to lexical |
+
+### New Module: `ragix_core/memory/similarity.py`
+
+Two-tier text similarity for fixed-point convergence detection:
+
+```python
+from ragix_core.memory.similarity import compute_similarity
+
+# Tier A — lexical (no dependencies, always available)
+score = compute_similarity("answer v1", "answer v2", method="lexical")
+# → 0.5 * Jaccard(word_sets) + 0.5 * SequenceMatcher(texts)
+
+# Tier B — cosine (requires embedder)
+score = compute_similarity("answer v1", "answer v2", method="cosine", embedder=emb)
+
+# Auto mode — uses cosine if embedder available, else lexical
+score = compute_similarity("answer v1", "answer v2", method="auto")
+```
+
+**Key design decisions:**
+- Tier A lexical uses `0.5 * Jaccard + 0.5 * SequenceMatcher` — no external dependencies
+- Tier B cosine reuses existing `cosine_similarity()` from `embedder.py` — no duplication
+- `auto` mode gracefully degrades: cosine → lexical if embedder is None or fails
+- Edge cases handled: empty strings → 0.0, identical strings → 1.0
+
+### New Module: `ragix_core/memory/loop.py`
+
+Bounded recall-answer loop controller with 5 stopping conditions:
+
+| Condition | Description |
+|-----------|-------------|
+| `llm_stop` | LLM signals `stop: true` in JSON protocol output |
+| `fixed_point` | Consecutive answers exceed similarity threshold |
+| `query_cycle` | LLM re-requests a previously tried query |
+| `no_new_items` | Recall returns nothing new |
+| `max_calls` | Iteration budget exhausted (safety bound) |
+
+**Core components:**
+- `LoopConfig` — dataclass with 16 configurable parameters (max_calls, threshold, protocol, similarity method, etc.)
+- `LoopIteration` — per-iteration trace record (query, answer, similarity, stop reason)
+- `LoopResult` — final result with answer, iterations list, stop reason, total timing
+- `invoke_llm()` — subprocess-based LLM invocation with stdin piping and `include_protocol` control
+- `parse_protocol_output()` — extracts JSON-first-line protocol signals from LLM output
+- `run_loop()` — main controller orchestrating recall → LLM → parse → similarity → decide
+
+**Two protocol modes:**
+- `json` — LLM must emit JSON first line with `need_more`, `query`, `stop` fields; loop parses and acts on signals
+- `passive` — LLM answers freely; loop monitors fixed-point convergence only (no protocol prompt injected)
+
+### New CLI Subcommand: `ragix-memory loop`
+
+```bash
+# JSON protocol with mock LLM (deterministic)
+ragix-memory --db $DB pipe "topic" --budget 3000 \
+    | ragix-memory --db $DB loop --llm "bash mock_llm.sh" \
+        --protocol json --max-calls 5 --threshold 0.92 \
+        --trace-file trace.jsonl
+
+# Passive protocol with real LLM
+ragix-memory --db $DB pipe "topic" --budget 3000 \
+    | ragix-memory --db $DB loop --llm "ollama run granite3.1-moe:3b" \
+        --protocol passive --max-calls 3 --threshold 0.85 \
+        --similarity lexical --no-recall --trace-file trace.jsonl
+```
+
+**Flags:** `--llm`, `--protocol`, `--max-calls`, `--threshold`, `--similarity`, `--no-recall`, `--trace-file`, `--system-prompt`, `--llm-mode`, `--budget`
+
+### Demo: Act 9 Split (9a + 9b)
+
+Act 9 restructured into two complementary sub-acts:
+
+| Sub-act | LLM | Protocol | Runs when | Proves |
+|---------|-----|----------|-----------|--------|
+| 9a | `mock_llm.sh` (bash) | `json` | Always (even `--no-llm`) | Algorithm correctness, deterministic |
+| 9b | Ollama/Claude (real) | `passive` | LLM available | Real-world convergence behavior |
+
+**New file: `demos/ragix_memory_demo/mock_llm.sh`** — Stateful bash script (state counter in `/tmp/ragix_mock_llm_state`):
+- Iteration 1: requests refinement on "memory consolidation tier promotion"
+- Iteration 2: requests refinement on "injection block format token budget pipe"
+- Iteration 3+: signals `stop: true`, emits comprehensive 5-section analysis
+
+**Convergence behavior:**
+- Mock LLM (9a): `llm_stop` after 3 iterations — deterministic, reproducible
+- Small real LLMs (9b): `max_calls` safety bound — lexical similarity ~0.12–0.37 at default temperature is well below convergence thresholds; larger models or lower temperature achieve tighter convergence
+
+### Bug Fixes
+
+- **Passive mode protocol injection** — `invoke_llm()` always prepended `LOOP_PROTOCOL_PROMPT`, causing LLMs in passive mode to emit JSON protocol headers as their answer. Fixed with `include_protocol` parameter set to `False` when `config.protocol == "passive"`.
+- **MockEmbedder in production CLI** — `cmd_loop()` used `MockEmbedder(dimension=768, seed=42)` which produces random vectors, making cosine similarity scores meaningless (~0.01–0.08). Removed; `embedder=None` lets auto mode fall back to lexical similarity.
+- **Demo logging scope** — Logging functions (`recall_context`, `log_input`, `log_output`) were defined inside Act 8's `NO_LLM` guard, making them unavailable to Act 9a. Hoisted above the guard.
+
+### Test Coverage
+
+| Test file | Tests | Covers |
+|-----------|-------|--------|
+| `test_similarity.py` | 43 | Tier A/B similarity, edge cases, auto mode, error handling |
+| `test_loop.py` | 33 | LoopConfig, parse_protocol_output, run_loop, all 5 stop conditions |
+| `test_interop_protocol.py` | 30 | JSON protocol parsing, passive mode, CLI integration, trace files |
+| **Total new** | **106** | Full coverage of R1–R5 ROADMAP_LOOP.md |
+
+### Integration Points
+
+| File | Changes |
+|------|---------|
+| `ragix_core/memory/similarity.py` | **NEW** — 160 lines, Tier A/B text similarity |
+| `ragix_core/memory/loop.py` | **NEW** — 310 lines, bounded loop controller |
+| `ragix_core/memory/cli.py` | **MODIFIED** — `loop` subcommand, MockEmbedder removal |
+| `ragix_core/memory/loop.py:invoke_llm()` | **MODIFIED** — `include_protocol` parameter for passive mode |
+| `demos/ragix_memory_demo/run_demo.sh` | **MODIFIED** — Act 9 split (9a/9b), logging hoist |
+| `demos/ragix_memory_demo/mock_llm.sh` | **NEW** — 100 lines, deterministic 3-iteration mock |
+| `demos/ragix_memory_demo/README.md` | **MODIFIED** — Act 9a/9b docs, convergence notes |
+| `ragix_core/memory/tests/test_similarity.py` | **NEW** — 43 tests |
+| `ragix_core/memory/tests/test_loop.py` | **NEW** — 33 tests |
+| `ragix_core/memory/tests/test_interop_protocol.py` | **NEW** — 30 tests |
+| `pyproject.toml` | **MODIFIED** — v0.69.0 |
+| `ragix_core/version.py` | **MODIFIED** — v0.69.0, BUILD_DATE 2026-02-19 |
+
+---
+
 ## v0.68.0 — Multi-Format Extract, Memory Demo & CLI Hardening (2026-02-18)
 
 ### Highlights

@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.67.0
+# RAGIX v0.69.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
@@ -15,8 +15,8 @@
 
 ---
 
-**Version:** 0.67.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Updated:** 2026-02-16 | **Codebase:** 500K+ LOC analyzed in production
+**Version:** 0.69.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Updated:** 2026-02-19 | **Codebase:** 500K+ LOC analyzed in production
 
 ---
 
@@ -75,15 +75,17 @@ For regulated environments requiring strict access control:
 
 ### Episodic Memory System
 
-Policy-driven memory with multi-tier promotion and MCP exposure:
+Policy-driven memory with multi-tier promotion, bounded loops, and MCP exposure:
 
 - **FTS5 + BM25 retrieval** — SQLite-backed full-text search with relevance scoring
+- **Bounded recall-answer loop** — Iterative LLM refinement with 5 stopping conditions (llm_stop, fixed_point, query_cycle, no_new_items, max_calls)
+- **Fixed-point convergence** — Lexical similarity detection (Jaccard + SequenceMatcher) stops when answers stabilize
 - **Q\*-style search** — Iterative deepening with relevance feedback
 - **Memory Palace** — Spatial metaphor for memory organization (rooms, loci, guided tours)
 - **STM→MTM→LTM promotion** — Access frequency and recency-based tier advancement
 - **SHA-256 corpus dedup** — Prevents duplicate storage
 - **17 MCP tools** — Full memory operations exposed to Claude Desktop / Claude Code
-- **Pipe command** — Feed memory-augmented context to Claude: `ragix-memory pipe "question" --source docs/ | claude`
+- **Pipe + Loop** — `ragix-memory pipe "question" | ragix-memory loop --llm "ollama run model" --trace`
 
 ### Development Platform
 

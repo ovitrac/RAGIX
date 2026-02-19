@@ -15,6 +15,7 @@ Commands:
     ragix-memory recall "query" --budget 1500 -w <workspace>
     ragix-memory ingest --source file1.md file2.md --tags doc -w default
     ragix-memory pipe "query" --source files... --budget 2000
+    ragix-memory loop --llm "ollama run granite3.1-moe:3b" --max-calls 3 --trace
     ragix-memory serve --fts-tokenizer fr         Start MCP server
 
 Environment variables:
@@ -439,6 +440,82 @@ def cmd_pipe(args: argparse.Namespace) -> None:
     print(text)
 
 
+def cmd_loop(args: argparse.Namespace) -> None:
+    """Bounded recall-answer loop: iteratively call an LLM with recall refinement."""
+    from ragix_core.memory.loop import LoopConfig, run_loop
+
+    if not args.llm:
+        print("Error: --llm is required (e.g. --llm 'ollama run granite3.1-moe:3b')",
+              file=sys.stderr)
+        sys.exit(1)
+
+    # Read initial context from stdin
+    if sys.stdin.isatty():
+        print("Error: loop expects input on stdin (pipe from ragix-memory pipe)",
+              file=sys.stderr)
+        sys.exit(1)
+
+    initial_context = sys.stdin.read()
+    if not initial_context.strip():
+        print("Error: empty input on stdin", file=sys.stderr)
+        sys.exit(1)
+
+    # Build config from args
+    config = LoopConfig(
+        llm_command=args.llm,
+        llm_mode=args.llm_mode,
+        protocol=args.protocol,
+        system_prompt=args.system_prompt or "",
+        max_calls=args.max_calls,
+        threshold=args.threshold,
+        query_threshold=args.query_threshold,
+        stable_steps=args.stable_steps,
+        stop_on_no_new=not args.no_stop_on_no_new,
+        budget=args.budget,
+        similarity_mode=args.similarity,
+        strict=args.strict,
+        trace=args.trace or bool(args.trace_file),
+        trace_file=args.trace_file,
+    )
+
+    # Optional: dispatcher for recall refinement
+    dispatcher = None
+    if not args.no_recall:
+        try:
+            dispatcher = _get_dispatcher(args.db)
+        except Exception as e:
+            print(f"Warning: could not open memory DB for recall: {e}",
+                  file=sys.stderr)
+
+    # Optional: embedder for Tier B similarity
+    # Note: MockEmbedder produces random vectors — not suitable for real
+    # similarity comparisons.  Only use a real embedder backend here.
+    # For now, leave embedder=None so auto mode falls back to Tier A (lexical).
+    embedder = None
+
+    result = run_loop(
+        initial_context=initial_context,
+        config=config,
+        dispatcher=dispatcher,
+        embedder=embedder,
+    )
+
+    # Output final answer to stdout
+    if result.answer:
+        print(result.answer)
+
+    # Status to stderr
+    conv_tag = "converged" if result.converged else "did not converge"
+    print(
+        f"[loop] {result.iterations} iteration(s), {conv_tag}: {result.exit_reason}",
+        file=sys.stderr,
+    )
+
+    # Exit code per D4
+    if config.strict and not result.converged and "max_calls" in result.exit_reason:
+        sys.exit(1)
+
+
 def cmd_palace(args: argparse.Namespace) -> None:
     """Browse memory palace."""
     dispatcher = _get_dispatcher(args.db)
@@ -761,6 +838,40 @@ def main() -> None:
     # push (alias for pipe — same handler, same args, zero drift)
     p_push = sub.add_parser("push", help="Ingest + recall in one shot (alias for pipe)")
     _add_pipe_arguments(p_push)
+
+    # loop (bounded recall-answer loop)
+    p_loop = sub.add_parser("loop", help="Bounded recall-answer loop with LLM")
+    p_loop.add_argument("--llm", required=True,
+                        help="LLM command (e.g. 'ollama run granite3.1-moe:3b')")
+    p_loop.add_argument("--llm-mode", default="stdin", choices=["stdin", "file"],
+                        help="How to pass context to LLM (default: stdin)")
+    p_loop.add_argument("--protocol", default="json", choices=["json", "regex", "passive"],
+                        help="Protocol for parsing LLM output (default: json)")
+    p_loop.add_argument("--system-prompt", default=None,
+                        help="User system prompt (appended after protocol instructions)")
+    p_loop.add_argument("--max-calls", type=int, default=3,
+                        help="Max LLM iterations (default: 3)")
+    p_loop.add_argument("--threshold", type=float, default=0.92,
+                        help="Answer similarity threshold for fixed-point (default: 0.92)")
+    p_loop.add_argument("--query-threshold", type=float, default=0.90,
+                        help="Query similarity threshold for cycle detection (default: 0.90)")
+    p_loop.add_argument("--stable-steps", type=int, default=2,
+                        help="Consecutive stable steps to declare convergence (default: 2)")
+    p_loop.add_argument("--no-stop-on-no-new", action="store_true",
+                        help="Continue even when recall returns no new items")
+    p_loop.add_argument("--budget", type=int, default=_budget_default,
+                        help=f"Token budget for context (default: {_budget_default})")
+    p_loop.add_argument("--similarity", default="auto", choices=["auto", "lexical", "embedding"],
+                        help="Similarity mode (default: auto)")
+    p_loop.add_argument("--strict", action="store_true",
+                        help="Exit 1 if max-calls reached without convergence")
+    p_loop.add_argument("--trace", action="store_true",
+                        help="Emit JSONL trace to stderr")
+    p_loop.add_argument("--trace-file", default=None,
+                        help="Write JSONL trace to file instead of stderr")
+    p_loop.add_argument("--no-recall", action="store_true",
+                        help="Disable recall refinement (LLM gets same context each iteration)")
+    p_loop.set_defaults(func=cmd_loop)
 
     # init
     p_init = sub.add_parser("init", help="Initialize a memory workspace")
