@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # ============================================================================
-# RAGIX Memory — Full Lifecycle Demo (8 Acts)
+# RAGIX Memory — Full Lifecycle Demo (9 Acts)
 #
 # Showcases the complete ragix-memory CLI: init, ingest, search, recall,
-# idempotency, pull, stats, palace, export, and LLM reasoning via both
-# local (Ollama/Granite) and cloud (Claude) pipelines.
+# idempotency, pull, stats, palace, export, LLM reasoning via both
+# local (Ollama/Granite) and cloud (Claude) pipelines, and the bounded
+# recall-answer loop with convergence detection.
 #
 # Usage:
 #   ./run_demo.sh [OPTIONS]
@@ -15,7 +16,7 @@
 #   --skip-ingest     Skip Act 2 (reuse existing workspace)
 #   --corpus DIR      Source corpus directory (default: docs/)
 #   --model MODEL     Ollama model for Act 8 (default: granite3.1-moe:3b)
-#   --no-llm          Skip Act 8 entirely (no LLM required)
+#   --no-llm          Skip Acts 8-9 entirely (no LLM required)
 #   --help            Show this message
 #
 # Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
@@ -55,6 +56,7 @@ TOTAL_FILES=0
 TOTAL_CHUNKS=0
 TOTAL_QUERIES=0
 LLM_QUESTIONS=0
+LOOP_ITERS=0
 DEMO_START=$SECONDS
 
 # ---------------------------------------------------------------------------
@@ -160,7 +162,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-ingest     Skip Act 2 (reuse existing workspace)"
             echo "  --corpus DIR      Source corpus directory (default: docs/)"
             echo "  --model MODEL     Ollama model for Act 8 (default: granite3.1-moe:3b)"
-            echo "  --no-llm          Skip Act 8 (no LLM required)"
+            echo "  --no-llm          Skip Acts 8-9 (no LLM required)"
             echo "  --help            Show this message"
             exit 0 ;;
         *)
@@ -531,17 +533,9 @@ echo ""
 info "The beauty: one Unix pipe connects memory to any LLM."
 echo ""
 
-if [ "$NO_LLM" = true ]; then
-    warn "Skipped (--no-llm flag)"
-    info "To run Act 8:  ./run_demo.sh --skip-ingest --keep"
-    elapsed $((SECONDS - ACT_START))
-else
-
-# ---- Logging infrastructure ----
+# ---- Logging infrastructure (shared by Acts 8 and 9) ----
 LOGDIR="$WORKSPACE/llm_logs"
 mkdir -p "$LOGDIR"
-info "LLM logs will be saved to: ${BOLD}$LOGDIR/${NC}"
-echo ""
 
 # Recall context into a temp file and log it.
 # Usage: recall_context <qid> <topic> <budget>
@@ -617,6 +611,15 @@ log_output() {
         warn "Check input: $LOGDIR/${qid}_input.txt"
     fi
 }
+
+if [ "$NO_LLM" = true ]; then
+    warn "Skipped (--no-llm flag)"
+    info "To run Act 8:  ./run_demo.sh --skip-ingest --keep"
+    elapsed $((SECONDS - ACT_START))
+else
+
+info "LLM logs will be saved to: ${BOLD}$LOGDIR/${NC}"
+echo ""
 
 # ---- Questions bank ----
 
@@ -767,6 +770,204 @@ fi  # end NO_LLM guard
 
 
 # ===================================================================
+# Act 9 — Iterative Loop: Bounded Recall-Answer Loop
+# ===================================================================
+
+act_header 9 "Iterative Loop — Bounded Recall-Answer Loop"
+ACT_START=$SECONDS
+
+info "The loop controller calls an LLM repeatedly with recalled context"
+info "and monitors answer similarity across iterations. It stops when:"
+info "  - the LLM signals stop (JSON protocol: need_more=false)"
+info "  - answers converge (fixed point: sim >= threshold)"
+info "  - a query cycle is detected (LLM re-requests same context)"
+info "  - no new items found from recall refinement"
+info "  - the maximum iteration count is reached (safety bound)"
+echo ""
+
+# -------------------------------------------------------------------
+# Act 9a — Deterministic Loop (Mock LLM)
+# No external LLM needed. Always runs. Fully reproducible.
+# -------------------------------------------------------------------
+
+echo -e "  ${BOLD}${WHITE}── 9a: Deterministic Loop (mock LLM, JSON protocol) ──${NC}"
+echo ""
+info "A mock LLM follows a scripted 3-iteration sequence:"
+info "  iter 1: requests more context about memory consolidation"
+info "  iter 2: requests more context about injection block format"
+info "  iter 3: provides final answer (stop=true)"
+info "The controller enforces bounds and traces every iteration."
+echo ""
+
+MOCK_CMD="bash $PROJECT_ROOT/demos/ragix_memory_demo/mock_llm.sh"
+MOCK_TRACE="$LOGDIR/loop_mock_trace.jsonl"
+MOCK_STATE="${MOCK_LLM_STATE:-/tmp/ragix_mock_llm_state}"
+rm -f "$MOCK_STATE"
+
+echo -e "  ${BOLD}${CYAN}Q5a:${NC} ${BOLD}RAGIX data flow analysis (mock, deterministic)${NC}"
+echo -e "  ${DIM}─────────────────────────────────────────────────────${NC}"
+cmd "ragix-memory --db \$DB pipe \"topic\" --budget 3000 \\"
+cmd "    | ragix-memory --db \$DB loop --llm \"bash mock_llm.sh\" \\"
+cmd "        --protocol json --max-calls 5 --threshold 0.92 \\"
+cmd "        --trace-file loop_mock_trace.jsonl"
+echo ""
+
+recall_context "Q5a" "RAGIX memory ingestion recall pipeline data flow" 3000
+log_input "Q5a" "mock LLM: 3-iteration JSON protocol sequence" "mock (deterministic)"
+
+Q_START=$SECONDS
+echo -ne "  ${DIM}[....] Running deterministic loop (mock LLM)...${NC}\r"
+
+A5a=$(
+    cat "$CTX_FILE" \
+    | timeout 60 python -m ragix_core.memory.cli --db "$DB" loop \
+        --llm "$MOCK_CMD" \
+        --protocol json \
+        --max-calls 5 \
+        --stable-steps 1 \
+        --threshold 0.92 \
+        --similarity lexical \
+        --no-recall \
+        --trace-file "$MOCK_TRACE" \
+        2>/dev/null
+) || true
+echo -ne "\033[2K\r"
+
+log_output "Q5a" "$A5a" $((SECONDS - Q_START)) "mock (deterministic)"
+rm -f "$MOCK_STATE"
+
+# Show mock trace
+MOCK_ITERS=0
+if [ -f "$MOCK_TRACE" ]; then
+    echo ""
+    info "Convergence trace (deterministic):"
+    python3 -c "
+import sys, json
+for line in open('$MOCK_TRACE'):
+    d = json.loads(line)
+    sim = f\"{d['sim']:.3f}\" if d.get('sim') is not None else '  —  '
+    method = d.get('sim_method') or '—'
+    query = d.get('query') or '—'
+    action = d['action']
+    print(f\"    iter={d['iter']}  query={query:40s}  sim={sim}  -> {action}\")
+" 2>/dev/null || true
+    MOCK_ITERS=$(wc -l < "$MOCK_TRACE")
+fi
+
+echo ""
+if echo "$A5a" | grep -q .; then
+    ok "Mock loop completed: $MOCK_ITERS iteration(s), deterministic, reproducible"
+else
+    warn "Mock loop produced no output"
+fi
+LOOP_ITERS=$MOCK_ITERS
+
+# -------------------------------------------------------------------
+# Act 9b — Live LLM Loop (real model, protocol passive)
+# Shows real-world behavior: answer monitoring + safety bounds.
+# -------------------------------------------------------------------
+
+if [ "$NO_LLM" = true ]; then
+    echo ""
+    echo -e "  ${BOLD}${WHITE}── 9b: Live LLM Loop ──${NC}"
+    echo ""
+    warn "Skipped (--no-llm flag)"
+else
+
+# Pick available LLM (prefer local/sovereign)
+LOOP_LLM=""
+LOOP_BACKEND=""
+if [ "$OLLAMA_OK" = true ]; then
+    LOOP_LLM="ollama run $LLM_MODEL"
+    LOOP_BACKEND="ollama/$LLM_MODEL"
+elif [ "$CLAUDE_OK" = true ]; then
+    LOOP_LLM="cd /tmp && env -u CLAUDECODE claude --setting-sources '' --tools '' --no-session-persistence -p"
+    LOOP_BACKEND="claude"
+fi
+
+if [ -z "$LOOP_LLM" ]; then
+    echo ""
+    echo -e "  ${BOLD}${WHITE}── 9b: Live LLM Loop ──${NC}"
+    echo ""
+    warn "No LLM available — skipping 9b"
+    info "To enable:  ollama serve && ollama pull $LLM_MODEL"
+else
+    echo ""
+    echo -e "  ${BOLD}${WHITE}── 9b: Live LLM Loop ($LOOP_BACKEND, passive protocol) ──${NC}"
+    echo ""
+    info "Same loop mechanism, real LLM. Protocol: passive (no JSON parsing)."
+    info "Small models at default temperature produce varying phrasings"
+    info "(lexical sim ~0.15-0.20), so the safety bound is expected."
+    echo ""
+
+    Q5b_TOPIC="RAGIX memory ingestion recall pipeline data flow documents to LLM"
+    Q5b_PROMPT="Describe the complete data flow from document ingestion to LLM context injection in RAGIX. Identify each step, intermediate format, and storage mechanism."
+    Q5b_LABEL="Data flow analysis (live LLM, passive)"
+    LIVE_TRACE="$LOGDIR/loop_live_trace.jsonl"
+
+    echo -e "  ${BOLD}${CYAN}Q5b:${NC} ${BOLD}$Q5b_LABEL${NC}"
+    echo -e "  ${DIM}─────────────────────────────────────────────────────${NC}"
+    cmd "ragix-memory --db \$DB pipe \"topic\" --budget 3000 \\"
+    cmd "    | ragix-memory --db \$DB loop --llm \"$LOOP_BACKEND\" \\"
+    cmd "        --protocol passive --max-calls 3 --threshold 0.85 \\"
+    cmd "        --similarity lexical --no-recall --trace-file loop_live_trace.jsonl"
+    echo ""
+
+    recall_context "Q5b" "$Q5b_TOPIC" 3000
+    log_input "Q5b" "$Q5b_PROMPT" "$LOOP_BACKEND (loop)"
+
+    Q_START=$SECONDS
+    echo -ne "  ${DIM}[....] Running live loop (up to 3 iterations)...${NC}\r"
+
+    A5b=$(
+        cat "$CTX_FILE" \
+        | timeout 360 python -m ragix_core.memory.cli --db "$DB" loop \
+            --llm "$LOOP_LLM" \
+            --protocol passive \
+            --max-calls 3 \
+            --stable-steps 1 \
+            --threshold 0.85 \
+            --similarity lexical \
+            --no-recall \
+            --system-prompt "$Q5b_PROMPT" \
+            --trace-file "$LIVE_TRACE" \
+            2>/dev/null
+    ) || true
+    echo -ne "\033[2K\r"
+
+    log_output "Q5b" "$A5b" $((SECONDS - Q_START)) "$LOOP_BACKEND (loop)"
+
+    # Show live trace
+    LIVE_ITERS=0
+    if [ -f "$LIVE_TRACE" ]; then
+        echo ""
+        info "Convergence trace (live):"
+        python3 -c "
+import sys, json
+for line in open('$LIVE_TRACE'):
+    d = json.loads(line)
+    sim = f\"{d['sim']:.3f}\" if d.get('sim') is not None else '  —  '
+    method = d.get('sim_method') or '—'
+    print(f\"    iter={d['iter']}  sim={sim}  method={method:>7s}  -> {d['action']}\")
+" 2>/dev/null || true
+        LIVE_ITERS=$(wc -l < "$LIVE_TRACE")
+    fi
+
+    echo ""
+    if echo "$A5b" | grep -q .; then
+        ok "Live loop completed: $LIVE_ITERS iteration(s)"
+    else
+        warn "Live loop produced no output (LLM timeout or error)"
+    fi
+    LOOP_ITERS=$((MOCK_ITERS + LIVE_ITERS))
+fi
+
+fi  # end 9b NO_LLM guard
+
+elapsed $((SECONDS - ACT_START))
+
+
+# ===================================================================
 # Summary Dashboard
 # ===================================================================
 
@@ -781,6 +982,7 @@ echo -e "  ${BOLD}Corpus:${NC}          $CORPUS_COUNT top-level docs ($CORPUS_SI
 echo -e "  ${BOLD}JSONL records:${NC}   $EXPORT_COUNT"
 echo -e "  ${BOLD}Search queries:${NC}  $TOTAL_QUERIES"
 echo -e "  ${BOLD}LLM questions:${NC}   $LLM_QUESTIONS (Ollama + Claude)"
+echo -e "  ${BOLD}Loop iters:${NC}      $LOOP_ITERS (convergence demo)"
 echo -e "  ${BOLD}Total time:${NC}      ${TOTAL_ELAPSED}s"
 echo -e "  ${BOLD}Dedup:${NC}           SHA-256 (idempotent)"
 echo -e "  ${BOLD}Search engine:${NC}   FTS5/BM25"
@@ -815,6 +1017,11 @@ echo ""
 echo -e "  ${DIM}# Same pipe → Claude (cloud, --system-prompt replaces CLAUDE.md, --tools '' = pure LLM)${NC}"
 cmd "ragix-memory pipe \"summarize\" --source report.pdf --budget 4000 \\"
 cmd "    | claude --system-prompt \"Summarize the documentation.\" --tools '' -p"
+echo ""
+echo -e "  ${DIM}# Iterative loop: recall → LLM → convergence check → repeat${NC}"
+cmd "ragix-memory pipe \"auth flow\" --budget 3000 \\"
+cmd "    | ragix-memory loop --llm \"ollama run granite3.1-moe:3b\" \\"
+cmd "        --max-calls 3 --trace"
 echo ""
 echo -e "  ${DIM}# Capture LLM output back into memory (feedback loop)${NC}"
 cmd "ollama run mistral \"analyze X\" \\"

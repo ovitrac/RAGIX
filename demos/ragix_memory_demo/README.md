@@ -6,11 +6,12 @@
 
 ## Purpose
 
-This demo walks through the **complete ragix-memory lifecycle** in 8 acts,
+This demo walks through the **complete ragix-memory lifecycle** in 9 acts,
 using the entire `docs/` corpus as a real-world document collection.
 It demonstrates that the memory CLI is a self-contained, Unix-composable
-system for knowledge ingestion, retrieval, management, and LLM-augmented
-reasoning — with both local (Ollama) and cloud (Claude) backends.
+system for knowledge ingestion, retrieval, management, LLM-augmented
+reasoning, and **iterative loop convergence** — with both local (Ollama)
+and cloud (Claude) backends.
 
 **Audience:** developers evaluating RAGIX, demo sessions, CI smoke tests.
 
@@ -29,7 +30,7 @@ To keep the workspace for manual exploration:
 ./run_demo.sh --keep
 ```
 
-To run without any LLM (Acts 1–7 only):
+To run without any LLM (Acts 1–7 only, skips Acts 8–9):
 
 ```bash
 ./run_demo.sh --no-llm
@@ -46,13 +47,13 @@ To run without any LLM (Acts 1–7 only):
 | `--budget N`      | `2000`                      | Token budget for recall queries       |
 | `--skip-ingest`   | false                       | Skip Act 2 (reuse existing DB)        |
 | `--corpus DIR`    | `docs/`                     | Source corpus directory                |
-| `--model MODEL`   | `granite3.1-moe:3b`        | Ollama model for Act 8                |
-| `--no-llm`        | false                       | Skip Act 8 entirely (no LLM required) |
+| `--model MODEL`   | `granite3.1-moe:3b`        | Ollama model for Acts 8–9             |
+| `--no-llm`        | false                       | Skip Acts 8–9 (no LLM required)      |
 | `--help`          |                             | Show usage                            |
 
 ---
 
-## The 8 Acts
+## The 9 Acts
 
 ### Act 1 — Init
 
@@ -150,6 +151,66 @@ is skipped with a hint on how to install.
 `docs/` content — not system instructions, CLAUDE.md, or prior knowledge.
 This ensures answers are grounded exclusively in the ingested corpus.
 
+### Act 9 — Iterative Loop (Bounded Recall-Answer Loop)
+
+Demonstrates the bounded recall-answer loop in two complementary parts.
+The loop controller calls an LLM repeatedly, parses its protocol output,
+and monitors answer similarity. Five stopping conditions are enforced:
+
+1. **LLM stop** — the LLM signals `stop: true` (JSON protocol)
+2. **Fixed point** — consecutive answers exceed similarity threshold
+3. **Query cycle** — the LLM re-requests a previously tried query
+4. **No new items** — recall returns nothing new
+5. **Max calls** — iteration budget exhausted (safety bound)
+
+#### Act 9a — Deterministic Loop (mock LLM, JSON protocol)
+
+A deterministic bash mock LLM follows a scripted 3-iteration sequence.
+No external LLM needed — always runs, fully reproducible.
+
+```bash
+ragix-memory --db $DB pipe "RAGIX data flow" --budget 3000 \
+    | ragix-memory --db $DB loop --llm "bash mock_llm.sh" \
+        --protocol json --max-calls 5 --threshold 0.92 \
+        --trace-file loop_mock_trace.jsonl
+```
+
+```
+iter=1  query=memory consolidation tier promotion       sim=  —    -> continue
+iter=2  query=injection block format token budget pipe  sim=0.172  -> continue
+iter=3  query=—                                         sim=0.167  -> llm_stop
+```
+
+The mock LLM requests refinements on iterations 1–2, then signals stop.
+The controller traces every iteration, enforces bounds, and terminates
+cleanly. This proves the loop mechanism works correctly, deterministically,
+and reproducibly — without any LLM dependency.
+
+#### Act 9b — Live LLM Loop (real model, passive protocol)
+
+Same loop mechanism, real LLM. Uses `--protocol passive` (no JSON
+parsing — the LLM just answers, and the controller monitors stability).
+
+```bash
+ragix-memory --db $DB pipe "data flow ingestion" --budget 3000 \
+    | ragix-memory --db $DB loop --llm "ollama run granite3.1-moe:3b" \
+        --protocol passive --max-calls 3 --threshold 0.85 \
+        --similarity lexical --no-recall --trace-file loop_live_trace.jsonl
+```
+
+```
+iter=1  sim=  —    method=      —  -> continue
+iter=2  sim=0.146  method=lexical  -> continue
+iter=3  sim=0.151  method=lexical  -> max_calls
+```
+
+With small models (3B) at default temperature, each generation produces
+different phrasings (lexical similarity ~0.15), so the safety bound
+(`max_calls`) is the expected termination. The key demonstration: the
+loop controller monitors stability and enforces bounds regardless of
+the LLM backend. Larger models or lower temperature achieve tighter
+convergence.
+
 ---
 
 ## Architecture
@@ -183,10 +244,15 @@ The key insight: **one Unix pipe connects memory to any LLM**.
 ```
 ragix-memory pipe "topic" --budget N  →  stdout (injection block)
                                             │
-                                      ┌─────┴─────┐
-                                      │           │
-                              ollama run model   claude -p "prompt"
-                              (stdin → answer)   (stdin → answer)
+                              ┌─────────────┼─────────────┐
+                              │             │             │
+                      ollama run model  claude -p     ragix-memory loop
+                      (single-shot)     (single-shot)  (iterative, bounded)
+                              │             │             │
+                              └─────────────┼─────────────┘
+                                            │
+                                      ragix-memory pull
+                                      (capture to memory)
 ```
 
 ### Supported File Formats
@@ -275,6 +341,42 @@ Install Office format support: `pip install ragix[docs]`
 
   ...
 
+  ┌─────────────────────────────────────────────────────────────┐
+  │  Act 9 — Iterative Loop — Bounded Recall-Answer Loop
+  └─────────────────────────────────────────────────────────────┘
+
+  ── 9a: Deterministic Loop (mock LLM, JSON protocol) ──
+
+  Q5a: RAGIX data flow analysis (mock, deterministic)
+  $ ragix-memory --db $DB pipe "topic" --budget 3000 \
+      | ragix-memory --db $DB loop --llm "bash mock_llm.sh" \
+          --protocol json --max-calls 5 --threshold 0.92 ...
+
+    # RAGIX Memory Data Flow — Complete Analysis
+    ## 1. Document Ingestion ...
+    ## 2. Recall & Retrieval ...
+    [ok]  Answer: 31 lines, ~384 tok, 1s, ~384 tok/s
+
+    Convergence trace (deterministic):
+      iter=1  query=memory consolidation tier promotion       sim=  —    -> continue
+      iter=2  query=injection block format token budget pipe  sim=0.172  -> continue
+      iter=3  query=—                                         sim=0.167  -> llm_stop
+    [ok]  Mock loop completed: 3 iteration(s), deterministic, reproducible
+
+  ── 9b: Live LLM Loop (ollama/granite3.1-moe:3b, passive) ──
+
+  Q5b: Data flow analysis (live LLM, passive)
+    Data Flow from Document Ingestion to LLM Context Injection...
+    [ok]  Answer: 21 lines, ~638 tok, 103s, ~6 tok/s
+
+    Convergence trace (live):
+      iter=1  sim=  —    method=      —  -> continue
+      iter=2  sim=0.146  method=lexical  -> continue
+      iter=3  sim=0.151  method=lexical  -> max_calls
+    [ok]  Live loop completed: 3 iteration(s)
+
+  ...
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Demo Complete
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -282,11 +384,12 @@ Install Office format support: `pip install ragix[docs]`
   Summary Dashboard
   ─────────────────────────────────────────
   Workspace:      /tmp/ragix_memory_demo
-  Corpus:         21 top-level docs (638K)
-  JSONL records:  158
+  Corpus:         21 top-level docs (5.4M)
+  JSONL records:  336
   Search queries: 4
-  LLM questions:  4 (Ollama + Claude)
-  Total time:     65s
+  LLM questions:  6 (Ollama + Claude + mock + loop)
+  Loop iters:     6 (3 mock + 3 live)
+  Total time:     ~120s
   Dedup:          SHA-256 (idempotent)
   Search engine:  FTS5/BM25
   Local LLM:      granite3.1-moe:3b (Ollama)
@@ -318,6 +421,13 @@ rm -rf /tmp/ragix_memory_demo
   needs to be loaded into memory. Subsequent queries are faster.
 - **Token estimates:** Token counts are approximated as `characters / 4`,
   not actual tokenizer counts.
+- **Loop convergence:** Act 9 uses `--protocol passive` (fixed-point only)
+  with `--similarity lexical`. Small models (3B) at default temperature
+  produce lexical similarity of ~0.15–0.20 between runs, so the `max_calls`
+  safety bound is the expected termination. Larger models or lower temperature
+  achieve tighter convergence. The full `--protocol json` mode (where the
+  LLM proposes refined queries) requires models that can follow the
+  JSON-first-line protocol consistently.
 
 ---
 
