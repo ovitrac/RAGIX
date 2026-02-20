@@ -6,6 +6,65 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.70.0 — Claude Code Integration: Installer, Hooks & Component Manifest (2026-02-20)
+
+### Highlights
+
+**RAGIX v0.70.0 ships a unified installer that registers MCP servers, safety hooks, and audit logging with Claude Code. A single `bash scripts/install_claude.sh` wires up memory recall, command safety, and tool-action auditing — making the full RAGIX ecosystem discoverable and operational in one step.**
+
+| Feature | Status |
+|---------|--------|
+| Idempotent installer (6 phases, 11 CLI flags) | `scripts/install_claude.sh` — 650 LOC |
+| Safety guard hook (PreToolUse:Bash) | `scripts/hooks/ragix_safety_guard.sh` — mirrors `unix-rag-agent.py` denylist |
+| Memory auto-inject hook (UserPromptSubmit) | `scripts/hooks/ragix_memory_inject.sh` — graceful degradation |
+| Audit logger hook (PostToolUse:Bash\|Write\|Edit) | `scripts/hooks/ragix_audit_logger.sh` — `.agent_logs/commands.log` |
+| Stop validator hook (Stop) | Prompt-based test reminder |
+| Component manifest (auto-generated reference) | `RAGIX_COMPONENTS.md` — 10 commands, 55 MCP tools, 10 CLIs |
+| Uninstaller | `scripts/uninstall_claude.sh` — clean removal |
+
+### New: `scripts/install_claude.sh`
+
+Six-phase idempotent installer:
+
+1. **Prerequisites** — Python 3.10+, ragix-memory CLI, Ollama (optional)
+2. **MCP registration** — `ragix-memory` server in `.claude/settings.local.json` (opt-in `--profile full` for main MCP)
+3. **Hooks** — 4 hooks in `.claude/settings.json` (safety, memory, audit, stop)
+4. **Slash commands** — Verifies all 10 `.claude/commands/*.md` present
+5. **Manifest** — Generates `RAGIX_COMPONENTS.md`
+6. **Verification** — JSON validity check, installation summary
+
+```bash
+bash scripts/install_claude.sh              # Default: memory MCP + hooks
+bash scripts/install_claude.sh --profile full  # + main MCP (38 tools)
+bash scripts/install_claude.sh --dry-run    # Preview only
+bash scripts/install_claude.sh --uninstall  # Remove integration
+```
+
+### New: Safety Guard Hook
+
+PreToolUse hook blocks dangerous shell commands before execution:
+- System destruction (`rm -rf /`, `mkfs`, `dd`, `shutdown`, `reboot`)
+- Privilege escalation (`sudo`, `su -`)
+- Pipe-to-shell (`curl|bash`, `wget|sh`)
+- Git destructive (`git reset --hard`, `git push --force`, `git clean -fd`)
+
+12/12 dangerous patterns blocked, 0 false positives on safe commands.
+
+### New: Audit Logger Hook
+
+PostToolUse hook appends timestamped entries to `.agent_logs/commands.log`:
+```
+2026-02-20T18:50:09 | Bash | ls -la /tmp
+2026-02-20T18:50:09 | Write | /tmp/test.py
+2026-02-20T18:50:09 | Edit | def foo
+```
+
+### New: Memory Auto-Inject Hook
+
+UserPromptSubmit hook calls `ragix-memory recall` with the user's prompt, returns recalled context as a system message. Graceful degradation: silent exit if no DB, CLI missing, or recall fails.
+
+---
+
 ## v0.69.0 — Bounded Recall-Answer Loop & Fixed-Point Convergence (2026-02-19)
 
 ### Highlights

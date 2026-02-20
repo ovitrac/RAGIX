@@ -74,7 +74,7 @@ graph TD
 - **tools.py:** JSON API dispatcher (`memory.*` namespace)
 - **middleware.py:** Chat pipeline hooks (pre_call, post_call, pre_return, intercept)
 - **extract.py:** Unified text extraction for 46 file formats (text + binary: docx, pptx, xlsx, odt, odp, ods, pdf)
-- **cli.py:** Unix-composable CLI with 15 subcommands (`ragix-memory`)
+- **cli.py:** Unix-composable CLI with 19 subcommands (`ragix-memory`)
 
 ---
 
@@ -771,6 +771,82 @@ ragix-memory --db $DB palace default/architecture
 
 ```bash
 ragix-memory --db $DB serve --fts-tokenizer fr
+```
+
+### Claude Code Integration
+
+RAGIX Memory integrates with Claude Code via MCP server registration and hooks. The installer (`scripts/install_claude.sh`) automates setup.
+
+**MCP Server Registration:**
+
+The installer adds the Memory MCP server to `.claude/settings.local.json`:
+
+```json
+{
+  "mcpServers": {
+    "ragix-memory": {
+      "command": "ragix-memory",
+      "args": ["serve", "--db", "memory.db", "--fts-tokenizer", "fr"]
+    }
+  }
+}
+```
+
+This exposes 17 MCP tools to Claude Code:
+
+| Tool | Purpose |
+|------|---------|
+| `memory_recall` | Token-budgeted retrieval for context injection |
+| `memory_search` | FTS5 + hybrid scoring search |
+| `memory_propose` | Governed write path (policy validation) |
+| `memory_write` | Direct write (bypass governance) |
+| `memory_read` | Read a memory item by ID |
+| `memory_update` | Update an existing item |
+| `memory_link` | Create semantic links between items |
+| `memory_consolidate` | Dedup, merge, tier promotion cycle |
+| `memory_stats` | Store statistics |
+| `memory_palace_list` | List memory palaces |
+| `memory_palace_get` | Get palace contents |
+| `memory_session_inject` | Inject context into session |
+| `memory_session_store` | Store session context |
+| `memory_workspace_list` | List registered workspaces |
+| `memory_workspace_register` | Register a new workspace |
+| `memory_workspace_remove` | Remove a workspace |
+| `memory_metrics` | Tool call metrics and performance |
+
+**Hooks:**
+
+The installer registers three hooks relevant to memory:
+
+1. **Memory auto-inject** (UserPromptSubmit) — calls `ragix-memory recall` before each user turn, injects relevant context as a system message. Graceful degradation if no DB exists.
+2. **Audit logger** (PostToolUse) — logs all Bash/Write/Edit tool actions to `.agent_logs/commands.log` with timestamps.
+3. **Safety guard** (PreToolUse:Bash) — blocks dangerous shell commands (mirrors `unix-rag-agent.py` denylist).
+
+**Slash Commands:**
+
+10 slash commands are available in `.claude/commands/`:
+
+| Command | Delegates to |
+|---------|-------------|
+| `/memory` | Master command (7 subcommands: search, recall, add, stats, consolidate, workspaces, metrics) |
+| `/memory-add` | `memory_propose` MCP tool |
+| `/memory-search` | `memory_search` MCP tool |
+| `/memory-recall` | `memory_recall` MCP tool |
+
+**Quick Start:**
+
+```bash
+# 1. Install RAGIX and create a memory workspace
+pip install -e .
+ragix-memory init ./my_project
+
+# 2. Register with Claude Code
+bash scripts/install_claude.sh
+
+# 3. Restart Claude Code, then use slash commands
+#    /memory search "architecture decisions"
+#    /memory-add "Finding title" --tags arch,decision
+#    /memory recall "security policy" --budget 2000
 ```
 
 ### Supported File Formats (46 extensions)

@@ -202,6 +202,17 @@ ragix-web
 | `ragix-wasp` | WASP security scanner |
 | `ragix-memory` | Episodic memory CLI (search, recall, ingest, pipe, palace) |
 
+### Claude Code Integration
+
+Register MCP servers, safety hooks, and audit logging in one command:
+
+```bash
+bash scripts/install_claude.sh            # Memory MCP + 4 hooks
+bash scripts/install_claude.sh --profile full  # + main MCP (38 tools)
+```
+
+Installs: memory auto-recall on every prompt, dangerous-command safety guard, tool-action audit log, and a test reminder on stop. See `RAGIX_COMPONENTS.md` for the full component reference.
+
 > **Without install:** `PYTHONPATH=. python ragix_web/server.py`
 
 ### Returning Users: Reactivate Your Environment
