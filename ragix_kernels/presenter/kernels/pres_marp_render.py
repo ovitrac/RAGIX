@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any, Dict, List, Optional
 
 from ragix_kernels.base import Kernel, KernelInput
@@ -34,6 +35,87 @@ from ragix_kernels.presenter.models import (
 from ragix_kernels.shared.md_toc import expand_toc
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Mermaid ELK layout optimisation
+# ---------------------------------------------------------------------------
+
+# Regex to detect existing %%{init: ...}%% directives
+_MERMAID_INIT_RE = re.compile(r"^\s*%%\{.*\}%%", re.MULTILINE)
+# Regex to detect graph/flowchart direction keyword
+_MERMAID_DIR_RE = re.compile(
+    r"^(graph|flowchart)\s+(TB|TD|BT|LR|RL)\b", re.MULTILINE
+)
+# Node definition patterns (covers A[...], A([...]), A{...}, etc.)
+_MERMAID_NODE_RE = re.compile(r"\b[A-Za-z_]\w*\s*[\[\(\{<]")
+
+
+def _optimize_mermaid(source: str, *, elk: bool = True) -> str:
+    """Inject ELK renderer and optimise orientation for Mermaid code blocks.
+
+    Heuristics for direction:
+    - If the diagram already has an %%{init}%% directive, leave it alone.
+    - For flowcharts with >6 nodes in LR direction, switch to TD
+      (avoids ultra-wide diagrams that render poorly on slides).
+    - For flowcharts with <=6 nodes in TD direction, switch to LR
+      (compact horizontal layout fits slides better).
+    - Gantt / sequence / class diagrams are left unchanged.
+    """
+    stripped = source.strip()
+
+    # Skip non-flowchart diagram types — ELK only applies to flowcharts
+    first_line = stripped.split("\n")[0].strip().lower()
+    if any(first_line.startswith(k) for k in (
+        "sequencediagram", "gantt", "classDiagram".lower(),
+        "statediagram", "erdiagram", "pie", "journey",
+        "gitgraph", "mindmap", "timeline", "quadrantchart",
+        "sankey", "xychart", "block",
+    )):
+        return source
+
+    # If there's already an init directive, respect it
+    if _MERMAID_INIT_RE.search(stripped):
+        return source
+
+    # Count nodes to decide orientation
+    node_count = len(_MERMAID_NODE_RE.findall(stripped))
+    dir_match = _MERMAID_DIR_RE.search(stripped)
+
+    new_source = stripped
+    if dir_match:
+        keyword, current_dir = dir_match.group(1), dir_match.group(2)
+        # Wide diagrams (many nodes in LR) → flip to TD
+        if current_dir in ("LR", "RL") and node_count > 6:
+            new_dir = "TD"
+            new_source = new_source.replace(
+                f"{keyword} {current_dir}",
+                f"{keyword} {new_dir}",
+                1,
+            )
+            logger.debug(
+                "Mermaid: flipped %s %s → %s (%d nodes)",
+                keyword, current_dir, new_dir, node_count,
+            )
+        # Tall diagrams (few nodes in TD) → flip to LR
+        elif current_dir in ("TB", "TD") and node_count <= 6:
+            new_dir = "LR"
+            new_source = new_source.replace(
+                f"{keyword} {current_dir}",
+                f"{keyword} {new_dir}",
+                1,
+            )
+            logger.debug(
+                "Mermaid: flipped %s %s → %s (%d nodes)",
+                keyword, current_dir, new_dir, node_count,
+            )
+
+    # Inject ELK init directive at top
+    if elk:
+        elk_init = '%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%'
+        new_source = elk_init + "\n" + new_source
+
+    return new_source
 
 
 # ---------------------------------------------------------------------------
@@ -193,6 +275,10 @@ def render_slide(slide: Slide) -> str:
                 parts.append(f'<div class="{img_cls}">')
                 parts.append(f'<img src="{c.image.path}" alt="{alt}" />')
                 parts.append('</div>')
+                # Emit caption below the figure (v1.3)
+                caption = c.image.caption or ""
+                if caption and len(caption) < 120:
+                    parts.append(f'<p class="fig-caption">{caption}</p>')
             else:
                 bg_spec = "bg left:40%"
                 if slide.layout and slide.layout.bg_position:
@@ -221,6 +307,10 @@ def render_slide(slide: Slide) -> str:
                 parts.append(f'<div class="{img_cls}">')
                 parts.append(f'<img src="{c.image.path}" alt="{alt}" />')
                 parts.append('</div>')
+                # Emit caption below the figure (v1.3)
+                caption = c.image.caption or ""
+                if caption and len(caption) < 120:
+                    parts.append(f'<p class="fig-caption">{caption}</p>')
             else:
                 bg_spec = "bg contain"
                 if slide.layout and slide.layout.bg_size:
@@ -228,10 +318,12 @@ def render_slide(slide: Slide) -> str:
                 parts.append("")
                 parts.append(f"![{bg_spec}]({c.image.path})")
         elif c.code and c.code.language == "mermaid":
-            # Mermaid diagrams rendered as code block
+            # Mermaid diagrams rendered as code block with ELK layout
+            elk_enabled = config.get("mermaid", {}).get("elk", True)
+            optimised = _optimize_mermaid(c.code.text, elk=elk_enabled)
             parts.append("")
             parts.append("```mermaid")
-            parts.append(c.code.text)
+            parts.append(optimised)
             parts.append("```")
 
     # --- QUOTE ---

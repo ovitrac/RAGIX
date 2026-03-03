@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+header { background: linear-gradient(135deg, #1a237e 0%, #283593 100%); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+header h1 { font-size: 1.25rem; font-weight: 600; }
+header .meta { font-size: 0.8rem; opacity: 0.85; margin-left: auto; }
+.controls { display: flex; gap: 16px; padding: 12px 24px; background: #fff; border-bottom: 1px solid #e0e0e0; align-items: center; }
+.controls label { font-size: 0.8rem; font-weight: 500; }
+.controls input[type="range"] { width: 400px; accent-color: #1a237e; }
+.controls .date-display { font-size: 0.9rem; font-weight: 600; color: #1a237e; min-width: 120px; }
+.controls button { padding: 4px 14px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.8rem; }
+.controls button:hover { background: #e8eaf6; }
+.controls button.active { background: #1a237e; color: #fff; border-color: #1a237e; }
+.dashboard { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.chart-section { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px; }
+.chart-section h2 { font-size: 1rem; font-weight: 600; color: #1a237e; margin-bottom: 14px; }
+#cumulative-chart { width: 100%; height: 300px; }
+#daily-chart { width: 100%; height: 200px; }
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.kpi { background: #fff; border-radius: 8px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); text-align: center; }
+.kpi .value { font-size: 1.6rem; font-weight: 700; color: #1a237e; }
+.kpi .label { font-size: 0.7rem; text-transform: uppercase; color: #888; margin-top: 2px; }
+.tooltip-box { position: absolute; padding: 8px 12px; background: rgba(0,0,0,0.85); color: #fff; border-radius: 4px; font-size: 0.75rem; pointer-events: none; z-index: 10; display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>{{ title }}</h1>
+  <span class="meta" id="range-display"></span>
+</header>
+
+<div class="controls">
+  <button id="btn-play">&#9654; Play</button>
+  <input type="range" id="time-slider" min="0" max="100" value="100">
+  <span class="date-display" id="current-date"></span>
+  <label style="margin-left:auto;">Speed
+    <select id="speed-select">
+      <option value="500">Slow</option>
+      <option value="200" selected>Medium</option>
+      <option value="80">Fast</option>
+    </select>
+  </label>
+</div>
+
+<div class="dashboard">
+  <div class="kpi-row" id="kpi-row"></div>
+  <div class="chart-section">
+    <h2>Cumulative Growth</h2>
+    <svg id="cumulative-chart"></svg>
+  </div>
+  <div class="chart-section">
+    <h2>Daily Additions</h2>
+    <svg id="daily-chart"></svg>
+  </div>
+</div>
+
+<div class="tooltip-box" id="tooltip"></div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const timelineData = {{ timeline_data_json }};
+const bins = timelineData.bins || [];
+const meta = timelineData.metadata || {};
+
+if (meta.date_range && meta.date_range.length === 2) {
+  document.getElementById('range-display').textContent =
+    `${meta.date_range[0]} \u2014 ${meta.date_range[1]}`;
+}
+
+// KPI cards
+const kpiRow = document.getElementById('kpi-row');
+const total = bins.length > 0 ? bins[bins.length - 1].cumulative : 0;
+const maxDaily = Math.max(...bins.map(b => b.added), 0);
+const avgDaily = bins.length > 0 ? (total / bins.length).toFixed(1) : 0;
+[
+  { label: 'Total Items', value: total },
+  { label: 'Time Bins', value: bins.length },
+  { label: 'Peak Daily', value: maxDaily },
+  { label: 'Avg / Bin', value: avgDaily },
+].forEach(k => {
+  const div = document.createElement('div');
+  div.className = 'kpi';
+  div.innerHTML = `<div class="value">${k.value}</div><div class="label">${k.label}</div>`;
+  kpiRow.appendChild(div);
+});
+
+// Slider
+const slider = document.getElementById('time-slider');
+slider.max = Math.max(bins.length - 1, 0);
+slider.value = slider.max;
+const dateDisplay = document.getElementById('current-date');
+
+function getVisibleBins() {
+  const idx = parseInt(slider.value);
+  return bins.slice(0, idx + 1);
+}
+
+// Charts
+const margin = { top: 10, right: 20, bottom: 30, left: 50 };
+const tooltip = document.getElementById('tooltip');
+
+function drawCumulative() {
+  const svg = d3.select('#cumulative-chart');
+  svg.selectAll('*').remove();
+  const rect = svg.node().parentElement.getBoundingClientRect();
+  const w = rect.width - 40, h = 300;
+  svg.attr('width', w).attr('height', h);
+
+  const vis = getVisibleBins();
+  if (!vis.length) return;
+
+  dateDisplay.textContent = vis[vis.length - 1].date;
+
+  const x = d3.scalePoint().domain(vis.map(b => b.date)).range([margin.left, w - margin.right]);
+  const y = d3.scaleLinear().domain([0, d3.max(bins, b => b.cumulative) * 1.05]).range([h - margin.bottom, margin.top]);
+
+  svg.append('g').attr('transform', `translate(0,${h - margin.bottom})`)
+    .call(d3.axisBottom(x).tickValues(x.domain().filter((_, i) => i % Math.max(1, Math.floor(vis.length / 10)) === 0)))
+    .selectAll('text').attr('font-size', '9px').attr('transform', 'rotate(-30)').attr('text-anchor', 'end');
+  svg.append('g').attr('transform', `translate(${margin.left},0)`)
+    .call(d3.axisLeft(y).ticks(5));
+
+  const area = d3.area().x(d => x(d.date)).y0(h - margin.bottom).y1(d => y(d.cumulative)).curve(d3.curveMonotoneX);
+  svg.append('path').datum(vis).attr('fill', '#c5cae9').attr('d', area);
+
+  const line = d3.line().x(d => x(d.date)).y(d => y(d.cumulative)).curve(d3.curveMonotoneX);
+  svg.append('path').datum(vis).attr('fill', 'none').attr('stroke', '#1a237e').attr('stroke-width', 2).attr('d', line);
+
+  svg.selectAll('.dot').data(vis).join('circle')
+    .attr('cx', d => x(d.date)).attr('cy', d => y(d.cumulative))
+    .attr('r', 3).attr('fill', '#1a237e')
+    .on('mouseover', (event, d) => {
+      tooltip.style.display = 'block';
+      tooltip.innerHTML = `<strong>${d.date}</strong><br>Cumulative: ${d.cumulative}<br>Added: +${d.added}`;
+    })
+    .on('mousemove', (event) => { tooltip.style.left = (event.pageX + 10) + 'px'; tooltip.style.top = (event.pageY - 10) + 'px'; })
+    .on('mouseout', () => { tooltip.style.display = 'none'; });
+}
+
+function drawDaily() {
+  const svg = d3.select('#daily-chart');
+  svg.selectAll('*').remove();
+  const rect = svg.node().parentElement.getBoundingClientRect();
+  const w = rect.width - 40, h = 200;
+  svg.attr('width', w).attr('height', h);
+
+  const vis = getVisibleBins();
+  if (!vis.length) return;
+
+  const x = d3.scaleBand().domain(vis.map(b => b.date)).range([margin.left, w - margin.right]).padding(0.2);
+  const y = d3.scaleLinear().domain([0, d3.max(bins, b => b.added) * 1.1]).range([h - margin.bottom, margin.top]);
+
+  svg.append('g').attr('transform', `translate(0,${h - margin.bottom})`)
+    .call(d3.axisBottom(x).tickValues(x.domain().filter((_, i) => i % Math.max(1, Math.floor(vis.length / 10)) === 0)))
+    .selectAll('text').attr('font-size', '9px').attr('transform', 'rotate(-30)').attr('text-anchor', 'end');
+  svg.append('g').attr('transform', `translate(${margin.left},0)`)
+    .call(d3.axisLeft(y).ticks(4));
+
+  svg.selectAll('.bar').data(vis).join('rect')
+    .attr('x', d => x(d.date)).attr('y', d => y(d.added))
+    .attr('width', x.bandwidth()).attr('height', d => h - margin.bottom - y(d.added))
+    .attr('fill', '#42a5f5').attr('rx', 2)
+    .on('mouseover', (event, d) => {
+      tooltip.style.display = 'block';
+      const domStr = Object.entries(d.domains || {}).slice(0, 5).map(([k,v]) => `${k}: ${v}`).join(', ');
+      tooltip.innerHTML = `<strong>${d.date}</strong><br>Added: ${d.added}<br>${domStr}`;
+    })
+    .on('mousemove', (event) => { tooltip.style.left = (event.pageX + 10) + 'px'; tooltip.style.top = (event.pageY - 10) + 'px'; })
+    .on('mouseout', () => { tooltip.style.display = 'none'; });
+}
+
+slider.addEventListener('input', () => { drawCumulative(); drawDaily(); });
+drawCumulative();
+drawDaily();
+
+// Play animation
+let playing = false;
+let playInterval;
+const playBtn = document.getElementById('btn-play');
+playBtn.addEventListener('click', () => {
+  if (playing) {
+    clearInterval(playInterval);
+    playing = false;
+    playBtn.textContent = '\u25B6 Play';
+    playBtn.classList.remove('active');
+  } else {
+    playing = true;
+    playBtn.textContent = '\u23F8 Pause';
+    playBtn.classList.add('active');
+    if (parseInt(slider.value) >= parseInt(slider.max)) slider.value = 0;
+    const speed = parseInt(document.getElementById('speed-select').value);
+    playInterval = setInterval(() => {
+      let v = parseInt(slider.value) + 1;
+      if (v > parseInt(slider.max)) {
+        clearInterval(playInterval);
+        playing = false;
+        playBtn.textContent = '\u25B6 Play';
+        playBtn.classList.remove('active');
+        return;
+      }
+      slider.value = v;
+      drawCumulative();
+      drawDaily();
+    }, speed);
+  }
+});
+</script>
+</body>
+</html>

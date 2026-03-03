@@ -200,15 +200,37 @@ class NotesConfig:
 
 
 @dataclass
+class PostprocessConfig:
+    """MARP post-processing configuration (v1.3)."""
+    enabled: bool = True                    # run postprocess_marp() in pipeline
+    rewrite_title: bool = True
+    strip_numbers: bool = True
+    normalize_dividers: bool = True
+    clean_toc: bool = True
+    remove_sommaire: bool = True
+    progress_bar: bool = True
+    chapter_nav: bool = True
+    chapter_footer: bool = True
+    traceability: bool = True
+    logos_dir: Optional[str] = None         # path to logo images directory
+
+
+@dataclass
 class ExportConfig:
     """MARP export configuration."""
-    format: str = "md"                      # md | pdf | html | pptx | png
+    format: str = "md"                      # md | pdf | html | pptx | png | both
     pdf_notes: bool = True
     pdf_outlines: bool = True
     symlink_assets: bool = False            # true → symlink instead of copy
+    # HTML post-processing (v2.0) — applied after marp-cli HTML export
+    center_images: bool = True              # fix image centering (MARP strips display/margin)
+    fix_layout_tables: bool = True          # fix display:block on layout tables
+    embed_images: bool = False              # embed images as base64 data URIs
+    embed_max_dim: int = 2000               # max pixel dimension for raster images (~200 DPI)
+    embed_jpeg_quality: int = 85            # JPEG quality for embedded rasters
 
     def __post_init__(self):
-        valid = ("md", "pdf", "html", "pptx", "png")
+        valid = ("md", "pdf", "html", "pptx", "png", "both")
         if self.format not in valid:
             raise ValueError(f"Invalid format {self.format!r}, must be one of {valid}")
 
@@ -249,6 +271,7 @@ class PresenterConfig:
     theme: ThemeConfig = field(default_factory=ThemeConfig)
     notes: NotesConfig = field(default_factory=NotesConfig)
     export: ExportConfig = field(default_factory=ExportConfig)
+    postprocess: PostprocessConfig = field(default_factory=PostprocessConfig)
 
     # LLM
     llm: LLMConfig = field(default_factory=LLMConfig)
@@ -357,6 +380,24 @@ class PresenterConfig:
                 "pdf_notes": self.export.pdf_notes,
                 "pdf_outlines": self.export.pdf_outlines,
                 "symlink_assets": self.export.symlink_assets,
+                "center_images": self.export.center_images,
+                "fix_layout_tables": self.export.fix_layout_tables,
+                "embed_images": self.export.embed_images,
+                "embed_max_dim": self.export.embed_max_dim,
+                "embed_jpeg_quality": self.export.embed_jpeg_quality,
+            },
+            "postprocess": {
+                "enabled": self.postprocess.enabled,
+                "rewrite_title": self.postprocess.rewrite_title,
+                "strip_numbers": self.postprocess.strip_numbers,
+                "normalize_dividers": self.postprocess.normalize_dividers,
+                "clean_toc": self.postprocess.clean_toc,
+                "remove_sommaire": self.postprocess.remove_sommaire,
+                "progress_bar": self.postprocess.progress_bar,
+                "chapter_nav": self.postprocess.chapter_nav,
+                "chapter_footer": self.postprocess.chapter_footer,
+                "traceability": self.postprocess.traceability,
+                "logos_dir": self.postprocess.logos_dir,
             },
             "llm": {
                 "backend": self.llm.backend,
@@ -384,6 +425,7 @@ class PresenterConfig:
         to = d.get("table_overflow", {})
         th = d.get("theme", {})
         ex = d.get("export", {})
+        pp = d.get("postprocess", {})
         llm = d.get("llm", {})
         clust = norm.get("clustering", {})
         refine = norm.get("llm_refinement", {})
@@ -492,6 +534,24 @@ class PresenterConfig:
                 pdf_notes=ex.get("pdf_notes", True),
                 pdf_outlines=ex.get("pdf_outlines", True),
                 symlink_assets=ex.get("symlink_assets", False),
+                center_images=ex.get("center_images", True),
+                fix_layout_tables=ex.get("fix_layout_tables", True),
+                embed_images=ex.get("embed_images", False),
+                embed_max_dim=ex.get("embed_max_dim", 2000),
+                embed_jpeg_quality=ex.get("embed_jpeg_quality", 85),
+            ),
+            postprocess=PostprocessConfig(
+                enabled=pp.get("enabled", True),
+                rewrite_title=pp.get("rewrite_title", True),
+                strip_numbers=pp.get("strip_numbers", True),
+                normalize_dividers=pp.get("normalize_dividers", True),
+                clean_toc=pp.get("clean_toc", True),
+                remove_sommaire=pp.get("remove_sommaire", True),
+                progress_bar=pp.get("progress_bar", True),
+                chapter_nav=pp.get("chapter_nav", True),
+                chapter_footer=pp.get("chapter_footer", True),
+                traceability=pp.get("traceability", True),
+                logos_dir=pp.get("logos_dir"),
             ),
             llm=LLMConfig(
                 backend=llm.get("backend", "ollama"),

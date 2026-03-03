@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+header { background: linear-gradient(135deg, #1a237e 0%, #283593 100%); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+header h1 { font-size: 1.25rem; font-weight: 600; }
+header .meta { font-size: 0.8rem; opacity: 0.85; margin-left: auto; }
+.controls { display: flex; gap: 12px; padding: 12px 24px; background: #fff; border-bottom: 1px solid #e0e0e0; flex-wrap: wrap; align-items: center; }
+.controls label { font-size: 0.8rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+.controls input[type="checkbox"] { accent-color: #1a237e; }
+.controls .sep { width: 1px; height: 24px; background: #e0e0e0; }
+.controls .search { padding: 4px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.8rem; width: 200px; }
+#graph-container { width: 100%; height: calc(100vh - 120px); position: relative; }
+svg { width: 100%; height: 100%; }
+.node circle { stroke: #fff; stroke-width: 1.5px; cursor: pointer; }
+.node text { font-size: 10px; fill: #333; pointer-events: none; }
+.link { stroke-opacity: 0.4; fill: none; }
+.tooltip { position: absolute; padding: 8px 12px; background: rgba(0,0,0,0.85); color: #fff; border-radius: 4px; font-size: 0.75rem; pointer-events: none; max-width: 300px; z-index: 10; display: none; }
+.legend { position: absolute; bottom: 16px; left: 16px; background: rgba(255,255,255,0.95); padding: 10px 14px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); font-size: 0.75rem; }
+.legend-item { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.legend-swatch { width: 12px; height: 12px; border-radius: 50%; }
+.stats-badge { background: rgba(255,255,255,0.15); padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>{{ title }}</h1>
+  <span class="stats-badge" id="stats-badge"></span>
+  <span class="meta">Tier: {{ metadata.get('tier', 'S3') if metadata else 'S3' }}</span>
+</header>
+
+<div class="controls" id="controls"></div>
+
+<div id="graph-container">
+  <svg id="graph-svg"></svg>
+  <div class="tooltip" id="tooltip"></div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+// Embedded data from Jinja2
+const graphData = {{ graph_data_json }};
+
+const COLORS = {
+  0: '#1565C0', // doc
+  1: '#2E7D32', // chunk
+  2: '#E65100', // item
+  3: '#6A1B9A', // entity
+  4: '#757575', // other
+};
+const KIND_LABELS = {doc: 'Document', chunk: 'Chunk', item: 'Memory Item', entity: 'Entity'};
+
+const nodes = graphData.nodes || [];
+const links = graphData.links || [];
+const meta = graphData.metadata || {};
+
+// Stats badge
+document.getElementById('stats-badge').textContent =
+  `${nodes.length} nodes \u00b7 ${links.length} edges`;
+
+// Build controls: node kind toggles + edge kind toggles
+const nodeKinds = [...new Set(nodes.map(n => n.kind))].sort();
+const edgeKinds = [...new Set(links.map(l => l.kind))].sort();
+const activeNodeKinds = new Set(nodeKinds);
+const activeEdgeKinds = new Set(edgeKinds);
+
+const controlsEl = document.getElementById('controls');
+
+function addToggle(kind, label, color, set, onChange) {
+  const lbl = document.createElement('label');
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = true;
+  cb.addEventListener('change', () => {
+    if (cb.checked) set.add(kind); else set.delete(kind);
+    onChange();
+  });
+  lbl.appendChild(cb);
+  const swatch = document.createElement('span');
+  if (color) { swatch.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};`; lbl.appendChild(swatch); }
+  lbl.appendChild(document.createTextNode(' ' + label));
+  controlsEl.appendChild(lbl);
+}
+
+nodeKinds.forEach(k => addToggle(k, KIND_LABELS[k] || k, COLORS[nodes.find(n=>n.kind===k)?.group ?? 4], activeNodeKinds, updateVisibility));
+const sep1 = document.createElement('span'); sep1.className = 'sep'; controlsEl.appendChild(sep1);
+edgeKinds.forEach(k => addToggle(k, k, null, activeEdgeKinds, updateVisibility));
+const sep2 = document.createElement('span'); sep2.className = 'sep'; controlsEl.appendChild(sep2);
+const searchInput = document.createElement('input');
+searchInput.className = 'search';
+searchInput.placeholder = 'Search nodes\u2026';
+searchInput.addEventListener('input', updateVisibility);
+controlsEl.appendChild(searchInput);
+
+// Legend
+const legendEl = document.getElementById('legend');
+nodeKinds.forEach(k => {
+  const g = nodes.find(n => n.kind === k)?.group ?? 4;
+  const div = document.createElement('div'); div.className = 'legend-item';
+  const sw = document.createElement('span'); sw.className = 'legend-swatch'; sw.style.background = COLORS[g];
+  const txt = document.createTextNode((KIND_LABELS[k] || k) + ` (${nodes.filter(n=>n.kind===k).length})`);
+  div.appendChild(sw); div.appendChild(txt);
+  legendEl.appendChild(div);
+});
+
+// D3 force simulation
+const svg = d3.select('#graph-svg');
+const width = window.innerWidth;
+const height = window.innerHeight - 120;
+
+const g = svg.append('g');
+
+// Zoom
+svg.call(d3.zoom().scaleExtent([0.1, 8]).on('zoom', (event) => {
+  g.attr('transform', event.transform);
+}));
+
+const linkSel = g.append('g').attr('class', 'links')
+  .selectAll('line').data(links).join('line')
+  .attr('class', 'link')
+  .attr('stroke', '#999')
+  .attr('stroke-width', d => Math.sqrt(d.weight || 1));
+
+const nodeSel = g.append('g').attr('class', 'nodes')
+  .selectAll('g').data(nodes).join('g')
+  .attr('class', 'node')
+  .call(d3.drag()
+    .on('start', dragstarted)
+    .on('drag', dragged)
+    .on('end', dragended));
+
+nodeSel.append('circle')
+  .attr('r', d => d.kind === 'entity' ? 4 : d.kind === 'doc' ? 8 : 6)
+  .attr('fill', d => COLORS[d.group] || COLORS[4]);
+
+nodeSel.append('text')
+  .attr('dx', 10).attr('dy', 4)
+  .text(d => d.label?.substring(0, 30) || d.id);
+
+// Tooltip
+const tooltip = document.getElementById('tooltip');
+nodeSel.on('mouseover', (event, d) => {
+  tooltip.style.display = 'block';
+  tooltip.innerHTML = `<strong>${d.label || d.id}</strong><br>Kind: ${d.kind}<br>ID: ${d.id}` +
+    (d.item_id ? `<br>Item: ${d.item_id}` : '');
+}).on('mousemove', (event) => {
+  tooltip.style.left = (event.pageX + 12) + 'px';
+  tooltip.style.top = (event.pageY - 12) + 'px';
+}).on('mouseout', () => { tooltip.style.display = 'none'; });
+
+const simulation = d3.forceSimulation(nodes)
+  .force('link', d3.forceLink(links).id(d => d.id).distance(60))
+  .force('charge', d3.forceManyBody().strength(-80))
+  .force('center', d3.forceCenter(width / 2, height / 2))
+  .force('collision', d3.forceCollide().radius(12))
+  .on('tick', ticked);
+
+function ticked() {
+  linkSel.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+         .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+  nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+}
+
+function dragstarted(event, d) {
+  if (!event.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x; d.fy = d.y;
+}
+function dragged(event, d) { d.fx = event.x; d.fy = event.y; }
+function dragended(event, d) {
+  if (!event.active) simulation.alphaTarget(0);
+  d.fx = null; d.fy = null;
+}
+
+function updateVisibility() {
+  const q = searchInput.value.toLowerCase();
+  nodeSel.style('display', d => {
+    if (!activeNodeKinds.has(d.kind)) return 'none';
+    if (q && !(d.label || '').toLowerCase().includes(q) && !d.id.toLowerCase().includes(q)) return 'none';
+    return null;
+  });
+  const visibleIds = new Set();
+  nodeSel.each(function(d) { if (this.style.display !== 'none') visibleIds.add(d.id); });
+  linkSel.style('display', d => {
+    const sid = typeof d.source === 'object' ? d.source.id : d.source;
+    const tid = typeof d.target === 'object' ? d.target.id : d.target;
+    if (!activeEdgeKinds.has(d.kind)) return 'none';
+    if (!visibleIds.has(sid) || !visibleIds.has(tid)) return 'none';
+    return null;
+  });
+}
+</script>
+</body>
+</html>

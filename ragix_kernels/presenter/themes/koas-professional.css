@@ -38,9 +38,17 @@ section {
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     color: var(--koas-text);
     background-color: var(--koas-bg);
-    font-size: 26px;
+    font-size: 22px !important;
     line-height: 1.5;
-    padding: 50px 60px 40px 60px;
+    padding: 50px 60px 60px 60px;
+}
+
+/* Page numbers — discrete, bottom-right.
+ * !important required: MARP re-emits default theme's `section:after { font-size:24px }`
+ * after our rules (same specificity), defeating the cascade. */
+section::after {
+    font-size: 12px !important;
+    color: #999 !important;
 }
 
 /* ---------------------------------------------------------------------------
@@ -56,7 +64,7 @@ section h1 {
 section h2 {
     color: var(--koas-primary);
     font-weight: 600;
-    font-size: 1.3em;
+    font-size: 1.5em !important;
     border-bottom: 2px solid var(--koas-border);
     padding-bottom: 0.2em;
     margin-bottom: 0.5em;
@@ -65,7 +73,7 @@ section h2 {
 section h3 {
     color: var(--koas-text);
     font-weight: 600;
-    font-size: 1.1em;
+    font-size: 1.15em !important;
 }
 
 /* ---------------------------------------------------------------------------
@@ -159,7 +167,7 @@ section li::marker {
 section table {
     width: auto;
     border-collapse: collapse;
-    font-size: 0.85em;
+    font-size: 0.82em !important;
     margin: 0.5em 0;
 }
 
@@ -185,6 +193,13 @@ section table tr:hover {
     background-color: #e8f0fe;
 }
 
+/* Tables inside layout cells are left-aligned via <style scoped> injected
+ * per-slide by the postprocessor. MARP strips class, data-*, and `table table`
+ * selectors from both theme CSS and <style> blocks. Scoped styles survive
+ * because MARP adds a slide-specific attribute selector, giving higher
+ * specificity than global rules. See expand_layout_directives() in
+ * marp_postprocess.py. */
+
 /* ---------------------------------------------------------------------------
  * Code blocks
  * --------------------------------------------------------------------------- */
@@ -193,7 +208,7 @@ section code {
     color: var(--koas-text);
     padding: 0.15em 0.4em;
     border-radius: 4px;
-    font-size: 0.88em;
+    font-size: 0.85em !important;
     font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 }
 
@@ -202,7 +217,7 @@ section pre {
     border: 1px solid var(--koas-border);
     border-radius: 6px;
     padding: 16px 20px;
-    font-size: 0.78em;
+    font-size: 0.75em !important;
     line-height: 1.5;
     overflow-x: auto;
 }
@@ -224,6 +239,7 @@ section blockquote {
     background-color: var(--koas-bg-alt);
     color: var(--koas-text-light);
     font-style: italic;
+    font-size: 0.88em !important;
 }
 
 section blockquote p {
@@ -237,6 +253,10 @@ section img {
     max-height: 70%;
     object-fit: contain;
 }
+/* Image centering (display:block + margin:auto) is applied by
+ * center_images_in_html() as HTML post-processing AFTER marp-cli.
+ * MARP strips display/margin from ALL img-targeting CSS rules
+ * (theme, <style>, inline style, even with !important). */
 
 /* Inline figure layout (v1.2 — all images rendered inline, no MARP bg cropping) */
 
@@ -286,6 +306,24 @@ section .figure-full img {
     object-fit: contain;
 }
 
+/* Figure captions (v1.3) */
+/* Landscape/full → bottom-centered caption */
+section .figure-landscape + .fig-caption,
+section .figure-full + .fig-caption {
+    font-size: 0.58em;
+    color: var(--koas-text-light);
+    font-style: italic;
+    text-align: center;
+    margin-top: 0.3em;
+}
+/* Portrait → flows with text (right side) */
+section .figure + .fig-caption {
+    font-size: 0.58em;
+    color: var(--koas-text-light);
+    font-style: italic;
+    margin-top: 0.3em;
+}
+
 /* Table density scaling (v1.1) */
 section .table-small table {
     font-size: 0.65em;
@@ -304,6 +342,10 @@ section .table-tiny th,
 section .table-tiny td {
     padding: 3px 6px;
 }
+
+/* Prevent cascading font-size from making tables unreadable (v1.3) */
+section .table-small table { font-size: max(0.65em, 13px); }
+section .table-tiny table  { font-size: max(0.50em, 11px); }
 
 /* ---------------------------------------------------------------------------
  * Links

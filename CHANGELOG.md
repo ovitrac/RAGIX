@@ -6,6 +6,47 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.71.0 — Presenter v2.1, Maven Graph Fix & Documentation Sync (2026-03-03)
+
+### Highlights
+
+**RAGIX v0.71.0 syncs the Presenter pipeline to v2.1 (24-transform MARP post-processing, layout directives, hand-crafted presentation workflow, typography refinement), fixes Maven dependency graph visualization with staircase layout to prevent label overlap, and updates KOAS_PRESENTER documentation from v1.2 to v2.1.**
+
+| Feature | Status |
+|---------|--------|
+| Presenter pipeline v2.1 (synced from dev machine) | `config.py`, `pres_marp_export.py`, `koas-professional.css` updated |
+| Typography configuration reference | New `koas-typography.yaml` |
+| MARP post-processor doubled in scope | `marp_postprocess.py` — 3,149 LOC (was 1,739), 24 transforms |
+| Maven graph staircase layout | `maven_graph.py` — prevents label overlap in dense layers |
+| KOAS_PRESENTER docs v2.1 | `docs/KOAS_PRESENTER.md` — 1,198 lines (was 932) |
+
+### Changed: Presenter Pipeline v2.1
+
+Synced from development machine — reflects 3 weeks of active development:
+
+- **`config.py`** (27K): new `ExportConfig` fields for HTML post-processing (`center_images`, `fix_layout_tables`, `embed_images`), `--postprocess`/`--toc` CLI flags, `--logos-dir` option
+- **`pres_marp_export.py`** (15K): HTML post-processing integration (image centering, layout table fix, base64 embedding), `--html` flag for PDF export
+- **`koas-professional.css`** (11K, ~410 lines): base font 26→22px, h2 ratio 1.5:1, blockquote 0.88em, page numbers 12px, bottom padding 40→60px, `!important` overrides for MARP specificity
+- **`koas-typography.yaml`** (new): typography hierarchy and layout parameter reference
+- **`marp_postprocess.py`** (111K, 3,149 LOC): 24-transform deterministic pipeline (was 1,739 LOC), layout directives (`[I,T]`, `[T,I]`, `[I;T]`, `[I,I;t,t]`), image dimension probing, idempotency guard, HTML post-processing functions
+
+### Fixed: Maven Dependency Graph Visualization
+
+- **Staircase layout** in `_hierarchical_layout()`: nodes within each layer cycle through 5 vertical sub-positions (offset ±0.6 units), preventing text label overlap in layers with many nodes (e.g., 19 nodes in IOWIZME layers 0–2)
+- **Layer gap** increased from 2.0 to 3.0 to accommodate staircase amplitude
+- **Legend** repositioned from upper-left to bottom-center (horizontal row)
+- **Regeneration script**: `report/assets/update/regenerate_fig08.py` for IOWIZME audit
+
+### Updated: KOAS_PRESENTER Documentation
+
+- `docs/KOAS_PRESENTER.md` updated from v1.2.0 to v2.1.0 (932 → 1,198 lines)
+- New §12: MARP Post-Processing & HTML Export (24 transforms table, layout directives, build pipeline)
+- New SAT-AUDIT production benchmark (hand-crafted workflow)
+- 5 new version changelog entries (v1.3.0–v2.1.0)
+- 3 new design decisions (D13–D15)
+
+---
+
 ## v0.70.0 — Claude Code Integration: Installer, Hooks & Component Manifest (2026-02-20)
 
 ### Highlights

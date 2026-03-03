@@ -1,9 +1,9 @@
 # KOAS Presenter — Slide Deck Generation from Documents
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Version:** 1.2.0
-**Date:** 2026-02-12
-**Status:** Production (deterministic pipeline) | LLM normalizer: Phase 1 (deterministic heuristics) | Compression: v1.2 | Layout Intelligence: v1.2
+**Version:** 2.1.0
+**Date:** 2026-03-03
+**Status:** Production (deterministic pipeline) | LLM normalizer: Phase 1 (deterministic heuristics) | Compression: v1.2 | Layout Intelligence: v1.2 | Typography & HTML Post-Processing: v2.0 | Hand-crafted presentations: v2.1
 
 ---
 
@@ -20,12 +20,13 @@
 9. [Slide Planning: Budget, Deduplication, and Filtering](#slide-planning-budget-deduplication-and-filtering)
 10. [Compression Modes (v1.2)](#compression-modes-v12)
 11. [Layout Intelligence (v1.2)](#layout-intelligence-v12)
-12. [Design Decisions](#design-decisions)
-13. [Production Benchmark: ACME-ERP Audit](#production-benchmark-acme_erp-audit)
-14. [Requirements](#requirements)
-15. [Implementation Status](#implementation-status)
-16. [Future Directions](#future-directions)
-17. [Related Documentation](#related-documentation)
+12. [MARP Post-Processing & HTML Export (v2.0)](#marp-post-processing--html-export-v20)
+13. [Design Decisions](#design-decisions)
+14. [Production Benchmarks](#production-benchmarks)
+15. [Requirements](#requirements)
+16. [Implementation Status](#implementation-status)
+17. [Future Directions](#future-directions)
+18. [Related Documentation](#related-documentation)
 
 ---
 
@@ -46,7 +47,7 @@ python -m ragix_kernels.presenter.cli.presenterctl render ./report/ \
   --format both --theme koas-professional --compression executive
 ```
 
-**Codebase:** 23 files, ~9,100 lines (8 kernels, 26 dataclasses, 9 enums, 3 CLI subcommands, 3 MCP tools, 1 custom theme, 3 test suites). v1.2 adds compression modes and layout intelligence.
+**Codebase:** 25 files, ~12,300 lines (8 kernels + shared post-processor, 26 dataclasses, 9 enums, 3 CLI subcommands, 3 MCP tools, 1 custom theme + typography config, 3 test suites). v2.0 adds 24-transform MARP post-processing, layout directives, and HTML export enhancements. v2.1 adds hand-crafted presentation workflow with companion handout generation and review integration.
 
 ### Core Architectural Principles
 
@@ -354,6 +355,9 @@ OPTIONS:
   --section-order <order>      document | narrative (default: document)
   -f, --format <fmt>           md | pdf | html | both (default: md)
   --theme <name>               Theme: default | gaia | koas-professional (default: koas-professional)
+  --toc / --no-toc             Enable/disable TOC slide generation (default: on) [v1.2.2]
+  --postprocess / --no-postprocess  Enable/disable post-processing pipeline (default: on) [v1.3]
+  --logos-dir <path>           Directory containing logo images (PNG/JPG) [v1.3]
   -v, --verbose                Verbose logging
 ```
 
@@ -468,7 +472,7 @@ All tools return standardized dicts:
 
 ### `koas-professional` Theme
 
-**Source:** `ragix_kernels/presenter/themes/koas-professional.css` (~300 lines)
+**Source:** `ragix_kernels/presenter/themes/koas-professional.css` (~410 lines)
 
 Extends `@import 'default'` with a professional corporate palette:
 
@@ -500,7 +504,7 @@ Extends `@import 'default'` with a professional corporate palette:
 | `.table-small` | Dense table scaling (font-size 0.65em, compact padding) |
 | `.table-tiny` | Very dense table scaling (font-size 0.50em, minimal padding) |
 
-**Typography:** Inter/Segoe UI (body), JetBrains Mono/Fira Code (code).
+**Typography (v2.0):** Inter/Segoe UI (body), JetBrains Mono/Fira Code (code). Base font: 22px (was 26px). h2: 1.5em (33px). Blockquote: 0.88em (19.4px). Page numbers: 12px. Tables: 0.82em base. All font-size rules use `!important` (MARP `@import 'default'` re-emits rules with identical specificity; only `!important` reliably wins).
 
 ### Custom Theme Development
 
@@ -514,7 +518,8 @@ Themes must style all 12 slide types. The MARP renderer emits `<!-- _class: X --
 
 ```
 ragix_kernels/presenter/themes/
-+-- koas-professional.css   # Corporate identity (implemented)
++-- koas-professional.css   # Corporate identity (implemented, ~410 lines)
++-- koas-typography.yaml    # Typography hierarchy & layout parameter reference
 ```
 
 ---
@@ -707,7 +712,175 @@ only `pres_slide_plan`). The catalog provides image dimensions for aspect-ratio 
 
 ---
 
-## 12. Design Decisions
+## 12. MARP Post-Processing & HTML Export (v2.0)
+
+The v2.0 release introduces a deterministic post-processing pipeline and HTML export
+enhancements that solve three classes of MARP rendering issues: image centering, layout
+table collapse, and asset portability.
+
+**Source:** `ragix_kernels/shared/marp_postprocess.py` (~3,150 lines, 24 transforms)
+
+### Problem: MARP CSS Specificity
+
+MARP prefixes all theme CSS selectors with `div#\:\$p > svg > foreignobject > section`,
+giving them specificity **(1, 0, 5)**. This defeats:
+
+- Global `<style>` blocks (specificity ~(0, 0, 2))
+- Scoped `<style scoped>` blocks
+- CSS classes defined in the theme
+
+**Only inline `style` attributes** reliably override the theme at render time. The
+post-processing pipeline injects these inline styles at the Markdown level (before
+marp-cli), ensuring fixes apply to both HTML and PDF output.
+
+### Post-Processing Transforms (24 steps)
+
+| # | Transform | Version | Purpose |
+|---|-----------|---------|---------|
+| 0 | `strip_postprocess_artifacts` | v1.5 | Idempotency guard (removes prior injections) |
+| 1 | `rewrite_title_slide` | v1.0 | Styled title with metadata |
+| 2 | `strip_heading_numbers` | v1.0 | Remove "1.2.3" section prefixes |
+| 3 | `strip_heading_pipes` | v1.5 | Remove `## \| Title` pipe artifacts |
+| 4 | `normalize_section_dividers` | v1.0 | "Chapitre N — Title" format |
+| 5 | `renumber_chapters` | v1.4 | Sequential `Chapitre N` numbering after "# Other" removal |
+| 6 | `strip_source_comments` | v1.0 | Remove provenance `<!-- source: ... -->` comments |
+| 7 | `strip_navigation_rapide` | v1.4 | Remove `> **Navigation rapide** : ...` blockquotes |
+| 8 | `fix_singleton_numbered_lists` | v1.0 | "1." → "-" (single-item lists) |
+| 9 | `remove_trailing_sommaire` | v1.0 | Drop trailing TOC artifacts |
+| 10 | `remove_garbled_sommaire` | v1.5 | Remove lead+content garbled Sommaire blocks |
+| 11 | `remove_empty_chapter_dividers` | v1.5 | Drop consecutive section dividers (empty chapters) |
+| 12 | `clean_toc_slide` | v1.0 | Format table of contents (v1.5: pipe stripping, Sommaire detection) |
+| 13 | `layout_preprocess` | v2.0 | Image dimension probing, shape classification, auto-layout |
+| 14 | `expand_layout_directives` | v2.0 | `[I,T]`/`[T,I]`/`[I;T]`/`[I,I;t,t]` → inline HTML tables |
+| 15 | `compact_layout_slides` | v2.0 | Reduce vertical padding on layout-directive slides |
+| 16 | `auto_classify_tables` | v1.0 | `table-small`/`table-tiny` CSS classes |
+| 17 | `auto_constrain_figure_slides` | v1.3 | Scoped `max-height` for figure+text slides |
+| 18 | `auto_shrink_dense_slides` | v1.3 | Font-size reduction for text-heavy slides (TOC exempt, cascading cap) |
+| 19 | `inject_progress_bar` | v1.0 | Orange progress bar (CSS counter) |
+| 20 | `inject_chapter_nav` | v1.0 | Chapter navigation overlay |
+| 21 | `inject_chapter_footer` | v1.0 | Footer with chapter name |
+| 22 | `inject_traceability_slide` | v1.0 | Provenance metadata slide |
+| 23 | `inject_logos` | v1.0 | Company logos on lead slides |
+
+### Layout Directives
+
+Authors can use shorthand HTML comments instead of hand-crafting inline HTML tables.
+The `expand_layout_directives` transform (step 8) expands these into full inline-style
+HTML with `display:table !important` to survive MARP's CSS sanitization.
+
+**Syntax:**
+
+```markdown
+<!-- layout: [I,T] -->
+<!-- I: assets/diagram.svg | alt: Architecture | h: 400px -->
+
+**Text content** goes here — tables, lists, paragraphs.
+
+<!-- /layout -->
+```
+
+**Supported layouts:**
+
+| Directive | Pattern | Description |
+|-----------|---------|-------------|
+| `[I,T]` | Side-by-side | Image left (38%), text right (62%) |
+| `[T,I]` | Side-by-side reversed | Text left, image right |
+| `[I;T]` | Vertical stack | Image on top (constrained height), text below |
+| `[I,I;t,t]` | 2×2 grid | Two images top row, two text blocks bottom |
+
+**Image parameters:** `<!-- I: path | alt: text | h: NNNpx | w: NN% -->`
+
+### Layout Pre-Processing (Image Dimension Probing)
+
+The `layout_preprocess()` function (called before `postprocess_marp()`) probes image
+dimensions to auto-detect optimal layout:
+
+- Portrait images (h/w > 1.2) → `[I,T]` side-by-side
+- Landscape images (w/h > 1.5) → `[I;T]` vertical stack
+- Multiple images per slide → `[I,I;t,t]` grid
+
+This allows the pipeline to start from a plain Markdown file with `![](image.png)`
+references and auto-generate appropriate layout directives.
+
+### HTML Post-Processing (after marp-cli)
+
+Three functions fix issues that can only be addressed in the final HTML output:
+
+| Step | Function | Purpose |
+|------|----------|---------|
+| 1 | `center_images_in_html()` | MARP strips `display:block`/`margin:auto` — re-injects centering |
+| 2 | `fix_layout_tables_in_html()` | MARP sets `display:block` on `<table>` — restores `display:table` |
+| 3 | `embed_images_in_html()` | Base64 data URIs for self-contained HTML (no external assets) |
+
+**Image embedding details:**
+- Raster images downscaled to max 2,000px (≈200 DPI on 16:9 slides)
+- Transparent PNGs stay PNG; opaque images convert to JPEG (quality 85)
+- SVGs embedded as `data:image/svg+xml;base64,...`
+- Requires Pillow (`PIL`) for raster processing
+
+### `_TABLE_BASE` — Layout Table Inline Styles
+
+All layout tables use a shared constant for inline styles:
+
+```
+display:table !important;border:none;border-collapse:collapse;
+width:100%;margin:0;background:transparent
+```
+
+The `display:table !important` is critical: without it, MARP's theme CSS sets
+`display:block` on `<table>` elements, causing `<tr>` to shrink to content width
+instead of spanning the full slide. This fix works in both HTML and PDF because the
+inline style is present in the Markdown source, surviving Puppeteer rendering.
+
+### Integration in `pres_marp_export.py` (v2.0.0)
+
+The export kernel now calls HTML post-processing automatically after marp-cli:
+
+```python
+# ExportConfig fields (v2.0)
+center_images: bool = True           # Fix image centering
+fix_layout_tables: bool = True       # Fix display:block → display:table
+embed_images: bool = False           # Base64 embedding (large file size)
+embed_max_dim: int = 2000            # Max pixel dimension for raster images
+embed_jpeg_quality: int = 85         # JPEG quality for opaque images
+```
+
+The `--html` flag is now passed to marp-cli for PDF export as well, ensuring HTML tags
+in Markdown (layout tables, styled divs) are rendered correctly in PDF output.
+
+### Build Pipeline (Standalone Mode)
+
+For hand-crafted presentations (outside the `presenterctl` pipeline), a `build.sh`
+script orchestrates the full build:
+
+```
+presentation.md
+  │ (auto-refresh .bak when source changes)
+  ▼
+presentation.md.bak
+  │ (layout_preprocess — image dimension probing)
+  ▼
+presentation_layout.md        ◄── optional manual review
+  │ (postprocess_marp — 16 deterministic transforms)
+  ▼
+presentation_pp.md
+  │ (npx @marp-team/marp-cli)
+  ▼
+presentation_postprocessed.html
+  │ (center_images + fix_layout_tables + embed_images)
+  ▼
+Self-contained HTML + PDF
+```
+
+Key build features:
+- Auto-refresh `.bak` from `presentation.md` when source is newer
+- Stale layout file invalidation when source changes
+- Default pipeline: source → layout → postprocess → HTML + PDF (embedded images)
+- Two-step review: `--layout-only` generates layout for manual tuning, `--from-layout` rebuilds
+
+---
+
+## 13. Design Decisions
 
 | # | Decision | Rationale |
 |---|----------|-----------|
@@ -723,10 +896,15 @@ only `pres_slide_plan`). The catalog provides image dimensions for aspect-ratio 
 | D10 | Three compression modes (full/compressed/executive) | Same corpus, three audience levels, zero LLM cost |
 | D11 | All-inline image rendering | Eliminates MARP bg cropping; CSS classes for portrait/landscape/full |
 | D12 | Table density CSS classes | Large tables remain readable without manual sizing |
+| D13 | `display:table !important` in Markdown source | Survives Puppeteer PDF rendering; fixes HTML and PDF in one place |
+| D14 | HTML post-processing after marp-cli | Image centering and layout table fixes cannot be done at Markdown level (MARP strips them) |
+| D15 | Base64 image embedding as opt-in | Self-contained HTML for sharing; large file size trade-off (~5-10x) |
 
 ---
 
-## 13. Production Benchmark: ACME-ERP Audit
+## 14. Production Benchmarks
+
+### Production Benchmark: ACME-ERP Audit (Auto-Generated)
 
 Full pipeline run on a 14-document French technical audit report (2,831 units, 149K tokens, 27 SVG figures).
 
@@ -734,7 +912,7 @@ Full pipeline run on a 14-document French technical audit report (2,831 units, 1
 
 | Metric | Value |
 |--------|-------|
-| Source folder | `/home/olivi/Documents/Adservio/audit/ACME-ERP/report/` |
+| Source folder | `<audit_workspace>/ACME-ERP/report/` |
 | Documents | 14 Markdown files |
 | Total files | 41 (14 docs, 27 assets) |
 | Semantic units | 2,831 |
@@ -802,22 +980,58 @@ Full pipeline run on a 14-document French technical audit report (2,831 units, 1
 | Ch.12 Annexes | 5 | 2 | 0 | 7 |
 | **Total** | **56** | **26** | **24** | **106** |
 
+### Production Benchmark: SAT-AUDIT Restitution (Hand-Crafted)
+
+The SAT-AUDIT project demonstrates the **hand-crafted presentation workflow** — where the
+pipeline acts as a post-processing and export layer for manually authored MARP Markdown,
+rather than generating slides from a document corpus.
+
+**Context:** 30-slide restitution for a Java application separation audit, derived from
+a 4,359-line technical report and a 1,430-line architecture appendix.
+
+| Metric | Value |
+|--------|-------|
+| Source | `presentation.md` — 770 lines, hand-crafted MARP Markdown |
+| Report | Technical audit report — 4,359 lines, 13 sections + 8 annexes |
+| Assets | 31 files (22 SVGs + 6 PNGs + 3 logos) |
+| Slides | 35 (30 content + TOC + section dividers + traceability) |
+| Layout directives | 12 (5 manual `[I,T]` + 7 auto-detected) |
+| Images centered (HTML post-processing) | 18 |
+| HTML size | ~200 KB |
+| Build time | ~1s HTML-only, ~3s HTML+PDF |
+
+**Companion deliverables:**
+
+| Deliverable | File | Description |
+|-------------|------|-------------|
+| Handout/Glossary | `handout_glossaire.md` | 179 lines, ~80 acronyms in 8 sections, printable 3-4 A4 pages |
+| Changelog | `CHANGELOG.md` | Version history (v2, v1 enrichie, v1, handout) |
+
+**Hand-crafted workflow features:**
+
+- **Two-step build pipeline**: `.bak` → `layout_preprocess()` → `postprocess_marp()` → marp-cli → HTML post-processing
+- **Review integration**: diff reviewer's file, cherry-pick fixes only, preserve enrichments
+- **Handout generation**: standalone glossary document extracted from source report (~80 curated acronyms from 200+)
+- **Layout directives**: authors write `<!-- layout: [I,T] -->` shorthand instead of 15-attribute inline HTML
+- **Build flags**: `--layout-only` (review), `--from-layout` (rebuild), `--no-auto-layout`, `--embed`
+
 ---
 
-## 14. Requirements
+## 15. Requirements
 
 - Python 3.10+
 - `marp-cli` for PDF/HTML export (`npx @marp-team/marp-cli` or `npm install -g @marp-team/marp-cli`)
 - Chromium/Chrome for PDF export (Puppeteer, used by marp-cli)
 - Optional: `sentence-transformers` + `hdbscan` for embedding-based clustering (LLM mode)
 - Optional: Ollama for LLM-assisted normalization
+- Optional: Pillow (`PIL`) for base64 image embedding in HTML export (v2.0)
 
 **Fallback:** Without `marp-cli`, the pipeline produces valid MARP Markdown (`.md`)
 that can be opened in VS Code with the Marp extension.
 
 ---
 
-## 15. Implementation Status
+## 16. Implementation Status
 
 ### Milestones
 
@@ -833,7 +1047,59 @@ that can be opened in VS Code with the Marp extension.
 | **M7** | MCP integration: 3 tools (`presenter_render`, `presenter_export`, `presenter_status`) | **Done** |
 | **M9** | **v1.2 Layout Intelligence**: all-inline image rendering, table density CSS classes, path-based lookup | **Done** |
 | **M10** | **v1.2 Structural Compression**: 3 modes (`full`/`compressed`/`executive`), annex exclusion, global dedupe, per-section cap, executive role filter | **Done** |
+| **M11** | **v2.0 MARP Post-Processing & HTML Export**: 24-transform pipeline, layout directives, HTML post-processing (image centering, layout table fix, base64 embedding), `pres_marp_export` v2.0.0, standalone build pipeline | **Done** |
+| **M12** | **v2.1 Hand-Crafted Presentation Workflow**: companion handout generation, review integration (diff + cherry-pick), layout directives for manual authoring, two-step build pipeline | **Done** |
 | M8 | Editable PPTX via `python-pptx` (S3-alt renderer) | Planned |
+
+### v2.1.0 — Hand-Crafted Presentation Workflow (2026-03-03)
+
+- **Hand-crafted presentation support**: the pipeline now works as a post-processing and export layer for manually authored MARP Markdown, not just auto-generated slide decks
+- **Companion handout generation**: standalone glossary/aide-mémoire documents extracted from the source report, with curated acronym lists organized by domain (e.g., ~80 acronyms from a 200+ extraction)
+- **Review integration workflow**: unified diff of reviewer's changes, selective cherry-picking of fixes (terminology, accents, factual corrections) while preserving layout and enrichments
+- **Changelog tracking**: structured version history with per-slide change references
+- **Production validation**: SAT-AUDIT restitution — 35 slides, 12 layout directives (5 manual + 7 auto), 31 assets, ~200K HTML
+- **Typography refinement**: base font 26→22px, h2 ratio 1.3→1.5:1 over body, blockquote 0.88em, page numbers 12px
+- **`koas-typography.yaml`**: configuration reference file documenting the full typography hierarchy and layout parameters
+
+### v2.0.0 — MARP Post-Processing & HTML Export (2026-03-03)
+
+- **24-transform deterministic pipeline** in `marp_postprocess.py` (~3,150 lines, zero LLM)
+- **Layout directives**: `[I,T]`, `[T,I]`, `[I;T]`, `[I,I;t,t]` → inline HTML tables with `display:table !important`
+- **Layout pre-processing**: image dimension probing, shape classification, auto-layout assignment
+- **HTML post-processing** (3 functions integrated into `pres_marp_export.py` v2.0.0):
+  - `center_images_in_html()` — fix MARP stripping `display:block`/`margin:auto`
+  - `fix_layout_tables_in_html()` — restore `display:table` (MARP sets `display:block`)
+  - `embed_images_in_html()` — base64 data URIs for self-contained HTML
+- **`_TABLE_BASE` with `display:table !important`** — fixes layout tables in both HTML and PDF
+- **`ExportConfig` v2.0**: 5 new fields (`center_images`, `fix_layout_tables`, `embed_images`, `embed_max_dim`, `embed_jpeg_quality`)
+- **`run_marp_cli()` fix**: passes `--html` flag for PDF export (enables HTML tags in MARP Markdown)
+- **Standalone build pipeline**: auto-refresh `.bak`, stale layout invalidation, default embedded HTML
+- **SAT-AUDIT restitution**: 35 slides, self-contained HTML, embedded images
+
+### v1.5.0 — Idempotency & Content Cleanup (2026-03-02)
+
+- **`strip_postprocess_artifacts()`** — idempotency guard at pipeline start; strips previously injected progress bars, chapter nav, footer, CSS, scoped styles
+- **`strip_heading_pipes()`** — removes `## | Title` pipe artifacts
+- **`remove_garbled_sommaire()`** — removes lead+content garbled Sommaire blocks with self-refs
+- **`remove_empty_chapter_dividers()`** — drops consecutive section dividers (empty chapters), triggers `renumber_chapters()`
+- **`clean_toc_slide()`** v1.5: `## Sommaire` detection, pipe artifact + bold marker stripping from TOC entries
+- **Pipeline robustness**: `_parse_marp()`/`_join_marp()` replaces `str.split("---")` for artifact-resilient slide parsing
+
+### v1.4.0 — Content Cleanup Transforms (2026-03-02)
+
+- **`strip_navigation_rapide()`** — removes `> **Navigation rapide** : ...` blockquotes (document cross-refs); drops heading-only slides emptied after removal
+- **`renumber_chapters()`** — 2 bug fixes: "# Other" detection checks ANY line in slide; single-pass `re.sub` with callback prevents double-rename on overlapping chapter numbers
+- **`normalize_section_dividers()`** — strips bold markers (`**`) from titles
+- **`_BARE_NUM_HEADING_RE`** regex extended to match `# N | Title` pipe separator format
+
+### v1.3.0 — Layout Fixes (2026-03-01)
+
+- **`auto_constrain_figure_slides()`** — scoped `max-height` (38vh/42vh/55vh) for figure+text slides preventing overflow
+- **`auto_shrink_dense_slides()`** — TOC exemption + cascading shrink cap (0.88em for table slides)
+- **Table readability**: `_TABLE_SCALE` harmonized with `max()` floors; `table-small` 0.65em, `table-tiny` 0.50em
+- **`_PROGRESS_CSS`** baselines: landscape 44vh, portrait 48vh, full 62vh
+- **`koas-professional.css`**: bottom padding 40→60px, `.fig-caption` class
+- **Pipeline integration**: `postprocess_marp()` called automatically in `pres_marp_export.py`; `--postprocess/--no-postprocess` CLI flag
 
 ### v1.2.1 — All-Inline Image Rendering (2026-02-13)
 
@@ -880,7 +1146,7 @@ that can be opened in VS Code with the Marp extension.
 
 ---
 
-## 16. Future Directions
+## 17. Future Directions
 
 ### M5 Phase 2 — LLM-Assisted Normalization
 
@@ -921,7 +1187,7 @@ Planned CSS themes to complement `koas-professional`:
 
 ---
 
-## 17. Related Documentation
+## 18. Related Documentation
 
 | Document | Description |
 |----------|-------------|

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+header { background: linear-gradient(135deg, #1a237e 0%, #283593 100%); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+header h1 { font-size: 1.25rem; font-weight: 600; }
+header .stats { font-size: 0.8rem; opacity: 0.85; margin-left: auto; }
+.filters { display: flex; gap: 12px; padding: 12px 24px; background: #fff; border-bottom: 1px solid #e0e0e0; flex-wrap: wrap; align-items: center; }
+.filters select, .filters input { padding: 4px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.8rem; }
+.filters input[type="text"] { width: 220px; }
+.filters label { font-size: 0.8rem; font-weight: 500; }
+.layout { display: flex; height: calc(100vh - 110px); }
+.table-panel { flex: 1; overflow: auto; padding: 0; }
+.detail-panel { width: 360px; background: #fff; border-left: 1px solid #e0e0e0; overflow-y: auto; padding: 16px; display: none; }
+.detail-panel.active { display: block; }
+.detail-panel h2 { font-size: 1rem; margin-bottom: 12px; color: #1a237e; }
+.detail-panel .field { margin-bottom: 10px; }
+.detail-panel .field-label { font-size: 0.7rem; text-transform: uppercase; color: #888; font-weight: 600; margin-bottom: 2px; }
+.detail-panel .field-value { font-size: 0.85rem; word-break: break-word; }
+.detail-panel .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.detail-panel .tag { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+thead { position: sticky; top: 0; background: #f5f7fa; z-index: 2; }
+th { text-align: left; padding: 8px 10px; border-bottom: 2px solid #e0e0e0; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; color: #666; cursor: pointer; white-space: nowrap; user-select: none; }
+th:hover { color: #1a237e; }
+th .arrow { font-size: 0.6rem; margin-left: 3px; }
+td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+tr { cursor: pointer; }
+tr:hover { background: #e8eaf6; }
+tr.selected { background: #c5cae9; }
+.tier-badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; }
+.tier-stm { background: #fff3e0; color: #e65100; }
+.tier-mtm { background: #e3f2fd; color: #1565c0; }
+.tier-ltm { background: #e8f5e9; color: #2e7d32; }
+.type-badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 0.65rem; background: #f3e5f5; color: #6a1b9a; }
+.confidence-bar { display: inline-block; width: 40px; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden; vertical-align: middle; }
+.confidence-fill { height: 100%; background: #4caf50; border-radius: 3px; }
+.empty-state { text-align: center; padding: 60px 20px; color: #999; font-size: 1rem; }
+#item-count { background: rgba(255,255,255,0.15); padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>{{ title }}</h1>
+  <span id="item-count"></span>
+  <span class="stats">
+    {% if metadata %}Active: {{ metadata.get('total_active', 0) }}{% endif %}
+  </span>
+</header>
+
+<div class="filters" id="filters">
+  <label>Tier <select id="filter-tier"><option value="">All</option></select></label>
+  <label>Type <select id="filter-type"><option value="">All</option></select></label>
+  <label>Validation <select id="filter-validation"><option value="">All</option><option value="verified">Verified</option><option value="unverified">Unverified</option><option value="quarantined">Quarantined</option></select></label>
+  <input type="text" id="filter-search" placeholder="Search title, tags, entities...">
+  <label style="margin-left:auto;font-size:0.75rem;color:#888;" id="showing-label"></label>
+</div>
+
+<div class="layout">
+  <div class="table-panel">
+    <table id="items-table">
+      <thead>
+        <tr>
+          <th data-col="title">Title <span class="arrow"></span></th>
+          <th data-col="tier">Tier <span class="arrow"></span></th>
+          <th data-col="type">Type <span class="arrow"></span></th>
+          <th data-col="scope">Scope <span class="arrow"></span></th>
+          <th data-col="confidence">Conf <span class="arrow"></span></th>
+          <th data-col="usage_count">Usage <span class="arrow"></span></th>
+          <th data-col="tags">Tags</th>
+        </tr>
+      </thead>
+      <tbody id="items-body"></tbody>
+    </table>
+  </div>
+  <div class="detail-panel" id="detail-panel">
+    <h2 id="detail-title"></h2>
+    <div class="field"><div class="field-label">ID</div><div class="field-value" id="detail-id"></div></div>
+    <div class="field"><div class="field-label">Tier</div><div class="field-value" id="detail-tier"></div></div>
+    <div class="field"><div class="field-label">Type</div><div class="field-value" id="detail-type"></div></div>
+    <div class="field"><div class="field-label">Scope</div><div class="field-value" id="detail-scope"></div></div>
+    <div class="field"><div class="field-label">Corpus</div><div class="field-value" id="detail-corpus"></div></div>
+    <div class="field"><div class="field-label">Rule ID</div><div class="field-value" id="detail-rule"></div></div>
+    <div class="field"><div class="field-label">Confidence</div><div class="field-value" id="detail-confidence"></div></div>
+    <div class="field"><div class="field-label">Validation</div><div class="field-value" id="detail-validation"></div></div>
+    <div class="field"><div class="field-label">Usage Count</div><div class="field-value" id="detail-usage"></div></div>
+    <div class="field"><div class="field-label">Source</div><div class="field-value" id="detail-source"></div></div>
+    <div class="field"><div class="field-label">Tags</div><div class="field-value tags" id="detail-tags"></div></div>
+    <div class="field"><div class="field-label">Entities</div><div class="field-value tags" id="detail-entities"></div></div>
+    <div class="field"><div class="field-label">Content Preview</div><div class="field-value" id="detail-content" style="background:#f9f9f9;padding:8px;border-radius:4px;font-size:0.8rem;max-height:200px;overflow-y:auto;white-space:pre-wrap;"></div></div>
+    <div class="field"><div class="field-label">Created</div><div class="field-value" id="detail-created"></div></div>
+    <div class="field"><div class="field-label">Updated</div><div class="field-value" id="detail-updated"></div></div>
+  </div>
+</div>
+
+<script>
+const memoryData = {{ memory_data_json }};
+const items = memoryData.items || [];
+const metadata = memoryData.metadata || {};
+
+// Populate filter dropdowns
+const tiers = [...new Set(items.map(i => i.tier))].sort();
+const types = [...new Set(items.map(i => i.type))].sort();
+const tierSel = document.getElementById('filter-tier');
+const typeSel = document.getElementById('filter-type');
+tiers.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t.toUpperCase(); tierSel.appendChild(o); });
+types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; typeSel.appendChild(o); });
+
+// Sort state
+let sortCol = 'title';
+let sortAsc = true;
+
+function compareItems(a, b) {
+  let va = a[sortCol], vb = b[sortCol];
+  if (typeof va === 'number' && typeof vb === 'number') return sortAsc ? va - vb : vb - va;
+  va = String(va || '').toLowerCase();
+  vb = String(vb || '').toLowerCase();
+  return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+}
+
+function getFilteredItems() {
+  const tier = tierSel.value;
+  const type = typeSel.value;
+  const validation = document.getElementById('filter-validation').value;
+  const q = document.getElementById('filter-search').value.toLowerCase();
+
+  return items.filter(item => {
+    if (tier && item.tier !== tier) return false;
+    if (type && item.type !== type) return false;
+    if (validation && item.validation !== validation) return false;
+    if (q) {
+      const haystack = [item.title, ...(item.tags || []), ...(item.entities || []), item.scope || '', item.rule_id || ''].join(' ').toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  }).sort(compareItems);
+}
+
+function tierBadge(tier) {
+  const cls = tier === 'stm' ? 'tier-stm' : tier === 'mtm' ? 'tier-mtm' : 'tier-ltm';
+  return `<span class="tier-badge ${cls}">${(tier || '').toUpperCase()}</span>`;
+}
+
+function renderTable() {
+  const filtered = getFilteredItems();
+  const tbody = document.getElementById('items-body');
+  document.getElementById('item-count').textContent = `${filtered.length} / ${items.length} items`;
+  document.getElementById('showing-label').textContent = `Showing ${filtered.length} of ${items.length}`;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No items match the current filters.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((item, i) => `
+    <tr data-idx="${i}" class="${selectedIdx === i ? 'selected' : ''}">
+      <td title="${(item.title || '').replace(/"/g, '&quot;')}">${(item.title || '').substring(0, 60)}${(item.title || '').length > 60 ? '\u2026' : ''}</td>
+      <td>${tierBadge(item.tier)}</td>
+      <td><span class="type-badge">${item.type || ''}</span></td>
+      <td>${item.scope || ''}</td>
+      <td><span class="confidence-bar"><span class="confidence-fill" style="width:${(item.confidence || 0) * 100}%"></span></span> ${((item.confidence || 0) * 100).toFixed(0)}%</td>
+      <td>${item.usage_count || 0}</td>
+      <td>${(item.tags || []).slice(0, 3).map(t => `<span class="tag" style="display:inline-block">${t}</span>`).join(' ')}${(item.tags || []).length > 3 ? ' \u2026' : ''}</td>
+    </tr>
+  `).join('');
+
+  // Attach click handlers
+  tbody.querySelectorAll('tr[data-idx]').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const idx = parseInt(tr.dataset.idx);
+      showDetail(filtered[idx], idx);
+    });
+  });
+}
+
+let selectedIdx = -1;
+
+function showDetail(item, idx) {
+  selectedIdx = idx;
+  const panel = document.getElementById('detail-panel');
+  panel.classList.add('active');
+  document.getElementById('detail-title').textContent = item.title || '';
+  document.getElementById('detail-id').textContent = item.id || '';
+  document.getElementById('detail-tier').innerHTML = tierBadge(item.tier);
+  document.getElementById('detail-type').textContent = item.type || '';
+  document.getElementById('detail-scope').textContent = item.scope || '';
+  document.getElementById('detail-corpus').textContent = item.corpus_id || '\u2014';
+  document.getElementById('detail-rule').textContent = item.rule_id || '\u2014';
+  document.getElementById('detail-confidence').textContent = ((item.confidence || 0) * 100).toFixed(1) + '%';
+  document.getElementById('detail-validation').textContent = item.validation || '';
+  document.getElementById('detail-usage').textContent = item.usage_count || 0;
+  document.getElementById('detail-source').textContent = item.source_id || '\u2014';
+  document.getElementById('detail-tags').innerHTML = (item.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+  document.getElementById('detail-entities').innerHTML = (item.entities || []).map(e => `<span class="tag" style="background:#fce4ec;color:#c62828;">${e}</span>`).join('');
+  document.getElementById('detail-content').textContent = item.content_preview || '';
+  document.getElementById('detail-created').textContent = item.created_at || '';
+  document.getElementById('detail-updated').textContent = item.updated_at || '';
+
+  // Re-render to highlight selected row
+  renderTable();
+}
+
+// Sort headers
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) sortAsc = !sortAsc;
+    else { sortCol = col; sortAsc = true; }
+    document.querySelectorAll('th .arrow').forEach(a => a.textContent = '');
+    th.querySelector('.arrow').textContent = sortAsc ? '\u25B2' : '\u25BC';
+    renderTable();
+  });
+});
+
+// Filter events
+tierSel.addEventListener('change', renderTable);
+typeSel.addEventListener('change', renderTable);
+document.getElementById('filter-validation').addEventListener('change', renderTable);
+document.getElementById('filter-search').addEventListener('input', renderTable);
+
+// Initial render
+renderTable();
+</script>
+</body>
+</html>

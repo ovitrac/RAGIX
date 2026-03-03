@@ -413,7 +413,10 @@ class MavenGraphKernel(Kernel):
                 mpatches.Patch(facecolor='#3498db', label='Internal module'),
                 mpatches.Patch(facecolor='#95a5a6', label='Leaf module'),
             ]
-            ax.legend(handles=legend_elements, loc='upper left', fontsize=8)
+            ax.legend(
+                handles=legend_elements, loc='lower center', fontsize=8,
+                ncol=4, bbox_to_anchor=(0.5, -0.02),
+            )
 
             ax.set_title("Maven Module Dependency Graph", fontsize=14, fontweight='bold')
             ax.axis('off')
@@ -471,7 +474,10 @@ class MavenGraphKernel(Kernel):
                     fontweight='bold', color='white' if betw > 0.05 else 'black',
                     zorder=6,
                 )
-            ax2.legend(handles=legend_elements, loc='upper left', fontsize=8)
+            ax2.legend(
+                handles=legend_elements, loc='lower center', fontsize=8,
+                ncol=4, bbox_to_anchor=(0.5, -0.02),
+            )
             ax2.set_title("Maven Module Dependency Graph", fontsize=14, fontweight='bold')
             ax2.axis('off')
             fig2.tight_layout()
@@ -557,14 +563,21 @@ class MavenGraphKernel(Kernel):
         for l in layers:
             layers[l].sort(key=lambda n: -module_details.get(n, {}).get("betweenness", 0))
 
-        # Compute positions
+        # Compute positions with staircase offset to prevent label overlap.
+        # Within each layer, nodes cycle through `stair_steps` vertical
+        # sub-positions so adjacent labels don't sit on the same line.
         positions = {}
-        max_l = max(layers.keys()) if layers else 0
+        stair_steps = 5     # number of distinct y sub-levels per layer
+        stair_height = 0.3  # vertical offset between consecutive steps
+        layer_gap = 3.0     # vertical distance between layers (> stair span)
+
         for l, members in layers.items():
             count = len(members)
             for i, name in enumerate(members):
                 x = (i - (count - 1) / 2) * 1.5
-                y = -l * 2.0  # top to bottom
+                step = i % stair_steps
+                y_stair = (step - (stair_steps - 1) / 2) * stair_height
+                y = -l * layer_gap + y_stair
                 positions[name] = (x, y)
 
         return positions

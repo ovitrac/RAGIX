@@ -1,0 +1,55 @@
+# Typography configuration for koas-professional theme
+# Reference: MARP slide viewport = 1280x720 (16:9)
+#
+# This config documents the typography hierarchy and provides layout
+# parameters used by the postprocessor for layout directive expansion.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+
+base:
+  font_size: 22px          # section root (was 26px pre-v2.0)
+  line_height: 1.5
+
+headings:
+  h1: 2.2em                # 48.4px (lead slides)
+  h2: 1.5em                # 33px (ratio 1.5:1 over body)
+  h3: 1.15em               # 25.3px
+
+body:
+  paragraph: inherit        # 22px
+  blockquote: 0.88em        # 19.4px — distinct from body, larger than tables
+  list_item: inherit        # 22px
+
+tables:
+  base: 0.82em              # 18px
+  small: "max(0.62em, 13px)"
+  tiny: "max(0.48em, 11px)"
+
+code:
+  inline: 0.85em            # 18.7px
+  block: 0.75em             # 16.5px
+
+captions:
+  fig_caption: 0.58em       # 12.8px
+
+chrome:
+  page_number: 12px
+  footer: 9px
+  header: 12px
+
+# Image height limits (MARP canvas = 720px)
+# Budget: top-pad(50) + bottom-pad(60) + heading(45) + footer(15)
+#        + nav(28) + progress(4) = 202px.  Available = 518px.
+images:
+  landscape_max_h: 280px    # wide image in [I;T] layout
+  portrait_max_h: 400px     # tall image in [I,T] layout
+  full_max_h: 460px         # image-only slide
+  stacked_2_max_h: 240px    # 2 stacked images
+  stacked_3_max_h: 155px    # 3 stacked images
+
+# Layout directive defaults (used by expand_layout_directives)
+layout:
+  side_by_side_image_width: "38%"
+  side_by_side_content_width: "62%"
+  side_by_side_gap: 18px
+  grid_2x2_cell_width: "50%"

@@ -224,6 +224,10 @@ def cmd_render(args: argparse.Namespace) -> int:
         "export": {
             "format": args.format,
         },
+        "postprocess": {
+            "enabled": args.postprocess,
+            "logos_dir": args.logos_dir,
+        },
         "llm": {
             "backend": "ollama",
             "endpoint": "http://127.0.0.1:11434",
@@ -486,6 +490,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_render.add_argument(
         "--theme", default="koas-professional",
         help="MARP theme: default|gaia|koas-professional|<path> (default: koas-professional)"
+    )
+    p_render.add_argument(
+        "--postprocess", default=True, action="store_true",
+        help="Run MARP post-processing (default: enabled)"
+    )
+    p_render.add_argument(
+        "--no-postprocess", dest="postprocess", action="store_false",
+        help="Skip MARP post-processing"
+    )
+    p_render.add_argument(
+        "--logos-dir", default=None,
+        help="Path to directory with logo images for injection"
     )
     p_render.add_argument(
         "-v", "--verbose", action="store_true", help="Verbose output"

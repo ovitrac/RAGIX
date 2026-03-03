@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+header { background: linear-gradient(135deg, #1a237e 0%, #283593 100%); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+header h1 { font-size: 1.25rem; font-weight: 600; }
+header .meta { font-size: 0.8rem; opacity: 0.85; margin-left: auto; }
+.dashboard { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.kpi { background: #fff; border-radius: 8px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); text-align: center; }
+.kpi .value { font-size: 1.6rem; font-weight: 700; color: #1a237e; }
+.kpi .label { font-size: 0.7rem; text-transform: uppercase; color: #888; margin-top: 2px; }
+.section { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px; }
+.section h2 { font-size: 1rem; font-weight: 600; color: #1a237e; margin-bottom: 14px; }
+#bubble-chart { width: 100%; min-height: 500px; }
+.tooltip-box { position: absolute; padding: 8px 12px; background: rgba(0,0,0,0.85); color: #fff; border-radius: 4px; font-size: 0.75rem; pointer-events: none; max-width: 300px; z-index: 10; display: none; }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+th { text-align: left; padding: 8px 10px; border-bottom: 2px solid #e0e0e0; font-size: 0.75rem; text-transform: uppercase; color: #666; }
+td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; }
+tr:hover { background: #f5f5f5; }
+.tag-chip { display: inline-block; background: #e3f2fd; color: #1565c0; padding: 1px 6px; border-radius: 8px; font-size: 0.7rem; margin: 1px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>{{ title }}</h1>
+  <span class="meta" id="meta-info"></span>
+</header>
+
+<div class="dashboard">
+  <div class="kpi-row" id="kpi-row"></div>
+  <div class="section">
+    <h2>Topic Clusters (Bubble Chart)</h2>
+    <svg id="bubble-chart"></svg>
+  </div>
+  <div class="section">
+    <h2>Cluster Details</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Topic</th>
+          <th>Size</th>
+          <th>Top Tags</th>
+        </tr>
+      </thead>
+      <tbody id="cluster-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="tooltip-box" id="tooltip"></div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const clusterData = {{ cluster_data_json }};
+const clusters = clusterData.clusters || [];
+const nodes = clusterData.nodes || [];
+const meta = clusterData.metadata || {};
+
+document.getElementById('meta-info').textContent =
+  `${meta.total_items || meta.total_nodes || 0} items \u00b7 ${meta.total_clusters || 0} clusters`;
+
+// KPIs
+const kpiRow = document.getElementById('kpi-row');
+const nonSingleton = clusters.filter(c => c.size > 1).length;
+const largest = clusters.length > 0 ? clusters[0].size : 0;
+[
+  { label: 'Clusters', value: meta.total_clusters || 0 },
+  { label: 'Non-Singleton', value: nonSingleton },
+  { label: 'Largest Cluster', value: largest },
+  { label: 'Singletons', value: meta.singletons || 0 },
+  { label: 'Items', value: meta.total_items || meta.total_nodes || 0 },
+].forEach(k => {
+  const div = document.createElement('div');
+  div.className = 'kpi';
+  div.innerHTML = `<div class="value">${k.value}</div><div class="label">${k.label}</div>`;
+  kpiRow.appendChild(div);
+});
+
+// Color scale
+const color = d3.scaleOrdinal(d3.schemeTableau10);
+
+// Bubble chart
+const svg = d3.select('#bubble-chart');
+const container = svg.node().parentElement;
+const width = container.clientWidth - 40;
+const height = Math.max(500, clusters.length * 8);
+svg.attr('width', width).attr('height', height);
+
+const tooltip = document.getElementById('tooltip');
+
+// Prepare hierarchy for pack layout
+const packData = {
+  name: 'root',
+  children: clusters.filter(c => c.size > 0).map(c => ({
+    name: c.name,
+    value: c.size,
+    id: c.id,
+    tags: c.tags || {},
+  })),
+};
+
+const pack = d3.pack()
+  .size([width, height])
+  .padding(4);
+
+const root = d3.hierarchy(packData)
+  .sum(d => d.value || 1)
+  .sort((a, b) => (b.value || 0) - (a.value || 0));
+
+pack(root);
+
+const leaf = svg.selectAll('g')
+  .data(root.leaves())
+  .join('g')
+  .attr('transform', d => `translate(${d.x},${d.y})`);
+
+leaf.append('circle')
+  .attr('r', d => d.r)
+  .attr('fill', d => color(d.data.name))
+  .attr('fill-opacity', 0.75)
+  .attr('stroke', d => d3.color(color(d.data.name)).darker(0.3))
+  .attr('stroke-width', 1)
+  .on('mouseover', (event, d) => {
+    tooltip.style.display = 'block';
+    const tags = Object.entries(d.data.tags || {}).slice(0, 5).map(([k,v]) => `${k} (${v})`).join(', ');
+    tooltip.innerHTML = `<strong>${d.data.name}</strong><br>Size: ${d.data.value}<br>Tags: ${tags}`;
+  })
+  .on('mousemove', (event) => {
+    tooltip.style.left = (event.pageX + 10) + 'px';
+    tooltip.style.top = (event.pageY - 10) + 'px';
+  })
+  .on('mouseout', () => { tooltip.style.display = 'none'; });
+
+leaf.append('text')
+  .attr('text-anchor', 'middle')
+  .attr('dy', '0.3em')
+  .attr('font-size', d => Math.min(d.r / 3, 12))
+  .attr('fill', '#fff')
+  .attr('pointer-events', 'none')
+  .text(d => d.r > 20 ? d.data.name.substring(0, 15) : '');
+
+// Cluster table
+const tbody = document.getElementById('cluster-tbody');
+clusters.forEach((c, i) => {
+  const tags = Object.entries(c.tags || {}).slice(0, 8)
+    .map(([k, v]) => `<span class="tag-chip">${k} (${v})</span>`).join(' ');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${i + 1}</td>
+    <td><strong>${c.name}</strong></td>
+    <td>${c.size}</td>
+    <td>${tags}</td>
+  `;
+  tbody.appendChild(tr);
+});
+</script>
+</body>
+</html>

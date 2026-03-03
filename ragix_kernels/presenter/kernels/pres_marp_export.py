@@ -94,6 +94,11 @@ def run_marp_cli(
     cmd = ["npx", "@marp-team/marp-cli", str(presentation_md)]
     cmd.append(f"--{output_format}")
 
+    # --html enables HTML tag rendering in Markdown (layout tables, inline styles).
+    # For HTML export this is already the format flag; for PDF we need it explicitly.
+    if output_format == "pdf":
+        cmd.append("--html")
+
     if allow_local_files:
         cmd.append("--allow-local-files")
 
@@ -148,12 +153,12 @@ class PresMarpExportKernel(Kernel):
     """Bundle MARP Markdown + assets into output folder, optionally export to PDF/HTML."""
 
     name = "pres_marp_export"
-    version = "1.1.0"
+    version = "2.0.0"
     category = "presenter"
     stage = 3
     description = "Copy MARP Markdown + assets to output/ folder, optional marp-cli export"
 
-    requires: List[str] = ["pres_marp_render", "pres_folder_scan"]
+    requires: List[str] = ["pres_marp_render", "pres_folder_scan", "pres_asset_catalog"]
     provides: List[str] = ["presentation_bundle"]
 
     def compute(self, input: KernelInput) -> Dict[str, Any]:
@@ -187,16 +192,20 @@ class PresMarpExportKernel(Kernel):
         assets_copied = 0
         total_bytes = 0
         path_map: Dict[str, str] = {}  # original_path -> new_relative_path
+        copied_names: set = set()  # track dest names to avoid duplicates
 
-        for ref in asset_refs:
+        def _copy_asset(ref: str) -> None:
+            """Copy a single asset from folder_root/ref to assets_dir."""
+            nonlocal assets_copied, total_bytes
             src = folder_root / ref
             if not src.exists():
                 logger.warning(f"[pres_marp_export] Asset not found: {src}")
-                continue
+                return
 
-            # Flatten to assets/ directory
             dest_name = Path(ref).name
-            # Handle duplicates by prepending parent dir
+            if dest_name in copied_names:
+                return  # already copied
+            # Handle name collisions by prepending parent dir
             if (assets_dir / dest_name).exists():
                 parent_name = Path(ref).parent.name
                 dest_name = f"{parent_name}_{dest_name}" if parent_name else dest_name
@@ -210,8 +219,19 @@ class PresMarpExportKernel(Kernel):
                 assets_copied += 1
                 total_bytes += dest.stat().st_size
                 path_map[ref] = f"assets/{dest_name}"
+                copied_names.add(dest_name)
             except Exception as e:
                 logger.warning(f"[pres_marp_export] Failed to copy {src}: {e}")
+
+        # 1. Copy slide-referenced assets (from pres_marp_render)
+        for ref in asset_refs:
+            _copy_asset(ref)
+
+        # 2. Copy ALL file-system assets from folder scan (images, SVGs, etc.)
+        scan_files = scan_data["data"].get("files", [])
+        for fe in scan_files:
+            if fe.get("file_type") == "asset":
+                _copy_asset(fe["path"])
 
         # Update image paths in Markdown
         updated_md = marp_md
@@ -220,6 +240,25 @@ class PresMarpExportKernel(Kernel):
             updated_md = updated_md.replace(f"]({old_path})", f"]({new_path})")
             # Also replace in background image directives
             updated_md = updated_md.replace(f"url('{old_path}')", f"url('{new_path}')")
+
+        # Post-processing (v1.3) — apply MARP transforms before writing
+        pp_cfg = input.config.get("postprocess", {})
+        if pp_cfg.get("enabled", True):
+            from ragix_kernels.shared.marp_postprocess import postprocess_marp
+            updated_md = postprocess_marp(
+                updated_md,
+                rewrite_title=pp_cfg.get("rewrite_title", True),
+                strip_numbers=pp_cfg.get("strip_numbers", True),
+                normalize_dividers=pp_cfg.get("normalize_dividers", True),
+                clean_toc=pp_cfg.get("clean_toc", True),
+                remove_sommaire=pp_cfg.get("remove_sommaire", True),
+                progress_bar=pp_cfg.get("progress_bar", True),
+                chapter_nav=pp_cfg.get("chapter_nav", True),
+                chapter_footer=pp_cfg.get("chapter_footer", True),
+                traceability=pp_cfg.get("traceability", True),
+                logos_dir=pp_cfg.get("logos_dir"),
+            )
+            logger.info("[pres_marp_export] Post-processing applied")
 
         # Write presentation.md
         pres_file = output_dir / "presentation.md"
@@ -279,6 +318,12 @@ class PresMarpExportKernel(Kernel):
 
                 if marp_result["success"]:
                     logger.info(f"[pres_marp_export] {fmt.upper()}: {marp_result['output_file']}")
+
+                    # HTML post-processing (v2.0): fix MARP rendering quirks
+                    if fmt == "html":
+                        result.update(
+                            self._postprocess_html(marp_result["output_file"], export_cfg)
+                        )
                 else:
                     logger.warning(
                         f"[pres_marp_export] marp-cli {fmt} failed: "
@@ -286,6 +331,57 @@ class PresMarpExportKernel(Kernel):
                     )
 
         return result
+
+    def _postprocess_html(
+        self, html_path: str, export_cfg: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Apply HTML post-processing after marp-cli HTML export.
+
+        Fixes MARP rendering quirks that can only be corrected in the
+        generated HTML (not in Markdown or CSS):
+        - Image centering (MARP strips display/margin from img CSS)
+        - Layout table display mode (MARP sets display:block on all tables)
+        - Optional base64 image embedding for self-contained HTML
+
+        Returns dict with post-processing metrics.
+        """
+        pp_result: Dict[str, Any] = {}
+
+        do_center = export_cfg.get("center_images", True)
+        do_fix_tables = export_cfg.get("fix_layout_tables", True)
+        do_embed = export_cfg.get("embed_images", False)
+
+        if do_center:
+            from ragix_kernels.shared.marp_postprocess import center_images_in_html
+
+            n_img = center_images_in_html(html_path)
+            pp_result["html_images_centered"] = n_img
+            logger.info(f"[pres_marp_export] {n_img} images centered")
+
+        if do_fix_tables:
+            from ragix_kernels.shared.marp_postprocess import fix_layout_tables_in_html
+
+            n_tbl = fix_layout_tables_in_html(html_path)
+            pp_result["html_layout_tables_fixed"] = n_tbl
+            logger.info(f"[pres_marp_export] {n_tbl} layout tables fixed")
+
+        if do_embed:
+            from ragix_kernels.shared.marp_postprocess import embed_images_in_html
+
+            embed_result = embed_images_in_html(
+                html_path,
+                max_dim=export_cfg.get("embed_max_dim", 2000),
+                jpeg_quality=export_cfg.get("embed_jpeg_quality", 85),
+            )
+            pp_result["html_images_embedded"] = embed_result.get("embedded", 0)
+            pp_result["html_images_skipped"] = embed_result.get("skipped", 0)
+            pp_result["html_embedded_kb"] = embed_result.get("embedded_kb", 0)
+            logger.info(
+                f"[pres_marp_export] {embed_result.get('embedded', 0)} images embedded, "
+                f"{embed_result.get('skipped', 0)} skipped"
+            )
+
+        return pp_result
 
     def summarize(self, data: Dict[str, Any]) -> str:
         assets = data.get("assets_copied", 0)

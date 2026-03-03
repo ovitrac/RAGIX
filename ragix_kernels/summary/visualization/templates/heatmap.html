@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+header { background: linear-gradient(135deg, #1a237e 0%, #283593 100%); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+header h1 { font-size: 1.25rem; font-weight: 600; }
+header .meta { font-size: 0.8rem; opacity: 0.85; margin-left: auto; }
+.dashboard { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.section { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px; }
+.section h2 { font-size: 1rem; font-weight: 600; color: #1a237e; margin-bottom: 14px; }
+#heatmap-container { width: 100%; min-height: 400px; overflow-x: auto; }
+.tooltip-box { position: absolute; padding: 8px 12px; background: rgba(0,0,0,0.85); color: #fff; border-radius: 4px; font-size: 0.75rem; pointer-events: none; z-index: 10; display: none; }
+.legend-bar { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.legend-bar .gradient { width: 200px; height: 14px; border-radius: 3px; }
+.legend-bar span { font-size: 0.75rem; color: #666; }
+.info { font-size: 0.8rem; color: #888; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>{{ title }}</h1>
+  <span class="meta" id="meta-info"></span>
+</header>
+
+<div class="dashboard">
+  <div class="section">
+    <h2 id="chart-title">Drift Heatmap</h2>
+    <p class="info" id="chart-info"></p>
+    <div id="heatmap-container">
+      <svg id="heatmap-svg"></svg>
+    </div>
+    <div class="legend-bar">
+      <span>0%</span>
+      <canvas id="legend-gradient" width="200" height="14" class="gradient" style="border-radius:3px;"></canvas>
+      <span id="legend-max">100%</span>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip-box" id="tooltip"></div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const heatmapData = {{ heatmap_data_json }};
+const rows = heatmapData.rows || [];
+const columns = heatmapData.columns || [];
+const cells = heatmapData.cells || [];
+const meta = heatmapData.metadata || {};
+
+const isDrift = meta.type === 'drift';
+document.getElementById('meta-info').textContent =
+  `${rows.length} domains \u00d7 ${columns.length} ${isDrift ? 'corpora' : 'types'}`;
+document.getElementById('chart-title').textContent =
+  isDrift ? 'Domain \u00d7 Corpus Drift Intensity' : 'Domain \u00d7 Type Item Density';
+document.getElementById('chart-info').textContent =
+  isDrift
+    ? 'Each cell shows the drift percentage for a domain across corpus versions. Darker = more change.'
+    : 'Each cell shows item count per domain and type. Darker = more items.';
+
+const maxVal = Math.max(...cells.map(c => c.value), 1);
+document.getElementById('legend-max').textContent = isDrift ? `${maxVal}%` : maxVal;
+
+// Color scale
+const colorScale = isDrift
+  ? d3.scaleSequential(d3.interpolateYlOrRd).domain([0, Math.max(maxVal, 1)])
+  : d3.scaleSequential(d3.interpolateBlues).domain([0, Math.max(maxVal, 1)]);
+
+// Legend gradient
+const canvas = document.getElementById('legend-gradient');
+const ctx = canvas.getContext('2d');
+for (let i = 0; i < 200; i++) {
+  ctx.fillStyle = colorScale(i / 200 * maxVal);
+  ctx.fillRect(i, 0, 1, 14);
+}
+
+// Heatmap
+const cellSize = 50;
+const labelW = 140;
+const labelH = 100;
+const margin = { top: labelH, left: labelW, right: 20, bottom: 20 };
+
+const w = margin.left + columns.length * cellSize + margin.right;
+const h = margin.top + rows.length * cellSize + margin.bottom;
+
+const svg = d3.select('#heatmap-svg').attr('width', w).attr('height', h);
+const tooltip = document.getElementById('tooltip');
+
+// Cells first (so labels render on top)
+svg.selectAll('.cell').data(cells).join('rect')
+  .attr('class', 'cell')
+  .attr('x', d => margin.left + d.col * cellSize)
+  .attr('y', d => margin.top + d.row * cellSize)
+  .attr('width', cellSize - 2)
+  .attr('height', cellSize - 2)
+  .attr('rx', 3)
+  .attr('fill', d => d.value > 0 ? colorScale(d.value) : '#f5f5f5')
+  .attr('stroke', '#fff')
+  .attr('stroke-width', 1)
+  .on('mouseover', (event, d) => {
+    tooltip.style.display = 'block';
+    const label = isDrift
+      ? `${d.domain} \u00d7 ${d.corpus}: ${d.value}% drift`
+      : `${d.domain} \u00d7 ${d.type}: ${d.value} items`;
+    tooltip.innerHTML = label;
+  })
+  .on('mousemove', (event) => {
+    tooltip.style.left = (event.pageX + 10) + 'px';
+    tooltip.style.top = (event.pageY - 10) + 'px';
+  })
+  .on('mouseout', () => { tooltip.style.display = 'none'; });
+
+// Value labels in cells
+svg.selectAll('.cell-label').data(cells).join('text')
+  .attr('class', 'cell-label')
+  .attr('x', d => margin.left + d.col * cellSize + cellSize / 2 - 1)
+  .attr('y', d => margin.top + d.row * cellSize + cellSize / 2 + 4)
+  .attr('text-anchor', 'middle')
+  .attr('font-size', '10px')
+  .attr('fill', d => d.value > maxVal * 0.6 ? '#fff' : '#333')
+  .attr('pointer-events', 'none')
+  .text(d => d.value > 0 ? (isDrift ? d.value + '%' : d.value) : '');
+
+// Column labels (rendered AFTER cells so they appear on top)
+svg.selectAll('.col-label').data(columns).join('text')
+  .attr('class', 'col-label')
+  .attr('x', (d, i) => margin.left + i * cellSize + cellSize / 2)
+  .attr('y', margin.top - 10)
+  .attr('text-anchor', 'end')
+  .attr('transform', (d, i) => `rotate(-45, ${margin.left + i * cellSize + cellSize / 2}, ${margin.top - 10})`)
+  .attr('font-size', '11px')
+  .attr('font-weight', '500')
+  .attr('fill', '#333')
+  .text(d => d.length > 20 ? d.substring(0, 19) + '\u2026' : d);
+
+// Row labels (rendered AFTER cells)
+svg.selectAll('.row-label').data(rows).join('text')
+  .attr('class', 'row-label')
+  .attr('x', margin.left - 6)
+  .attr('y', (d, i) => margin.top + i * cellSize + cellSize / 2 + 4)
+  .attr('text-anchor', 'end')
+  .attr('font-size', '11px')
+  .attr('fill', '#333')
+  .text(d => d.length > 18 ? d.substring(0, 17) + '\u2026' : d);
+</script>
+</body>
+</html>

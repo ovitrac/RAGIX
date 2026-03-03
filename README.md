@@ -705,19 +705,16 @@ pytest tests/ --cov=ragix_core --cov-report=html
 
 See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
-**Latest: v0.67.0** (2026-02-16)
-- **KOAS Memory**: Episodic memory with 12 core modules + 17 MCP tools, FTS5+BM25 retrieval, Q\*-search, Memory Palace
-- **KOAS Summary**: 12 kernels for multi-document summarization with Graph-RAG and secrecy tiers (S0/S2/S3)
-- **Memory Pipe Demo**: 6-act narrative for Claude integration (`ragix-memory pipe "question" --source docs/ | claude`)
-- **87 kernels** across 6 families (was 75 across 5)
-- **55 MCP tools** (was 38) — 17 new memory tools
-- **511 tests** for memory subsystem across 15 test files
+**Latest: v0.71.0** (2026-03-03)
+- **Presenter v2.1**: 24-transform MARP post-processing pipeline (3,149 LOC), layout directives, hand-crafted presentation workflow, typography refinement
+- **Maven graph fix**: staircase layout prevents label overlap in dense dependency layers
+- **KOAS_PRESENTER docs**: updated to v2.1.0 (1,198 lines) with full post-processing reference
 
 **Recent highlights:**
+- v0.70.0: Claude Code integration — installer, safety hooks, audit logging, component manifest
+- v0.69.0: Bounded recall-answer loop, fixed-point convergence, text similarity
+- v0.67.0: Episodic memory (17 MCP tools), multi-document summarization (12 kernels), Graph-RAG
 - v0.66.0: Centralized activity logging, broker gateway with ACL scopes
-- v0.64.2: Boilerplate detection in KOAS docs, code fence protection
-- v0.63.0: New docs kernels for hierarchical large document corpus auditing
-- v0.62.0: MCP consolidation, demo UI, documentation index
 
 ---
 
@@ -740,6 +737,7 @@ See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 | ✅ | Multi-document summarization (12 kernels) | Complete |
 | ✅ | Graph-RAG (entity extraction, community detection) | Complete |
 | ✅ | Memory Pipe demo for Claude integration | Complete |
+| ✅ | KOAS Presenter v2.1 (24 transforms, layout directives, HTML export) | Complete |
 | 🔄 | KOAS Presenter LLM normalization | Phase 1 done (deterministic) |
 | 🔄 | Interpreter-Tutor reasoning engine | Research (v0.5.0) |
 | 📋 | Multi-language AST (Go, Rust) | Planned |

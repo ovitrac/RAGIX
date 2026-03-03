@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+header { background: linear-gradient(135deg, #1a237e 0%, #283593 100%); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+header h1 { font-size: 1.25rem; font-weight: 600; }
+header .meta { font-size: 0.8rem; opacity: 0.85; margin-left: auto; }
+.dashboard { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.kpi { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); text-align: center; }
+.kpi .value { font-size: 1.8rem; font-weight: 700; }
+.kpi .label { font-size: 0.75rem; text-transform: uppercase; color: #888; margin-top: 4px; }
+.kpi.added .value { color: #2e7d32; }
+.kpi.removed .value { color: #c62828; }
+.kpi.modified .value { color: #e65100; }
+.kpi.unchanged .value { color: #757575; }
+.kpi.drift .value { color: #1565c0; }
+.section { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px; }
+.section h2 { font-size: 1rem; font-weight: 600; color: #1a237e; margin-bottom: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th { text-align: left; padding: 8px 10px; border-bottom: 2px solid #e0e0e0; font-size: 0.75rem; text-transform: uppercase; color: #666; }
+td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; }
+tr:hover { background: #f5f5f5; }
+.bar-cell { position: relative; }
+.bar-bg { height: 18px; border-radius: 3px; display: flex; overflow: hidden; }
+.bar-seg { height: 100%; transition: width 0.3s; }
+.bar-added { background: #4caf50; }
+.bar-removed { background: #ef5350; }
+.bar-modified { background: #ff9800; }
+.bar-unchanged { background: #e0e0e0; }
+.pct-badge { font-size: 0.75rem; font-weight: 600; }
+.pct-low { color: #2e7d32; }
+.pct-mid { color: #e65100; }
+.pct-high { color: #c62828; }
+#sankey-container { width: 100%; min-height: 400px; }
+.sankey-node rect { stroke: #fff; stroke-width: 1px; }
+.sankey-node text { font-size: 11px; fill: #333; }
+.sankey-link { fill-opacity: 0.35; stroke: none; }
+.sankey-link:hover { fill-opacity: 0.55; }
+.legend-inline { display: flex; gap: 16px; margin-bottom: 12px; }
+.legend-inline .li { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; }
+.legend-inline .sw { width: 14px; height: 14px; border-radius: 3px; }
+
+/* V3.2: Diff viewer styles */
+.diff-section { display: none; }
+.diff-section.has-items { display: block; }
+.mod-table tr { cursor: pointer; }
+.mod-table tr.active { background: #e3f2fd; }
+.mod-table .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 0.7rem; font-weight: 600; }
+.badge-add { background: #e8f5e9; color: #2e7d32; }
+.badge-del { background: #ffebee; color: #c62828; }
+.badge-ops { background: #fff3e0; color: #e65100; }
+.diff-panel { display: none; margin-top: 16px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+.diff-panel.open { display: block; }
+.diff-header { background: #f5f5f5; padding: 10px 14px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.diff-header .label { font-size: 0.75rem; color: #666; }
+.diff-header .val { font-weight: 600; font-size: 0.85rem; }
+.diff-header .close-btn { margin-left: auto; cursor: pointer; font-size: 1.1rem; color: #999; border: none; background: none; }
+.diff-header .close-btn:hover { color: #333; }
+.diff-body { display: grid; grid-template-columns: 1fr 1fr; max-height: 500px; overflow-y: auto; }
+.diff-col { padding: 0; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.78rem; line-height: 1.5; }
+.diff-col-header { padding: 6px 10px; font-size: 0.75rem; font-weight: 600; color: #fff; text-align: center; }
+.diff-col:first-child .diff-col-header { background: #c62828; }
+.diff-col:last-child .diff-col-header { background: #2e7d32; }
+.diff-line { padding: 1px 10px; white-space: pre-wrap; word-break: break-word; border-bottom: 1px solid #f5f5f5; min-height: 1.5em; }
+.diff-line.equal { background: #fff; }
+.diff-line.del { background: #ffebee; color: #b71c1c; }
+.diff-line.add { background: #e8f5e9; color: #1b5e20; }
+.diff-line.empty { background: #fafafa; color: transparent; }
+.diff-filter { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.diff-filter select { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.8rem; }
+.diff-filter .count { font-size: 0.8rem; color: #666; margin-left: 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>{{ title }}</h1>
+  <span class="meta">Cross-corpus drift analysis</span>
+</header>
+
+<div class="dashboard">
+  <!-- KPI cards -->
+  <div class="kpi-row" id="kpi-row"></div>
+
+  <!-- Domain breakdown table -->
+  <div class="section">
+    <h2>Domain Breakdown</h2>
+    <div class="legend-inline">
+      <div class="li"><div class="sw" style="background:#4caf50"></div> Added</div>
+      <div class="li"><div class="sw" style="background:#ef5350"></div> Removed</div>
+      <div class="li"><div class="sw" style="background:#ff9800"></div> Modified</div>
+      <div class="li"><div class="sw" style="background:#e0e0e0"></div> Unchanged</div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Domain</th>
+          <th>Added</th>
+          <th>Removed</th>
+          <th>Modified</th>
+          <th>Unchanged</th>
+          <th style="width:30%">Distribution</th>
+          <th>Drift %</th>
+        </tr>
+      </thead>
+      <tbody id="domain-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- V3.2: Modified items diff viewer -->
+  <div class="section diff-section" id="diff-section">
+    <h2>Modified Items — Diff Viewer</h2>
+    <div class="diff-filter">
+      <select id="diff-domain-filter"><option value="">All domains</option></select>
+      <span class="count" id="diff-count"></span>
+    </div>
+    <table class="mod-table">
+      <thead>
+        <tr>
+          <th>Rule ID</th>
+          <th>Title (A)</th>
+          <th>Title (B)</th>
+          <th>Domain</th>
+          <th>Changes</th>
+        </tr>
+      </thead>
+      <tbody id="mod-tbody"></tbody>
+    </table>
+    <div class="diff-panel" id="diff-panel">
+      <div class="diff-header">
+        <div><span class="label">Rule:</span> <span class="val" id="dp-rule"></span></div>
+        <div><span class="label">Domain:</span> <span class="val" id="dp-domain"></span></div>
+        <div><span class="badge badge-del" id="dp-del"></span></div>
+        <div><span class="badge badge-add" id="dp-add"></span></div>
+        <button class="close-btn" id="dp-close" title="Close">&times;</button>
+      </div>
+      <div class="diff-body">
+        <div class="diff-col">
+          <div class="diff-col-header">Baseline (A)</div>
+          <div id="dp-left"></div>
+        </div>
+        <div class="diff-col">
+          <div class="diff-col-header">Current (B)</div>
+          <div id="dp-right"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sankey diagram -->
+  <div class="section">
+    <h2>Drift Flow (Sankey)</h2>
+    <div id="sankey-container"></div>
+  </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+<script>
+const driftData = {{ drift_data_json }};
+const sankeyData = {{ sankey_data_json }};
+const modifiedItems = {{ modified_items_json }};
+
+const counts = driftData.counts || {};
+const domains = driftData.domains || [];
+const driftPct = driftData.drift_pct || 0;
+
+// KPI cards
+const kpiRow = document.getElementById('kpi-row');
+const kpis = [
+  { label: 'Added', value: counts.added || 0, cls: 'added' },
+  { label: 'Removed', value: counts.removed || 0, cls: 'removed' },
+  { label: 'Modified', value: counts.modified || 0, cls: 'modified' },
+  { label: 'Unchanged', value: counts.unchanged || 0, cls: 'unchanged' },
+  { label: 'Overall Drift', value: (typeof driftPct === 'number' ? driftPct.toFixed(1) : driftPct) + '%', cls: 'drift' },
+];
+kpis.forEach(k => {
+  const div = document.createElement('div');
+  div.className = `kpi ${k.cls}`;
+  div.innerHTML = `<div class="value">${k.value}</div><div class="label">${k.label}</div>`;
+  kpiRow.appendChild(div);
+});
+
+// Domain table
+const tbody = document.getElementById('domain-tbody');
+domains.forEach(d => {
+  const total = (d.added || 0) + (d.removed || 0) + (d.modified || 0) + (d.unchanged || 0);
+  const pctClass = d.drift_pct > 50 ? 'pct-high' : d.drift_pct > 20 ? 'pct-mid' : 'pct-low';
+  const pA = total ? ((d.added || 0) / total * 100) : 0;
+  const pR = total ? ((d.removed || 0) / total * 100) : 0;
+  const pM = total ? ((d.modified || 0) / total * 100) : 0;
+  const pU = total ? ((d.unchanged || 0) / total * 100) : 0;
+
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><strong>${d.domain}</strong></td>
+    <td>${d.added || 0}</td>
+    <td>${d.removed || 0}</td>
+    <td>${d.modified || 0}</td>
+    <td>${d.unchanged || 0}</td>
+    <td class="bar-cell">
+      <div class="bar-bg">
+        <div class="bar-seg bar-added" style="width:${pA}%" title="Added ${pA.toFixed(1)}%"></div>
+        <div class="bar-seg bar-removed" style="width:${pR}%" title="Removed ${pR.toFixed(1)}%"></div>
+        <div class="bar-seg bar-modified" style="width:${pM}%" title="Modified ${pM.toFixed(1)}%"></div>
+        <div class="bar-seg bar-unchanged" style="width:${pU}%" title="Unchanged ${pU.toFixed(1)}%"></div>
+      </div>
+    </td>
+    <td><span class="pct-badge ${pctClass}">${d.drift_pct}%</span></td>
+  `;
+  tbody.appendChild(tr);
+});
+
+// ─── V3.2: Modified Items Diff Viewer ──────────────────────────────────
+
+const diffSection = document.getElementById('diff-section');
+const modTbody = document.getElementById('mod-tbody');
+const diffPanel = document.getElementById('diff-panel');
+const domainFilter = document.getElementById('diff-domain-filter');
+const diffCount = document.getElementById('diff-count');
+
+if (modifiedItems.length > 0) {
+  diffSection.classList.add('has-items');
+
+  // Populate domain filter dropdown
+  const modDomains = [...new Set(modifiedItems.map(m => m.domain))].sort();
+  modDomains.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = d;
+    domainFilter.appendChild(opt);
+  });
+
+  let activeRow = null;
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function renderModTable(filterDomain) {
+    modTbody.innerHTML = '';
+    let visible = 0;
+    modifiedItems.forEach((m, idx) => {
+      if (filterDomain && m.domain !== filterDomain) return;
+      visible++;
+      const cs = m.change_summary || {};
+      const tr = document.createElement('tr');
+      tr.dataset.idx = idx;
+      tr.innerHTML = `
+        <td>${esc(m.rule_id || '-')}</td>
+        <td>${esc(m.title_a || '')}</td>
+        <td>${esc(m.title_b || '')}</td>
+        <td>${esc(m.domain)}</td>
+        <td>
+          <span class="badge badge-del">-${cs.removed_lines || 0}</span>
+          <span class="badge badge-add">+${cs.added_lines || 0}</span>
+          <span class="badge badge-ops">${cs.total_ops || 0} ops</span>
+        </td>
+      `;
+      tr.addEventListener('click', () => openDiff(idx, tr));
+      modTbody.appendChild(tr);
+    });
+    diffCount.textContent = `${visible} of ${modifiedItems.length} items`;
+  }
+
+  function openDiff(idx, rowEl) {
+    if (activeRow) activeRow.classList.remove('active');
+    activeRow = rowEl;
+    rowEl.classList.add('active');
+
+    const m = modifiedItems[idx];
+    const cs = m.change_summary || {};
+    document.getElementById('dp-rule').textContent = m.rule_id || m.id_b || '-';
+    document.getElementById('dp-domain').textContent = m.domain;
+    document.getElementById('dp-del').textContent = `-${cs.removed_lines || 0} lines`;
+    document.getElementById('dp-add').textContent = `+${cs.added_lines || 0} lines`;
+
+    const leftCol = document.getElementById('dp-left');
+    const rightCol = document.getElementById('dp-right');
+    leftCol.innerHTML = '';
+    rightCol.innerHTML = '';
+
+    (m.diff || []).forEach(op => {
+      if (op.op === 'equal') {
+        op.lines_a.forEach(line => {
+          leftCol.innerHTML += `<div class="diff-line equal">${esc(line)}</div>`;
+          rightCol.innerHTML += `<div class="diff-line equal">${esc(line)}</div>`;
+        });
+      } else if (op.op === 'delete') {
+        op.lines_a.forEach(line => {
+          leftCol.innerHTML += `<div class="diff-line del">${esc(line)}</div>`;
+          rightCol.innerHTML += `<div class="diff-line empty">&nbsp;</div>`;
+        });
+      } else if (op.op === 'insert') {
+        op.lines_b.forEach(line => {
+          leftCol.innerHTML += `<div class="diff-line empty">&nbsp;</div>`;
+          rightCol.innerHTML += `<div class="diff-line add">${esc(line)}</div>`;
+        });
+      } else if (op.op === 'replace') {
+        const maxLen = Math.max(op.lines_a.length, op.lines_b.length);
+        for (let i = 0; i < maxLen; i++) {
+          if (i < op.lines_a.length) {
+            leftCol.innerHTML += `<div class="diff-line del">${esc(op.lines_a[i])}</div>`;
+          } else {
+            leftCol.innerHTML += `<div class="diff-line empty">&nbsp;</div>`;
+          }
+          if (i < op.lines_b.length) {
+            rightCol.innerHTML += `<div class="diff-line add">${esc(op.lines_b[i])}</div>`;
+          } else {
+            rightCol.innerHTML += `<div class="diff-line empty">&nbsp;</div>`;
+          }
+        }
+      }
+    });
+
+    diffPanel.classList.add('open');
+    diffPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  document.getElementById('dp-close').addEventListener('click', () => {
+    diffPanel.classList.remove('open');
+    if (activeRow) { activeRow.classList.remove('active'); activeRow = null; }
+  });
+
+  domainFilter.addEventListener('change', () => {
+    renderModTable(domainFilter.value);
+    diffPanel.classList.remove('open');
+    if (activeRow) { activeRow.classList.remove('active'); activeRow = null; }
+  });
+
+  renderModTable('');
+}
+
+// ─── Sankey diagram ───────────────────────────────────────────────────
+
+const sNodes = (sankeyData.nodes || []).map(d => ({...d}));
+const sLinks = (sankeyData.links || []).map(d => ({...d}));
+
+if (sNodes.length > 0 && sLinks.length > 0) {
+  const container = document.getElementById('sankey-container');
+  const width = container.clientWidth || 900;
+  const height = Math.max(400, sNodes.length * 30);
+
+  const svg = d3.select('#sankey-container').append('svg')
+    .attr('width', width).attr('height', height);
+
+  const sankey = d3.sankey()
+    .nodeId(d => d.index !== undefined ? d.index : sNodes.indexOf(d))
+    .nodeWidth(18)
+    .nodePadding(14)
+    .nodeAlign(d3.sankeyLeft)
+    .extent([[1, 5], [width - 1, height - 5]]);
+
+  const graph = sankey({
+    nodes: sNodes.map((n, i) => ({...n, index: i})),
+    links: sLinks.map(l => ({source: l.source, target: l.target, value: l.value})),
+  });
+
+  const CATEGORY_COLORS = {
+    UNCHANGED: '#bdbdbd',
+    MODIFIED: '#ff9800',
+    ADDED: '#4caf50',
+    REMOVED: '#ef5350',
+  };
+
+  svg.append('g').selectAll('path')
+    .data(graph.links).join('path')
+    .attr('class', 'sankey-link')
+    .attr('d', d3.sankeyLinkHorizontal())
+    .attr('fill', d => {
+      const targetName = graph.nodes[d.target.index]?.name || '';
+      return CATEGORY_COLORS[targetName] || '#90a4ae';
+    })
+    .attr('stroke-width', 0)
+    .append('title')
+    .text(d => `${graph.nodes[d.source.index]?.name} \u2192 ${graph.nodes[d.target.index]?.name}: ${d.value}`);
+
+  const node = svg.append('g').selectAll('g')
+    .data(graph.nodes).join('g')
+    .attr('class', 'sankey-node');
+
+  node.append('rect')
+    .attr('x', d => d.x0).attr('y', d => d.y0)
+    .attr('height', d => Math.max(1, d.y1 - d.y0))
+    .attr('width', d => d.x1 - d.x0)
+    .attr('fill', d => d.group === 'category' ? (CATEGORY_COLORS[d.name] || '#90a4ae') : '#1a237e')
+    .attr('opacity', 0.85);
+
+  node.append('text')
+    .attr('x', d => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
+    .attr('y', d => (d.y0 + d.y1) / 2)
+    .attr('dy', '0.35em')
+    .attr('text-anchor', d => d.x0 < width / 2 ? 'start' : 'end')
+    .text(d => d.name);
+}
+</script>
+</body>
+</html>
