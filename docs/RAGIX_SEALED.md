@@ -1,7 +1,7 @@
 # RAGIX-Sealed — Sovereign Processing of Sensitive Documents
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-06-18
-**Status:** DRAFT v0.1 — sealed vault, contracts, and warm-ingestion MVP implemented; kernels pending
+**Status:** DRAFT v0.1 — full roadmap implemented (sealed vault, contracts, warm ingestion, multimodal/workers/router, cooled corpus index, inventory + analysis + reporting kernels, red-team suite). NER, persistence, and live model/worker transport are the remaining production gaps (see §8).
 
 ---
 
@@ -248,7 +248,7 @@ pip install -e .[sealed]   # enables PDF/DOCX extraction (pypdf / pdfminer.six /
 | **4 — Inventory Kernels** | Level-1 metrics-only kernels (corpus_metrics, typology, entity_inventory, quality_risk, review_queue) + runner; ORCHESTRATOR_METRICS-safe | ✅ **Done** |
 | **5 — Analysis Kernels** | Deterministic v0: timeline, entity-role graph, commitment v0, gap detection v0 (contradiction deferred to model-router-backed kernel) | ✅ **Done (v0)** |
 | **6 — Reporting Kernels** | Sanitized memo, commitment matrix, audit attestation + the four §10.1 export modes (sanitized / human-authorized re-identify / audit-only / orchestrator-metrics) | ✅ **Done** |
-| **7 — Red-Team & Leakage Tests** | Seeded fake secrets; log / prompt / metadata / OCR / vector / report leakage tests | ⏳ Next |
+| **7 — Red-Team & Leakage Tests** | Seeded canary secrets swept across every public surface; known-entity scanner catch; blocked-output; human path verified | ✅ **Done** |
 
 ### Current limitations
 
