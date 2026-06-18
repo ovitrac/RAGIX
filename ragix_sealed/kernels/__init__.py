@@ -23,6 +23,21 @@ from .runner import (
     run_inventory,
     run_inventory_kernel,
 )
+from .analysis import (
+    ALL_ANALYSIS_KERNELS,
+    DEFERRED_KERNELS,
+    AnalysisError,
+    AnalysisKernel,
+    AnalysisResult,
+    CommitmentKernelV0,
+    EntityRoleGraphKernel,
+    GapDetectionKernelV0,
+    TimelineKernel,
+    UnknownAnalysisKernelError,
+    analysis_kernel_list,
+    run_analysis,
+    run_analysis_kernel,
+)
 
 __all__ = [
     "CorpusView",
@@ -38,4 +53,17 @@ __all__ = [
     "run_inventory",
     "run_inventory_kernel",
     "UnknownKernelError",
+    "AnalysisKernel",
+    "AnalysisResult",
+    "AnalysisError",
+    "TimelineKernel",
+    "EntityRoleGraphKernel",
+    "CommitmentKernelV0",
+    "GapDetectionKernelV0",
+    "ALL_ANALYSIS_KERNELS",
+    "DEFERRED_KERNELS",
+    "analysis_kernel_list",
+    "run_analysis",
+    "run_analysis_kernel",
+    "UnknownAnalysisKernelError",
 ]
