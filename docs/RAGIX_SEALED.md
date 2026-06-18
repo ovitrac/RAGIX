@@ -245,8 +245,8 @@ pip install -e .[sealed]   # enables PDF/DOCX extraction (pypdf / pdfminer.six /
 | **2 — Warm Ingestion MVP** | Opaque IDs, immediate encryption, TXT/MD extraction (PDF/DOCX via `sealed` extra), metadata scrub, regex detection v0, placeholderization, leak scanner v0, state-machine pipeline → COOLED_INDEXABLE | ✅ **Done** |
 | **2bis — Multimodal & Workers** | Source-class detection, derivative provenance graph, sealed worker job protocol (remote AAD + cleanup attestation; SSH transport deferred), policy-first model cascade | ✅ **Done** |
 | **3 — Cooled Corpus Index** | Cooled-text chunker (opaque chunk IDs), BM25 over placeholderized chunks, defensive leak re-check, safe search API (`doc_id/page/chunk_id` citations); vector index deferred | ✅ **Done** |
-| **4 — Inventory Kernels** | Corpus metrics, typology, entity inventory, quality, review queue | ⏳ Next |
-| **5 — Analysis Kernels** | Timeline, entity-role graph, contradiction, commitment extraction v0, gap detection v0 | Planned |
+| **4 — Inventory Kernels** | Level-1 metrics-only kernels (corpus_metrics, typology, entity_inventory, quality_risk, review_queue) + runner; ORCHESTRATOR_METRICS-safe | ✅ **Done** |
+| **5 — Analysis Kernels** | Timeline, entity-role graph, contradiction, commitment extraction v0, gap detection v0 | ⏳ Next |
 | **6 — Reporting Kernels** | Sanitized memo, contradiction report, commitment matrix, audit attestation, re-identification design | Planned |
 | **7 — Red-Team & Leakage Tests** | Seeded fake secrets; log / prompt / metadata / OCR / vector / report leakage tests | Planned |
 
