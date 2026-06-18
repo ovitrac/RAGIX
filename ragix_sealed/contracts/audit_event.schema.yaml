@@ -1,0 +1,43 @@
+# RAGIX-Sealed — audit event schema (WP §14.D)
+# Tamper-evident, append-only events. NO raw content ever. The validator asserts that
+# no field name overlaps `forbidden_fields`.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-06-17
+
+required_fields:
+  - event_id
+  - event_type        # e.g. INGESTION_STATE_CHANGE, KERNEL_RUN, EXPORT, REIDENTIFICATION_REQUEST, MODEL_ATTEMPT, WORKER_JOB
+  - case_id
+  - timestamp         # ISO-8601
+  - actor             # opaque actor id (human::… / orchestrator / worker_id / model_id)
+  - prev_hash         # hash chain link
+  - hash              # sha256 of this event (tamper-evident chain)
+
+optional_fields:
+  - doc_id
+  - artifact_id
+  - state_from
+  - state_to
+  - kernel
+  - export_mode
+  - model_id
+  - job_id
+  - worker_id
+  - decision          # allow / block / human_review
+  - reason_code       # enumerated, NOT free text containing content
+
+# Field names that must never appear in an audit event (no raw content).
+forbidden_fields:
+  - raw_value
+  - original_filename
+  - plaintext
+  - decrypted
+  - vault_mapping
+  - prompt_text
+  - source_path
+  - ocr_text
+  - caption_text
+  - transcript_text
+
+append_only: true
+hash_chain: true

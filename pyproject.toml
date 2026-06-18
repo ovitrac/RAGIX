@@ -38,7 +38,10 @@ ast = ["javalang>=0.13.0", "jsonschema>=4.17.0"]
 reports = ["jinja2>=3.1.0", "weasyprint>=60.0"]
 docs = ["python-docx>=1.0.0", "python-pptx>=0.6.21", "openpyxl>=3.1.0", "odfpy>=1.4.1"]
 koas = ["ragix[ast]"]  # KOAS kernels require AST tools
-all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports,koas,docs]"]
+# RAGIX-Sealed: confidential-document subsystem. Crypto (vault) + YAML (ci) + document
+# text extraction. Kept optional and scoped to the sealed part only.
+sealed = ["ragix[vault,ci]", "pypdf>=4.0.0", "pdfminer.six>=20221105", "python-docx>=1.0.0"]
+all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports,koas,docs,sealed]"]
 
 [project.scripts]
 ragix = "ragix_core.cli:main"

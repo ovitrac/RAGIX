@@ -88,6 +88,7 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
 | Document | Description | Audience |
 |----------|-------------|----------|
 | [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) | Confidential AI operations | Auditors, Compliance |
+| [RAGIX_SEALED.md](RAGIX_SEALED.md) | Sovereign processing of sensitive documents (DRAFT) | Compliance, Developers |
 | [PLAYBOOK_GUIDE.md](PLAYBOOK_GUIDE.md) | Workflow playbooks | Power Users |
 | [WASP_GUIDE.md](WASP_GUIDE.md) | WASP integration | Specialists |
 
@@ -176,6 +177,12 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
   - Audit trail and attestation
   - Air-gapped operation
   - Sovereignty verification
+
+- **[RAGIX_SEALED.md](RAGIX_SEALED.md)** — Sovereign processing of sensitive documents (DRAFT v0.1)
+  - Threat model: hidden from the LLM, visible to the authorized human
+  - Warm ingestion → cooled kernels
+  - Sealed vault (AES-256-GCM + AAD), role-aware placeholders
+  - Human-authorized re-identification, no-raw boundary
 
 ### Tools and APIs
 

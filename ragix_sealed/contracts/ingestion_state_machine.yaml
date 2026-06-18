@@ -1,0 +1,37 @@
+# RAGIX-Sealed — ingestion state machine contract (WP §8, §8bis)
+# Two flows: the document lifecycle and the multimodal-derivative lifecycle.
+# Only `cooled_states` are visible to downstream kernels.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-06-17
+
+document_flow:
+  initial: RECEIVED
+  terminal: [REASONABLE, BLOCKED]
+  cooled_states: [COOLED_INDEXABLE, REASONABLE]
+  states:
+    RECEIVED:                 { to: [QUARANTINED] }
+    QUARANTINED:              { to: [FINGERPRINTED, BLOCKED] }
+    FINGERPRINTED:            { to: [ORIGINAL_ENCRYPTED, BLOCKED] }
+    ORIGINAL_ENCRYPTED:       { to: [NORMALIZED_INTERNAL, BLOCKED] }
+    NORMALIZED_INTERNAL:      { to: [METADATA_SCRUBBED, BLOCKED] }
+    METADATA_SCRUBBED:        { to: [ENTITY_DETECTED, BLOCKED] }
+    ENTITY_DETECTED:          { to: [PLACEHOLDERIZED, BLOCKED] }
+    PLACEHOLDERIZED:          { to: [LEAK_SCANNED, BLOCKED] }
+    LEAK_SCANNED:             { to: [HUMAN_REVIEWED_IF_REQUIRED, COOLED_INDEXABLE, BLOCKED] }
+    HUMAN_REVIEWED_IF_REQUIRED: { to: [COOLED_INDEXABLE, BLOCKED] }
+    COOLED_INDEXABLE:         { to: [REASONABLE] }
+    REASONABLE:               { to: [] }
+    BLOCKED:                  { to: [] }
+
+# §8bis multimodal derivatives (OCR / captions / transcripts / frames) cool independently.
+derivative_flow:
+  initial: DERIVED_RAW_INTERNAL
+  terminal: [DERIVED_COOLED_DESCRIPTOR, DERIVED_BLOCKED]
+  cooled_states: [DERIVED_COOLED_DESCRIPTOR]
+  states:
+    DERIVED_RAW_INTERNAL:     { to: [DERIVED_PLACEHOLDERIZED, DERIVED_BLOCKED] }
+    DERIVED_PLACEHOLDERIZED:  { to: [DERIVED_LEAK_SCANNED, DERIVED_BLOCKED] }
+    DERIVED_LEAK_SCANNED:     { to: [DERIVED_COOLED_DESCRIPTOR, DERIVED_REVIEW_REQUIRED, DERIVED_BLOCKED] }
+    DERIVED_REVIEW_REQUIRED:  { to: [DERIVED_COOLED_DESCRIPTOR, DERIVED_BLOCKED] }
+    DERIVED_COOLED_DESCRIPTOR: { to: [] }
+    DERIVED_BLOCKED:          { to: [] }

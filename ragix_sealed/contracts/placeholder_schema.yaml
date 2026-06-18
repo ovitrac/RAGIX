@@ -1,0 +1,48 @@
+# RAGIX-Sealed — placeholder vocabulary contract (WP §7, §8bis)
+# Defines entity classes, placeholder formats, and whether a role label is visible
+# to the reasoning layer. The same vocabulary applies to text and to multimodal-derived
+# text (OCR, captions, transcripts).
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-06-17
+
+schema_version: "placeholder-schema-0.1"
+
+# format: rendered with {etype} and {n}; role appended inside brackets when role_visible.
+# Example: PERSON -> "[PERSON_001 | primary_party]"
+entity_classes:
+  PERSON:       { format: "[{etype}_{n:03d}]", role_visible: true }
+  ORG:          { format: "[{etype}_{n:03d}]", role_visible: true }
+  CONTRACT:     { format: "[{etype}_{n:03d}]", role_visible: false }
+  DATE:         { format: "[{etype}_{n:03d}]", role_visible: true }
+  AMOUNT:       { format: "[{etype}_{n:03d}]", role_visible: false }
+  ADDRESS:      { format: "[{etype}_{n:03d}]", role_visible: false }
+  EMAIL:        { format: "[{etype}_{n:03d}]", role_visible: false }
+  PHONE:        { format: "[{etype}_{n:03d}]", role_visible: false }
+  REFERENCE:    { format: "[{etype}_{n:03d}]", role_visible: false }   # generic file/reference number
+  ID_NUMBER:    { format: "[{etype}_{n:03d}]", role_visible: false }   # generic personal/record identifier
+  DOCUMENT:     { format: "[{etype}_{n:03d}]", role_visible: true }
+  EVENT:        { format: "[{etype}_{n:03d}]", role_visible: false }
+  # Required by multimodal captions (§8bis): "[PERSON_014] near [LOCATION_008]"
+  LOCATION:     { format: "[{etype}_{n:03d}]", role_visible: true }
+
+# Multimodal entity classes — same placeholder discipline applies to detected visible
+# text, captions, and transcripts.
+multimodal_entity_classes:
+  - LOCATION
+  - ORG
+  - PERSON
+  - DATE
+  # quasi-identifiers specific to images/video that the leak scanner must catch:
+  - LICENSE_PLATE
+  - LOGO
+  - SIGNATURE
+  - SCREEN_TEXT
+
+# Example role labels (non-exhaustive, free-text per case, domain-neutral).
+example_roles:
+  - primary_party
+  - counterparty
+  - organization
+  - representative
+  - authority
+  - individual

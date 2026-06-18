@@ -1,0 +1,52 @@
+# RAGIX-Sealed — tool surface matrix (WP §11)
+# Three mutually exclusive buckets. The validator asserts they are disjoint.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-06-17
+
+# Safe for the public orchestrator (e.g. Claude Code): metrics, states, sanitized output.
+safe:
+  - sealed.case_status
+  - sealed.corpus_inventory
+  - sealed.ingestion_metrics
+  - sealed.kernel_list
+  - sealed.run_inventory_kernel
+  - sealed.run_analysis_kernel
+  - sealed.run_reporting_kernel
+  - sealed.kernel_status
+  - sealed.export_sanitized_report
+  - sealed.audit_attestation
+  - sealed.worker_list
+  - sealed.worker_status
+  - sealed.worker_capabilities
+  - sealed.remote_job_submit
+  - sealed.remote_job_status
+  - sealed.remote_job_attestation
+
+# Human-gated (authorized human only, audited).
+restricted:
+  - sealed.review_queue_open
+  - sealed.review_span
+  - sealed.approve_placeholderization
+  - sealed.approve_sensitivity_status
+
+# Forbidden to the public orchestrator — would breach the human <-> LLM boundary.
+forbidden:
+  - sealed.read_raw_document
+  - sealed.show_raw_text
+  - sealed.show_original_filename
+  - sealed.search_raw_corpus
+  - sealed.open_entity_vault
+  - sealed.reidentify
+  - sealed.dump_prompt
+  - sealed.dump_chunks_raw
+  - sealed.show_ocr_image
+  - sealed.show_caption_raw
+  - sealed.show_ocr_raw
+  - sealed.show_frame
+  - sealed.show_video
+  - sealed.open_human_traceability_manifest
+  - sealed.worker_shell
+  - sealed.worker_read_file
+  - sealed.worker_show_prompt
+  - sealed.worker_open_tmpfs
+  - sealed.worker_debug_raw

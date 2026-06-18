@@ -1,0 +1,48 @@
+# RAGIX-Sealed — model registry contract (WP §8quater; remote.md §6)
+# Kernels never call a model directly; they call the model router, which selects from
+# this registry. RAGIX policy is always above the model.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-06-17
+
+# Tasks that NO model may ever perform (validator asserts none appear in allowed_tasks).
+globally_forbidden_tasks:
+  - reidentify_for_llm
+  - out_of_policy_generation
+  - out_of_scope_task
+
+# Recognised payload states a model may receive.
+payload_states: [PLACEHOLDERIZED, COOLED, SEMI_RAW_INTERNAL, RAW_IMAGE_INTERNAL, RAW_VIDEO_FRAME_INTERNAL]
+
+models:
+  primary:
+    engine: ollama
+    endpoint: "http://127.0.0.1:11434"
+    model: "primary-instruct-model"
+    zone: INTERNAL
+    refusal_profile: moderate
+    allowed_payloads: [PLACEHOLDERIZED, COOLED]
+    allowed_tasks: [inventory, timeline, topic_spotting, contradiction_scan, sanitized_reporting]
+    forbidden_tasks: [reidentify_for_llm, out_of_policy_generation, out_of_scope_task]
+    output_must_pass: [leak_scan]
+
+  fallback:
+    engine: ollama
+    endpoint: "http://127.0.0.1:11434"
+    model: "secondary-instruct-model"
+    zone: INTERNAL
+    refusal_profile: low
+    allowed_payloads: [PLACEHOLDERIZED, COOLED, SEMI_RAW_INTERNAL]
+    allowed_tasks: [ocr_cleanup, neutral_extraction, timeline_extraction, fact_summarization]
+    forbidden_tasks: [reidentify_for_llm, out_of_policy_generation, out_of_scope_task]
+    output_must_pass: [placeholderization, leak_scan]
+
+  vision_worker:
+    engine: ssh_worker
+    endpoint: "gpu_worker_01"
+    model: "local-vision-captioner"
+    zone: INTERNAL_WORKER
+    refusal_profile: moderate
+    allowed_payloads: [RAW_IMAGE_INTERNAL, RAW_VIDEO_FRAME_INTERNAL]
+    allowed_tasks: [image_to_text_description, visible_text_extraction, video_segment_description]
+    forbidden_tasks: [reidentify_for_llm, out_of_policy_generation, out_of_scope_task]
+    output_must_pass: [placeholderization, leak_scan]

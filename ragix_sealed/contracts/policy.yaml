@@ -1,0 +1,60 @@
+# RAGIX-Sealed — case policy contract (WP_RAGIX_Sealed_v1.md §1.2, §10.1, §8ter)
+# Canonical default. A per-case copy is instantiated into
+#   /var/lib/ragix-sealed/cases/{case_id}/policy.yaml  at ingestion time.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-06-17
+
+policy_version: "seal-policy-0.1"
+placeholder_schema_version: "placeholder-schema-0.1"
+
+# Deny-by-default is the master switch: any uncertain egress toward an LLM is blocked.
+deny_by_default: true
+
+# §1.2 Trust-Model Invariant — VERBATIM. The validator asserts this text is present.
+trust_invariant: |
+  Local sealed-zone models are INTERNAL and may process raw or semi-raw content ONLY
+  when their prompts, outputs, logs, and temporary files remain inside the sealed zone.
+
+  Claude Code, cloud LLMs, public orchestrators, external MCP servers, and developer-facing
+  terminals are OUTSIDE the sealed zone unless explicitly running under a sealed local
+  execution profile.
+
+  The sealed-zone model must be invoked through a sealed execution profile that disables
+  prompt echoing, raw transcript persistence, external telemetry, and developer-facing
+  trace output.
+
+  Cooled kernels operate on placeholderized content only.
+
+# Isolation levels recognised across the subsystem.
+isolation_levels:
+  - INTERNAL          # local sealed-zone (master), full content under sealed profile
+  - INTERNAL_WORKER   # enrolled sealed LAN worker (§8ter)
+  - OUTSIDE           # Claude Code, cloud LLMs, public orchestrators, dev terminals
+
+# §10.1 Export modes (mapped to ragix_kernels/output_sanitizer.OutputLevel).
+export_modes:
+  SANITIZED_LLM_SAFE:   { audience: any_llm,            output_level: EXTERNAL,     default: true }
+  HUMAN_AUTHORIZED:     { audience: authorized_human,   output_level: INTERNAL,     default: false }
+  AUDIT_ONLY:           { audience: audit_trail,        output_level: COMPLIANCE,   default: false }
+  ORCHESTRATOR_METRICS: { audience: public_orchestrator, output_level: ORCHESTRATOR, default: false }
+
+# §9 Leak-scanner decision policy (LLM-boundary egress filter).
+leak_scan:
+  decisions:
+    PASS:      allow
+    UNCERTAIN: block_and_human_review
+    FAIL:      block
+  # The local LLM sentinel is an additional guard, never the security boundary.
+  sentinel_is_boundary: false
+
+# §8ter Registered sealed LAN workers. Each entry must satisfy worker_config.schema.yaml.
+# Empty by default — workers are opt-in per deployment.
+registered_workers: []
+# Example (commented):
+#   - worker_id: gpu_worker_01
+#     endpoint: gpu01
+#     transport: ssh
+#     zone: INTERNAL_WORKER
+#     workspace: tmpfs
+#     model_server_bind: 127.0.0.1
+#     capabilities: [ocr, image_caption, video_segment, asr]

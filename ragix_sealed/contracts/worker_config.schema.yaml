@@ -1,0 +1,51 @@
+# RAGIX-Sealed — sealed LAN worker enrollment schema (WP §8ter, decision D6)
+# A worker is INTERNAL_WORKER only if a registered_workers entry in policy.yaml carries
+# all `required` fields and satisfies the invariant checklist below.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-06-17
+
+required_fields:
+  - worker_id           # opaque id (no hostname leakage in public surfaces)
+  - endpoint            # SSH target; NOT an http model endpoint
+  - transport           # must be "ssh" for warm jobs
+  - zone                # must be INTERNAL_WORKER
+  - workspace           # must be tmpfs or encrypted_volatile
+  - model_server_bind   # must be 127.0.0.1 (no LAN-exposed Ollama)
+  - capabilities        # subset of allowed_capabilities
+
+optional_fields:
+  - vpn_only
+  - ssh_key_id
+  - max_concurrent_jobs
+
+allowed_transport: [ssh]
+allowed_zone: [INTERNAL_WORKER]
+allowed_workspace: [tmpfs, encrypted_volatile]
+allowed_model_server_bind: ["127.0.0.1"]
+allowed_capabilities: [ocr, image_caption, video_segment, asr, visible_text_extraction]
+
+# Operational invariant (enforced at runtime; documented here as the contract).
+invariant:
+  - registered_in_policy
+  - lan_or_vpn_only
+  - ssh_key_or_mutual_auth
+  - volatile_tmpfs_workspace
+  - model_server_bound_localhost
+  - no_raw_logging
+  - caches_disabled_or_wiped
+  - returns_only_sealed_derivatives
+  - emits_sanitized_attestation
+  - cleanup_on_success_failure_timeout_interruption
+
+# Remote AAD fields bound into every sealed remote output (§8ter).
+remote_aad_fields:
+  - case_id
+  - job_id
+  - worker_id
+  - source_id
+  - artifact_id
+  - policy_version
+  - placeholder_schema_version
+  - model_profile
+  - task_profile
+  - ingestion_state

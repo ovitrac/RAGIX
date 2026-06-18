@@ -1,0 +1,59 @@
+# RAGIX-Sealed — provenance graph + human traceability schema (WP §8bis)
+# The provenance graph replaces human-readable filenames as the traceability backbone.
+# The human_traceability_manifest is encrypted and resolvable ONLY by the authorized
+# human interface.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-06-17
+
+# Opaque identifier kinds (all HMAC-derived; §5.2 / §8bis.2).
+id_kinds:
+  - source_id
+  - doc_id
+  - asset_id
+  - frame_id
+  - segment_id
+  - ocr_id
+  - caption_id
+  - transcript_id
+  - chunk_id
+
+# A provenance node (artifact) — public-facing; carries NO raw content.
+artifact_required_fields:
+  - artifact_id
+  - artifact_type     # e.g. DERIVED_CAPTION_PLACEHOLDERIZED, IMAGE, DERIVED_OCR
+  - case_id
+  - source_id
+  - state             # from ingestion_state_machine derivative_flow
+  - hash
+  - aad               # binding object (case_id, source_id, artifact_id, policy_version, ingestion_state)
+artifact_optional_fields:
+  - parent_artifact_id
+  - derivation        # { tool, model, profile, created_at }
+  - citations
+
+# human_traceability_manifest — every value EXCEPT identifiers/timestamps is encrypted.
+human_traceability_manifest:
+  required_fields:
+    - source_id
+    - sha256
+    - received_at
+  encrypted_fields:
+    - original_filename
+    - original_path_hint
+    - received_from
+    - human_label
+  # Only the authorized human interface may resolve this manifest.
+  resolvable_by: authorized_human_only
+
+# Field names that must never appear in a public-facing provenance node.
+forbidden_fields:
+  - raw_value
+  - original_filename
+  - plaintext
+  - decrypted
+  - vault_mapping
+  - prompt_text
+  - source_path
+  - ocr_text
+  - caption_text
+  - transcript_text
