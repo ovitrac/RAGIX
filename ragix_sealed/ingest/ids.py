@@ -60,6 +60,15 @@ class CaseContext:
         h = _hmac_hex(self.case_secret, doc_id, str(page), str(block), chunk_version)
         return "chunk_" + h[:8]
 
+    def derive_id(self, prefix: str, *parts: object) -> str:
+        """Generic opaque, case-bound id: `{prefix}_HMAC(case_secret, prefix | parts)`.
+
+        Used for multimodal derivatives (§8bis.2): asset/frame/segment/ocr/caption/
+        transcript ids. Stable for the same inputs, unlinkable across cases, opaque.
+        """
+        h = _hmac_hex(self.case_secret, prefix, *[str(p) for p in parts])
+        return f"{prefix}_" + h[:10]
+
 
 def new_case_context(
     case_id: str,
