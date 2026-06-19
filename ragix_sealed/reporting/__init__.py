@@ -14,6 +14,8 @@ from .export import (
     ReportError,
     WATERMARK,
     render,
+    render_reidentified,
+    vault_resolver,
 )
 from .report import (
     ReportSection,
@@ -31,6 +33,8 @@ __all__ = [
     "build_audit_attestation",
     "ExportMode",
     "render",
+    "render_reidentified",
+    "vault_resolver",
     "WATERMARK",
     "ReportError",
     "ReportAuthorizationError",

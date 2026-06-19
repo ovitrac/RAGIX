@@ -22,7 +22,12 @@ from typing import Any, Callable, Dict, Optional
 
 from ..ingest.leak_scan import scan as leak_scan
 from ..kernels.analysis import PLACEHOLDER_RE
-from ..vault.backend import AuthorizationToken, ReidentificationPurpose
+from ..vault.backend import (
+    AuthorizationToken,
+    ReidentificationPurpose,
+    VaultAuthorizationError,
+    VaultError,
+)
 from .report import SealedReport
 
 WATERMARK = (
@@ -86,3 +91,48 @@ def render(
         return dict(metrics or {})
 
     raise ReportError(f"unknown export mode: {mode!r}")  # pragma: no cover
+
+
+def _canonical(token: str) -> str:
+    """Strip any visible role: '[PERSON_001 | role]' -> '[PERSON_001]'."""
+    m = PLACEHOLDER_RE.search(token)
+    return f"[{m.group(1)}_{m.group(2)}]" if m else token
+
+
+def vault_resolver(
+    vault: Any,
+    case_id: str,
+    authorization: AuthorizationToken,
+    purpose: ReidentificationPurpose = ReidentificationPurpose.REPORT_EXPORT_HUMAN,
+) -> Resolver:
+    """Build a placeholder->raw resolver backed by the sealed vault.
+
+    Tries the token as written, then its canonical (role-stripped) form, since the vault
+    stores canonical placeholders. An unknown placeholder is left untouched (safe). An
+    authorization failure propagates — it is never silently swallowed.
+    """
+    def _resolve(token: str) -> str:
+        for candidate in (token, _canonical(token)):
+            try:
+                return vault.resolve_placeholder(case_id, candidate, purpose, authorization)
+            except VaultAuthorizationError:
+                raise
+            except VaultError:
+                continue
+        return token  # unknown placeholder: leave it placeholderized (deny-by-default)
+    return _resolve
+
+
+def render_reidentified(
+    report: SealedReport,
+    vault: Any,
+    case_id: str,
+    authorization: AuthorizationToken,
+    purpose: ReidentificationPurpose = ReidentificationPurpose.REPORT_EXPORT_HUMAN,
+) -> str:
+    """Convenience HUMAN_AUTHORIZED render that re-identifies via the sealed vault."""
+    return render(
+        report, ExportMode.HUMAN_AUTHORIZED,
+        authorization=authorization, purpose=purpose,
+        resolver=vault_resolver(vault, case_id, authorization, purpose),
+    )

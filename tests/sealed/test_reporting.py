@@ -96,3 +96,45 @@ def test_orchestrator_metrics_returns_counts():
 def test_commitment_matrix_builds():
     md = build_commitment_matrix(ANALYSIS).to_markdown()
     assert "Commitment Matrix" in md and "shall" in md
+
+
+# -- vault-backed re-identification (end-to-end) -----------------------------------------
+
+def test_vault_resolver_reidentifies_real_placeholder():
+    from ragix_sealed.ingest import SealedIngestor, new_case_context
+    from ragix_sealed.reporting import render_reidentified
+    from ragix_sealed.vault import RAGIXSealedVaultBackend
+
+    contracts = load_contracts()
+    vault = RAGIXSealedVaultBackend()
+    ing = SealedIngestor(contracts, vault)
+    ctx = new_case_context("case_reid_001")
+    doc = b"Contact jane.synthetic@example.com about the review."
+    status = ing.ingest(ctx, doc, "txt", ingestion_counter=1)
+    # The vault now holds [EMAIL_001] -> the raw email for this case.
+    report = SealedReport("Memo", [ReportSection("Contacts", ["- [EMAIL_001]"])])
+
+    auth = AuthorizationToken("human::reviewer-1", ReidentificationPurpose.REPORT_EXPORT_HUMAN, token="g")
+    out = render_reidentified(report, vault, ctx.case_id, auth)
+    assert out.startswith("> [HUMAN-AUTHORIZED")
+    assert "jane.synthetic@example.com" in out
+    assert "[EMAIL_001]" not in out
+
+
+def test_vault_reidentify_denied_without_authorization():
+    from ragix_sealed.reporting import render_reidentified
+    from ragix_sealed.vault import RAGIXSealedVaultBackend
+
+    bad = AuthorizationToken("x", ReidentificationPurpose.AUDIT_INSPECTION, token="g")  # wrong purpose
+    report = SealedReport("Memo", [ReportSection("S", ["- [EMAIL_001]"])])
+    with pytest.raises(ReportAuthorizationError):
+        render_reidentified(report, RAGIXSealedVaultBackend(), "case_x", bad)
+
+
+def test_vault_resolver_leaves_unknown_placeholder_untouched():
+    from ragix_sealed.reporting import vault_resolver
+    from ragix_sealed.vault import RAGIXSealedVaultBackend
+
+    auth = AuthorizationToken("h", ReidentificationPurpose.REPORT_EXPORT_HUMAN, token="g")
+    resolve = vault_resolver(RAGIXSealedVaultBackend(), "case_empty", auth)
+    assert resolve("[PERSON_999]") == "[PERSON_999]"  # unknown -> left placeholderized
