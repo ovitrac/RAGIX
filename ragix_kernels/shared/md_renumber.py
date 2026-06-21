@@ -10,8 +10,13 @@ Supports:
   - Section headings: ``## N. Title`` (any heading level, dot-delimited hierarchy)
   - Table of Contents: ``N. [Title](#anchor)`` blocks
   - Figure references: ``Figure N``, ``Fig. N``, ``fig. N`` (definition + cross-ref)
+  - HTML figure captions: ``<b>Fig. XX</b>``, ``<b>Figure XX</b>``
+  - HTML image sources: ``src="assets/figXX_name.svg"``
+  - Figure listing tables: markdown tables with ``| Fig. XX | description |``
   - Table references: ``Table N``, ``Tableau N``, ``Tab. N`` (definition + cross-ref)
   - Cross-references: ``Section N``, ``section N.M``, ``§N``, ``§N.M``
+  - Number padding preservation (2-digit inputs produce 2-digit zero-padded outputs)
+  - SVG file renaming (optional, via ``rename_figure_files()``)
   - Bilingual FR/EN patterns
 
 Usage::
@@ -24,13 +29,23 @@ Usage::
     # Selective scope
     new_content, report = renumber_markdown(content, scope=["sections", "toc"])
 
+    # With figure table rebuild (reorder rows by new number)
+    new_content, report = renumber_markdown(content, scope=["figures", "figure_table"])
+
+    # Rename SVG files after renumbering
+    from ragix_kernels.shared.md_renumber import rename_figure_files
+    renames = rename_figure_files(figure_map, assets_dir, dry_run=False)
+
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-02-13
+Updated: 2026-03-04 — HTML figure patterns, figure table blocks, padding, SVG renaming
 """
 
 from __future__ import annotations
 
 import re
+import shutil
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
 
@@ -41,9 +56,9 @@ from typing import Dict, List, Optional, Set, Tuple
 @dataclass
 class NumberedElement:
     """A numbered element found in the document."""
-    kind: str           # "section", "toc", "figure", "table", "xref"
+    kind: str           # "section", "toc", "figure", "table", "xref", "fig_table"
     line_num: int       # 1-based line number
-    old_number: str     # e.g. "3", "3.1", "12"
+    old_number: str     # e.g. "3", "3.1", "12", "04"
     new_number: str = ""  # computed after renumbering
     col_start: int = 0  # column start of the number in the line
     col_end: int = 0    # column end of the number in the line
@@ -65,6 +80,8 @@ class RenumberReport:
     figure_refs_found: int = 0
     table_refs_found: int = 0
     xrefs_found: int = 0
+    fig_table_rows: int = 0
+    figure_map: Dict[int, int] = field(default_factory=dict)
 
     def summary(self) -> str:
         """Return a human-readable summary."""
@@ -75,8 +92,15 @@ class RenumberReport:
             f"  Figure refs: {self.figure_refs_found} found",
             f"  Table refs: {self.table_refs_found} found",
             f"  Cross-refs: {self.xrefs_found} found",
+            f"  Figure table rows: {self.fig_table_rows} found",
             f"  Changes applied: {self.changes}",
         ]
+        if self.figure_map:
+            changed = {k: v for k, v in self.figure_map.items() if k != v}
+            if changed:
+                lines.append(f"  Figure mapping ({len(changed)} renumbered):")
+                for old, new in sorted(changed.items()):
+                    lines.append(f"    Fig {old} -> Fig {new}")
         if self.changes > 0:
             lines.append("  Details:")
             for el in self.elements:
@@ -102,9 +126,24 @@ _TOC_ENTRY_RE = re.compile(
     r'^(\s*)(\d+)\.\s+\[(.+?)\]\(#(.+?)\)\s*$'
 )
 
-# Figure definitions and references (bilingual)
+# Figure definitions and references (bilingual, plain text)
 _FIGURE_REF_RE = re.compile(
     r'(?i)\b(Figure|Fig\.|fig\.)\s+(\d+)\b'
+)
+
+# HTML figure captions: <b>Fig. XX</b> or <b>Figure XX</b>
+_HTML_CAPTION_RE = re.compile(
+    r'<b>(Fig\.|Figure)\s+(\d+)</b>'
+)
+
+# HTML img src: src="assets/figXX_whatever.svg"
+_IMG_SRC_RE = re.compile(
+    r'(src="assets/fig)(\d+)(_[^"]*\.svg")'
+)
+
+# Figure listing table row: | Fig. XX | description | §Y |
+_FIG_TABLE_ROW_RE = re.compile(
+    r'^\|\s*(Fig\.)\s+(\d+)\s*\|(.+)$'
 )
 
 # Table definitions and references (bilingual)
@@ -154,6 +193,41 @@ def _detect_toc_block(lines: List[str]) -> Tuple[int, int]:
         best_end = cur_start + cur_count
 
     return best_start, best_end
+
+
+def _detect_figure_table_block(lines: List[str]) -> Tuple[int, int]:
+    """
+    Detect a figure listing table block (e.g. "Table des Figures").
+
+    Looks for a contiguous markdown table containing rows matching
+    ``| Fig. XX | ... |``.  Returns (start, end) 0-based line indices
+    including header/separator rows, or (-1, -1) if not found.
+    A valid block needs >= 2 Fig. rows.
+    """
+    start = end = -1
+    in_table = False
+    fig_count = 0
+
+    for i, line in enumerate(lines):
+        if _FIG_TABLE_ROW_RE.match(line):
+            if not in_table:
+                # Look back for table header rows (| Header | ... |)
+                start = i
+                for j in range(i - 1, max(i - 5, -1), -1):
+                    if lines[j].strip().startswith('|'):
+                        start = j
+                    else:
+                        break
+            in_table = True
+            fig_count += 1
+            end = i + 1
+        elif in_table and not line.strip().startswith('|'):
+            break
+
+    if fig_count < 2:
+        return -1, -1
+
+    return start, end
 
 
 def _inventory_sections(
@@ -232,7 +306,7 @@ def _inventory_toc(
             indent, old_num, title, anchor = (
                 m.group(1), m.group(2), m.group(3), m.group(4),
             )
-            # Pair by position: toc_idx-th ToC entry → toc_idx-th section
+            # Pair by position: toc_idx-th ToC entry -> toc_idx-th section
             if toc_idx < len(section_elements):
                 new_num = section_elements[toc_idx].new_number
             else:
@@ -253,67 +327,142 @@ def _inventory_toc(
     return elements
 
 
+def _format_figure_number(old_str: str, new_int: int) -> str:
+    """
+    Format a new figure number preserving the padding style of the original.
+
+    If the original was 2+ digits (e.g. "04", "12"), output is zero-padded
+    to the same width.  Single-digit originals ("4") stay unpadded.
+    """
+    width = len(old_str)
+    if width >= 2:
+        return f"{new_int:0{width}d}"
+    return str(new_int)
+
+
 def _inventory_figure_table_refs(
     lines: List[str],
     toc_start: int,
     toc_end: int,
-) -> Tuple[List[NumberedElement], List[NumberedElement]]:
+    fig_table_start: int,
+    fig_table_end: int,
+) -> Tuple[List[NumberedElement], List[NumberedElement], Dict[int, int]]:
     """
     Collect figure and table references throughout the document.
 
-    Counts definitions in order of appearance and builds renumbering.
-    Skips ToC block to avoid false matches.
+    Scans for figure definitions (captions) in body order, skipping
+    both the ToC block and figure listing table block.  Supports both
+    plain-text patterns (``Figure N``, ``Fig. N``) and HTML patterns
+    (``<b>Fig. XX</b>``, ``src="assets/figXX_..."``).
+
+    Returns:
+        (fig_elements, tbl_elements, fig_int_map)
+        where fig_int_map maps old_int -> new_int for figures.
     """
     fig_elements: List[NumberedElement] = []
     tbl_elements: List[NumberedElement] = []
 
-    # First pass: collect all figure/table numbers in order of appearance
-    fig_numbers_seen: List[str] = []
+    # ---------- First pass: collect figure/table numbers in body order ----------
+    fig_numbers_seen: List[int] = []
     tbl_numbers_seen: List[str] = []
 
+    def _in_skip_zone(idx: int) -> bool:
+        if toc_start <= idx < toc_end:
+            return True
+        if fig_table_start <= idx < fig_table_end:
+            return True
+        return False
+
     for i, line in enumerate(lines):
-        # Skip ToC block
-        if toc_start <= i < toc_end:
+        if _in_skip_zone(i):
             continue
 
+        # Figures — collect from all pattern types
+        fig_nums_in_line: List[int] = []
+
+        for m in _HTML_CAPTION_RE.finditer(line):
+            fig_nums_in_line.append(int(m.group(2)))
+
         for m in _FIGURE_REF_RE.finditer(line):
-            num = m.group(2)
+            fig_nums_in_line.append(int(m.group(2)))
+
+        for m in _IMG_SRC_RE.finditer(line):
+            fig_nums_in_line.append(int(m.group(2)))
+
+        for num in fig_nums_in_line:
             if num not in fig_numbers_seen:
                 fig_numbers_seen.append(num)
 
+        # Tables
         for m in _TABLE_REF_RE.finditer(line):
             num = m.group(2)
             if num not in tbl_numbers_seen:
                 tbl_numbers_seen.append(num)
 
-    # Build renumbering maps (sequential 1, 2, 3, ...)
-    fig_map: Dict[str, str] = {}
-    for idx, num in enumerate(fig_numbers_seen, 1):
-        fig_map[num] = str(idx)
+    # ---------- Build renumbering maps ----------
+    fig_int_map: Dict[int, int] = {}
+    for idx, old_int in enumerate(fig_numbers_seen, 1):
+        fig_int_map[old_int] = idx
 
     tbl_map: Dict[str, str] = {}
     for idx, num in enumerate(tbl_numbers_seen, 1):
         tbl_map[num] = str(idx)
 
-    # Second pass: collect all references with new numbers
+    # ---------- Second pass: collect all references with positions ----------
     for i, line in enumerate(lines):
-        if toc_start <= i < toc_end:
+        if _in_skip_zone(i):
             continue
 
+        # Collect substitutions for this line to deduplicate overlaps
+        fig_subs: List[Tuple[int, int, str, str, str]] = []
+        # Each: (col_start, col_end, old_str, new_str, label)
+
+        # HTML captions: <b>Fig. XX</b>
+        for m in _HTML_CAPTION_RE.finditer(line):
+            old_str = m.group(2)
+            old_int = int(old_str)
+            new_int = fig_int_map.get(old_int, old_int)
+            new_str = _format_figure_number(old_str, new_int)
+            fig_subs.append((m.start(2), m.end(2), old_str, new_str, m.group(1)))
+
+        # Img src: src="assets/figXX_..."
+        for m in _IMG_SRC_RE.finditer(line):
+            old_str = m.group(2)
+            old_int = int(old_str)
+            new_int = fig_int_map.get(old_int, old_int)
+            new_str = _format_figure_number(old_str, new_int)
+            fig_subs.append((m.start(2), m.end(2), old_str, new_str, "img_src"))
+
+        # Plain text: Figure N, Fig. N
         for m in _FIGURE_REF_RE.finditer(line):
-            label, num = m.group(1), m.group(2)
-            new_num = fig_map.get(num, num)
+            old_str = m.group(2)
+            old_int = int(old_str)
+            new_int = fig_int_map.get(old_int, old_int)
+            new_str = _format_figure_number(old_str, new_int)
+            fig_subs.append((m.start(2), m.end(2), old_str, new_str, m.group(1)))
+
+        # Deduplicate overlapping matches (keep first = most specific)
+        fig_subs.sort(key=lambda x: x[0])
+        deduped: List[Tuple[int, int, str, str, str]] = []
+        last_end = -1
+        for start, end, old_s, new_s, lbl in fig_subs:
+            if start >= last_end:
+                deduped.append((start, end, old_s, new_s, lbl))
+                last_end = end
+
+        for start, end, old_s, new_s, lbl in deduped:
             fig_elements.append(NumberedElement(
                 kind="figure",
                 line_num=i + 1,
-                old_number=num,
-                new_number=new_num,
-                col_start=m.start(2),
-                col_end=m.end(2),
+                old_number=old_s,
+                new_number=new_s,
+                col_start=start,
+                col_end=end,
                 context=line,
-                label=label,
+                label=lbl,
             ))
 
+        # Tables
         for m in _TABLE_REF_RE.finditer(line):
             label, num = m.group(1), m.group(2)
             new_num = tbl_map.get(num, num)
@@ -328,7 +477,7 @@ def _inventory_figure_table_refs(
                 label=label,
             ))
 
-    return fig_elements, tbl_elements
+    return fig_elements, tbl_elements, fig_int_map
 
 
 def _inventory_section_xrefs(
@@ -460,6 +609,101 @@ def _apply_inline_renumber(
     return result
 
 
+def _rebuild_figure_table(
+    lines: List[str],
+    fig_table_start: int,
+    fig_table_end: int,
+    fig_int_map: Dict[int, int],
+) -> List[str]:
+    """
+    Rebuild a figure listing table: reorder rows by new figure number
+    and update figure numbers within each row.
+
+    The figure listing table (e.g. "Table des Figures") is rebuilt
+    with rows sorted by their new figure number.
+    """
+    if fig_table_start < 0 or fig_table_end < 0:
+        return lines
+
+    headers = []
+    fig_rows = []
+
+    for i in range(fig_table_start, fig_table_end):
+        m = _FIG_TABLE_ROW_RE.match(lines[i])
+        if m:
+            old_num = int(m.group(2))
+            rest = m.group(3)
+            fig_rows.append((old_num, rest))
+        else:
+            headers.append(lines[i])
+
+    # Compute new numbers and sort
+    rows_with_new_num = []
+    for old_num, rest in fig_rows:
+        new_num = fig_int_map.get(old_num, old_num)
+        rows_with_new_num.append((new_num, rest))
+    rows_with_new_num.sort(key=lambda x: x[0])
+
+    # Rebuild block
+    new_block = list(headers)
+    for new_num, rest in rows_with_new_num:
+        new_block.append(f"| Fig. {new_num:02d} |{rest}")
+
+    return lines[:fig_table_start] + new_block + lines[fig_table_end:]
+
+
+# ---------------------------------------------------------------------------
+# SVG file renaming
+# ---------------------------------------------------------------------------
+
+def rename_figure_files(
+    fig_int_map: Dict[int, int],
+    assets_dir: str | Path,
+    dry_run: bool = False,
+    pattern: str = "fig[0-9][0-9]_*.svg",
+) -> List[Tuple[str, str]]:
+    """
+    Rename figure SVG files using a 2-pass approach to avoid collisions.
+
+    Args:
+        fig_int_map: Mapping of old figure int to new figure int.
+        assets_dir: Directory containing SVG files.
+        dry_run: If True, compute renames but don't execute.
+        pattern: Glob pattern for figure files.
+
+    Returns:
+        List of (old_name, new_name) pairs.
+    """
+    import re as _re
+
+    assets = Path(assets_dir)
+    renames: List[Tuple[str, str]] = []
+    fig_files = sorted(assets.glob(pattern))
+
+    file_map: Dict[Path, Tuple[Path, Path]] = {}
+    for f in fig_files:
+        m = _re.match(r'fig(\d{2})_(.+)', f.name)
+        if m:
+            old_num = int(m.group(1))
+            rest = m.group(2)
+            if old_num in fig_int_map and fig_int_map[old_num] != old_num:
+                new_num = fig_int_map[old_num]
+                temp_name = f"__tmp_fig{new_num:02d}_{rest}"
+                final_name = f"fig{new_num:02d}_{rest}"
+                file_map[f] = (assets / temp_name, assets / final_name)
+                renames.append((f.name, final_name))
+
+    if not dry_run and file_map:
+        # Pass 1: rename to temp (avoids collisions)
+        for src, (temp, _) in file_map.items():
+            shutil.move(str(src), str(temp))
+        # Pass 2: rename to final
+        for _, (temp, final) in file_map.items():
+            shutil.move(str(temp), str(final))
+
+    return renames
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -482,8 +726,9 @@ def renumber_markdown(
     Args:
         content: Markdown text.
         scope: Which element types to renumber.
-            Options: "sections", "toc", "figures", "tables", "xrefs".
-            Default (None): all types.
+            Options: "sections", "toc", "figures", "tables", "xrefs",
+                     "figure_table" (reorder figure listing table).
+            Default (None): all types except figure_table.
 
     Returns:
         (new_content, report)
@@ -513,19 +758,25 @@ def renumber_markdown(
         )
         report.toc_entries_found = len(toc_elements)
 
+    # Figure listing table
+    fig_table_start, fig_table_end = _detect_figure_table_block(lines)
+
     # Figures and Tables
     fig_elements: List[NumberedElement] = []
     tbl_elements: List[NumberedElement] = []
+    fig_int_map: Dict[int, int] = {}
     if "figures" in active_scopes or "tables" in active_scopes:
-        fig_elements, tbl_elements = _inventory_figure_table_refs(
-            lines, toc_start, toc_end,
+        fig_elements, tbl_elements, fig_int_map = _inventory_figure_table_refs(
+            lines, toc_start, toc_end, fig_table_start, fig_table_end,
         )
         if "figures" not in active_scopes:
             fig_elements = []
+            fig_int_map = {}
         if "tables" not in active_scopes:
             tbl_elements = []
         report.figure_refs_found = len(fig_elements)
         report.table_refs_found = len(tbl_elements)
+        report.figure_map = fig_int_map
 
     # Cross-references
     xref_elements: List[NumberedElement] = []
@@ -544,6 +795,19 @@ def renumber_markdown(
     # ToC (rewrites whole ToC lines)
     if "toc" in active_scopes and toc_elements:
         lines = _apply_toc_renumber(lines, toc_elements)
+
+    # Figure listing table rebuild (reorder + renumber rows)
+    if "figure_table" in active_scopes and fig_int_map and fig_table_start >= 0:
+        lines = _rebuild_figure_table(
+            lines, fig_table_start, fig_table_end, fig_int_map,
+        )
+        # Count fig table rows for report
+        report.fig_table_rows = sum(
+            1 for i in range(fig_table_start, fig_table_end)
+            if _FIG_TABLE_ROW_RE.match(lines[i]) if i < len(lines)
+        )
+        # Recalculate bounds (may have shifted)
+        fig_table_start, fig_table_end = _detect_figure_table_block(lines)
 
     # Inline substitutions (figures, tables, xrefs) — column-based
     inline_elements = fig_elements + tbl_elements + xref_elements
@@ -565,6 +829,7 @@ def renumber_file(
     path: str,
     scope: Optional[List[str]] = None,
     dry_run: bool = False,
+    assets_dir: Optional[str] = None,
 ) -> RenumberReport:
     """
     Renumber a markdown file in place.
@@ -573,16 +838,26 @@ def renumber_file(
         path: Path to markdown file.
         scope: Which element types to renumber (see renumber_markdown).
         dry_run: If True, compute changes but don't write.
+        assets_dir: If provided and "figures" in scope, rename SVG files too.
 
     Returns:
         RenumberReport with all changes.
     """
-    from pathlib import Path as P
-    p = P(path)
+    p = Path(path)
     content = p.read_text(encoding="utf-8")
     new_content, report = renumber_markdown(content, scope=scope)
 
     if not dry_run and report.changes > 0:
         p.write_text(new_content, encoding="utf-8")
+
+    # SVG file renaming
+    if assets_dir and report.figure_map and "figures" in (scope or _ALL_SCOPES):
+        renames = rename_figure_files(
+            report.figure_map, assets_dir, dry_run=dry_run,
+        )
+        if renames:
+            print(f"  SVG renames: {len(renames)} files")
+            for old_name, new_name in renames:
+                print(f"    {old_name} -> {new_name}")
 
     return report
