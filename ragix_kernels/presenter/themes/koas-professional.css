@@ -410,3 +410,19 @@ section .accent {
     color: var(--koas-accent);
     font-weight: 600;
 }
+
+/* ---------------------------------------------------------------------------
+ * Print / PDF — centering fix (v2.1.1)
+ *
+ * MARP strips display/margin from img-targeting CSS rules.  The attribute
+ * selector bypasses this by NOT using the img tag name.  Belt-and-suspenders
+ * complement to center_standalone_images() which wraps images in flex divs
+ * at the markdown level.
+ * --------------------------------------------------------------------------- */
+@media print {
+    section [style*="object-fit"] {
+        display: block !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+}

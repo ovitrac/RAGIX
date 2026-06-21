@@ -1,0 +1,31 @@
+meta:
+  id: benchmarks
+  title: "RAGIX Memory — Benchmark Report"
+
+search:
+  k: 5
+  queries:
+    - "oracle conformite critique"
+    - "migration java rhel kubernetes"
+    - "derogation formelle acme-erp"
+    - "sauvegarde commvault ransomware"
+    - "spring4shell cve securite"
+    - "postgresql azure cloud edgar"
+    - "weblogic version cluster"
+    - "centos rhel fin de vie"
+    - "kubernetes rancher argocd"
+    - "ports reseau jms msg-hub"
+
+recall:
+  runs:
+    - query: "non-conformite critique acme-erp oracle centos postgresql"
+      budget_tokens: 3000
+    - query: "plan remediation derogation migration"
+      budget_tokens: 1500
+    - query: "kubernetes containerisation modernisation"
+      budget_tokens: 500
+
+thresholds:
+  max_avg_search_ms: 50
+  max_avg_recall_ms: 200
+  format_version: 1

@@ -225,6 +225,7 @@ class ExportConfig:
     # HTML post-processing (v2.0) — applied after marp-cli HTML export
     center_images: bool = True              # fix image centering (MARP strips display/margin)
     fix_layout_tables: bool = True          # fix display:block on layout tables
+    lightbox: bool = True                   # click-to-zoom overlay on images (v2.1)
     embed_images: bool = False              # embed images as base64 data URIs
     embed_max_dim: int = 2000               # max pixel dimension for raster images (~200 DPI)
     embed_jpeg_quality: int = 85            # JPEG quality for embedded rasters
@@ -382,6 +383,7 @@ class PresenterConfig:
                 "symlink_assets": self.export.symlink_assets,
                 "center_images": self.export.center_images,
                 "fix_layout_tables": self.export.fix_layout_tables,
+                "lightbox": self.export.lightbox,
                 "embed_images": self.export.embed_images,
                 "embed_max_dim": self.export.embed_max_dim,
                 "embed_jpeg_quality": self.export.embed_jpeg_quality,
@@ -536,6 +538,7 @@ class PresenterConfig:
                 symlink_assets=ex.get("symlink_assets", False),
                 center_images=ex.get("center_images", True),
                 fix_layout_tables=ex.get("fix_layout_tables", True),
+                lightbox=ex.get("lightbox", True),
                 embed_images=ex.get("embed_images", False),
                 embed_max_dim=ex.get("embed_max_dim", 2000),
                 embed_jpeg_quality=ex.get("embed_jpeg_quality", 85),

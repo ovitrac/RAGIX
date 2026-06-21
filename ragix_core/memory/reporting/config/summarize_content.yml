@@ -1,0 +1,129 @@
+meta:
+  id: summarize_content
+  title: "RAGIX Memory — Content Summary Report"
+  language: fr
+
+inventory:
+  by_type: true
+  by_tags: true
+  top_tags_k: 15
+
+queries:
+  k: 5
+  read_full_top_n: 3
+  items:
+    - question: "Quelles sont les non-conformites critiques ?"
+      query: "non-conforme critique"
+      type_filter: constraint
+    - question: "Quel est le plan de remediation prioritaire ?"
+      query: "plan remediation priorite"
+    - question: "Quels RIE definissent les regles pour Oracle ?"
+      query: "oracle 19c exadata support"
+    - question: "ACME-ERP peut-il migrer vers Kubernetes ?"
+      query: "kubernetes rancher containerisation"
+    - question: "Quelles sont les derogations en cours ?"
+      query: "derogation formelle echeance"
+    - question: "Quels sont les risques de securite identifies ?"
+      query: "vulnerabilite securite risque CVE"
+    - question: "Quel est le cadre commun d'hebergement CORP-ENERGY ?"
+      query: "cadre commun hebergement EDGAR"
+      tags: cadre-commun
+    - question: "Quels composants sont hors perimetre ?"
+      query: "hors perimetre"
+      k: 12
+
+crossrefs:
+  k: 2
+  chains:
+    - name: "Oracle: constraint vs. specification vs. remediation"
+      facets:
+        - label: "Oracle constraint"
+          query: "oracle non-conforme"
+          type_filter: constraint
+        - label: "Oracle RIE spec"
+          query: "oracle 19c exadata version"
+          type_filter: note
+        - label: "Oracle remediation"
+          query: "oracle migration derogation"
+
+    - name: "CentOS / RHEL: gap analysis chain"
+      facets:
+        - label: "CentOS finding"
+          query: "centos 7 non-conforme"
+          type_filter: constraint
+        - label: "RHEL specification"
+          query: "RHEL 8 9 regles"
+          type_filter: note
+        - label: "Remediation path"
+          query: "centos RHEL migration"
+
+    - name: "Hebergement: EDGAR vs. Cloud"
+      facets:
+        - label: "Cadre commun"
+          query: "cadre commun hebergement EDGAR"
+          type_filter: definition
+        - label: "PostgreSQL violation"
+          query: "postgresql azure cloud interdit"
+          type_filter: constraint
+        - label: "K8S option"
+          query: "kubernetes EDGAR cloud"
+          type_filter: note
+
+recall:
+  query: "non-conformite critique ACME-ERP oracle centos postgresql"
+  budgets: [500, 1500, 4000]
+  truncation_chars: 3000
+
+filtered_views:
+  - name: "All constraints (compliance violations)"
+    query: "*"
+    type_filter: constraint
+    k: 10
+  - name: "All decisions (aggregated verdicts)"
+    query: "*"
+    type_filter: decision
+    k: 10
+  - name: "All definitions (reference framework)"
+    query: "*"
+    type_filter: definition
+    k: 10
+  - name: "Tag filter: oracle"
+    query: "oracle"
+    tags: oracle
+    k: 5
+  - name: "Tag filter: securite"
+    query: "securite vulnerabilite"
+    tags: securite
+    k: 5
+
+links:
+  create:
+    - src_pattern: "Oracle 11gR2 non-conforme"
+      dst_pattern: "RIE Oracle 19c"
+      relation: supports
+    - src_pattern: "CentOS 7 non-conforme"
+      dst_pattern: "RIE RHEL"
+      relation: supports
+    - src_pattern: "PostgreSQL Azure non-conforme"
+      dst_pattern: "RIE PostgreSQL 13"
+      relation: supports
+    - src_pattern: "Oracle 11gR2 non-conforme"
+      dst_pattern: "Score conformite"
+      relation: refines
+    - src_pattern: "CentOS 7 non-conforme"
+      dst_pattern: "Score conformite"
+      relation: refines
+    - src_pattern: "PostgreSQL Azure non-conforme"
+      dst_pattern: "Score conformite"
+      relation: refines
+    - src_pattern: "Score conformite"
+      dst_pattern: "Plan remediation"
+      relation: supports
+    - src_pattern: "Cadre commun"
+      dst_pattern: "PostgreSQL Azure non-conforme"
+      relation: supports
+    - src_pattern: "Risques"
+      dst_pattern: "Oracle 11gR2 non-conforme"
+      relation: supports
+  traverse:
+    start_pattern: "Oracle 11gR2 non-conforme"

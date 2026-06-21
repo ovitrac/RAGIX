@@ -2180,6 +2180,96 @@ def expand_layout_directives(content: str) -> str:
     return _LAYOUT_BLOCK_RE.sub(_replace, content)
 
 
+# ---------------------------------------------------------------------------
+# Accent directives — color-highlight tables, lists, blockquotes
+# ---------------------------------------------------------------------------
+
+_ACCENT_PALETTE: Dict[str, Dict[str, str]] = {
+    "coral":    {"bg": "#FFE0D6", "border": "#E17055", "header": "#D35240"},
+    "sky":      {"bg": "#D6EAFF", "border": "#0066CC", "header": "#004A99"},
+    "mint":     {"bg": "#D6FFE8", "border": "#00B894", "header": "#009B7A"},
+    "lavender": {"bg": "#E8D6FF", "border": "#6C5CE7", "header": "#5A45D0"},
+    "sand":     {"bg": "#FFF3D6", "border": "#FDCB6E", "header": "#E0A800"},
+    "peach":    {"bg": "#FFD6E0", "border": "#E84393", "header": "#D63384"},
+    "sage":     {"bg": "#D6F0D6", "border": "#55A370", "header": "#3D8B57"},
+    "steel":    {"bg": "#E0E4E8", "border": "#636E72", "header": "#4A5258"},
+}
+
+_ACCENT_RE = re.compile(
+    r"^<!--\s*accent:\s*(\w+)\s*-->[ \t]*\n",
+    re.MULTILINE,
+)
+
+
+def expand_accent_directives(content: str) -> str:
+    """Expand ``<!-- accent: COLOR -->`` into scoped CSS for the next block.
+
+    Supported colors: coral, sky, mint, lavender, sand, peach, sage, steel.
+
+    The directive must appear on its own line, immediately before a Markdown
+    table (``|``), list (``-``/``*``/``1.``), or blockquote (``>``).
+
+    For tables, the accent recolors the header and data rows.
+    For lists, it adds a left border and background to each item.
+    For blockquotes, it changes the border and background color.
+
+    This transform is idempotent: already-expanded scoped styles are not
+    duplicated because the directive comments are consumed during expansion.
+    """
+    def _replace(m: re.Match) -> str:
+        color_name = m.group(1).lower()
+        palette = _ACCENT_PALETTE.get(color_name)
+        if palette is None:
+            return m.group(0)  # unknown color — leave unchanged
+
+        bg = palette["bg"]
+        border = palette["border"]
+        header = palette["header"]
+
+        # Peek at the next non-empty line to detect block type
+        rest = content[m.end():]
+        next_line = ""
+        for line in rest.split("\n"):
+            stripped = line.strip()
+            if stripped:
+                next_line = stripped
+                break
+
+        if next_line.startswith("|"):
+            # Table accent
+            css = (
+                f"<style scoped>\n"
+                f"table {{ border-left: 4px solid {border} !important; }}\n"
+                f"th {{ background: {header} !important; color: white !important; }}\n"
+                f"tr:nth-child(even) {{ background: {bg} !important; }}\n"
+                f"</style>\n\n"
+            )
+        elif next_line.startswith(("-", "*")) or re.match(r"\d+\.", next_line):
+            # List accent
+            css = (
+                f"<style scoped>\n"
+                f"li {{ background: {bg} !important; padding: 4px 12px !important; "
+                f"border-left: 3px solid {border} !important; "
+                f"border-radius: 4px !important; margin-bottom: 4px !important; }}\n"
+                f"</style>\n\n"
+            )
+        elif next_line.startswith(">"):
+            # Blockquote accent
+            css = (
+                f"<style scoped>\n"
+                f"blockquote {{ background: {bg} !important; "
+                f"border-left-color: {border} !important; "
+                f"padding: 12px 16px !important; }}\n"
+                f"</style>\n\n"
+            )
+        else:
+            return m.group(0)  # no recognized block — leave unchanged
+
+        return css
+
+    return _ACCENT_RE.sub(_replace, content)
+
+
 def compact_layout_slides(content: str) -> str:
     """Reduce vertical padding and expand images on side-by-side layout slides.
 
@@ -2365,12 +2455,18 @@ def postprocess_marp(
     # 1g2. Compact vertical padding on layout slides (v2.0)
     content = compact_layout_slides(content)
     applied.append("compact_layouts")
+    # 1g3. Expand accent directives (v2.1)
+    content = expand_accent_directives(content)
+    applied.append("accent")
     # 1c. Auto-classify tables (deterministic, no flag needed)
     content = auto_classify_tables(content)
     applied.append("auto_tables")
     # Auto-constrain figures on slides with body text (v1.3)
     content = auto_constrain_figure_slides(content)
     applied.append("auto_constrain_figures")
+    # Center standalone images (v2.1.1 — flex wrapper for HTML + PDF centering)
+    content = center_standalone_images(content)
+    applied.append("center_images")
     # Auto-shrink dense slides (before nav/footer injection to measure clean text)
     content = auto_shrink_dense_slides(content)
     applied.append("auto_shrink")
@@ -2513,6 +2609,85 @@ _SVG_USE_RE = re.compile(
     r'(?:\s+transform="translate\(([0-9.]+)\s+[0-9.]+\)")?'
     r"\s*/?>",
 )
+
+# ---------------------------------------------------------------------------
+# Markdown-level image centering (runs BEFORE marp-cli → applies to HTML + PDF)
+# ---------------------------------------------------------------------------
+
+# Match standalone <img> tags with object-fit:contain that are NOT already
+# inside a layout container (figure, figure-landscape, figure-full).
+_STANDALONE_IMG_RE = re.compile(
+    r'^(<img\b[^>]*object-fit\s*:\s*contain[^>]*>)\s*$',
+    re.MULTILINE,
+)
+
+
+def center_standalone_images(content: str) -> str:
+    """Wrap standalone ``<img>`` tags in a flex centering container.
+
+    MARP's CSS sanitizer strips ``display``, ``margin``, and ``text-align``
+    from **all** ``img``-targeting CSS rules (theme, ``<style>``, inline
+    ``style``).  The only way to center images in **both** HTML and PDF
+    output is to wrap them in a parent element whose layout properties
+    MARP does not strip.
+
+    This function targets ``<img>`` elements that appear alone on a line
+    (standalone images, not inline with text) and contain
+    ``object-fit:contain`` in their style.  Images already inside layout
+    containers (``<div class="figure-*">``) are skipped because the
+    container already handles centering.
+
+    Args:
+        content: MARP markdown content.
+
+    Returns:
+        Content with standalone images wrapped in centering ``<div>``.
+    """
+    lines = content.split('\n')
+    result = []
+    skip_next_img = False
+    for i, line in enumerate(lines):
+        # Check if the previous non-blank line is a layout container open tag
+        if skip_next_img:
+            result.append(line)
+            if line.strip():
+                skip_next_img = False
+            continue
+
+        stripped = line.strip()
+        # Detect layout container — skip images inside them
+        if re.match(r'<div\s+class="figure', stripped, re.IGNORECASE):
+            skip_next_img = True
+            result.append(line)
+            continue
+
+        # Match standalone <img> with object-fit:contain
+        m = _STANDALONE_IMG_RE.match(stripped)
+        if m and not _is_inside_layout_container(lines, i):
+            indent = line[:len(line) - len(line.lstrip())]
+            result.append(
+                f'{indent}<div style="display:flex;justify-content:center">'
+                f'{m.group(1)}</div>'
+            )
+        else:
+            result.append(line)
+
+    return '\n'.join(result)
+
+
+def _is_inside_layout_container(lines: list, idx: int) -> bool:
+    """Check if line *idx* is inside a ``<div class="figure*">`` container.
+
+    Scans up to 3 lines backwards looking for an unclosed layout div.
+    """
+    for j in range(max(0, idx - 3), idx):
+        ln = lines[j].strip()
+        if re.match(r'<div\s+class="figure', ln, re.IGNORECASE):
+            return True
+        if ln == '</div>':
+            return False
+    return False
+
 
 # ---------------------------------------------------------------------------
 # HTML post-processing (runs AFTER marp-cli on the final .html output)
@@ -2804,6 +2979,124 @@ def embed_images_in_html(html_path: str, *, max_dim: int = 2000,
         "original_kb": original_size // 1024,
         "embedded_kb": final_size // 1024,
     }
+
+
+# ---------------------------------------------------------------------------
+# Lightbox (click-to-zoom overlay)
+# ---------------------------------------------------------------------------
+
+_LIGHTBOX_CSS_JS = r"""
+<style>
+/* Lightbox overlay */
+.marp-lightbox-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.88);
+  z-index: 99999;
+  display: flex; align-items: center; justify-content: center;
+  cursor: zoom-out;
+  opacity: 0; transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+.marp-lightbox-overlay.active {
+  opacity: 1; pointer-events: auto;
+}
+.marp-lightbox-overlay img {
+  max-width: 92vw; max-height: 92vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.5);
+  background-color: white;  /* SVGs have transparent bg — invisible on dark overlay */
+}
+/* Override: set to transparent if the original SVG bg should show through */
+.marp-lightbox-overlay img.lb-no-bg { background-color: transparent; }
+/* Zoom cursor on zoomable images */
+img.marp-zoomable { cursor: zoom-in; }
+</style>
+<div class="marp-lightbox-overlay" id="marpLightbox">
+  <img src="" alt="" id="marpLightboxImg" />
+</div>
+<script>
+(function(){
+  var overlay = document.getElementById('marpLightbox');
+  var lbImg   = document.getElementById('marpLightboxImg');
+  if(!overlay || !lbImg) return;
+
+  // Close on click or Escape
+  overlay.addEventListener('click', function(){ overlay.classList.remove('active'); });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') overlay.classList.remove('active');
+  });
+
+  // Delegate click on zoomable images
+  document.addEventListener('click', function(e){
+    var img = e.target.closest('img.marp-zoomable');
+    if(!img) return;
+    e.stopPropagation();
+    lbImg.src = img.src;
+    lbImg.alt = img.alt || '';
+    overlay.classList.add('active');
+  });
+})();
+</script>
+"""
+
+
+def inject_lightbox_in_html(html_path: str) -> int:
+    """Inject a click-to-zoom lightbox overlay into MARP HTML output.
+
+    Targets ``<img>`` elements with ``object-fit:contain`` (layout-generated
+    images) and standalone images (``max-height`` in style).  Small inline
+    images (emoji, icons without ``object-fit``/``max-height``) are excluded.
+
+    Adds the CSS class ``marp-zoomable`` to qualifying images and injects
+    a fullscreen overlay with CSS + JS at the end of ``<body>``.
+
+    Args:
+        html_path: Path to the marp-cli output HTML file (modified in place).
+
+    Returns:
+        Number of images made zoomable.
+    """
+    path = Path(html_path)
+    html = path.read_text()
+
+    # Skip if already injected (idempotent)
+    if "marp-lightbox-overlay" in html:
+        return 0
+
+    count = 0
+
+    # Mark images with object-fit:contain OR max-height as zoomable
+    _ZOOMABLE_RE = re.compile(
+        r'<img\b([^>]*?)(?:object-fit:\s*contain|max-height:\s*\d+px)([^>]*?)>'
+    )
+
+    def _mark(m: re.Match) -> str:
+        nonlocal count
+        tag = m.group(0)
+        # Skip emoji images
+        if 'class="emoji"' in tag or "class='emoji'" in tag:
+            return tag
+        # Skip already marked
+        if "marp-zoomable" in tag:
+            return tag
+        # Skip very small images (likely icons) — no style at all
+        if "style=" not in tag:
+            return tag
+        count += 1
+        # Insert class
+        if 'class="' in tag:
+            return tag.replace('class="', 'class="marp-zoomable ', 1)
+        return tag.replace("<img ", '<img class="marp-zoomable" ', 1)
+
+    html = _ZOOMABLE_RE.sub(_mark, html)
+
+    if count > 0:
+        # Inject lightbox overlay + CSS + JS before </body>
+        html = html.replace("</body>", _LIGHTBOX_CSS_JS + "\n</body>", 1)
+        path.write_text(html)
+
+    return count
 
 
 # ---------------------------------------------------------------------------

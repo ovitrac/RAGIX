@@ -341,6 +341,7 @@ class PresMarpExportKernel(Kernel):
         generated HTML (not in Markdown or CSS):
         - Image centering (MARP strips display/margin from img CSS)
         - Layout table display mode (MARP sets display:block on all tables)
+        - Lightbox overlay for click-to-zoom on images
         - Optional base64 image embedding for self-contained HTML
 
         Returns dict with post-processing metrics.
@@ -349,6 +350,7 @@ class PresMarpExportKernel(Kernel):
 
         do_center = export_cfg.get("center_images", True)
         do_fix_tables = export_cfg.get("fix_layout_tables", True)
+        do_lightbox = export_cfg.get("lightbox", True)
         do_embed = export_cfg.get("embed_images", False)
 
         if do_center:
@@ -364,6 +366,13 @@ class PresMarpExportKernel(Kernel):
             n_tbl = fix_layout_tables_in_html(html_path)
             pp_result["html_layout_tables_fixed"] = n_tbl
             logger.info(f"[pres_marp_export] {n_tbl} layout tables fixed")
+
+        if do_lightbox:
+            from ragix_kernels.shared.marp_postprocess import inject_lightbox_in_html
+
+            n_lb = inject_lightbox_in_html(html_path)
+            pp_result["html_lightbox_images"] = n_lb
+            logger.info(f"[pres_marp_export] {n_lb} lightbox images")
 
         if do_embed:
             from ragix_kernels.shared.marp_postprocess import embed_images_in_html

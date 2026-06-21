@@ -1,0 +1,22 @@
+meta:
+  id: regression_min
+  title: "RAGIX Memory — Regression Smoke Report"
+  strict: true
+
+search:
+  k: 3
+  queries:
+    - "oracle conformite critique"
+    - "centos rhel fin de vie"
+    - "postgresql azure cloud"
+
+recall:
+  query: "non-conformite critique acme-erp oracle centos postgresql"
+  budget_tokens: 800
+  truncation_chars: 1200
+
+thresholds:
+  min_items_total: 1
+  max_avg_search_ms: 25
+  max_avg_recall_ms: 80
+  format_version: 1
