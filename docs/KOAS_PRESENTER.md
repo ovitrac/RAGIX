@@ -1,9 +1,9 @@
 # KOAS Presenter — Slide Deck Generation from Documents
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Version:** 2.1.0
-**Date:** 2026-03-03
-**Status:** Production (deterministic pipeline) | LLM normalizer: Phase 1 (deterministic heuristics) | Compression: v1.2 | Layout Intelligence: v1.2 | Typography & HTML Post-Processing: v2.0 | Hand-crafted presentations: v2.1
+**Version:** 2.2.0
+**Date:** 2026-03-05
+**Status:** Production (deterministic pipeline) | LLM normalizer: Phase 1 (deterministic heuristics) | Compression: v1.2 | Layout Intelligence: v1.2 | Typography & HTML Post-Processing: v2.1 | Hand-crafted presentations: v2.1
 
 ---
 
@@ -47,7 +47,7 @@ python -m ragix_kernels.presenter.cli.presenterctl render ./report/ \
   --format both --theme koas-professional --compression executive
 ```
 
-**Codebase:** 25 files, ~12,300 lines (8 kernels + shared post-processor, 26 dataclasses, 9 enums, 3 CLI subcommands, 3 MCP tools, 1 custom theme + typography config, 3 test suites). v2.0 adds 24-transform MARP post-processing, layout directives, and HTML export enhancements. v2.1 adds hand-crafted presentation workflow with companion handout generation and review integration.
+**Codebase:** 25 files, ~12,300 lines (8 kernels + shared post-processor, 26 dataclasses, 9 enums, 3 CLI subcommands, 3 MCP tools, 1 custom theme + typography config, 3 test suites). v2.0 adds 25-transform MARP post-processing, layout directives, and HTML export enhancements. v2.1 adds hand-crafted presentation workflow with companion handout generation and review integration.
 
 ### Core Architectural Principles
 
@@ -718,7 +718,7 @@ The v2.0 release introduces a deterministic post-processing pipeline and HTML ex
 enhancements that solve three classes of MARP rendering issues: image centering, layout
 table collapse, and asset portability.
 
-**Source:** `ragix_kernels/shared/marp_postprocess.py` (~3,150 lines, 24 transforms)
+**Source:** `ragix_kernels/shared/marp_postprocess.py` (~3,340 lines, 25 transforms)
 
 ### Problem: MARP CSS Specificity
 
@@ -753,14 +753,15 @@ marp-cli), ensuring fixes apply to both HTML and PDF output.
 | 13 | `layout_preprocess` | v2.0 | Image dimension probing, shape classification, auto-layout |
 | 14 | `expand_layout_directives` | v2.0 | `[I,T]`/`[T,I]`/`[I;T]`/`[I,I;t,t]` → inline HTML tables |
 | 15 | `compact_layout_slides` | v2.0 | Reduce vertical padding on layout-directive slides |
-| 16 | `auto_classify_tables` | v1.0 | `table-small`/`table-tiny` CSS classes |
-| 17 | `auto_constrain_figure_slides` | v1.3 | Scoped `max-height` for figure+text slides |
-| 18 | `auto_shrink_dense_slides` | v1.3 | Font-size reduction for text-heavy slides (TOC exempt, cascading cap) |
-| 19 | `inject_progress_bar` | v1.0 | Orange progress bar (CSS counter) |
-| 20 | `inject_chapter_nav` | v1.0 | Chapter navigation overlay |
-| 21 | `inject_chapter_footer` | v1.0 | Footer with chapter name |
-| 22 | `inject_traceability_slide` | v1.0 | Provenance metadata slide |
-| 23 | `inject_logos` | v1.0 | Company logos on lead slides |
+| 16 | `expand_accent_directives` | v2.1 | `<!-- accent: COLOR -->` → scoped CSS for tables/lists/blockquotes |
+| 17 | `auto_classify_tables` | v1.0 | `table-small`/`table-tiny` CSS classes |
+| 18 | `auto_constrain_figure_slides` | v1.3 | Scoped `max-height` for figure+text slides |
+| 19 | `auto_shrink_dense_slides` | v1.3 | Font-size reduction for text-heavy slides (TOC exempt, cascading cap) |
+| 20 | `inject_progress_bar` | v1.0 | Orange progress bar (CSS counter) |
+| 21 | `inject_chapter_nav` | v1.0 | Chapter navigation overlay |
+| 22 | `inject_chapter_footer` | v1.0 | Footer with chapter name |
+| 23 | `inject_traceability_slide` | v1.0 | Provenance metadata slide |
+| 24 | `inject_logos` | v1.0 | Company logos on lead slides |
 
 ### Layout Directives
 
@@ -790,6 +791,38 @@ HTML with `display:table !important` to survive MARP's CSS sanitization.
 
 **Image parameters:** `<!-- I: path | alt: text | h: NNNpx | w: NN% -->`
 
+### Accent Directives (v2.1)
+
+Authors can highlight tables, lists, or blockquotes with pastel accent colors using
+a simple HTML comment before the block:
+
+```markdown
+<!-- accent: coral -->
+| Severity | Count | Examples |
+|----------|------:|---------|
+| Critical | 4     | ...     |
+```
+
+**8 available palettes:**
+
+| Name | Header | Even rows | Border | Best for |
+|------|--------|-----------|--------|----------|
+| `coral` | #D35240 | #FFE0D6 | #E17055 | Warnings, security findings |
+| `sky` | #004A99 | #D6EAFF | #0066CC | Methodology, technical data |
+| `mint` | #009B7A | #D6FFE8 | #00B894 | Target architecture, positive |
+| `lavender` | #5A45D0 | #E8D6FF | #6C5CE7 | Design, conceptual |
+| `sand` | #E0A800 | #FFF3D6 | #FDCB6E | Neutral, historical |
+| `peach` | #D63384 | #FFD6E0 | #E84393 | Highlights, attention |
+| `sage` | #3D8B57 | #D6F0D6 | #55A370 | Environment, validation |
+| `steel` | #4A5258 | #E0E4E8 | #636E72 | Infrastructure, ops |
+
+**Supported block types:** tables (`|`), lists (`-`/`*`/`1.`), blockquotes (`>`).
+The directive auto-detects the block type from the next non-empty line.
+
+**Note:** `<style scoped>` applies to the entire slide — if a slide contains multiple
+tables, all will receive the same accent. For per-table differentiation, use separate
+slides.
+
 ### Layout Pre-Processing (Image Dimension Probing)
 
 The `layout_preprocess()` function (called before `postprocess_marp()`) probes image
@@ -804,13 +837,20 @@ references and auto-generate appropriate layout directives.
 
 ### HTML Post-Processing (after marp-cli)
 
-Three functions fix issues that can only be addressed in the final HTML output:
+Four functions fix issues that can only be addressed in the final HTML output:
 
-| Step | Function | Purpose |
-|------|----------|---------|
-| 1 | `center_images_in_html()` | MARP strips `display:block`/`margin:auto` — re-injects centering |
-| 2 | `fix_layout_tables_in_html()` | MARP sets `display:block` on `<table>` — restores `display:table` |
-| 3 | `embed_images_in_html()` | Base64 data URIs for self-contained HTML (no external assets) |
+| Step | Function | Default | Purpose |
+|------|----------|:-------:|---------|
+| 1 | `center_images_in_html()` | on | MARP strips `display:block`/`margin:auto` — re-injects centering |
+| 2 | `fix_layout_tables_in_html()` | on | MARP sets `display:block` on `<table>` — restores `display:table` |
+| 3 | `inject_lightbox_in_html()` | on | Click-to-zoom overlay: dark bg (88% opacity), 92vw×92vh, Escape/click to close (v2.1) |
+| 4 | `embed_images_in_html()` | off | Base64 data URIs for self-contained HTML (no external assets) |
+
+**Lightbox details (v2.1):**
+- Marks `<img>` with `object-fit:contain` or `max-height` as `marp-zoomable` (cursor: zoom-in)
+- Injects CSS + JS overlay before `</body>` — pure client-side, no dependencies
+- Excludes emoji images (class="emoji")
+- Idempotent: skips injection if already present
 
 **Image embedding details:**
 - Raster images downscaled to max 2,000px (≈200 DPI on 16:9 slides)
@@ -837,9 +877,10 @@ inline style is present in the Markdown source, surviving Puppeteer rendering.
 The export kernel now calls HTML post-processing automatically after marp-cli:
 
 ```python
-# ExportConfig fields (v2.0)
+# ExportConfig fields (v2.1)
 center_images: bool = True           # Fix image centering
 fix_layout_tables: bool = True       # Fix display:block → display:table
+lightbox: bool = True                # Click-to-zoom overlay on images
 embed_images: bool = False           # Base64 embedding (large file size)
 embed_max_dim: int = 2000            # Max pixel dimension for raster images
 embed_jpeg_quality: int = 85         # JPEG quality for opaque images
@@ -1047,9 +1088,16 @@ that can be opened in VS Code with the Marp extension.
 | **M7** | MCP integration: 3 tools (`presenter_render`, `presenter_export`, `presenter_status`) | **Done** |
 | **M9** | **v1.2 Layout Intelligence**: all-inline image rendering, table density CSS classes, path-based lookup | **Done** |
 | **M10** | **v1.2 Structural Compression**: 3 modes (`full`/`compressed`/`executive`), annex exclusion, global dedupe, per-section cap, executive role filter | **Done** |
-| **M11** | **v2.0 MARP Post-Processing & HTML Export**: 24-transform pipeline, layout directives, HTML post-processing (image centering, layout table fix, base64 embedding), `pres_marp_export` v2.0.0, standalone build pipeline | **Done** |
+| **M11** | **v2.0 MARP Post-Processing & HTML Export**: 25-transform pipeline, layout directives, HTML post-processing (image centering, layout table fix, base64 embedding), `pres_marp_export` v2.0.0, standalone build pipeline | **Done** |
 | **M12** | **v2.1 Hand-Crafted Presentation Workflow**: companion handout generation, review integration (diff + cherry-pick), layout directives for manual authoring, two-step build pipeline | **Done** |
 | M8 | Editable PPTX via `python-pptx` (S3-alt renderer) | Planned |
+
+### v2.2.0 — Accent Directives & Lightbox (2026-03-05)
+
+- **Accent directives**: `<!-- accent: COLOR -->` before tables, lists, or blockquotes injects scoped CSS with pastel color palettes (8 palettes: coral, sky, mint, lavender, sand, peach, sage, steel). Integrated in `postprocess_marp()` pipeline (transform 16/25).
+- **Lightbox (click-to-zoom)**: `inject_lightbox_in_html()` marks images as zoomable (`cursor: zoom-in`), injects pure CSS+JS overlay (dark bg 88% opacity, 92vw×92vh, Escape/click to close). Excludes emoji. Idempotent. Integrated in `pres_marp_export.py` (default on, `export.lightbox: true`).
+- **`ExportConfig` v2.1**: new `lightbox: bool = True` field
+- **`marp_postprocess.py`**: 25 transforms (~3,340 lines), 4 HTML post-processing functions
 
 ### v2.1.0 — Hand-Crafted Presentation Workflow (2026-03-03)
 
@@ -1063,12 +1111,13 @@ that can be opened in VS Code with the Marp extension.
 
 ### v2.0.0 — MARP Post-Processing & HTML Export (2026-03-03)
 
-- **24-transform deterministic pipeline** in `marp_postprocess.py` (~3,150 lines, zero LLM)
+- **25-transform deterministic pipeline** in `marp_postprocess.py` (~3,340 lines, zero LLM)
 - **Layout directives**: `[I,T]`, `[T,I]`, `[I;T]`, `[I,I;t,t]` → inline HTML tables with `display:table !important`
 - **Layout pre-processing**: image dimension probing, shape classification, auto-layout assignment
-- **HTML post-processing** (3 functions integrated into `pres_marp_export.py` v2.0.0):
+- **HTML post-processing** (4 functions integrated into `pres_marp_export.py`):
   - `center_images_in_html()` — fix MARP stripping `display:block`/`margin:auto`
   - `fix_layout_tables_in_html()` — restore `display:table` (MARP sets `display:block`)
+  - `inject_lightbox_in_html()` — click-to-zoom overlay (v2.2)
   - `embed_images_in_html()` — base64 data URIs for self-contained HTML
 - **`_TABLE_BASE` with `display:table !important`** — fixes layout tables in both HTML and PDF
 - **`ExportConfig` v2.0**: 5 new fields (`center_images`, `fix_layout_tables`, `embed_images`, `embed_max_dim`, `embed_jpeg_quality`)

@@ -6,6 +6,48 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.73.0 — RAGIX-Sealed: Confidential Document Subsystem (2026-06-20)
+
+> New self-contained subsystem under `ragix_sealed/` for processing **sensitive,
+> confidential documents** with a `human ↔ LLM` protection boundary: the original is
+> sealed (AES-256-GCM + AAD), values are replaced by role-aware placeholders, the result
+> is leak-scanned, and only cooled content may reach an LLM. Domain-neutral.
+> Full design: `docs/RAGIX_SEALED.md`; usage: `ragix_sealed/README.md`.
+
+### Highlights
+
+- **Sealed vault** — AES-256-GCM + AAD primitive (`ragix_core/crypto/sealed_aead.py`) binding ciphertext to case/doc/policy/state; RAGIX-owned reversible-redaction vault with human-authorized re-identification only (independent of CloakMCP).
+- **Contracts** — 8 declarative YAML contracts (`ragix_sealed/contracts/`) + loader/validator: trust invariant, placeholder schema, ingestion state machine, model registry, worker schema, tool matrix, audit-event and provenance schemas.
+- **Warm ingestion** — pipeline driving the state machine to `COOLED_INDEXABLE`; TXT/MD extraction (PDF/DOCX via the optional `[sealed]` extra), regex detection v0, leak scanner v0.
+- **Multimodal & workers** — source-class detection + derivative provenance graph; sealed worker job protocol (remote AAD, cleanup attestation; SSH transport pluggable); policy-first model cascade with refusal normalization.
+- **Cooled corpus** — BM25 over placeholderized chunks (opaque ids), safe search with `doc_id/page/chunk_id` citations.
+- **Kernels** — Level-1 inventory (metrics only) and Level-2 analysis v0 (timeline, entity-role graph, commitment, gap detection).
+- **Reporting** — sanitized memo / commitment matrix / audit attestation with four export modes; vault-backed human-authorized re-identification (watermarked, never toward an LLM).
+- **Red-team suite** — seeded canary secrets swept across every public surface. `tests/sealed/`: 113 passed, 1 skipped.
+- **Tooling** — optional `[sealed]` extra (pypdf, pdfminer.six, python-docx); command-type Stop hook (`scripts/hooks/ragix_test_reminder.sh`) replacing the looping prompt hook.
+
+> Production gaps (tracked, not in scope yet): NER, durable persistence, signed/expiring authorization tokens, live model-router→Ollama and SSH worker transport, contradiction kernel.
+
+---
+
+## v0.72.0 — Presenter v2.2: Accent Directives & Lightbox (2026-03-05)
+
+> **Reconciliation note (2026-06-18) — incorporate into the v0.71/v0.72 presenter lineage before the next publication.**
+> The Presenter v2.1.1/v2.2 engine documented below was developed on the GPU production box (`.69` home / `.44` office) and had **not** reached the master. On 2026-06-18 it was pulled into master by file-by-file checksum comparison (the GPU has no usable git): `ragix_kernels/shared/marp_postprocess.py` (adds `expand_accent_directives`, `center_standalone_images` + `_is_inside_layout_container`, `inject_lightbox_in_html` + `_mark`) and `ragix_kernels/presenter/themes/koas-professional.css` (matching `@media print` centering block).
+> This **fixes a latent `ImportError` on master**: `pres_marp_export.py` already imported `inject_lightbox_in_html` (with `config.py` defaulting `lightbox = True`), but the implementation existed only on the GPU. Regression coverage added: `tests/test_marp_postprocess.py` (17 cases). Also brought over: `ragix_core/memory/reporting/config/{benchmarks,regression_min,summarize_content}.yml` and `demos/koas_pipe_demo/run_demo.sh`.
+> _Scope: presenter only. The RAGIX-Sealed subsystem is intentionally **excluded** from this entry and remains uncaptured for now._
+
+### Highlights
+
+- **Accent directives** (`<!-- accent: COLOR -->`): 8 pastel color palettes for tables, lists, blockquotes. Transform 16/25 in `postprocess_marp()`.
+- **Lightbox (click-to-zoom)**: `inject_lightbox_in_html()` — pure CSS+JS overlay (88% dark bg, 92vw×92vh, Escape/click close). Default on. Excludes emoji. Idempotent.
+- **`ExportConfig`**: new `lightbox: bool = True` field in `config.py`
+- **`pres_marp_export.py`**: lightbox integrated as 3rd HTML post-processing step (after center + fix_tables, before embed)
+- **`marp_postprocess.py`**: 25 transforms, ~3,340 lines (was 24/~3,150)
+- **`docs/KOAS_PRESENTER.md`** v2.2.0: accent directive docs, lightbox docs, updated transform table
+
+---
+
 ## v0.71.0 — Presenter v2.1, Maven Graph Fix & Documentation Sync (2026-03-03)
 
 ### Highlights

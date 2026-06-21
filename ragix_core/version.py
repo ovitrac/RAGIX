@@ -11,16 +11,16 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2025-
 # RAGIX Version - Single Source of Truth
 # =============================================================================
 
-__version__ = "0.71.0"
+__version__ = "0.73.0"
 
 # Semantic versioning components
 VERSION_MAJOR = 0
-VERSION_MINOR = 71
+VERSION_MINOR = 73
 VERSION_PATCH = 0
 VERSION_SUFFIX = ""  # e.g., "alpha", "beta", "rc1", ""
 
 # Build metadata
-BUILD_DATE = "2026-03-03"  # v0.71.0 - Presenter v2.1, Maven graph staircase layout, KOAS_PRESENTER docs
+BUILD_DATE = "2026-06-21"  # v0.73.0 - RAGIX-Sealed confidential document subsystem (+ Presenter v2.2)
 BUILD_AUTHOR = "Olivier Vitrac, PhD, HDR"
 BUILD_EMAIL = "olivier.vitrac@adservio.fr"
 BUILD_ORG = "Adservio"

@@ -319,6 +319,19 @@ Pre-built templates for common tasks:
 | **Audit Trail** | SHA256 hash chain for all operations |
 | **Air-Gapped Mode** | Enforces local-only processing |
 
+### 🔐 **RAGIX-Sealed** — Confidential Document Processing
+
+Sovereign processing of **sensitive, confidential documents** with a `human ↔ LLM` protection boundary: the original is sealed (AES-256-GCM + AAD), values are replaced by role-aware placeholders, the result is leak-scanned, and **only cooled content may reach an LLM**. Domain-neutral.
+
+| Feature | Description |
+|---------|-------------|
+| **Sealed vault** | AES-256-GCM + AAD; human-authorized re-identification only |
+| **Warm → cooled pipeline** | Contract-driven ingestion to `COOLED_INDEXABLE`; multi-stage leak scanner |
+| **Safe corpus & kernels** | BM25 over placeholderized chunks; inventory + analysis kernels (metrics/placeholders only) |
+| **Export modes** | Sanitized / human-authorized / audit-only / orchestrator-metrics |
+
+See **[docs/RAGIX_SEALED.md](docs/RAGIX_SEALED.md)** and **[ragix_sealed/README.md](ragix_sealed/README.md)**. Install: `pip install -e .[sealed]`.
+
 ---
 
 ## The RAGIX Ecosystem
@@ -372,6 +385,7 @@ Production-ready RAG for document processing (tenders, CVs, reports).
 | [docs/INDEX.md](docs/INDEX.md) | **Documentation navigation hub** |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture |
 | [docs/SOVEREIGN_LLM_OPERATIONS.md](docs/SOVEREIGN_LLM_OPERATIONS.md) | Sovereignty and confidential AI operations |
+| [docs/RAGIX_SEALED.md](docs/RAGIX_SEALED.md) | RAGIX-Sealed — sealed processing of sensitive documents |
 | [docs/MCP.md](docs/MCP.md) | Model Context Protocol in RAGIX |
 | [docs/REASONING.md](docs/REASONING.md) | Reasoning engines (ContractiveReasoner, v30, Interpreter-Tutor) |
 

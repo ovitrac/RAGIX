@@ -266,6 +266,3 @@ pip install -e .[sealed]   # enables PDF/DOCX extraction (pypdf / pdfminer.six /
 > reaching it. Confidential content stays visible to the authorized human and is hidden
 > only from the eyes of any LLM. RAGIX-Sealed is the sealed intermediary between sensitive
 > material and external orchestration.
-
-*Some design ideas were refined with the help of large language models, used strictly as
-tooling.*

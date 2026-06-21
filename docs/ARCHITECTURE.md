@@ -401,6 +401,19 @@ Four isolation levels prevent internal provenance from leaking:
 
 See [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) for the complete sovereignty framework.
 
+### 5.4 RAGIX-Sealed — Confidential Document Subsystem
+
+For corpora whose raw content must never reach an LLM, the self-contained `ragix_sealed/`
+subsystem applies a stricter **`human ↔ LLM` boundary** on top of the sovereignty
+architecture: the original is sealed (AES-256-GCM + AAD), sensitive values are replaced by
+role-aware placeholders, the result is leak-scanned, and only cooled content reaches an
+LLM. Re-identification is a controlled, human-authorized export — never toward an LLM.
+
+The sealed export modes map onto the §5.3 isolation levels: `SANITIZED_LLM_SAFE`→EXTERNAL,
+`HUMAN_AUTHORIZED`→INTERNAL, `AUDIT_ONLY`→COMPLIANCE, `ORCHESTRATOR_METRICS`→ORCHESTRATOR.
+
+See [RAGIX_SEALED.md](RAGIX_SEALED.md) for the full design and module map.
+
 ---
 
 ## 6. Multi-Model Reasoning
