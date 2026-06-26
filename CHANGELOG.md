@@ -6,6 +6,27 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## v0.74.0 — RAGIX-Pentest: Containerized Security-Hardening Lab (2026-06-24)
+
+> A self-contained, **rootless** lab for **defensive** security assessment of systems you
+> own or are explicitly authorized to test — used to *find and remediate* weaknesses before
+> adversaries can exploit them. The offensive-tooling distribution runs fully contained;
+> engagement data is kept outside the (publishable) engine tree. **Framework only — no
+> operational/engagement data ships.** Authorized defensive use only.
+
+### Highlights
+
+- **Rootless container engine** (`ragix-pentest/`) — security toolset via distrobox + rootless Podman; no host privilege; reproducible image pin (`image.lock`).
+- **Scope allow-list (fail-safe)** — `bin/pentest-run` refuses (exit 77, audited) any target not listed in `policy/scope.allow`; a missing/empty list means refuse-all. Tracked template `policy/scope.allow.example`.
+- **Engagement isolation** — `PENTEST_DATA_DIR` (set in the gitignored `pentest.local.env`) keeps findings/audit/scope **outside** the engine tree; falls back to `BASE_DIR` so a fresh checkout is self-contained.
+- **Audited runs** — every action appended to a per-engagement JSONL audit trail; `bin/pentest-enter` for interactive sessions.
+- **Hardened defaults** — `.gitignore` keeps sensitive data, local config, and the design white paper out of version control; `distrobox.ini` ships as a fail-loud `home=CHANGEME` template (never leaks `$HOME`).
+- **Docs & terms** — `ragix-pentest/README.md`, `docs/security/PENTEST_CONTAINER_GUIDE.md`, `DISCLAIMER.md` + `LICENSE` (authorized-use only).
+
+> Complements the deterministic **security kernels** (`ragix_kernels/security/`, 11 kernels, v0.61.0): those *measure* posture (discovery, vulnerability assessment, compliance); this provides the *isolated lab* to validate and remediate. The wrapper scripts and local config are per-machine and are not synchronized blindly between hosts.
+
+---
+
 ## v0.73.0 — RAGIX-Sealed: Confidential Document Subsystem (2026-06-20)
 
 > New self-contained subsystem under `ragix_sealed/` for processing **sensitive,

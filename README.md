@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.69.0
+# RAGIX v0.74.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
@@ -15,8 +15,8 @@
 
 ---
 
-**Version:** 0.69.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Updated:** 2026-02-19 | **Codebase:** 500K+ LOC analyzed in production
+**Version:** 0.74.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Updated:** 2026-06-24 | **Codebase:** 500K+ LOC analyzed in production
 
 ---
 
@@ -33,16 +33,18 @@
 
 ### Production-Ready Architecture: KOAS
 
-**KOAS** (Kernel-Orchestrated Audit System) is the computational core — **87 deterministic kernels** across 6 families:
+**KOAS** (Kernel-Orchestrated Audit System) is the computational core — **88 registered deterministic kernels** across 6 families (counts are registry-authoritative via `ragix_kernels/registry.py`):
 
 | Family | Kernels | Purpose |
 |--------|---------|---------|
 | **audit** | 27 | Code quality: AST, complexity, coupling, risk matrices, CVE scanning |
-| **docs** | 17 | Document analysis: hierarchical summarization, clustering, discrepancy detection |
+| **docs** | 16 | Document analysis: hierarchical summarization, clustering, discrepancy detection |
 | **presenter** | 8 | Slide generation: MARP decks from document corpora (full/compressed/executive) |
 | **reviewer** | 13 | Traceable Markdown review: chunk-level edits with selective revert |
-| **security** | 10 | Infrastructure: network discovery, vulnerability assessment, compliance |
+| **security** | 11 | Infrastructure: network discovery, vulnerability assessment, compliance |
 | **summary** | 12 | Multi-document summarization: Graph-RAG, secrecy tiers, drift detection |
+
+In addition, the **RAGIX-Sealed** subsystem contributes **9** confidential-document kernels (inventory/analysis over placeholderized content — see below), kept in a separate registry.
 
 **Architectural guarantee:** Kernels compute deterministically — LLMs are used only for planning and reasoning, never for metrics. No hallucinated numbers.
 
@@ -332,6 +334,19 @@ Sovereign processing of **sensitive, confidential documents** with a `human ↔ 
 
 See **[docs/RAGIX_SEALED.md](docs/RAGIX_SEALED.md)** and **[ragix_sealed/README.md](ragix_sealed/README.md)**. Install: `pip install -e .[sealed]`.
 
+### 🛡️ **RAGIX-Pentest** — Containerized Security-Hardening Lab
+
+A **rootless, isolated lab** for **defensive** security assessment of systems **you own or are explicitly authorized to test** — used to *find and remediate* weaknesses before adversaries can exploit them. It complements the deterministic `security` kernels (which *measure* posture) with a sandboxed environment to *validate and harden* it. Authorized use only.
+
+| Feature | Description |
+|---------|-------------|
+| **Rootless container** | Security toolset via distrobox + rootless Podman — no host privilege; reproducible image pin (`image.lock`) |
+| **Scope allow-list (fail-safe)** | refuses any target not listed in `policy/scope.allow`; a missing/empty list = refuse-all |
+| **Engagement isolation** | `PENTEST_DATA_DIR` keeps findings/audit **outside** the (publishable) engine tree |
+| **Audited runs** | every action appended to a per-engagement JSONL audit trail |
+
+See **[ragix-pentest/README.md](ragix-pentest/README.md)** and **[docs/security/PENTEST_CONTAINER_GUIDE.md](docs/security/PENTEST_CONTAINER_GUIDE.md)**. For authorized defensive hardening; see `ragix-pentest/DISCLAIMER.md`.
+
 ---
 
 ## The RAGIX Ecosystem
@@ -393,8 +408,8 @@ Production-ready RAG for document processing (tenders, CVs, reports).
 
 | Document | Description |
 |----------|-------------|
-| [docs/KOAS.md](docs/KOAS.md) | KOAS philosophy and architecture (6 families, 87 kernels) |
-| [docs/KOAS_DOCS.md](docs/KOAS_DOCS.md) | Document summarization system (17 kernels) |
+| [docs/KOAS.md](docs/KOAS.md) | KOAS philosophy and architecture (6 families, 88 kernels) |
+| [docs/KOAS_DOCS.md](docs/KOAS_DOCS.md) | Document summarization system (16 kernels) |
 | [docs/KOAS_SUMMARY.md](docs/KOAS_SUMMARY.md) | Multi-document summarization with Graph-RAG (12 kernels) |
 | [docs/KOAS_PRESENTER.md](docs/KOAS_PRESENTER.md) | Slide deck generation from documents (8 kernels) |
 | [docs/KOAS_REVIEW.md](docs/KOAS_REVIEW.md) | Traceable Markdown review (13 kernels) |
@@ -674,17 +689,19 @@ RAGIX/
 │   ├── rag_project/     # Project RAG (ChromaDB, knowledge graph)
 │   ├── ast_*.py         # AST analysis (Java, Python)
 │   └── llm_backends.py  # Sovereign/Cloud LLM abstraction
-├── ragix_kernels/       # KOAS kernels (160+ files, 87 kernels)
+├── ragix_kernels/       # KOAS kernels (160+ files, 88 kernels)
 │   ├── audit/           # Code audit (27 kernels)
-│   ├── docs/            # Document analysis (17 kernels)
+│   ├── docs/            # Document analysis (16 kernels)
 │   ├── presenter/       # Slide generation (8 kernels)
 │   ├── reviewer/        # Markdown review (13 kernels)
-│   ├── security/        # Security scanning (10 kernels)
+│   ├── security/        # Security scanning (11 kernels)
 │   ├── summary/         # Multi-document summarization (12 kernels)
 │   ├── shared/          # Shared kernel utilities (md_renumber, md_toc)
 │   ├── activity.py      # Centralized activity logging
 │   ├── merkle.py        # SHA256 Merkle provenance
 │   └── orchestrator.py  # Kernel execution with hash chain
+├── ragix_sealed/        # RAGIX-Sealed subsystem (confidential docs, 9 kernels)
+├── ragix-pentest/       # RAGIX-Pentest (rootless hardening lab; engine only)
 ├── ragix_web/           # Web application
 │   ├── server.py        # FastAPI server (port 8080)
 │   ├── routers/         # API routes (10 routers)
@@ -719,16 +736,16 @@ pytest tests/ --cov=ragix_core --cov-report=html
 
 See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
-**Latest: v0.71.0** (2026-03-03)
-- **Presenter v2.1**: 24-transform MARP post-processing pipeline (3,149 LOC), layout directives, hand-crafted presentation workflow, typography refinement
-- **Maven graph fix**: staircase layout prevents label overlap in dense dependency layers
-- **KOAS_PRESENTER docs**: updated to v2.1.0 (1,198 lines) with full post-processing reference
+**Latest: v0.74.0** (2026-06-24)
+- **RAGIX-Pentest**: rootless, containerized security-hardening lab — scope allow-list (fail-safe), engagement isolation via `PENTEST_DATA_DIR`, audited runs (defensive, authorized use only)
+- **RAGIX-Sealed** (v0.73.0): confidential-document subsystem — sealed vault (AES-256-GCM + AAD), warm→cooled pipeline, 9 sealed kernels, human-authorized re-identification
+- **Presenter v2.2**: 25-transform MARP pipeline — accent directives (`<!-- accent: COLOR -->`), click-to-zoom lightbox, markdown-level image centering (HTML + PDF)
 
 **Recent highlights:**
+- v0.71.0: Presenter v2.1 (24 transforms, layout directives), Maven graph staircase fix, KOAS_PRESENTER docs v2.1.0
 - v0.70.0: Claude Code integration — installer, safety hooks, audit logging, component manifest
 - v0.69.0: Bounded recall-answer loop, fixed-point convergence, text similarity
 - v0.67.0: Episodic memory (17 MCP tools), multi-document summarization (12 kernels), Graph-RAG
-- v0.66.0: Centralized activity logging, broker gateway with ACL scopes
 
 ---
 
@@ -740,8 +757,8 @@ See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 | ✅ | Hybrid RAG (BM25 + Vector) | Complete |
 | ✅ | AST analysis (Java/Python) | Complete |
 | ✅ | Code audit (27 kernels) & partitioning | Complete |
-| ✅ | Document analysis (17 kernels) | Complete |
-| ✅ | Security scanning (10 kernels) | Complete |
+| ✅ | Document analysis (16 kernels) | Complete |
+| ✅ | Security scanning (11 kernels) | Complete |
 | ✅ | Traceable Markdown review (13 kernels) | Complete |
 | ✅ | Slide deck generation (8 kernels) | Complete |
 | ✅ | MCP integration (55 tools) | Complete |
@@ -751,7 +768,9 @@ See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 | ✅ | Multi-document summarization (12 kernels) | Complete |
 | ✅ | Graph-RAG (entity extraction, community detection) | Complete |
 | ✅ | Memory Pipe demo for Claude integration | Complete |
-| ✅ | KOAS Presenter v2.1 (24 transforms, layout directives, HTML export) | Complete |
+| ✅ | KOAS Presenter v2.2 (25 transforms, accent directives, lightbox, image centering) | Complete |
+| ✅ | RAGIX-Sealed (confidential documents: sealed vault, warm→cooled, 9 kernels) | Complete |
+| ✅ | RAGIX-Pentest (rootless hardening lab, scope allow-list, audited runs) | Complete |
 | 🔄 | KOAS Presenter LLM normalization | Phase 1 done (deterministic) |
 | 🔄 | Interpreter-Tutor reasoning engine | Research (v0.5.0) |
 | 📋 | Multi-language AST (Go, Rust) | Planned |

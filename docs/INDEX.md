@@ -3,8 +3,8 @@
 **Retrieval-Augmented Generative Interactive eXecution Agent**
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Version:** 0.67.0
-**Updated:** 2026-02-16
+**Version:** 0.74.0
+**Updated:** 2026-06-24
 
 ---
 
@@ -44,7 +44,7 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
     ┌─────────────────▼──────────────────────────────────┐
     │              KOAS Kernel Families                   │
     │                                                    │
-    │  KOAS_DOCS       (17 kernels — document analysis)   │
+    │  KOAS_DOCS       (16 kernels — document analysis)   │
     │  KOAS_PRESENTER  (8 kernels — slide generation)    │
     │  KOAS_REVIEW     (13 kernels — Markdown review)    │
     │  KOAS_SUMMARY    (12 kernels — summarization)      │
@@ -129,14 +129,14 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
 
 ### Kernel System (KOAS)
 
-**Learn about deterministic computation kernels — 87 kernels across 6 families.**
+**Learn about deterministic computation kernels — 88 kernels across 6 families.**
 
 - **[KOAS.md](KOAS.md)** — KOAS philosophy and architecture
   - Three-stage pipeline, 6 kernel families
   - Kernel development patterns
   - Deterministic guarantee: kernels compute, LLMs reason
 
-- **[KOAS_DOCS.md](KOAS_DOCS.md)** — Document summarization (17 kernels)
+- **[KOAS_DOCS.md](KOAS_DOCS.md)** — Document summarization (16 kernels)
   - Hierarchical analysis, dual clustering (Pyramidal + Leiden)
   - Worker + Tutor LLM pattern
 
@@ -165,7 +165,7 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
   - SHA-256 corpus dedup, spatial metaphor (Memory Palace)
 
 - **Source Documentation:**
-  - `ragix_kernels/README.md` — Kernel developer reference (v1.4.0, all 87 kernels)
+  - `ragix_kernels/README.md` — Kernel developer reference (v1.4.0, all 88 kernels)
 
 ### Sovereignty and Compliance
 
@@ -178,11 +178,14 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
   - Air-gapped operation
   - Sovereignty verification
 
-- **[RAGIX_SEALED.md](RAGIX_SEALED.md)** — Sovereign processing of sensitive documents (DRAFT v0.1)
+- **[RAGIX_SEALED.md](RAGIX_SEALED.md)** — Sovereign processing of sensitive documents
   - Threat model: hidden from the LLM, visible to the authorized human
   - Warm ingestion → cooled kernels
   - Sealed vault (AES-256-GCM + AAD), role-aware placeholders
   - Human-authorized re-identification, no-raw boundary
+
+- **[security/SECURITY_KERNELS_GUIDE.md](security/SECURITY_KERNELS_GUIDE.md)** — Infrastructure security kernels (discovery, vuln assessment, compliance)
+- **[security/PENTEST_CONTAINER_GUIDE.md](security/PENTEST_CONTAINER_GUIDE.md)** — RAGIX-Pentest rootless hardening lab (scope allow-list, engagement isolation; authorized defensive use only)
 
 ### Tools and APIs
 
@@ -357,6 +360,9 @@ Documentation follows these principles:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.74.0 | 2026-06-24 | Added security/pentest nav (SECURITY_KERNELS_GUIDE, PENTEST_CONTAINER_GUIDE); kernel counts refreshed to 88 (registry-authoritative) |
+| 0.73.0 | 2026-06-20 | Added RAGIX_SEALED.md (confidential-document subsystem, 9 sealed kernels) |
+| 0.72.0 | 2026-03-05 | KOAS_PRESENTER v2.2 (accent directives, lightbox, image centering) |
 | 0.67.0 | 2026-02-16 | Added KOAS_SUMMARY, KOAS_MEMORY_MCP, KOAS_MEMORY_ARCHITECTURE; 6-family kernel map (87 kernels); Memory/Summary reading paths and glossary entries |
 | 0.66.0 | 2026-02-13 | Added KOAS_PRESENTER, KOAS_REVIEW, KOAS_ACTIVITY; 5-family kernel map; new glossary entries and reading paths |
 | 0.64.2 | 2026-01-29 | Added SOVEREIGN_LLM_OPERATIONS.md |
@@ -366,6 +372,6 @@ Documentation follows these principles:
 
 ---
 
-**Document Version:** 3.0.0
-**Last Updated:** 2026-02-16
+**Document Version:** 3.1.0
+**Last Updated:** 2026-06-24
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
