@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 13 — Mature, open, and ready</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="../library/slide-common.css">
+  <style>
+    .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 21px; flex: 1; min-height: 0; }
+    .card-outer { background: #f3f4f6; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-radius: 12px; padding: 6px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+    .card-header { display: flex; align-items: center; gap: 8px; padding: 6px 6px 2px; }
+    .icon-box { width: 28px; height: 28px; border-radius: 8px; border: 1px solid #e5e7eb; background: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .icon-box i { font-size: 15px; line-height: 1; }
+    .icon-box.blue i { color: #0D62FB; }
+    .icon-box.indigo i { color: #4338CA; }
+    .card-title { font-size: 17px; font-weight: 600; color: #000000; line-height: 1.25; }
+    .card-inner { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 14px; display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; justify-content: center; }
+    .card-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
+    .card-list li { font-size: 13px; color: #374151; line-height: 1.4; padding: 9px 0 9px 18px; position: relative; border-bottom: 1px solid #f3f4f6; }
+    .card-list li:last-child { border-bottom: none; }
+    .card-list li::before { content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 6px; height: 6px; border-radius: 50%; }
+    .card-list.blue li::before { background: #0D62FB; }
+    .card-list.indigo li::before { background: #4338CA; }
+    .card-list strong { color: #000000; font-weight: 600; }
+    :focus-visible { outline: 2px solid #0D62FB; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="diagram-outer">
+      <div class="diagram-header">
+        <h1>Mature, open, and ready</h1>
+        <p class="subtitle">Production-ready, open source, built and operated by Adservio Innovation Lab</p>
+      </div>
+
+      <div class="slide-body">
+        <div class="grid-2col">
+          <div class="card-outer">
+            <div class="card-header">
+              <span class="icon-box blue"><i class="hgi-stroke hgi-star" aria-hidden="true"></i></span>
+              <span class="card-title">Why RAGIX</span>
+            </div>
+            <div class="card-inner">
+              <ul class="card-list blue">
+                <li><strong>Sovereign &amp; auditable</strong> — runs on your infrastructure</li>
+                <li><strong>Broad &amp; coherent</strong> — one engine for documents and code</li>
+                <li><strong>Proven &amp; fast</strong> — field-tested at 88K lines, 159 documents</li>
+                <li><strong>Open &amp; owned</strong> — open source, no vendor lock-in</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card-outer">
+            <div class="card-header">
+              <span class="icon-box indigo"><i class="hgi-stroke hgi-mail-01" aria-hidden="true"></i></span>
+              <span class="card-title">Find out more</span>
+            </div>
+            <div class="card-inner">
+              <ul class="card-list indigo">
+                <li>v0.71 · production-ready · local-first stack</li>
+                <li>Open source — github.com/ovitrac/RAGIX</li>
+                <li>Demo: full audit on YouTube — youtu.be/vDHI70ZPnDE</li>
+                <li>Olivier Vitrac, PhD, HDR — olivier.vitrac@adservio.fr</li>
+                <li>Adservio Innovation Lab — Tour Franklin, 100-101 Terrasse Boieldieu, 92800 Puteaux — La Défense</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-line"></div>
+    <div class="slide-footer">
+      <div class="footer-message">"Scale, speed and sovereignty — together"</div>
+      <span class="footer-page">14 / 14</span>
+    </div>
+  </div>
+
+  <script src="../library/slide-common.js"></script>
+</body>
+</html>

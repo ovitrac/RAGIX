@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>7. Maturity, openness & stack</title>
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;500;600;700;800&family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- PAGE 19 -->
+<div class="page content_page">
+
+  <div class="section_header">
+    <span class="section_label">SECTION 7</span>
+    <h1 class="section_title">7. Maturity, openness &amp; stack</h1>
+  </div>
+
+  <p class="body_text">RAGIX is a working, versioned platform — currently at v0.71, production-ready, and used on the engagements described earlier. It is built entirely on a local-first, open technology stack, which keeps it sovereign, inspectable and free of vendor lock-in. The platform is open source and published on GitHub, so its behaviour can be audited line by line rather than taken on trust.</p>
+
+  <p class="intro_sentence">The major capability families are complete and in production; a focused set of extensions is on the roadmap.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-checkmark-badge-01" aria-hidden="true"></i>Capability maturity</div>
+    <table class="summary_table">
+      <thead>
+        <tr><th><span>Capability</span></th><th><span>Status</span></th><th><span>Note</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Code audit &amp; risk (Audit)</td><td>Production</td><td>Java / JEE, AST-level, deterministic</td></tr>
+        <tr><td>Document digestion (Docs)</td><td>Production</td><td>Hierarchical, citeable summaries</td></tr>
+        <tr><td>Multi-source synthesis (Summary)</td><td>Production</td><td>Graph-RAG with tiered redaction</td></tr>
+        <tr><td>Traceable review (Reviewer)</td><td>Production</td><td>Reversible, fully logged edits</td></tr>
+        <tr><td>Slide generation (Presenter)</td><td>Production</td><td>Full / compressed / executive modes</td></tr>
+        <tr><td>Security scanning (Security)</td><td>Production</td><td>Local vulnerability &amp; compliance checks</td></tr>
+        <tr><td>Additional code languages</td><td>Planned</td><td>Beyond current Java / Python support</td></tr>
+        <tr><td>Editable presentation export</td><td>Planned</td><td>Native office-format decks</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="subsection_title">7.1 A sovereign, open stack</h2>
+
+  <p class="body_text">Each component is chosen so the whole platform can run inside a private perimeter, on commodity hardware, with optional GPU acceleration. There is no required external service.</p>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-cpu" aria-hidden="true"></i> Reasoning &amp; retrieval</div>
+      <div class="detail_card_body">
+        <ul class="bullet_list">
+          <li>Local models served via Ollama</li>
+          <li>Hybrid keyword + semantic search</li>
+          <li>Graph analysis over provenance</li>
+        </ul>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-package" aria-hidden="true"></i> Engine &amp; output</div>
+      <div class="detail_card_body">
+        <ul class="bullet_list">
+          <li>Python kernels, command-line tools</li>
+          <li>Standard tool protocol for AI orchestration</li>
+          <li>Reproducible PDF / HTML / slide output</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 7: Maturity, openness &amp; stack</span>
+    </div>
+    <span class="footer_page">19</span>
+  </div>
+</div>
+
+<!-- PAGE 20 -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">7.2 In summary</h2>
+
+  <p class="body_text">RAGIX gives an organisation a single, sovereign instrument for making sense of its documents and its code at scale — and for proving, cryptographically, how every conclusion was reached. It separates exact computation from fluent reasoning, runs entirely on owned infrastructure, can be driven by a world-class AI assistant without ever exposing content, and has been proven on demanding real-world engagements. It is open source, production-ready, and built and operated by Adservio Innovation Lab.</p>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-shield-01" aria-hidden="true"></i> Sovereign &amp; auditable</div>
+      <div class="detail_card_body">
+        <p>Runs on your infrastructure; every step reproducible and attested by a tamper-evident hash chain.</p>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-layers-01" aria-hidden="true"></i> Broad &amp; coherent</div>
+      <div class="detail_card_body">
+        <p>One engine to digest, analyse, compare, translate and present — across both documents and code.</p>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-rocket-01" aria-hidden="true"></i> Proven &amp; fast</div>
+      <div class="detail_card_body">
+        <p>Field-tested at 88K lines and 159 documents; weeks of analysis compressed into seconds and hours.</p>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-source-code-square" aria-hidden="true"></i> Open &amp; owned</div>
+      <div class="detail_card_body">
+        <p>Open-source, inspectable, free of vendor lock-in — a platform you can verify and keep.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="subsection_title">7.3 Contact</h2>
+
+  <p class="body_text">To explore RAGIX, request a live demonstration on your own material, or discuss operating it at the scale of an engineering forge, contact Adservio Innovation Lab.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-mail-01" aria-hidden="true"></i>Adservio Innovation Lab</div>
+    <table class="summary_table">
+      <thead>
+        <tr><th><span>Channel</span></th><th><span>Detail</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Contact</td><td>Olivier Vitrac, PhD, HDR — Head of Innovation Lab</td></tr>
+        <tr><td>Email</td><td>olivier.vitrac@adservio.fr</td></tr>
+        <tr><td>Address</td><td>Adservio &middot; Tour Franklin, 100-101 Terrasse Boieldieu, 92800 Puteaux — La Défense</td></tr>
+        <tr><td>Source</td><td>github.com/ovitrac/RAGIX (open source)</td></tr>
+        <tr><td>Demo video</td><td>Full audit demonstration — youtu.be/vDHI70ZPnDE</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout_simple">
+    <div class="callout_simple_content">
+      <p><i class="hgi-stroke hgi-quote-down" aria-hidden="true"></i>Scale, speed and sovereignty — together. That is the challenge RAGIX and Adservio Innovation Lab are built to meet.</p>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 7: Maturity, openness &amp; stack</span>
+    </div>
+    <span class="footer_page">20</span>
+  </div>
+</div>
+
+</body>
+</html>

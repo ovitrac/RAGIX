@@ -1,0 +1,22 @@
+# Tech sheet — commit ONLY the PDF + self-contained HTML deliverables and the infra
+# needed to regenerate them (deploy.py, Adservio-RAGIXTechSheet/, ragix-tech-sheet/, img/).
+# Everything listed below is regenerable or heavy and must stay out of git.
+
+# Heavy / regenerable environments & caches
+.venv/
+.fontcache/
+__pycache__/
+*.pyc
+node_modules/
+
+# Generated, non-self-contained HTML outputs (rebuild via deploy.py / *.mjs)
+RAGIX-Tech-Sheet-Presentation.html
+RAGIX-Tech-Sheet-Document.html
+Adservio-RAGIXTechSheet.html
+
+# Generated bundles (zip + old v0 output bundle)
+*.zip
+RAGIX-Tech-Sheet-bundle_v0/
+
+# Session audit
+.cloak-session-audit.jsonl

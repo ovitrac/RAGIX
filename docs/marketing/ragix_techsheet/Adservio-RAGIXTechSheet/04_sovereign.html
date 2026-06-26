@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>4. Orchestratable by an AI — sovereignly</title>
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;500;600;700;800&family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- PAGE 11 -->
+<div class="page content_page">
+
+  <div class="section_header">
+    <span class="section_label">SECTION 4</span>
+    <h1 class="section_title">4. Orchestratable by an AI — sovereignly</h1>
+  </div>
+
+  <p class="body_text">A distinctive capability of RAGIX is that a powerful external assistant — such as Claude — can drive an entire analysis without ever reading a single line of your documents. The orchestrator decides <em>what</em> to do and reads back only metrics; the content stays sealed inside your perimeter. This reconciles two goals that normally conflict: the convenience of a state-of-the-art AI assistant, and the absolute confidentiality of sovereign material.</p>
+
+  <p class="body_text">The mechanism is a layered "core-and-shell" architecture. Requests travel inward through a guarded gateway; only sanitised results travel back out. The diagram below shows the three layers and what may cross each boundary.</p>
+
+  <svg viewBox="0 0 596 432" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Core-and-shell architecture: an external orchestrator reaches the sovereign core only through a broker gateway, receiving metrics but never content.">
+    <defs>
+      <pattern id="dots_4" width="4" height="4" patternUnits="userSpaceOnUse">
+        <circle cx="2" cy="2" r="0.6" fill="#9ca3af"/>
+      </pattern>
+      <pattern id="dots_blue_4" width="6" height="6" patternUnits="userSpaceOnUse">
+        <circle cx="3" cy="3" r="0.8" fill="#bfdbfe"/>
+      </pattern>
+      <pattern id="legend_dots_4" width="8" height="8" patternUnits="userSpaceOnUse">
+        <circle cx="4" cy="4" r="0.8" fill="#bfdbfe"/>
+      </pattern>
+      <filter id="txt_bg_4" x="-0.05" y="-0.1" width="1.1" height="1.3">
+        <feFlood flood-color="white" result="bg"/>
+        <feMerge><feMergeNode in="bg"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <marker id="arr_4" viewBox="0 0 8 6" refX="8" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L8,3 L0,6 Z" fill="#000000"/>
+      </marker>
+      <clipPath id="logo_clip_4">
+        <path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/>
+        <path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/>
+      </clipPath>
+      <pattern id="logo_dots_4" width="12" height="12" patternUnits="userSpaceOnUse">
+        <circle cx="6" cy="6" r="4.5" fill="#9ca3af"/>
+      </pattern>
+    </defs>
+
+    <rect x="0" y="0" width="596" height="432" rx="4" ry="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+    <path d="M0,0 H120 V20 Q120,28 112,28 H0 Z" fill="white" stroke="#e2e8f0" stroke-width="1"/>
+    <text x="12" y="18" font-family="Menlo, monospace" font-size="9" font-weight="600" fill="#000000">ARCHITECTURE</text>
+    <g transform="translate(549,11) scale(0.17)">
+      <rect x="0" y="0" width="208" height="209" fill="url(#logo_dots_4)" clip-path="url(#logo_clip_4)"/>
+    </g>
+
+    <g transform="translate(0,44)">
+      <!-- Layer 1 : external orchestrator -->
+      <rect x="20" y="0" width="556" height="66" rx="4" ry="4" fill="white" stroke="#e2e8f0" stroke-width="1.25"/>
+      <text x="44" y="18" font-family="Menlo, monospace" font-size="10" font-weight="600" fill="#000000" letter-spacing="0.05em">EXTERNAL ORCHESTRATOR (UNTRUSTED)</text>
+      <rect x="198" y="28" width="200" height="30" rx="10" ry="10" fill="white" stroke="#e2e8f0" stroke-width="1"/>
+      <rect x="198" y="28" width="200" height="30" rx="10" ry="10" fill="url(#dots_4)" fill-opacity="0.3"/>
+      <text x="298" y="43" text-anchor="middle" dominant-baseline="central" font-family="Menlo, monospace" font-size="10" font-weight="500" fill="#000000" filter="url(#txt_bg_4)">AI ASSISTANT / OPERATOR</text>
+
+      <!-- arrow down -->
+      <line x1="298" y1="66" x2="298" y2="100" stroke="#e2e8f0" stroke-width="1.25" marker-end="url(#arr_4)"/>
+      <text x="312" y="86" font-family="Menlo, monospace" font-size="8" font-style="italic" fill="#9ca3af">requests in &middot; metrics out</text>
+
+      <!-- Layer 2 : broker -->
+      <rect x="20" y="104" width="556" height="66" rx="4" ry="4" fill="white" stroke="#e2e8f0" stroke-width="1.25"/>
+      <text x="44" y="122" font-family="Menlo, monospace" font-size="10" font-weight="600" fill="#000000" letter-spacing="0.05em">BROKER GATEWAY (POLICY CHECKPOINT)</text>
+      <rect x="198" y="132" width="200" height="30" rx="10" ry="10" fill="white" stroke="#e2e8f0" stroke-width="1"/>
+      <rect x="198" y="132" width="200" height="30" rx="10" ry="10" fill="url(#dots_4)" fill-opacity="0.3"/>
+      <text x="298" y="147" text-anchor="middle" dominant-baseline="central" font-family="Menlo, monospace" font-size="10" font-weight="500" fill="#000000" filter="url(#txt_bg_4)">ACCESS CONTROL + LIMITS</text>
+
+      <!-- arrow down -->
+      <line x1="298" y1="170" x2="298" y2="204" stroke="#e2e8f0" stroke-width="1.25" marker-end="url(#arr_4)"/>
+      <text x="312" y="190" font-family="Menlo, monospace" font-size="8" font-style="italic" fill="#9ca3af">sanitised results only</text>
+
+      <!-- Layer 3 : sovereign core -->
+      <rect x="20" y="208" width="556" height="92" rx="4" ry="4" fill="#eff6ff" stroke="#dbeafe" stroke-width="1.25"/>
+      <rect x="20" y="208" width="556" height="92" rx="4" ry="4" fill="url(#dots_blue_4)"/>
+      <text x="44" y="226" font-family="Menlo, monospace" font-size="10" font-weight="600" fill="#2563eb" letter-spacing="0.05em">SOVEREIGN CORE (CONTENT NEVER LEAVES)</text>
+      <rect x="44" y="244" width="160" height="34" rx="8" ry="8" fill="white" stroke="#dbeafe" stroke-width="1"/>
+      <text x="124" y="261" text-anchor="middle" dominant-baseline="central" font-family="Menlo, monospace" font-size="10" font-weight="500" fill="#2563eb">DOCUMENTS</text>
+      <rect x="218" y="244" width="160" height="34" rx="8" ry="8" fill="white" stroke="#dbeafe" stroke-width="1"/>
+      <text x="298" y="261" text-anchor="middle" dominant-baseline="central" font-family="Menlo, monospace" font-size="10" font-weight="500" fill="#2563eb">LOCAL LLM + KERNELS</text>
+      <rect x="392" y="244" width="160" height="34" rx="8" ry="8" fill="white" stroke="#dbeafe" stroke-width="1"/>
+      <text x="472" y="261" text-anchor="middle" dominant-baseline="central" font-family="Menlo, monospace" font-size="10" font-weight="500" fill="#2563eb">SANITISED REPORTS</text>
+    </g>
+
+    <!-- legend -->
+    <rect x="24" y="388" width="548" height="32" rx="8" ry="8" fill="#f0f7ff" stroke="#dbeafe" stroke-width="1"/>
+    <rect x="24" y="388" width="548" height="32" rx="8" ry="8" fill="url(#legend_dots_4)"/>
+    <rect x="30" y="392" width="536" height="24" rx="4" ry="4" fill="white" fill-opacity="0.85"/>
+    <text x="44" y="404" font-family="Menlo, monospace" font-size="8" font-weight="600" fill="#1e40af" letter-spacing="0.05em" dominant-baseline="central">LÉGENDE</text>
+    <text x="104" y="404" font-family="Menlo, monospace" font-size="7" fill="#1e40af" dominant-baseline="central">Grey = untrusted zone &middot; Blue = sovereign zone &middot; Arrows = controlled boundary crossings</text>
+  </svg>
+  <p class="fig_caption"><strong>Figure 1</strong> : The core-and-shell architecture — an external AI orchestrates the work but receives metrics, never content.</p>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 4: Orchestratable by an AI</span>
+    </div>
+    <span class="footer_page">11</span>
+  </div>
+</div>
+
+<!-- PAGE 12 -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">4.1 Four levels of output isolation</h2>
+
+  <p class="body_text">What may cross the boundary is governed by the intended audience. RAGIX enforces this at build time: every kernel result is tagged with an isolation level, and the platform refuses to emit a report in which forbidden internal markers would leak. The four levels make a single analysis safe to share with very different recipients.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-layers-01" aria-hidden="true"></i>Output isolation levels</div>
+    <table class="summary_table">
+      <thead>
+        <tr>
+          <th><span>Level</span></th>
+          <th><span>For</span></th>
+          <th><span>Contains</span></th>
+          <th><span>Excludes</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Internal</td>
+          <td>The audit team</td>
+          <td>Full traces, hashes, paths</td>
+          <td>Nothing</td>
+        </tr>
+        <tr>
+          <td>External</td>
+          <td>Client delivery</td>
+          <td>Clean report, metrics, findings</td>
+          <td>Paths, IDs, internal metadata</td>
+        </tr>
+        <tr>
+          <td>Orchestrator</td>
+          <td>An external AI</td>
+          <td>Metrics only: counts, timings</td>
+          <td>All document text</td>
+        </tr>
+        <tr>
+          <td>Compliance</td>
+          <td>A regulator / auditor</td>
+          <td>Hash chain + attestations</td>
+          <td>Content (trail only)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="subsection_title">4.2 The "proof I never read your documents"</h2>
+
+  <p class="body_text">Each operation records a machine-verifiable attestation: that it ran locally, on a named host, against the local model endpoint, with the input and output hashes captured in the audit chain. When an external assistant orchestrates the work under the <em>orchestrator</em> isolation level, the record shows it received only metrics. The result is not a policy promise but verifiable evidence.</p>
+
+  <div class="callout">
+    <div class="callout_header">
+      <span><i class="hgi-stroke hgi-shield-01" aria-hidden="true"></i>WHAT YOU CAN TELL A REGULATOR</span>
+    </div>
+    <div class="callout_body">
+      <p>“The external AI never read the documents. Every model call was local; every boundary crossing carried metrics only; and here is the cryptographic chain that proves it, operation by operation.”</p>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 4: Orchestratable by an AI</span>
+    </div>
+    <span class="footer_page">12</span>
+  </div>
+</div>
+
+<!-- PAGE 13 -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">4.3 Why this changes the economics</h2>
+
+  <p class="body_text">The combination of a top-tier orchestrating assistant and a sealed sovereign core removes the usual trade-off between capability and confidentiality. Organisations no longer have to choose between the best available AI and the protection of their material; they get both, on their own terms.</p>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-unavailable" aria-hidden="true"></i> The old trade-off</div>
+      <div class="detail_card_body">
+        <ul class="bullet_list">
+          <li>Send data to the cloud to use a capable model</li>
+          <li>Accept output you cannot verify or reproduce</li>
+          <li>Carry the legal and reputational exposure</li>
+        </ul>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-checkmark-circle-02" aria-hidden="true"></i> The RAGIX position</div>
+      <div class="detail_card_body">
+        <ul class="bullet_list">
+          <li>Best-in-class assistant orchestrates the work</li>
+          <li>Content stays inside the perimeter, always</li>
+          <li>Every step reproducible and attested</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <p class="body_text">With the principles, capabilities and sovereign operating model established, the natural question from any decision-maker is simply: does it work at scale, on real material? The next section answers with field evidence.</p>
+
+  <div class="callout_simple">
+    <div class="callout_simple_content">
+      <p><i class="hgi-stroke hgi-information-circle" aria-hidden="true"></i>The same orchestration model lets one operator supervise many analyses at once — and lets Adservio run engagements where the client's data never leaves the client's premises.</p>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 4: Orchestratable by an AI</span>
+    </div>
+    <span class="footer_page">13</span>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 09 — Orchestratable by an AI, sovereignly</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="../library/slide-common.css">
+  <style>
+    .intro-card { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 11px 16px; font-size: 13.5px; color: #6b7280; line-height: 1.5; flex-shrink: 0; }
+    .intro-card strong { color: #000000; font-weight: 600; }
+    .table-wrapper { flex: 1; min-height: 0; overflow: hidden; }
+    .slide-table { width: 100%; height: 100%; border-collapse: collapse; }
+    .slide-table th { padding: 9px 14px; font-weight: 600; font-size: 12px; text-align: left; background: #ffffff; color: #000000; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; }
+    .slide-table th .th-content { display: flex; align-items: center; gap: 6px; }
+    .slide-table th .th-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .th-dot.blue { background: #0D62FB; } .th-dot.indigo { background: #4338CA; } .th-dot.cyan { background: #3CBEFA; } .th-dot.black { background: #111827; }
+    .slide-table td { padding: 9px 14px; border-bottom: 1px solid #e5e7eb; font-weight: 500; color: #374151; font-size: 14px; vertical-align: middle; }
+    .slide-table td:first-child { font-weight: 600; color: #000000; font-size: 13.5px; }
+    .msg-bar { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 16px; display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: #111827; flex-shrink: 0; }
+    .msg-bar i { color: #0D62FB; font-size: 18px; flex-shrink: 0; }
+    .msg-bar strong { font-weight: 600; }
+    :focus-visible { outline: 2px solid #0D62FB; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="diagram-outer">
+      <div class="diagram-header">
+        <h1>Orchestratable by an AI — sovereignly</h1>
+        <p class="subtitle">An external assistant can drive the work without reading a single document</p>
+      </div>
+
+      <div class="slide-body">
+        <div class="intro-card">Requests travel inward through a guarded gateway; <strong>only sanitised results travel back out</strong>. A top-tier assistant such as Claude can orchestrate the analysis while content stays sealed in your perimeter.</div>
+
+        <div class="table-wrapper">
+          <table class="slide-table">
+            <thead>
+              <tr>
+                <th><span class="th-content">Level <span class="th-dot blue"></span></span></th>
+                <th><span class="th-content">For <span class="th-dot indigo"></span></span></th>
+                <th><span class="th-content">Contains <span class="th-dot cyan"></span></span></th>
+                <th><span class="th-content">Excludes <span class="th-dot black"></span></span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Internal</td><td>The audit team</td><td>Full traces, hashes, paths</td><td>Nothing</td></tr>
+              <tr><td>External</td><td>Client delivery</td><td>Clean report, metrics, findings</td><td>Paths, IDs, metadata</td></tr>
+              <tr><td>Orchestrator</td><td>An external AI</td><td>Metrics only: counts, timings</td><td>All document text</td></tr>
+              <tr><td>Compliance</td><td>A regulator</td><td>Hash chain + attestations</td><td>Content (trail only)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="msg-bar">
+          <i class="hgi-stroke hgi-shield-01" aria-hidden="true"></i>
+          <span><strong>Proof, not promise:</strong> every model call was local and every boundary crossing carried metrics only — with a cryptographic chain to show it.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-line"></div>
+    <div class="slide-footer">
+      <div class="footer-message">"Best-in-class AI orchestration, content sealed in your perimeter"</div>
+      <span class="footer-page">10 / 14</span>
+    </div>
+  </div>
+
+  <script src="../library/slide-common.js"></script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 08 — Reasoning in layers, retrieval by provenance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="../library/slide-common.css">
+  <style>
+    .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 21px; flex: 1; min-height: 0; }
+    .card-outer { background: #f3f4f6; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-radius: 12px; padding: 6px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+    .card-header { display: flex; align-items: center; gap: 8px; padding: 6px 6px 2px; }
+    .icon-box { width: 28px; height: 28px; border-radius: 8px; border: 1px solid #e5e7eb; background: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .icon-box i { font-size: 15px; line-height: 1; }
+    .icon-box.blue i { color: #0D62FB; }
+    .icon-box.indigo i { color: #4338CA; }
+    .card-title { font-size: 17px; font-weight: 600; color: #000000; line-height: 1.25; }
+    .card-inner { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; overflow: hidden; }
+    .card-desc { font-size: 13.5px; color: #6b7280; line-height: 1.5; }
+    .card-list { list-style: none; padding: 0; margin: 2px 0 0; display: flex; flex-direction: column; flex: 1; }
+    .card-list li { font-size: 13px; color: #374151; line-height: 1.4; padding: 8px 0 8px 18px; position: relative; border-bottom: 1px solid #f3f4f6; }
+    .card-list li:last-child { border-bottom: none; }
+    .card-list li strong { font-weight: 600; color: #000000; }
+    .card-list li::before { content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 6px; height: 6px; border-radius: 50%; }
+    .card-list.blue li::before { background: #0D62FB; }
+    .card-list.indigo li::before { background: #4338CA; }
+    :focus-visible { outline: 2px solid #0D62FB; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="diagram-outer">
+      <div class="diagram-header">
+        <h1>Reasoning in layers, retrieval by provenance</h1>
+        <p class="subtitle">How RAGIX captures meaning across corpuses larger than any context window</p>
+      </div>
+
+      <div class="slide-body">
+        <div class="grid-2col">
+          <div class="card-outer">
+            <div class="card-header">
+              <span class="icon-box blue"><i class="hgi-stroke hgi-route-01" aria-hidden="true"></i></span>
+              <span class="card-title">Layered reasoning</span>
+            </div>
+            <div class="card-inner">
+              <div class="card-desc">A corpus never fits in one prompt, so RAGIX reasons in disciplined, checkable steps.</div>
+              <ul class="card-list blue">
+                <li>Classify the problem</li>
+                <li>Decompose into sub-problems</li>
+                <li>Solve each independently</li>
+                <li>Verify and reconcile results</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card-outer">
+            <div class="card-header">
+              <span class="icon-box indigo"><i class="hgi-stroke hgi-search-01" aria-hidden="true"></i></span>
+              <span class="card-title">Three retrieval modes</span>
+            </div>
+            <div class="card-inner">
+              <div class="card-desc">Retrieval is chosen to fit the task — and guided by provenance, not similarity alone.</div>
+              <ul class="card-list indigo">
+                <li><strong>Unix-RAG</strong> — live, millisecond code exploration</li>
+                <li><strong>Project-RAG</strong> — hybrid keyword + semantic search</li>
+                <li><strong>Graph-RAG</strong> — provenance-constrained synthesis that keeps versions and sources distinct</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-line"></div>
+    <div class="slide-footer">
+      <div class="footer-message">"Meaning captured in checkable layers; merges only along real provenance"</div>
+      <span class="footer-page">9 / 14</span>
+    </div>
+  </div>
+
+  <script src="../library/slide-common.js"></script>
+</body>
+</html>

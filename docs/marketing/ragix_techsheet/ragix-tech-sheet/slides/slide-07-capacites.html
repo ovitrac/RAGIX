@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 07 — The capability catalogue</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="../library/slide-common.css">
+  <style>
+    .intro-card { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 11px 16px; font-size: 13.5px; color: #6b7280; line-height: 1.5; flex-shrink: 0; }
+    .intro-card strong { color: #000000; font-weight: 600; }
+    .table-wrapper { flex: 1; min-height: 0; overflow: hidden; }
+    .slide-table { width: 100%; height: 100%; border-collapse: collapse; }
+    .slide-table th { padding: 9px 14px; font-weight: 600; font-size: 12px; text-align: left; background: #ffffff; color: #000000; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; }
+    .slide-table th .th-content { display: flex; align-items: center; gap: 6px; }
+    .slide-table th .th-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .th-dot.blue { background: #0D62FB; } .th-dot.indigo { background: #4338CA; } .th-dot.cyan { background: #3CBEFA; }
+    .slide-table td { padding: 9px 14px; border-bottom: 1px solid #e5e7eb; font-weight: 500; color: #374151; font-size: 14px; vertical-align: middle; }
+    .slide-table td:first-child { font-weight: 600; color: #000000; font-size: 13.5px; }
+    :focus-visible { outline: 2px solid #0D62FB; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="diagram-outer">
+      <div class="diagram-header">
+        <h1>The capability catalogue</h1>
+        <p class="subtitle">Six kernel families — six business capabilities, one engine</p>
+      </div>
+
+      <div class="slide-body">
+        <div class="intro-card"><strong>Translation and multilingual restitution are not a separate family</strong> but a property of the engine — French and English are produced routinely, with the source meaning preserved.</div>
+
+        <div class="table-wrapper">
+          <table class="slide-table">
+            <thead>
+              <tr>
+                <th><span class="th-content">Family <span class="th-dot blue"></span></span></th>
+                <th><span class="th-content">It lets you&hellip; <span class="th-dot indigo"></span></span></th>
+                <th><span class="th-content">On material such as&hellip; <span class="th-dot cyan"></span></span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Audit</td><td>Analyse code quality, complexity, coupling and risk</td><td>Java / JEE codebases of 10&sup3;&ndash;10&#8309; classes</td></tr>
+              <tr><td>Docs</td><td>Digest &amp; summarise hierarchically, with citations</td><td>Hundreds of PDFs, Office and Markdown files</td></tr>
+              <tr><td>Summary</td><td>Compare &amp; consolidate across sources and versions</td><td>Multi-vendor, multi-release document sets</td></tr>
+              <tr><td>Reviewer</td><td>Review &amp; edit long documents, fully traceable</td><td>50+ page specifications and reports</td></tr>
+              <tr><td>Presenter</td><td>Generate slide decks from large reports</td><td>Long reports &rarr; 25&ndash;120 slide decks</td></tr>
+              <tr><td>Security</td><td>Scan for vulnerabilities and compliance gaps</td><td>Dependencies, secrets, configuration</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-line"></div>
+    <div class="slide-footer">
+      <div class="footer-message">"One engine: digest, analyse, compare, translate, generate"</div>
+      <span class="footer-page">8 / 14</span>
+    </div>
+  </div>
+
+  <script src="../library/slide-common.js"></script>
+</body>
+</html>

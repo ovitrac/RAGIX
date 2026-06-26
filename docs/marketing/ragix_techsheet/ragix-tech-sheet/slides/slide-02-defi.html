@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 02 — The challenge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="../library/slide-common.css">
+  <style>
+    .intro-card { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px 16px; font-size: 14px; color: #374151; line-height: 1.5; }
+    .intro-card strong { color: #000000; font-weight: 600; }
+    .card-row { display: flex; gap: 21px; align-items: stretch; min-height: 0; flex: 1; }
+    .card-outer { flex: 1; background: #f3f4f6; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-radius: 12px; padding: 6px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+    .card-header { display: flex; align-items: center; gap: 8px; padding: 6px 6px 2px; }
+    .icon-box { width: 28px; height: 28px; border-radius: 8px; border: 1px solid #e5e7eb; background: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .icon-box i { font-size: 15px; line-height: 1; }
+    .icon-box.blue i { color: #0D62FB; }
+    .icon-box.indigo i { color: #4338CA; }
+    .icon-box.cyan i { color: #3CBEFA; }
+    .card-title { font-size: 17px; font-weight: 600; color: #000000; line-height: 1.25; }
+    .card-inner { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; overflow: hidden; }
+    .card-desc { font-size: 13.5px; color: #6b7280; line-height: 1.5; }
+    .card-list { list-style: none; padding: 0; margin: 2px 0 0; display: flex; flex-direction: column; }
+    .card-list li { font-size: 13px; color: #374151; line-height: 1.4; padding: 7px 0 7px 18px; position: relative; border-bottom: 1px solid #f3f4f6; }
+    .card-list li:last-child { border-bottom: none; }
+    .card-list li::before { content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 6px; height: 6px; border-radius: 50%; background: #9ca3af; }
+    .msg-bar { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px; padding: 11px 16px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #111827; flex-shrink: 0; }
+    .msg-bar i { color: #0D62FB; font-size: 18px; flex-shrink: 0; }
+    .msg-bar strong { font-weight: 600; }
+    :focus-visible { outline: 2px solid #0D62FB; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="diagram-outer">
+      <div class="diagram-header">
+        <h1>The challenge</h1>
+        <p class="subtitle">Documents and code, growing faster than anyone can read them</p>
+      </div>
+
+      <div class="slide-body">
+        <div class="intro-card">Every large organisation accumulates two corpuses that outgrow human attention — and <strong>the most valuable question sits exactly between them</strong>.</div>
+
+        <div class="card-row">
+          <div class="card-outer">
+            <div class="card-header">
+              <span class="icon-box blue"><i class="hgi-stroke hgi-file-02" aria-hidden="true"></i></span>
+              <span class="card-title">Hundreds of documents</span>
+            </div>
+            <div class="card-inner">
+              <div class="card-desc">Specifications, architecture notes, audits and regulations, in mixed formats and languages, written over years by many hands.</div>
+              <ul class="card-list">
+                <li>Mixed PDF, Office, Markdown</li>
+                <li>Multiple languages</li>
+                <li>Overlaps, gaps and drift go unnoticed</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card-outer">
+            <div class="card-header">
+              <span class="icon-box indigo"><i class="hgi-stroke hgi-source-code" aria-hidden="true"></i></span>
+              <span class="card-title">Tens of thousands of classes</span>
+            </div>
+            <div class="card-inner">
+              <div class="card-desc">Codebases whose real behaviour has quietly drifted from what the documentation claims.</div>
+              <ul class="card-list">
+                <li>10³–10⁵ classes</li>
+                <li>Undocumented change over a decade</li>
+                <li>Hard to audit by hand</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="msg-bar">
+          <i class="hgi-stroke hgi-help-circle" aria-hidden="true"></i>
+          <span><strong>Is the code actually doing what the specifications say</strong> — across thousands of files, and on material that cannot leave your premises?</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="footer-line"></div>
+    <div class="slide-footer">
+      <div class="footer-message">"Documents and code, at scale — and sovereign"</div>
+      <span class="footer-page">3 / 14</span>
+    </div>
+  </div>
+
+  <script src="../library/slide-common.js"></script>
+</body>
+</html>

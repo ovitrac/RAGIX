@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3. The capability catalogue</title>
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;500;600;700;800&family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- PAGE 8 -->
+<div class="page content_page">
+
+  <div class="section_header">
+    <span class="section_label">SECTION 3</span>
+    <h1 class="section_title">3. The capability catalogue</h1>
+  </div>
+
+  <p class="body_text">RAGIX organises its work into six families of deterministic kernels. Each family is a coherent business capability — best understood as a verb the platform performs on your corpus. They share a common engine and a common audit trail, so an organisation that adopts one family can extend to the others without changing its tooling or its governance.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-grid" aria-hidden="true"></i>Six families, six business capabilities</div>
+    <table class="summary_table">
+      <thead>
+        <tr>
+          <th><span>Family</span></th>
+          <th><span>It lets you…</span></th>
+          <th><span>On material such as…</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Audit</td>
+          <td><strong>Analyse</strong> code quality, complexity, coupling and risk</td>
+          <td>Java / JEE codebases of 10³–10⁵ classes</td>
+        </tr>
+        <tr>
+          <td>Docs</td>
+          <td><strong>Digest &amp; summarise</strong> hierarchically, with citations</td>
+          <td>Hundreds of PDFs, Office and Markdown files</td>
+        </tr>
+        <tr>
+          <td>Summary</td>
+          <td><strong>Compare &amp; consolidate</strong> across many sources and versions</td>
+          <td>Multi-vendor, multi-release document sets</td>
+        </tr>
+        <tr>
+          <td>Reviewer</td>
+          <td><strong>Review &amp; edit</strong> long documents with full traceability</td>
+          <td>50+ page specifications and reports</td>
+        </tr>
+        <tr>
+          <td>Presenter</td>
+          <td><strong>Generate</strong> slide decks from large reports</td>
+          <td>Long reports → 25–120 slide decks</td>
+        </tr>
+        <tr>
+          <td>Security</td>
+          <td><strong>Scan</strong> for vulnerabilities and compliance gaps</td>
+          <td>Dependencies, secrets, configuration</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="body_text">Translation and multilingual restitution are not a separate family but a property of the engine: because documents are reduced to structured, citeable units before any prose is generated, the same content can be rendered and summarised in another language — French and English are used routinely in production — with the source meaning preserved and traceable.</p>
+
+  <h2 class="subsection_title">3.1 One pipeline, three stages</h2>
+
+  <p class="body_text">Every family follows the same disciplined three-stage pipeline. This shared shape is what makes the platform predictable, parallelisable and easy to govern: each stage produces an inspectable result before the next begins.</p>
+
+  <div class="lifecycle">
+    <span class="lifecycle_step"><strong>1. Collection</strong> — parse, extract, inventory</span>
+    <span class="lifecycle_arrow"></span>
+    <span class="lifecycle_step"><strong>2. Analysis</strong> — measure, cluster, score</span>
+    <span class="lifecycle_arrow"></span>
+    <span class="lifecycle_step"><strong>3. Reporting</strong> — synthesise &amp; render</span>
+  </div>
+
+  <p class="body_text">Collection and analysis are almost entirely deterministic; language models enter only at the reporting stage, and even there their output is checked. Independent kernels within a stage run in parallel, which is why a 60,000-line codebase can be fully analysed in a handful of seconds.</p>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 3: The capability catalogue</span>
+    </div>
+    <span class="footer_page">8</span>
+  </div>
+</div>
+
+<!-- PAGE 9 -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">3.2 Understanding code: the Audit family</h2>
+
+  <p class="body_text">The Audit family reads a Java or JEE codebase down to its abstract syntax tree and produces a complete, quantified health assessment: complexity hotspots, dead code, architectural coupling, dependency structure, service topology and a risk matrix. It also measures <em>drift</em> — the distance between what the documentation claims and what the code actually does — which is the heart of the "does the code match the spec?" question. Results are deterministic and arrive in seconds, not weeks.</p>
+
+  <h2 class="subsection_title">3.3 Digesting documents: the Docs and Summary families</h2>
+
+  <p class="body_text">The Docs family ingests large mixed-format corpuses, extracts the facts, requirements and definitions they contain, and builds hierarchical, citeable summaries — corpus, domain, cluster and document levels — so a reader can move from a one-page overview to a precise source passage in a few clicks. The Summary family adds Graph-RAG consolidation across many sources and a tiered redaction model, so the same corpus can be released at public, internal or audit-only sensitivity without re-running the analysis.</p>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-search-list-01" aria-hidden="true"></i> Docs — digest &amp; summarise</div>
+      <div class="detail_card_body">
+        <ul class="bullet_list">
+          <li>Ingests PDF, Office and Markdown at corpus scale</li>
+          <li>Extracts facts, rules and definitions with provenance</li>
+          <li>Builds four-level hierarchical summaries</li>
+          <li>Detects gaps, overlaps and version drift</li>
+        </ul>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-git-merge" aria-hidden="true"></i> Summary — compare &amp; consolidate</div>
+      <div class="detail_card_body">
+        <ul class="bullet_list">
+          <li>Merges sources only along genuine provenance links</li>
+          <li>Keeps versions and origins distinct</li>
+          <li>Tiered redaction: public / internal / audit</li>
+          <li>Visual drift maps between releases</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="subsection_title">3.4 Producing deliverables: Reviewer &amp; Presenter</h2>
+
+  <p class="body_text">The platform does not stop at analysis; it produces the finished artefact. The Reviewer family edits long documents chunk by chunk — fixing errors, flagging inconsistencies — while logging and numbering every change so any edit can be reverted independently. The Presenter family turns a long report into a polished slide deck, at a level of compression you choose, from a full technical deck to a 25-slide executive summary.</p>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 3: The capability catalogue</span>
+    </div>
+    <span class="footer_page">9</span>
+  </div>
+</div>
+
+<!-- PAGE 10 -->
+<div class="page content_page">
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-task-edit-01" aria-hidden="true"></i> Reviewer — review &amp; edit</div>
+      <div class="detail_card_body">
+        <ul class="bullet_list">
+          <li>Edits documents beyond any context-window limit</li>
+          <li>Every change numbered, reasoned and reversible</li>
+          <li>Protected regions (code, maths, tables) untouched</li>
+          <li>A fast model proposes; a stronger model validates</li>
+        </ul>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-presentation-bar-chart-01" aria-hidden="true"></i> Presenter — generate decks</div>
+      <div class="detail_card_body">
+        <ul class="bullet_list">
+          <li>Long report → finished slide deck, reproducibly</li>
+          <li>Full, compressed or executive compression modes</li>
+          <li>Professional theme, diagrams, PDF and HTML output</li>
+          <li>Companion handouts and glossaries on demand</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="subsection_title">3.5 How a RAGIX document is written: facts first, prose last</h2>
+
+  <p class="body_text">It is worth being precise about how RAGIX <em>writes</em> a deliverable, because it is the opposite of asking a model to "draft a report". The document is built outward from verified material: the corpus is first reduced to structured, citeable facts; the kernels then assemble the document's skeleton — its sections, tables, figures and every number — by computation; and only at the very end does a model add the connective prose around content that is already true. A second model verifies that prose against the facts, and protected regions (figures, tables, code, mathematics) are never rewritten.</p>
+
+  <div class="lifecycle">
+    <span class="lifecycle_step"><strong>Extract</strong> citeable facts</span>
+    <span class="lifecycle_arrow"></span>
+    <span class="lifecycle_step"><strong>Compute</strong> tables &amp; figures</span>
+    <span class="lifecycle_arrow"></span>
+    <span class="lifecycle_step"><strong>Assemble</strong> the structure</span>
+    <span class="lifecycle_arrow"></span>
+    <span class="lifecycle_step"><strong>Write</strong> prose around facts</span>
+    <span class="lifecycle_arrow"></span>
+    <span class="lifecycle_step"><strong>Verify</strong> &amp; lock</span>
+  </div>
+
+  <p class="body_text">This is not a future ambition: the deliverables from Adservio's field engagements were produced this way. Each artefact below is machine-generated, with its numbers and tables computed rather than written, and each statement traceable to a source.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-file-02" aria-hidden="true"></i>Documents RAGIX generates — facts in, deliverable out</div>
+    <table class="summary_table">
+      <thead>
+        <tr><th><span>Generated artefact</span></th><th><span>What is machine-derived (not written)</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Code audit report (FR/EN)</td><td>Every metric, hotspot, coupling table and risk score</td></tr>
+        <tr><td>Multi-level corpus summary</td><td>Fact catalogue, citations, cross-references, appendices</td></tr>
+        <tr><td>Executive slide deck</td><td>Slide structure, figures and quoted findings from the report</td></tr>
+        <tr><td>Glossary &amp; handouts</td><td>Acronyms and definitions extracted from the source corpus</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <div class="callout_header">
+      <span><i class="hgi-stroke hgi-quote-down" aria-hidden="true"></i>THE ONE-LINE MESSAGE</span>
+    </div>
+    <div class="callout_body">
+      <p>RAGIX does not prompt a model to write your report. It computes the facts, assembles the document, and lets the model phrase what is already verified — so the deliverable is generated, reproducible and evidence-backed by construction.</p>
+    </div>
+  </div>
+
+  <h2 class="subsection_title">3.6 Guarding the perimeter: the Security family</h2>
+
+  <p class="body_text">The Security family scans dependencies, configuration and source for known vulnerabilities, exposed secrets and compliance gaps, and maps findings to recognised control frameworks. Because it runs locally like every other family, it can be applied to material that could never be uploaded to an external scanning service.</p>
+
+  <h2 class="subsection_title">3.7 How you operate it</h2>
+
+  <p class="body_text">The same capabilities are reachable through whichever interface suits the user, all backed by the identical kernels and the identical audit trail.</p>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-terminal" aria-hidden="true"></i> For automation</div>
+      <div class="detail_card_body">
+        <p>Composable command-line tools for each family fit naturally into CI/CD pipelines and scripted, repeatable engagements.</p>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-plug-socket" aria-hidden="true"></i> For AI orchestration</div>
+      <div class="detail_card_body">
+        <p>A standard tool protocol exposes the platform to assistants such as Claude, so an AI can run an analysis without ever seeing the content — the subject of the next section.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 3: The capability catalogue</span>
+    </div>
+    <span class="footer_page">10</span>
+  </div>
+</div>
+
+</body>
+</html>

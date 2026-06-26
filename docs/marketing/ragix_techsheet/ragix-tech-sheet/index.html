@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAGIX — Tech Sheet</title>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Work+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@latest/fonts/remixicon.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Work Sans', sans-serif;
+            background: #6b7280;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .viewer-header {
+            background: #4b5563;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #6b7280;
+        }
+
+        .viewer-header.hidden {
+            display: none;
+        }
+
+        .viewer-title {
+            font-family: 'Instrument Serif', serif;
+            font-size: 1.1rem;
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        .viewer-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .slide-counter {
+            font-size: 0.85rem;
+            color: #9ca3af;
+        }
+
+        .control-btn {
+            background: #374151;
+            border: none;
+            color: #ffffff;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .control-btn:hover {
+            background: #4b5563;
+        }
+
+        .control-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .control-btn i {
+            font-size: 18px;
+        }
+
+        .fullscreen-btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 100%);
+        }
+
+        .fullscreen-btn:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #0284c7 100%);
+        }
+
+        .header-hints {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .header-hint {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #9ca3af;
+            font-size: 0.7rem;
+        }
+
+        .header-hint kbd {
+            background: #374151;
+            padding: 1px 6px;
+            border-radius: 3px;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 0.65rem;
+            font-weight: 500;
+        }
+
+        /* Fit switch */
+        .fit-switch {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .fit-switch-label {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        .fit-switch input { display: none; }
+
+        .fit-switch-track {
+            width: 32px;
+            height: 18px;
+            background: #374151;
+            border-radius: 9px;
+            position: relative;
+            transition: background 0.2s;
+        }
+
+        .fit-switch-track::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 12px;
+            height: 12px;
+            background: #ffffff;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .fit-switch input:checked ~ .fit-switch-track {
+            background: #3b82f6;
+        }
+
+        .fit-switch input:checked ~ .fit-switch-track::after {
+            transform: translateX(14px);
+        }
+
+        /* Autoplay group */
+        .autoplay-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .autoplay-group .control-btn.playing {
+            background: #3b82f6;
+        }
+
+        .autoplay-delay-wrap {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .autoplay-delay-wrap input {
+            width: 36px;
+            height: 28px;
+            background: #374151;
+            border: none;
+            border-radius: 6px;
+            color: #ffffff;
+            font-family: 'Work Sans', sans-serif;
+            font-size: 0.8rem;
+            text-align: center;
+            outline: none;
+            -moz-appearance: textfield;
+        }
+
+        .autoplay-delay-wrap input::-webkit-inner-spin-button,
+        .autoplay-delay-wrap input::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .autoplay-delay-wrap input:focus {
+            background: #4b5563;
+        }
+
+        .autoplay-delay-unit {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+
+        .header-separator {
+            width: 1px;
+            height: 20px;
+            background: #6b7280;
+        }
+
+        /* Slide container */
+        .slide-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 8px;
+            position: relative;
+        }
+
+        .slide-frame {
+            width: 1280px;
+            height: 720px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            overflow: hidden;
+            transform-origin: center center;
+            position: relative;
+        }
+
+        body.is-fullscreen .slide-frame {
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        .slide-frame iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        /* Thumbnails */
+        .thumbnails-bar {
+            background: #4b5563;
+            padding: 12px 24px;
+            border-top: 1px solid #6b7280;
+            overflow-x: auto;
+        }
+
+        .thumbnails-bar.hidden {
+            display: none;
+        }
+
+        .thumbnails-container {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .thumbnail {
+            width: 120px;
+            height: 67px;
+            background: #374151;
+            border-radius: 6px;
+            cursor: pointer;
+            overflow: hidden;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .thumbnail:hover {
+            border-color: #6b7280;
+        }
+
+        .thumbnail.active {
+            border-color: #3b82f6;
+        }
+
+        .thumbnail-number {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: rgba(0,0,0,0.7);
+            color: #ffffff;
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .thumbnail iframe {
+            width: 1280px;
+            height: 720px;
+            transform: scale(0.09375);
+            transform-origin: top left;
+            pointer-events: none;
+        }
+
+        /* Fullscreen pagination overlay */
+        .fullscreen-pagination {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: rgba(0,0,0,0.7);
+            padding: 8px 16px;
+            border-radius: 8px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        .fullscreen-pagination span {
+            font-size: 0.9rem;
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        body.is-fullscreen .fullscreen-pagination {
+            display: flex;
+        }
+
+        body.is-fullscreen .viewer-header,
+        body.is-fullscreen .thumbnails-bar {
+            display: none;
+        }
+
+        body.is-fullscreen {
+            background: #000;
+        }
+
+        body.is-fullscreen .slide-container {
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="viewer-header" id="header">
+        <div class="viewer-title">RAGIX — Tech Sheet</div>
+        <div class="header-hints">
+            <span class="header-hint"><kbd>&larr;</kbd><kbd>&rarr;</kbd> Navigation</span>
+            <span class="header-hint"><kbd>F</kbd> Plein ecran</span>
+            <span class="header-hint"><kbd>W</kbd> Ajuster</span>
+            <span class="header-hint"><kbd>P</kbd> Presentateur</span>
+            <span class="header-hint"><kbd>Z</kbd> Lampe</span>
+            <span class="header-hint"><kbd>A</kbd> Laser</span>
+            <span class="header-hint"><kbd>Space</kbd> Suivant</span>
+        </div>
+        <div class="viewer-controls">
+            <span class="slide-counter"><span id="current-slide">1</span> / <span id="total-slides">14</span></span>
+            <button class="control-btn" id="prev-btn" title="Slide precedent">
+                <i class="ri-arrow-left-s-line"></i>
+            </button>
+            <button class="control-btn" id="next-btn" title="Slide suivant">
+                <i class="ri-arrow-right-s-line"></i>
+            </button>
+            <div class="header-separator"></div>
+            <div class="autoplay-group" id="autoplay-group">
+                <button class="control-btn" id="autoplay-btn" title="Lecture automatique">
+                    <i class="ri-play-line" id="autoplay-icon"></i>
+                </button>
+                <div class="autoplay-delay-wrap">
+                    <input type="number" id="autoplay-delay" value="5" min="1" max="60" step="1">
+                    <span class="autoplay-delay-unit">s</span>
+                </div>
+            </div>
+            <div class="header-separator"></div>
+            <label class="fit-switch" title="Ajuster (W)">
+                <input type="checkbox" id="fit-cb">
+                <span class="fit-switch-label">Fit</span>
+                <span class="fit-switch-track"></span>
+            </label>
+            <button class="control-btn fullscreen-btn" id="fullscreen-btn" title="Plein ecran (F)">
+                <i class="ri-fullscreen-line"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Slide container -->
+    <div class="slide-container" id="slide-container">
+        <div class="slide-frame" id="slide-frame">
+            <iframe id="slide-iframe" src="slides/slide-01-couverture.html" scrolling="no"></iframe>
+        </div>
+    </div>
+
+    <!-- Thumbnails -->
+    <div class="thumbnails-bar" id="thumbnails-bar">
+        <div class="thumbnails-container" id="thumbnails"></div>
+    </div>
+
+    <!-- Fullscreen pagination -->
+    <div class="fullscreen-pagination" id="fullscreen-pagination">
+        <span id="fs-current">1</span>
+        <span>/</span>
+        <span id="fs-total">14</span>
+    </div>
+
+    <script>
+    // Configuration — modifier ces variables pour chaque presentation
+    var VIEWER_SLIDES = [
+      { file: 'slides/slide-01-couverture.html', title: 'Cover' },
+      { file: 'slides/slide-01b-sommaire.html', title: 'Contents' },
+      { file: 'slides/slide-02-defi.html', title: 'The challenge' },
+      { file: 'slides/slide-03-plateforme.html', title: 'RAGIX in one minute' },
+      { file: 'slides/slide-04-differenciateurs.html', title: 'What makes RAGIX unique' },
+      { file: 'slides/slide-05-faits-documents.html', title: 'Facts generate documents' },
+      { file: 'slides/slide-06-generation-pipeline.html', title: 'How a document is written' },
+      { file: 'slides/slide-07-capacites.html', title: 'Capability catalogue' },
+      { file: 'slides/slide-08-raisonnement.html', title: 'Reasoning & retrieval' },
+      { file: 'slides/slide-09-souverain.html', title: 'Sovereign orchestration' },
+      { file: 'slides/slide-10-preuve.html', title: 'Proof at scale' },
+      { file: 'slides/slide-11-cas.html', title: 'Field case studies' },
+      { file: 'slides/slide-12-forge.html', title: 'Engineering forge' },
+      { file: 'slides/slide-13-cloture.html', title: 'Mature, open, ready' }
+    ];
+    var VIEWER_FIT_KEY = 'slides-fit';
+    </script>
+    <script src="library/viewer.js"></script>
+</body>
+</html>

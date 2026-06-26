@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 05 — Facts and kernels generate documents</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="../library/slide-common.css">
+  <style>
+    .intro-card { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px 16px; font-size: 14px; color: #374151; line-height: 1.5; }
+    .intro-card strong { color: #000000; font-weight: 600; }
+    .card-row { display: flex; gap: 21px; align-items: stretch; min-height: 0; flex: 1; }
+    .card-outer { flex: 1; background: #f3f4f6; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-radius: 12px; padding: 6px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+    .card-outer.hl { background: linear-gradient(135deg, #0D62FB 0%, #3CBEFA 100%); border: none; box-shadow: 0 4px 16px rgba(13,98,251,0.28); }
+    .card-header { display: flex; align-items: center; gap: 8px; padding: 6px 6px 2px; }
+    .icon-box { width: 28px; height: 28px; border-radius: 8px; border: 1px solid #e5e7eb; background: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .icon-box i { font-size: 15px; line-height: 1; }
+    .icon-box.black i { color: #111827; }
+    .icon-box.blue i { color: #0D62FB; }
+    .hl .icon-box { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.35); }
+    .hl .icon-box i { color: #ffffff; }
+    .card-title { font-size: 17px; font-weight: 600; color: #000000; line-height: 1.25; }
+    .hl .card-title { color: #ffffff; }
+    .card-inner { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; overflow: hidden; }
+    .card-desc { font-size: 13.5px; color: #6b7280; line-height: 1.5; }
+    .card-list { list-style: none; padding: 0; margin: 2px 0 0; display: flex; flex-direction: column; }
+    .card-list li { font-size: 13px; color: #374151; line-height: 1.4; padding: 7px 0 7px 18px; position: relative; border-bottom: 1px solid #f3f4f6; }
+    .card-list li:last-child { border-bottom: none; }
+    .card-list li::before { content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 6px; height: 6px; border-radius: 50%; }
+    .card-list.neg li::before { background: #9ca3af; }
+    .card-list.pos li::before { background: #0D62FB; }
+    .msg-bar { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px; padding: 11px 16px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #111827; }
+    .msg-bar i { color: #0D62FB; font-size: 18px; flex-shrink: 0; }
+    .msg-bar strong { font-weight: 600; }
+    :focus-visible { outline: 2px solid #0D62FB; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="diagram-outer">
+      <div class="diagram-header">
+        <h1>Facts and kernels generate the document</h1>
+        <p class="subtitle">Not prompts — this is how RAGIX removes hallucination from the deliverable itself</p>
+      </div>
+
+      <div class="slide-body">
+        <div class="intro-card">In a RAGIX report, summary or slide deck, <strong>every figure, table and metric is computed by deterministic kernels and tied to a source</strong>. A language model is asked only to phrase the sentences around material that is already true — never to author the facts.</div>
+
+        <div class="card-row">
+          <div class="card-outer">
+            <div class="card-header">
+              <span class="icon-box black"><i class="hgi-stroke hgi-alert-circle" aria-hidden="true"></i></span>
+              <span class="card-title">Prompt-only generation</span>
+            </div>
+            <div class="card-inner">
+              <div class="card-desc">Asking a model to "write the report" lets it produce text that reads convincingly but cannot be trusted — the classic failure mode of generative AI.</div>
+              <ul class="card-list neg">
+                <li>Numbers can drift or be invented</li>
+                <li>Statements are unverifiable</li>
+                <li>Output is not reproducible</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card-outer hl">
+            <div class="card-header">
+              <span class="icon-box blue"><i class="hgi-stroke hgi-checkmark-circle-02" aria-hidden="true"></i></span>
+              <span class="card-title">RAGIX: facts first, prose last</span>
+            </div>
+            <div class="card-inner">
+              <div class="card-desc">The document is assembled from verified facts and computed values; the model only phrases what is already proven and checked.</div>
+              <ul class="card-list pos">
+                <li>Numbers are computed, never written</li>
+                <li>Every claim is tied to a source</li>
+                <li>Reproducible byte-for-byte</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="msg-bar">
+          <i class="hgi-stroke hgi-quote-down" aria-hidden="true"></i>
+          <span><strong>We do not prompt a model to write your report — we compute it,</strong> then let the model phrase what is already verified.</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="footer-line"></div>
+    <div class="slide-footer">
+      <div class="footer-message">"Facts and kernels generate the document, not prompts"</div>
+      <span class="footer-page">6 / 14</span>
+    </div>
+  </div>
+
+  <script src="../library/slide-common.js"></script>
+</body>
+</html>

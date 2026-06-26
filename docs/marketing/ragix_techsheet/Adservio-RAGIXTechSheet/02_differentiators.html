@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2. What makes RAGIX unique</title>
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;500;600;700;800&family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- PAGE 5 -->
+<div class="page content_page">
+
+  <div class="section_header">
+    <span class="section_label">SECTION 2</span>
+    <h1 class="section_title">2. What makes RAGIX unique</h1>
+  </div>
+
+  <p class="body_text">Many tools promise AI-assisted analysis. RAGIX is distinguished by five design choices that, taken together, are difficult to find anywhere else — and especially difficult to find in a package that runs entirely on-premises. The table below summarises them; the pages that follow explain each in turn.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-star" aria-hidden="true"></i>The five differentiators at a glance</div>
+    <table class="summary_table">
+      <thead>
+        <tr>
+          <th><span>Differentiator</span></th>
+          <th><span>What it means</span></th>
+          <th><span>Business value</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Facts &amp; kernels generate documents</td>
+          <td>Reports are assembled from verified facts and computed values, not free-form prompting</td>
+          <td>No hallucinated numbers or invented statements; reproducible, defensible deliverables</td>
+        </tr>
+        <tr>
+          <td>Sovereign with proof</td>
+          <td>Runs locally and can prove an external AI never read your content</td>
+          <td>Usable on regulated and classified material</td>
+        </tr>
+        <tr>
+          <td>Layered reasoning</td>
+          <td>Problems are decomposed, solved and verified in stages</td>
+          <td>Handles corpuses larger than any context window</td>
+        </tr>
+        <tr>
+          <td>Graph-RAG &amp; projections</td>
+          <td>Retrieval guided by provenance graphs, not similarity alone</td>
+          <td>Prevents false connections across documents and versions</td>
+        </tr>
+        <tr>
+          <td>End-to-end provenance</td>
+          <td>Every step recorded in a tamper-evident hash chain</td>
+          <td>Audit-ready evidence on demand</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="subsection_title">2.1 Facts and kernels generate the document — not prompts</h2>
+
+  <p class="body_text">The single most important design decision in RAGIX is the strict division of labour between deterministic kernels and language models. A kernel parses code, counts dependencies, computes a complexity score or builds a graph — identically every time. A language model is asked only to interpret those results, plan the next step, or write the connective sentences. This extends all the way to the <strong>finished document</strong>: a RAGIX report, summary or slide deck is <em>assembled from verified facts and computed values</em>, not improvised from a prompt. Every figure, table and metric is machine-derived and carries a pointer to its source; the model writes only the prose that surrounds material that is already true.</p>
+
+  <p class="body_text">This is the practical answer to hallucination, and it is more than a principle — it is how the deliverable is physically built. The numbers cannot drift because the model never authored them; the statements stay anchored because each is tied to an extracted fact. The mechanics of this “facts first, prose last” document generation are detailed in Section 3.5.</p>
+
+  <div class="callout">
+    <div class="callout_header">
+      <span><i class="hgi-stroke hgi-checkmark-circle-02" aria-hidden="true"></i>WHY IT MATTERS</span>
+    </div>
+    <div class="callout_body">
+      <p>Re-run the same audit on the same corpus and you obtain the same numbers and the same tables, byte for byte. That reproducibility is what turns an AI-written document into evidence a manager can sign off on and a regulator can accept.</p>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 2: What makes RAGIX unique</span>
+    </div>
+    <span class="footer_page">5</span>
+  </div>
+</div>
+
+<!-- PAGE 6 -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">2.2 Sovereign by design — with proof</h2>
+
+  <p class="body_text">Running locally is necessary but not sufficient; an organisation also needs to <em>demonstrate</em> that sovereignty was respected. RAGIX records a machine-verifiable attestation with every operation — confirming that the work ran on a named host, that the model endpoint was the local service, and that no content left the perimeter. When an external AI assistant is used to orchestrate the work, the platform can prove that the assistant received only metrics and never the documents themselves. Section 4 details this mechanism.</p>
+
+  <h2 class="subsection_title">2.3 Reasoning in layers</h2>
+
+  <p class="body_text">A specification corpus or a large codebase never fits into a single model prompt. RAGIX therefore reasons in layers: it classifies the problem, decomposes it into sub-problems, solves each independently, then verifies and reconciles the results. Several reasoning engines are available, from a simple plan-and-execute loop to a graph-based state machine and a tree-structured explorer with an adversarial "tutor" that challenges weak answers. The effect is that arbitrarily large material is handled in disciplined, checkable steps rather than one unreliable pass.</p>
+
+  <h2 class="subsection_title">2.4 Graph-RAG and data projections</h2>
+
+  <p class="body_text">Conventional retrieval finds passages that <em>look</em> similar. That is exactly how mistakes are made: a paragraph about a firewall in last quarter's release looks identical to one in this quarter's, and a naive system will merge them and erase the distinction. RAGIX builds a <strong>provenance graph</strong> linking every document, chunk, extracted item and entity, and allows facts to be combined only when they share a genuine neighbourhood in that graph. The same corpus can also be re-projected in several complementary ways for analysis.</p>
+
+  <p class="intro_sentence">The platform offers retrieval in three complementary modes, chosen automatically to fit the task.</p>
+
+  <div class="card_grid card_grid--3" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+    <div class="detail_card">
+      <div class="detail_card_header">Unix-RAG</div>
+      <div class="detail_card_body">
+        <p>Live, millisecond exploration of code and history using classic shell tools. Ideal for interactive navigation and ad-hoc questions.</p>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header">Project-RAG</div>
+      <div class="detail_card_body">
+        <p>Hybrid keyword-plus-semantic search over an indexed corpus, fusing several ranking strategies for precise concept discovery.</p>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header">Graph-RAG</div>
+      <div class="detail_card_body">
+        <p>Provenance-constrained synthesis across many documents, keeping versions and sources distinct and every fact traceable.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 2: What makes RAGIX unique</span>
+    </div>
+    <span class="footer_page">6</span>
+  </div>
+</div>
+
+<!-- PAGE 7 -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">2.5 Provenance from first read to final word</h2>
+
+  <p class="body_text">Trust in an analysis depends on being able to retrace it. In RAGIX, every action — each shell command, each document edit, each model call — is appended to a tamper-evident ledger secured by a SHA-256 hash chain. Each entry references the previous one, so any later alteration is detectable. Outputs carry the hashes of their inputs, which means any finding can be followed back through the analysis to the exact source passage it came from.</p>
+
+  <p class="intro_sentence">This end-to-end provenance underpins three concrete guarantees.</p>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-link-02" aria-hidden="true"></i> Traceability</div>
+      <div class="detail_card_body">
+        <ul class="bullet_list">
+          <li>Every claim links to its source document, page and line</li>
+          <li>Findings can be independently re-verified at any time</li>
+        </ul>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-shield-key" aria-hidden="true"></i> Tamper-evidence</div>
+      <div class="detail_card_body">
+        <ul class="bullet_list">
+          <li>The hash chain makes silent edits to the record impossible</li>
+          <li>Attestations confirm where and how the work was run</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <p class="body_text">Taken together, these five differentiators define a platform that is not merely "AI for documents and code", but a sovereign, evidence-producing instrument. The next section turns from principles to practice and catalogues exactly what RAGIX can do.</p>
+
+  <div class="callout">
+    <div class="callout_header">
+      <span><i class="hgi-stroke hgi-rocket-01" aria-hidden="true"></i>THE NET EFFECT</span>
+    </div>
+    <div class="callout_body">
+      <p>A capability that elsewhere requires sending sensitive material to the cloud, and accepting unverifiable output, becomes — with RAGIX — a fully owned, reproducible and auditable process that never leaves your infrastructure.</p>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 2: What makes RAGIX unique</span>
+    </div>
+    <span class="footer_page">7</span>
+  </div>
+</div>
+
+</body>
+</html>

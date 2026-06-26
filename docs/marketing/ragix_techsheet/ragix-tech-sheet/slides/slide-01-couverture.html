@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 01 — RAGIX cover</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="../library/slide-common.css">
+  <style>
+    .diagram-outer { padding-bottom: 0; }
+    .cover-layout { flex: 1; display: flex; align-items: stretch; gap: 0; }
+    .cover-left { width: 40%; display: flex; flex-direction: column; padding: 30px 40px 14px 8px; gap: 14px; }
+    .cover-logo { width: 132px; height: auto; }
+    .cover-title { font-family: 'Instrument Serif', serif; font-size: 60px; font-weight: 500; color: #000000; letter-spacing: 0.02em; line-height: 1.05; margin-top: auto; }
+    .cover-comment { font-size: 14px; font-weight: 400; color: #6b7280; line-height: 1.55; margin-top: 18px; }
+    .cover-badges { display: flex; gap: 6px; margin-top: auto; margin-bottom: 0; }
+    .cover-badge { flex: 1; padding: 5px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; text-align: center; color: #ffffff; }
+    .cover-badge.blue { background: linear-gradient(135deg, #0D62FB, #3CBEFA); }
+    .cover-badge.indigo { background: linear-gradient(135deg, #4338CA, #6366F1); }
+    .cover-badge.cyan { background: linear-gradient(135deg, #3CBEFA, #7DD3FC); }
+    .cover-divider { width: 100%; height: 1px; background: #e5e7eb; margin-bottom: 10px; }
+    .cover-meta { display: flex; justify-content: space-between; align-items: center; }
+    .cover-meta-item { font-family: 'Work Sans', sans-serif; font-size: 11px; color: #6b7280; }
+    .cover-right { width: 60%; position: relative; padding: 18px; }
+    .cover-img-wrapper { position: absolute; top: 18px; right: 18px; bottom: 18px; left: 0; border-radius: 12px; overflow: hidden; }
+    .cover-img-wrapper img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+    .cover-icons { position: absolute; top: 50%; right: 28px; transform: translateY(-50%); display: flex; flex-direction: column; gap: 18px; z-index: 2; }
+    .cover-icon-dot { width: 36px; height: 36px; border-radius: 6px; background: rgba(0,0,0,0.18); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.9); }
+    .cover-icon-dot i { font-size: 18px; line-height: 1; }
+    .cover-tagline { position: absolute; bottom: 20px; right: 28px; font-family: 'Instrument Serif', serif; font-size: 20px; font-style: italic; line-height: 1.4; text-align: right; color: rgba(255,255,255,0.92); background: rgba(0,0,0,0.18); backdrop-filter: blur(8px); padding: 10px 20px; border-radius: 6px; z-index: 1; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="diagram-outer">
+      <div class="cover-layout">
+        <div class="cover-left">
+          <img class="cover-logo" src="../images/ragix-logo.png" alt="RAGIX">
+
+          <div class="cover-title">RAGIX</div>
+
+          <div class="cover-comment">Sovereign document &amp; code intelligence — digest, analyse, compare and generate large heterogeneous corpuses, entirely on your own infrastructure.</div>
+
+          <div class="cover-badges">
+            <span class="cover-badge blue">Sovereign</span>
+            <span class="cover-badge indigo">Documents &amp; code</span>
+            <span class="cover-badge cyan">Auditable</span>
+          </div>
+
+          <div class="cover-footer">
+            <div class="cover-divider"></div>
+            <div class="cover-meta">
+              <div class="cover-meta-item">June 2026</div>
+              <div class="cover-meta-item">RAGIX v0.71</div>
+              <div class="cover-meta-item">Adservio Innovation Lab</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cover-right">
+          <div class="cover-img-wrapper">
+            <img src="../images/cover/686.%20Gradient_Background.jpg" alt="Abstract gradient">
+            <div class="cover-icons">
+              <div class="cover-icon-dot"><i class="hgi-stroke hgi-shield-01" aria-hidden="true"></i></div>
+              <div class="cover-icon-dot"><i class="hgi-stroke hgi-file-02" aria-hidden="true"></i></div>
+              <div class="cover-icon-dot"><i class="hgi-stroke hgi-source-code" aria-hidden="true"></i></div>
+              <div class="cover-icon-dot"><i class="hgi-stroke hgi-search-01" aria-hidden="true"></i></div>
+              <div class="cover-icon-dot"><i class="hgi-stroke hgi-chart" aria-hidden="true"></i></div>
+            </div>
+            <div class="cover-tagline">AI-first engineering, Human-first results</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../library/slide-common.js"></script>
+</body>
+</html>

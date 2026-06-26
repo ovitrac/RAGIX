@@ -220,3 +220,7 @@ benchmarks/
 # Blueprints
 base/
 
+# Marketing working area — the tech sheet keeps deliverables (PDF + self-contained HTML)
+# and regeneration infra; heavy/generated assets are ignored via its own scoped
+# docs/marketing/ragix_techsheet/.gitignore.
+

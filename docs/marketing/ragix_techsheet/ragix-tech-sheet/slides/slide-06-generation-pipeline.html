@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 06 — How a RAGIX document is written</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="../library/slide-common.css">
+  <style>
+    .pipeline { display: flex; align-items: stretch; gap: 4px; flex-shrink: 0; }
+    .step { flex: 1; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 6px; display: flex; flex-direction: column; }
+    .step-inner { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 10px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+    .step-head { display: flex; align-items: center; gap: 7px; }
+    .icon-box { width: 26px; height: 26px; border-radius: 8px; border: 1px solid #e5e7eb; background: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .icon-box i { font-size: 14px; line-height: 1; }
+    .icon-box.blue i { color: #0D62FB; }
+    .icon-box.indigo i { color: #4338CA; }
+    .icon-box.cyan i { color: #3CBEFA; }
+    .step-title { font-size: 13.5px; font-weight: 600; color: #000000; line-height: 1.2; }
+    .step-desc { font-size: 11.5px; color: #6b7280; line-height: 1.4; }
+    .arrow { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 22px; }
+    .arrow i { font-size: 18px; color: #000000; }
+    .section-label { font-size: 13px; font-weight: 600; color: #111827; margin: 4px 0 2px; }
+    .table-wrapper { flex: 1; min-height: 0; overflow: hidden; }
+    .slide-table { width: 100%; height: 100%; border-collapse: collapse; }
+    .slide-table th { padding: 9px 14px; font-weight: 600; font-size: 12px; text-align: left; background: #ffffff; color: #000000; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; }
+    .slide-table th .th-content { display: flex; align-items: center; gap: 6px; }
+    .slide-table th .th-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .th-dot.blue { background: #0D62FB; } .th-dot.cyan { background: #3CBEFA; }
+    .slide-table td { padding: 9px 14px; border-bottom: 1px solid #e5e7eb; font-weight: 500; color: #374151; font-size: 14px; vertical-align: middle; }
+    .slide-table td:first-child { font-weight: 600; color: #000000; font-size: 13.5px; }
+    .msg-bar { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 16px; display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: #111827; flex-shrink: 0; }
+    .msg-bar i { color: #0D62FB; font-size: 18px; flex-shrink: 0; }
+    .msg-bar strong { font-weight: 600; }
+    :focus-visible { outline: 2px solid #0D62FB; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="diagram-outer">
+      <div class="diagram-header">
+        <h1>How a RAGIX document is written</h1>
+        <p class="subtitle">Facts first, prose last — built outward from verified material, not improvised from a prompt</p>
+      </div>
+
+      <div class="slide-body">
+        <div class="pipeline">
+          <div class="step">
+            <div class="step-inner">
+              <div class="step-head"><span class="icon-box blue"><i class="hgi-stroke hgi-search-01" aria-hidden="true"></i></span><span class="step-title">Extract</span></div>
+              <div class="step-desc">Citeable facts pulled from the corpus, each with a source pointer</div>
+            </div>
+          </div>
+          <div class="arrow"><i class="hgi-stroke hgi-square-arrow-right-02" aria-hidden="true"></i></div>
+          <div class="step">
+            <div class="step-inner">
+              <div class="step-head"><span class="icon-box indigo"><i class="hgi-stroke hgi-chart" aria-hidden="true"></i></span><span class="step-title">Compute</span></div>
+              <div class="step-desc">Tables, figures and metrics calculated by kernels</div>
+            </div>
+          </div>
+          <div class="arrow"><i class="hgi-stroke hgi-square-arrow-right-02" aria-hidden="true"></i></div>
+          <div class="step">
+            <div class="step-inner">
+              <div class="step-head"><span class="icon-box cyan"><i class="hgi-stroke hgi-hierarchy" aria-hidden="true"></i></span><span class="step-title">Assemble</span></div>
+              <div class="step-desc">Document skeleton, sections and references built</div>
+            </div>
+          </div>
+          <div class="arrow"><i class="hgi-stroke hgi-square-arrow-right-02" aria-hidden="true"></i></div>
+          <div class="step">
+            <div class="step-inner">
+              <div class="step-head"><span class="icon-box blue"><i class="hgi-stroke hgi-edit-02" aria-hidden="true"></i></span><span class="step-title">Write</span></div>
+              <div class="step-desc">Model phrases prose around facts already verified</div>
+            </div>
+          </div>
+          <div class="arrow"><i class="hgi-stroke hgi-square-arrow-right-02" aria-hidden="true"></i></div>
+          <div class="step">
+            <div class="step-inner">
+              <div class="step-head"><span class="icon-box indigo"><i class="hgi-stroke hgi-shield-01" aria-hidden="true"></i></span><span class="step-title">Verify &amp; lock</span></div>
+              <div class="step-desc">A tutor model checks; tables, code and maths untouched</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-label">Documents RAGIX generates this way — produced on real engagements</div>
+
+        <div class="table-wrapper">
+          <table class="slide-table">
+            <thead>
+              <tr>
+                <th><span class="th-content">Generated artefact <span class="th-dot blue"></span></span></th>
+                <th><span class="th-content">What is machine-derived, not written <span class="th-dot cyan"></span></span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Code audit report (FR / EN)</td><td>Every metric, hotspot, coupling table and risk score</td></tr>
+              <tr><td>Multi-level corpus summary</td><td>Fact catalogue, citations, cross-references and appendices</td></tr>
+              <tr><td>Executive slide deck</td><td>Slide structure, figures and quoted findings from the report</td></tr>
+              <tr><td>Glossary &amp; handouts</td><td>Acronyms and definitions extracted from the source corpus</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="msg-bar">
+          <i class="hgi-stroke hgi-information-circle" aria-hidden="true"></i>
+          <span><strong>Re-run it and you get the same numbers and tables, byte for byte</strong> — an AI-written document that stands as evidence.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-line"></div>
+    <div class="slide-footer">
+      <div class="footer-message">"Facts first, prose last — reproducible by construction"</div>
+      <span class="footer-page">7 / 14</span>
+    </div>
+  </div>
+
+  <script src="../library/slide-common.js"></script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 11 — Field case studies</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="../library/slide-common.css">
+  <style>
+    .card-row { display: flex; gap: 18px; align-items: stretch; min-height: 0; flex: 1; }
+    .card-outer { flex: 1; background: #f3f4f6; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-radius: 12px; padding: 6px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+    .card-header { display: flex; align-items: center; gap: 7px; padding: 6px 6px 2px; }
+    .icon-box { width: 28px; height: 28px; border-radius: 8px; border: 1px solid #e5e7eb; background: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .icon-box i { font-size: 15px; line-height: 1; }
+    .icon-box.blue i { color: #0D62FB; }
+    .icon-box.indigo i { color: #4338CA; }
+    .icon-box.cyan i { color: #3CBEFA; }
+    .card-title { font-size: 14px; font-weight: 600; color: #000000; line-height: 1.25; }
+    .card-inner { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 11px 13px; display: flex; flex-direction: column; gap: 7px; flex: 1; min-height: 0; overflow: hidden; }
+    .card-desc { font-size: 12.5px; color: #6b7280; line-height: 1.45; }
+    .card-list { list-style: none; padding: 0; margin: 2px 0 0; display: flex; flex-direction: column; }
+    .card-list li { font-size: 12px; color: #374151; line-height: 1.4; padding: 6px 0 6px 16px; position: relative; border-bottom: 1px solid #f3f4f6; }
+    .card-list li:last-child { border-bottom: none; }
+    .card-list li::before { content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 6px; height: 6px; border-radius: 50%; }
+    .card-list.blue li::before { background: #0D62FB; }
+    .card-list.indigo li::before { background: #4338CA; }
+    .card-list.cyan li::before { background: #3CBEFA; }
+    .msg-bar { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px; padding: 11px 16px; display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: #111827; flex-shrink: 0; }
+    .msg-bar i { color: #0D62FB; font-size: 18px; flex-shrink: 0; }
+    .msg-bar strong { font-weight: 600; }
+    :focus-visible { outline: 2px solid #0D62FB; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="diagram-outer">
+      <div class="diagram-header">
+        <h1>Field case studies</h1>
+        <p class="subtitle">Anonymised, sectoral — figures drawn from delivered work</p>
+      </div>
+
+      <div class="slide-body">
+        <div class="card-row">
+          <div class="card-outer">
+            <div class="card-header">
+              <span class="icon-box blue"><i class="hgi-stroke hgi-source-code" aria-hidden="true"></i></span>
+              <span class="card-title">Enterprise Java platform under maintenance</span>
+            </div>
+            <div class="card-inner">
+              <div class="card-desc">Rapid, objective health assessment for cost and risk planning.</div>
+              <ul class="card-list blue">
+                <li>806 files · 60,157 lines · 582 classes</li>
+                <li>Full audit in 3.4 seconds</li>
+                <li>Overall grade A; hotspots pinpointed</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card-outer">
+            <div class="card-header">
+              <span class="icon-box indigo"><i class="hgi-stroke hgi-share-08" aria-hidden="true"></i></span>
+              <span class="card-title">National gas-distribution operator</span>
+            </div>
+            <div class="card-inner">
+              <div class="card-desc">Feasibility of separating two entangled business domains.</div>
+              <ul class="card-list indigo">
+                <li>~88,000 lines · 952 classes · 5,834 dependencies</li>
+                <li>Cross-domain coupling 0.36% — separation viable</li>
+                <li>97% auto-classified; costed roadmap delivered</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card-outer">
+            <div class="card-header">
+              <span class="icon-box cyan"><i class="hgi-stroke hgi-folder-01" aria-hidden="true"></i></span>
+              <span class="card-title">Major public administration</span>
+            </div>
+            <div class="card-inner">
+              <div class="card-desc">Sprawling document corpus analysed under a strict on-premises requirement.</div>
+              <ul class="card-list cyan">
+                <li>159 documents · 5,515 segments · 9 themes</li>
+                <li>109 capabilities catalogued; 51 discrepancies flagged</li>
+                <li>100% local — zero external calls</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="msg-bar">
+          <i class="hgi-stroke hgi-link-01" aria-hidden="true"></i>
+          <span><strong>Deliverables were produced in both French and English</strong> — reports, executive decks, glossaries and handouts.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-line"></div>
+    <div class="slide-footer">
+      <div class="footer-message">"Energy and public sector — sovereign, reproducible, evidence-backed"</div>
+      <span class="footer-page">12 / 14</span>
+    </div>
+  </div>
+
+  <script src="../library/slide-common.js"></script>
+</body>
+</html>

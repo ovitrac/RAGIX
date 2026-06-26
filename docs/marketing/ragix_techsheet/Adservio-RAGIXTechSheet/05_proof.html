@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5. Proof at scale</title>
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;500;600;700;800&family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- PAGE 14 -->
+<div class="page content_page">
+
+  <div class="section_header">
+    <span class="section_label">SECTION 5</span>
+    <h1 class="section_title">5. Proof at scale</h1>
+  </div>
+
+  <p class="body_text">RAGIX is not a prototype. It has been used by Adservio on real engagements spanning code audit, document analysis and stakeholder restitution, in sectors where sovereignty is mandatory. The three case studies below are presented in anonymised, sectoral form; the figures are drawn directly from the delivered work.</p>
+
+  <p class="intro_sentence">Across these engagements the platform demonstrated a consistent profile.</p>
+
+  <div class="kpi_row">
+    <div class="kpi_item">
+      <span class="kpi_value">88K</span>
+      <span class="kpi_label">Lines of code audited</span>
+    </div>
+    <div class="kpi_item">
+      <span class="kpi_value">159</span>
+      <span class="kpi_label">Documents analysed</span>
+    </div>
+    <div class="kpi_item">
+      <span class="kpi_value">3.4s</span>
+      <span class="kpi_label">Full code audit run</span>
+    </div>
+    <div class="kpi_item">
+      <span class="kpi_value">97%</span>
+      <span class="kpi_label">Classification accuracy</span>
+    </div>
+  </div>
+
+  <h2 class="subsection_title">5.1 Case A — Enterprise Java platform under maintenance</h2>
+
+  <p class="body_text">A mission-critical Java/JEE connectivity platform, maintained by a third party, needed a rapid, objective health assessment for long-term cost and risk planning. RAGIX parsed the whole codebase and delivered a graded report — complete with complexity hotspots, dead-code candidates, coupling analysis and documentation-drift findings — in seconds, in the stakeholders' own language.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-source-code" aria-hidden="true"></i>Case A — at a glance</div>
+    <table class="summary_table">
+      <thead>
+        <tr><th><span>Dimension</span></th><th><span>Result</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Scope</td><td>806 source files &middot; 60,157 lines &middot; 582 classes &middot; 2,704 methods</td></tr>
+        <tr><td>Dependencies mapped</td><td>7,396 edges &middot; 27 service components identified</td></tr>
+        <tr><td>Run time</td><td>Full three-stage audit in 3.4 seconds</td></tr>
+        <tr><td>Outcome</td><td>Overall grade A &middot; technical-debt and drift hotspots pinpointed for action</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 5: Proof at scale</span>
+    </div>
+    <span class="footer_page">14</span>
+  </div>
+</div>
+
+<!-- PAGE 15 -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">5.2 Case B — Application-separation study, national energy operator</h2>
+
+  <p class="body_text">A French national gas-distribution operator needed to know whether two business domains entangled inside one legacy platform could be separated, and at what cost and risk. RAGIX parsed the codebase, built the full dependency graph, and classified each class by domain using local sovereign models. The decisive finding — that cross-domain coupling was extremely low — turned a feared multi-year entanglement into a tractable, evidence-based decision.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-share-08" aria-hidden="true"></i>Case B — at a glance</div>
+    <table class="summary_table">
+      <thead>
+        <tr><th><span>Dimension</span></th><th><span>Result</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Scope</td><td>~88,000 lines &middot; 952 classes &middot; 57 modules &middot; 5,834 dependency edges</td></tr>
+        <tr><td>Key finding</td><td>Cross-domain coupling of 0.36% — separation technically viable</td></tr>
+        <tr><td>Classification</td><td>97% of classes auto-classified, validated by client product owners</td></tr>
+        <tr><td>Outcome</td><td>Costed roadmap with two options; ~9% lower five-year cost on the recommended path</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="body_text">The engagement closed with a stakeholder restitution: a concise slide deck and a companion glossary, both generated by the Presenter family from the underlying report, and defended in a working session with the operator's domain owners.</p>
+
+  <h2 class="subsection_title">5.3 Case C — Document corpus for a major public administration</h2>
+
+  <p class="body_text">A large French municipality held a sprawling corpus of specifications, architecture documents and security assessments accumulated across many contributors and formats. Under a contractual requirement that nothing leave its premises, RAGIX indexed the entire corpus locally, extracted the functional capabilities it described, and surfaced the contradictions and gaps that manual review had missed.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-folder-library" aria-hidden="true"></i>Case C — at a glance</div>
+    <table class="summary_table">
+      <thead>
+        <tr><th><span>Dimension</span></th><th><span>Result</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Scope</td><td>159 documents (PDF, Office, slides) &middot; 5,515 indexed segments &middot; 9 themes</td></tr>
+        <tr><td>Extraction</td><td>109 distinct functional capabilities catalogued with provenance</td></tr>
+        <tr><td>Quality findings</td><td>51 discrepancies, 33 overlapping pairs and 154 missing references flagged</td></tr>
+        <tr><td>Sovereignty</td><td>100% local — zero external calls, as contractually required</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <div class="callout_header">
+      <span><i class="hgi-stroke hgi-play-circle" aria-hidden="true"></i>SEE IT IN ACTION</span>
+    </div>
+    <div class="callout_body">
+      <p>Prefer to watch? A full RAGIX audit demonstration — from raw corpus to finished report — is available on YouTube: <a href="https://youtu.be/vDHI70ZPnDE" style="color:#2563eb; font-weight:600; text-decoration:none;">youtu.be/vDHI70ZPnDE</a>. It is the quickest way to grasp how the platform turns a large codebase into governed, evidence-backed insight in minutes.</p>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 5: Proof at scale</span>
+    </div>
+    <span class="footer_page">15</span>
+  </div>
+</div>
+
+<!-- PAGE 16 -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">5.4 Multilingual digestion and restitution</h2>
+
+  <p class="body_text">Across these engagements RAGIX produced deliverables in both French and English, including full audit reports, executive slide decks, handouts and acronym glossaries for non-specialist audiences. Because the platform reduces a corpus to structured, citeable units before any prose is written, restitution in a second language preserves the source meaning and keeps every statement traceable — a capability of particular value for cross-border and EU-facing work.</p>
+
+  <h2 class="subsection_title">5.5 What the field record shows</h2>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-timer-01" aria-hidden="true"></i> Speed that changes the model</div>
+      <div class="detail_card_body">
+        <p>Analyses that traditionally take weeks of expert effort complete in seconds to hours — enabling faster, higher-margin engagements without loss of rigour.</p>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-shield-01" aria-hidden="true"></i> Sovereignty in practice</div>
+      <div class="detail_card_body">
+        <p>Every engagement ran on regulated or contractually protected material, on-premises, with a complete and reproducible audit trail.</p>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-target-02" aria-hidden="true"></i> Decisions, not just data</div>
+      <div class="detail_card_body">
+        <p>Deliverables ended in costed options, prioritised risks and ready-to-present decks — the inputs leaders actually need to act.</p>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-repeat" aria-hidden="true"></i> Repeatable across domains</div>
+      <div class="detail_card_body">
+        <p>The same engine served code, documents and presentations across energy and public-sector clients — one investment, many uses.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <div class="callout_header">
+      <span><i class="hgi-stroke hgi-rocket-01" aria-hidden="true"></i>THE TAKEAWAY</span>
+    </div>
+    <div class="callout_body">
+      <p>RAGIX has already turned weeks-long, hard-to-defend manual analyses into fast, sovereign, evidence-backed deliverables — on exactly the kind of sensitive material where conventional AI tools cannot be used.</p>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 5: Proof at scale</span>
+    </div>
+    <span class="footer_page">16</span>
+  </div>
+</div>
+
+</body>
+</html>

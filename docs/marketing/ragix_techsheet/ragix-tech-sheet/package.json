@@ -1,0 +1,9 @@
+{
+  "name": "ragix-tech-sheet",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "serve": "node library/serve.js 3000",
+    "pdf": "node generate-pdf.js"
+  }
+}
