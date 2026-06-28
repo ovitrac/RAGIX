@@ -59,7 +59,7 @@ ollama pull mistral:7b-instruct   # Tutor
 ### 1. Setup Demo Workspace
 
 ```bash
-cd /home/olivi/Documents/Adservio/Projects/RAGIX/demo/koas_docs_audit
+cd ~/RAGIX/demo/koas_docs_audit
 
 # Create workspace with symlink to docs corpus
 ./setup.sh

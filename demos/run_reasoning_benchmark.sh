@@ -21,7 +21,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-PYTHON="${PYTHON:-/home/olivi/anaconda3/envs/ragix-env/bin/python}"
+PYTHON="${PYTHON:-python3}"   # override with PYTHON=… (e.g. a conda env interpreter)
 DEMO_SCRIPT="$SCRIPT_DIR/reasoning_v30_demo.py"
 
 # Output directories

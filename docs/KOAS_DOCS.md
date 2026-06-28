@@ -775,8 +775,8 @@ If LLM is unavailable:
   },
   "run_id": "run_20260118_134851_7bd0c4",
   "sovereignty": {
-    "hostname": "LX-Olivier2023",
-    "user": "olivi",
+    "hostname": "workstation-01",
+    "user": "analyst",
     "platform": "Linux 6.8.0-90-generic",
     "python_version": "3.12.12",
     "llm_endpoint": "http://127.0.0.1:11434",

@@ -74,7 +74,7 @@
             ▼                        ▼                        ▼
   ┌─────────────────────────────────────────────────────────────────────┐
   │                    AUDIT KNOWLEDGE BASE                             │
-  │  /home/olivi/Documents/Adservio/audit/{PROJECT}/                    │
+  │  /path/to/audit/{PROJECT}/                                          │
   ├─────────────────────────────────────────────────────────────────────┤
   │  stage1/          → Raw kernel outputs (JSON)                       │
   │  stage2/          → Analysis summaries (JSON + summary.txt)         │

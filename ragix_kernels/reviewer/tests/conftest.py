@@ -6,13 +6,13 @@ Registers pytest CLI options for workspace paths.
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-02-07
 """
 
+import os
 from pathlib import Path
 
 
-_DEFAULT_WS = Path(
-    "/home/olivi/Documents/Adservio/audit/MSG-HUB/v7_revised/"
-    "koas_review_test/workspace_oss"
-)
+# Override with KOAS_REVIEW_WS; neutral default keeps the repo host/project-agnostic.
+_DEFAULT_WS = Path(os.environ.get(
+    "KOAS_REVIEW_WS", str(Path.home() / "koas_review_test" / "workspace_oss")))
 
 
 def pytest_addoption(parser):

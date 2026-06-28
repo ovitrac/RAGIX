@@ -66,6 +66,7 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Overall system architecture | Everyone |
 | [MCP.md](MCP.md) | Model Context Protocol explained | Developers, Architects |
 | [CLI_GUIDE.md](CLI_GUIDE.md) | Command-line usage | Users |
+| [RAGIX_CHAT.md](RAGIX_CHAT.md) | Mode-agnostic tool-using chat engine (pluggable backends) | Users, Developers |
 
 ### Core Concepts
 

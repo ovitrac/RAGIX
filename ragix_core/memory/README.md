@@ -873,7 +873,7 @@ Install Office format support: `pip install ragix[docs]`
 ### Run Full Suite
 
 ```bash
-cd /home/olivi/Documents/Adservio/Projects/RAGIX
+cd ~/RAGIX
 pytest ragix_core/memory/tests/ -v
 ```
 

@@ -459,8 +459,8 @@ def compute_cache_key(
   },
   "sovereignty": {
     "endpoint": "http://127.0.0.1:11434",
-    "hostname": "LX-Olivier2023",
-    "user": "olivi",
+    "hostname": "workstation-01",
+    "user": "analyst",
     "local": true
   }
 }
@@ -754,8 +754,8 @@ services. All data remained on the client's infrastructure.
 
 | Parameter | Value |
 |-----------|-------|
-| **Hostname** | LX-Olivier2023 |
-| **User** | olivi |
+| **Hostname** | workstation-01 |
+| **User** | analyst |
 | **Platform** | Linux 6.8.0-90-generic |
 | **Python** | 3.12.12 (conda-forge) |
 | **Start time** | 2026-01-18T13:48:51.195335Z |

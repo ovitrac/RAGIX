@@ -405,7 +405,7 @@ stage3:
 # Initialize workspace for DOCSET
 python -m ragix_kernels.orchestrator init \
   --workspace ./audit/DOCSET/workspace \
-  --project /home/olivi/Documents/Adservio/audit/DOCSET/src \
+  --project /path/to/DOCSET/src \
   --language docs
 
 # Run all stages
