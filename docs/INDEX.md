@@ -153,6 +153,10 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
   - Chunk-level edits, selective revert, preflight pipeline
   - Append-only ledger with RVW-NNNN change IDs
 
+- **[KOAS_TRANSLATE.md](KOAS_TRANSLATE.md)** — Local-first scientific translation (6 kernels, EN→FR)
+  - extract → segment → draft → qa → harmonize → rebuild over a SQLite TM
+  - Protected spans (⟦P####⟧), glossary, generative-kernel reproducibility
+
 - **[KOAS_ACTIVITY.md](KOAS_ACTIVITY.md)** — Centralized activity logging
   - Event schema (koas.event/1.0), actor model, hash chain
   - Sovereignty attestation per event

@@ -418,6 +418,7 @@ Production-ready RAG for document processing (tenders, CVs, reports).
 | [docs/KOAS_SUMMARY.md](docs/KOAS_SUMMARY.md) | Multi-document summarization with Graph-RAG (12 kernels) |
 | [docs/KOAS_PRESENTER.md](docs/KOAS_PRESENTER.md) | Slide deck generation from documents (8 kernels) |
 | [docs/KOAS_REVIEW.md](docs/KOAS_REVIEW.md) | Traceable Markdown review (13 kernels) |
+| [docs/KOAS_TRANSLATE.md](docs/KOAS_TRANSLATE.md) | Local-first scientific translation (6 kernels, EN→FR) |
 | [docs/KOAS_ACTIVITY.md](docs/KOAS_ACTIVITY.md) | Centralized activity logging and governance |
 | [docs/KOAS_MEMORY_MCP.md](docs/KOAS_MEMORY_MCP.md) | Episodic memory MCP tools (17 tools) |
 | [docs/KOAS_MEMORY_ARCHITECTURE.md](docs/KOAS_MEMORY_ARCHITECTURE.md) | Memory architecture and design |
