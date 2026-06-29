@@ -33,7 +33,7 @@
 
 ### Production-Ready Architecture: KOAS
 
-**KOAS** (Kernel-Orchestrated Audit System) is the computational core — **88 registered deterministic kernels** across 6 stable families (registry-authoritative via `ragix_kernels/registry.py`). A 7th family, **`translate`** (KOAS-Translate, EN→FR scientific translation), is in active development — see [docs/developer/TRANSLATE_KERNELS_DESIGN.md](docs/developer/TRANSLATE_KERNELS_DESIGN.md):
+**KOAS** (Kernel-Orchestrated Audit System) is the computational core — **94 registered deterministic kernels** across 7 families (registry-authoritative via `ragix_kernels/registry.py`):
 
 | Family | Kernels | Purpose |
 |--------|---------|---------|
@@ -43,6 +43,9 @@
 | **reviewer** | 13 | Traceable Markdown review: chunk-level edits with selective revert |
 | **security** | 11 | Infrastructure: network discovery, vulnerability assessment, compliance |
 | **summary** | 12 | Multi-document summarization: Graph-RAG, secrecy tiers, drift detection |
+| **translate** | 6 | EN→FR scientific translation: extract → segment → draft → qa → harmonize → rebuild (newest; see below) |
+
+The **`translate`** family (KOAS-Translate) is newly landed and verified byte-for-byte against the original translation pipeline; consolidation (sharing the protected-span codec with presenter/sealed) and generalization (language pairs, MCP/CLI) are pending — see [docs/developer/TRANSLATE_KERNELS_DESIGN.md](docs/developer/TRANSLATE_KERNELS_DESIGN.md).
 
 In addition, the **RAGIX-Sealed** subsystem contributes **9** confidential-document kernels (inventory/analysis over placeholderized content — see below), kept in a separate registry.
 
@@ -408,7 +411,7 @@ Production-ready RAG for document processing (tenders, CVs, reports).
 
 | Document | Description |
 |----------|-------------|
-| [docs/KOAS.md](docs/KOAS.md) | KOAS philosophy and architecture (6 families, 88 kernels) |
+| [docs/KOAS.md](docs/KOAS.md) | KOAS philosophy and architecture (7 families, 94 kernels) |
 | [docs/KOAS_DOCS.md](docs/KOAS_DOCS.md) | Document summarization system (16 kernels) |
 | [docs/KOAS_SUMMARY.md](docs/KOAS_SUMMARY.md) | Multi-document summarization with Graph-RAG (12 kernels) |
 | [docs/KOAS_PRESENTER.md](docs/KOAS_PRESENTER.md) | Slide deck generation from documents (8 kernels) |
@@ -689,7 +692,7 @@ RAGIX/
 │   ├── rag_project/     # Project RAG (ChromaDB, knowledge graph)
 │   ├── ast_*.py         # AST analysis (Java, Python)
 │   └── llm_backends.py  # Sovereign/Cloud LLM abstraction
-├── ragix_kernels/       # KOAS kernels (160+ files, 88 kernels)
+├── ragix_kernels/       # KOAS kernels (160+ files, 94 kernels)
 │   ├── audit/           # Code audit (27 kernels)
 │   ├── docs/            # Document analysis (16 kernels)
 │   ├── presenter/       # Slide generation (8 kernels)

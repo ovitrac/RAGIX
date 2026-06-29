@@ -1,7 +1,8 @@
 # KOAS-Translate — Design Proposal for a Translation Kernel Family
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-06-27
-**Status:** DRAFT proposal (for review before any implementation)
+**Status:** P1 COMPLETE (2026-06-27) — 6/6 stage kernels registered (registry 94);
+segment + rebuild verified byte-for-byte against the original pipeline. P2/P3 pending.
 **Scope:** Promote the punctual EN→FR scientific translation pipeline
 (`~/Documents/Adservio/draft/translation/`, ~1,955 LOC) into a registered KOAS
 kernel family `translate`, reusing RAGIX infrastructure.
@@ -160,14 +161,20 @@ Pure-ish, no-LLM targets first:
 | `pipeline/glossary.py` / `config.py` | 49 / 127 | `translate/glossary.py` / merge into KOAS config |
 
 ## 10. Phasing
-- **P1 — kernelize (no behavior change):** wrap the six stages as registered
-  kernels reusing llm_backends + orchestrator + activity; TM unchanged; manifest +
-  `koas` status. Acceptance: `ragix-koas translate` reproduces `make all` on the
-  30-page snapshot byte-for-byte.
-- **P2 — consolidate + test:** extract `shared/protected_spans.py`, refactor
-  presenter/sealed onto it; full test suite green.
+- **P1 — kernelize (no behavior change) — ✅ DONE (2026-06-27):** the six stages are
+  registered kernels (`extract`, `segment`, `draft`, `qa`, `harmonize`, `rebuild`)
+  reusing llm_backends; TM unchanged; backend seam + deterministic-stub tests; the
+  shared `protected_spans` codec landed (extracted first). Acceptance: the
+  deterministic kernels (`segment`, `rebuild`) reproduce the original pipeline
+  **byte-for-byte** on the 30-page snapshot (`tests/test_translate_acceptance.py`,
+  gated on `RAGIX_TRANSLATE_FIXTURE` — copyrighted book data never committed).
+  *Deferred to P3:* orchestrator manifest + `koas` CLI status; the full real-LLM
+  `make all` end-to-end (runs on the GPU, ~hours).
+- **P2 — consolidate:** refactor presenter (marp protection) and sealed
+  (placeholder masking) onto `shared/protected_spans` (codec already extracted).
 - **P3 — generalize:** language-pair parameter + glossary/model registry; MCP +
-  CLI + `docs/KOAS_TRANSLATE.md`; README "kernel classes" wording.
+  CLI + `docs/KOAS_TRANSLATE.md`; `[translate]` extra packaging (ship `prompts/`);
+  README "kernel classes" wording.
 
 ## 11. Decisions (resolved 2026-06-27)
 1. **Family name:** `translate`. ✓

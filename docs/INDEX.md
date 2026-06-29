@@ -51,7 +51,7 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
     │  KOAS_ACTIVITY   (centralized activity logging)    │
     │  KOAS_MEMORY_MCP (17 tools — episodic memory)      │
     │  KOAS_MEMORY_ARCHITECTURE (core memory design)     │
-    │  + audit (27) and security (10) in KOAS.md         │
+    │  + audit (27), security (11), translate (6) in KOAS.md         │
     └────────────────────────────────────────────────────┘
 ```
 
@@ -130,10 +130,10 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
 
 ### Kernel System (KOAS)
 
-**Learn about deterministic computation kernels — 88 kernels across 6 stable families (+ the `translate` family in progress).**
+**Learn about deterministic computation kernels — 94 kernels across 7 families (translate newly landed; generalization pending).**
 
 - **[KOAS.md](KOAS.md)** — KOAS philosophy and architecture
-  - Three-stage pipeline, 6 kernel families
+  - Three-stage pipeline, 7 kernel families
   - Kernel development patterns
   - Deterministic guarantee: kernels compute, LLMs reason
 
@@ -166,7 +166,7 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
   - SHA-256 corpus dedup, spatial metaphor (Memory Palace)
 
 - **Source Documentation:**
-  - `ragix_kernels/README.md` — Kernel developer reference (v1.4.0, all 88 kernels)
+  - `ragix_kernels/README.md` — Kernel developer reference (v1.4.0; 94 kernels incl. translate)
 
 ### Sovereignty and Compliance
 
