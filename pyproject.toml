@@ -41,7 +41,11 @@ koas = ["ragix[ast]"]  # KOAS kernels require AST tools
 # RAGIX-Sealed: confidential-document subsystem. Crypto (vault) + YAML (ci) + document
 # text extraction. Kept optional and scoped to the sealed part only.
 sealed = ["ragix[vault,ci]", "pypdf>=4.0.0", "pdfminer.six>=20221105", "python-docx>=1.0.0"]
-all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports,koas,docs,sealed]"]
+# KOAS-Translate: EN→FR scientific translation kernels. pymupdf4llm handles the
+# text-layer PDF→Markdown path; marker-pdf (heavy ML OCR, multi-GB weights) is an
+# optional fallback for scanned/image-only PDFs — install separately if needed.
+translate = ["pymupdf4llm>=0.0.17", "pymupdf>=1.24.0"]
+all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports,koas,docs,sealed,translate]"]
 
 [project.scripts]
 ragix = "ragix_core.cli:main"
@@ -63,6 +67,13 @@ Repository = "https://github.com/ovitrac/RAGIX"
 where = ["."]
 include = ["ragix_core*", "ragix_unix*", "ragix_web*", "ragix_audit*", "ragix_kernels*", "wasp_tools*"]
 exclude = ["tests*", "MCP*"]
+
+# Ship non-.py kernel resources inside built wheels (otherwise a non-editable
+# `pip install` omits them and kernels that read them via Path(__file__).parent
+# break at runtime). Covers translate/prompts/*.txt, docs/schemas/*.yaml,
+# presenter/themes/*.{css,yaml}, glossaries, etc.
+[tool.setuptools.package-data]
+"*" = ["*.txt", "*.csv", "*.yaml", "*.yml", "*.css", "*.json"]
 
 [tool.ruff]
 line-length = 100
