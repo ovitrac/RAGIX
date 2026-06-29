@@ -182,10 +182,11 @@ class TranslateSegmentKernel(Kernel):
 
     def compute(self, input: KernelInput) -> Dict[str, Any]:
         cfg = input.config or {}
-        # Source markdown: prefer the extract kernel's declared dependency.
-        src = input.dependencies.get("translate_extract")
-        if src is None:
-            src = Path(cfg.get("source_md", input.workspace / "out" / "source.md"))
+        # Read the shared source.md from the workspace. The `translate_extract`
+        # dependency is for ordering only — under the orchestrator a dependency
+        # resolves to the prior kernel's JSON output, not the .md artifact, so we
+        # always read the canonical workspace location (overridable via config).
+        src = Path(cfg.get("source_md", input.workspace / "out" / "source.md"))
         md = Path(src).read_text(encoding="utf-8")
 
         target = int(cfg.get("target_words", DEFAULT_TARGET_WORDS))
