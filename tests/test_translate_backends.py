@@ -7,7 +7,7 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-
 
 import pytest
 
-from ragix_kernels.translate.backends import parse_json_lenient
+from ragix_kernels.translate.backends import load_prompt, parse_json_lenient
 
 
 def test_parses_clean_json():
@@ -37,3 +37,36 @@ def test_non_object_json_returned_as_is():
 def test_unparseable_raises_valueerror():
     with pytest.raises(ValueError, match="did not return JSON"):
         parse_json_lenient("no json here at all")
+
+
+# ---------------------------------------------------------------------------
+# load_prompt — language-pair resolution
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def prompts(tmp_path):
+    d = tmp_path / "prompts"
+    d.mkdir()
+    (d / "translate.txt").write_text("EN-FR default", encoding="utf-8")  # en-fr default
+    (d / "translate.en-de.txt").write_text("EN-DE override", encoding="utf-8")
+    return d / "translate.txt"
+
+
+def test_default_pair_uses_bundled_default(prompts):
+    assert load_prompt({}, prompts) == "EN-FR default"
+    assert load_prompt({"lang_pair": "en-fr"}, prompts) == "EN-FR default"
+
+
+def test_pair_override_is_used_when_present(prompts):
+    assert load_prompt({"lang_pair": "en-de"}, prompts) == "EN-DE override"
+
+
+def test_missing_pair_override_falls_back_to_default(prompts):
+    assert load_prompt({"lang_pair": "en-es"}, prompts) == "EN-FR default"  # no es file
+
+
+def test_explicit_overrides_win(prompts, tmp_path):
+    assert load_prompt({"prompt_template": "INLINE"}, prompts) == "INLINE"
+    explicit = tmp_path / "custom.txt"
+    explicit.write_text("FROM PATH", encoding="utf-8")
+    assert load_prompt({"prompt_path": str(explicit), "lang_pair": "en-de"}, prompts) == "FROM PATH"

@@ -25,7 +25,7 @@ from ragix_kernels.base import Kernel, KernelInput
 
 from . import glossary as glossary_mod
 from . import tm_store
-from .backends import Backend, resolve_backend
+from .backends import Backend, DEFAULT_LANG_PAIR, load_prompt, resolve_backend
 
 DEFAULT_MODEL = "granite4.1-translate"
 PROMPT_VERSION = "v2"
@@ -78,9 +78,8 @@ class TranslateDraftKernel(Kernel):
         limit: Optional[int] = cfg.get("limit")
         strict = bool(cfg.get("strict", False))
 
-        template = cfg.get("prompt_template")
-        if template is None:
-            template = Path(cfg.get("prompt_path", DEFAULT_PROMPT_PATH)).read_text(encoding="utf-8")
+        lang_pair = cfg.get("lang_pair", DEFAULT_LANG_PAIR)
+        template = load_prompt(cfg, DEFAULT_PROMPT_PATH)
 
         glossary_path = cfg.get("glossary_path")
         glossary_text = (
@@ -149,6 +148,7 @@ class TranslateDraftKernel(Kernel):
             "failures": failures,
             "model": model,
             "prompt_version": PROMPT_VERSION,
+            "lang_pair": lang_pair,
             "limit": limit,
             "tm_path": str(tm_path),
         }

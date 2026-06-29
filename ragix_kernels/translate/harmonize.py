@@ -27,7 +27,7 @@ from ragix_kernels.base import Kernel, KernelInput
 
 from . import glossary as glossary_mod
 from . import tm_store
-from .backends import Backend, resolve_backend
+from .backends import Backend, DEFAULT_LANG_PAIR, load_prompt, resolve_backend
 
 DEFAULT_MODEL = "granite4.1-translate"
 PROMPT_VERSION = "v2"
@@ -90,9 +90,8 @@ class TranslateHarmonizeKernel(Kernel):
         target = int(cfg.get("target_words", DEFAULT_TARGET_WORDS))
         max_w = int(cfg.get("max_words", DEFAULT_MAX_WORDS))
 
-        template = cfg.get("prompt_template")
-        if template is None:
-            template = Path(cfg.get("prompt_path", DEFAULT_PROMPT_PATH)).read_text(encoding="utf-8")
+        lang_pair = cfg.get("lang_pair", DEFAULT_LANG_PAIR)
+        template = load_prompt(cfg, DEFAULT_PROMPT_PATH)
         glossary_path = cfg.get("glossary_path")
         glossary_text = (
             glossary_mod.format_for_prompt(glossary_mod.load(glossary_path))
@@ -152,6 +151,7 @@ class TranslateHarmonizeKernel(Kernel):
             "incomplete_chapters": incomplete,
             "empty_windows": empty_windows,
             "model": model,
+            "lang_pair": lang_pair,
             "tm_path": str(tm_path),
         }
 

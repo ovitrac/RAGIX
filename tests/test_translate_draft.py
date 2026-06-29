@@ -124,6 +124,11 @@ class TestDraftKernel:
         assert "FR[Beta sentence.]" not in ctx2
         assert "(none)" in ctx2
 
+    def test_lang_pair_recorded_default(self, tm):
+        root, db = tm
+        out = _run(root, db, StubBackend())
+        assert out.data["lang_pair"] == "en-fr"        # default, surfaced in output
+
     def test_glossary_is_injected(self, tmp_path, tm):
         root, db = tm
         gloss = tmp_path / "glossary.csv"

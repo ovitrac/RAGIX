@@ -15,7 +15,10 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 from typing import Any, Callable, Optional
+
+DEFAULT_LANG_PAIR = "en-fr"
 
 #: A translation/QA backend: full prompt → completion text.
 Backend = Callable[[str], str]
@@ -43,6 +46,34 @@ def resolve_backend(injected: Optional[Backend], cfg: dict, default_model: str) 
         cfg.get("model", default_model),
         cfg.get("ollama_url", DEFAULT_OLLAMA_URL),
     )
+
+
+def load_prompt(cfg: dict, default_path: Path) -> str:
+    """Resolve a stage prompt template, honouring overrides and language pairs.
+
+    Resolution order:
+      1. ``cfg['prompt_template']`` — inline template string;
+      2. ``cfg['prompt_path']`` — explicit file;
+      3. ``<prompts_dir>/<stem>.<lang_pair>.txt`` — per-pair override
+         (``lang_pair`` from ``cfg``, default ``en-fr``);
+      4. *default_path* — the bundled ``en-fr`` method prompt.
+
+    *default_path* is the en-fr default for the stage (e.g.
+    ``prompts/translate.txt``); its stem names the stage. A ``lang_pair`` of
+    ``en-fr`` therefore resolves straight to the default — fully backward
+    compatible.
+    """
+    if cfg.get("prompt_template") is not None:
+        return cfg["prompt_template"]
+    if cfg.get("prompt_path"):
+        return Path(cfg["prompt_path"]).read_text(encoding="utf-8")
+    lang_pair = cfg.get("lang_pair", DEFAULT_LANG_PAIR)
+    default_path = Path(default_path)
+    if lang_pair != DEFAULT_LANG_PAIR:
+        cand = default_path.parent / f"{default_path.stem}.{lang_pair}.txt"
+        if cand.exists():
+            return cand.read_text(encoding="utf-8")
+    return default_path.read_text(encoding="utf-8")
 
 
 def _extract_first_json_object(raw: str) -> Optional[str]:

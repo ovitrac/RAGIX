@@ -25,7 +25,7 @@ from ragix_kernels.base import Kernel, KernelInput
 
 from . import glossary as glossary_mod
 from . import tm_store
-from .backends import Backend, parse_json_lenient, resolve_backend
+from .backends import Backend, DEFAULT_LANG_PAIR, load_prompt, parse_json_lenient, resolve_backend
 
 DEFAULT_MODEL = "granite4.0-translate"          # JSON-reliable Granite derivative
 DEFAULT_PROMPT_PATH = Path(__file__).parent / "prompts" / "qa.txt"
@@ -68,9 +68,8 @@ class TranslateQAKernel(Kernel):
         tm_path = Path(cfg.get("tm_path", input.workspace / "out" / "tm.sqlite"))
         model = cfg.get("model", DEFAULT_MODEL)
 
-        template = cfg.get("prompt_template")
-        if template is None:
-            template = Path(cfg.get("prompt_path", DEFAULT_PROMPT_PATH)).read_text(encoding="utf-8")
+        lang_pair = cfg.get("lang_pair", DEFAULT_LANG_PAIR)
+        template = load_prompt(cfg, DEFAULT_PROMPT_PATH)
         glossary_path = cfg.get("glossary_path")
         glossary_text = (
             glossary_mod.format_for_prompt(glossary_mod.load(glossary_path))
@@ -126,6 +125,7 @@ class TranslateQAKernel(Kernel):
             "n_skipped": skipped,
             "issues_by_type": dict(by_type),
             "model": model,
+            "lang_pair": lang_pair,
             "tm_path": str(tm_path),
         }
 
