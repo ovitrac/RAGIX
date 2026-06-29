@@ -58,6 +58,7 @@ ragix-wasp = "ragix_unix.wasp_cli:main"
 ragix-ast = "ragix_unix.ast_cli:main"
 ragix-koas = "ragix_kernels.orchestrator:main"
 ragix-memory = "ragix_core.memory.cli:main"
+ragix-translate = "ragix_kernels.translate.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/ovitrac/RAGIX"
