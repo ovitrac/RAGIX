@@ -33,7 +33,7 @@
 
 ### Production-Ready Architecture: KOAS
 
-**KOAS** (Kernel-Orchestrated Audit System) is the computational core — **88 registered deterministic kernels** across 6 families (counts are registry-authoritative via `ragix_kernels/registry.py`):
+**KOAS** (Kernel-Orchestrated Audit System) is the computational core — **88 registered deterministic kernels** across 6 stable families (registry-authoritative via `ragix_kernels/registry.py`). A 7th family, **`translate`** (KOAS-Translate, EN→FR scientific translation), is in active development — see [docs/developer/TRANSLATE_KERNELS_DESIGN.md](docs/developer/TRANSLATE_KERNELS_DESIGN.md):
 
 | Family | Kernels | Purpose |
 |--------|---------|---------|

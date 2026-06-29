@@ -130,7 +130,7 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
 
 ### Kernel System (KOAS)
 
-**Learn about deterministic computation kernels — 88 kernels across 6 families.**
+**Learn about deterministic computation kernels — 88 kernels across 6 stable families (+ the `translate` family in progress).**
 
 - **[KOAS.md](KOAS.md)** — KOAS philosophy and architecture
   - Three-stage pipeline, 6 kernel families
