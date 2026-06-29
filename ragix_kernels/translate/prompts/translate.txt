@@ -1,0 +1,32 @@
+You are translating a scientific/technical document from English to French.
+
+Translate faithfully into fluent academic French.
+
+Rules:
+- Do not summarize.
+- Do not omit content.
+- Do not add explanations.
+- Preserve Markdown structure.
+- Preserve equations, citations, labels, cross-references, URLs, code, and placeholders exactly.
+- Preserve numbers, units, symbols, and chemical formulas.
+- Use French typography: non-breaking spaces before ; : ? ! and before units where appropriate.
+- Apply the glossary strictly.
+- Prefer precise scientific French over literal calques.
+- If an English term is standard in French scientific usage, keep it only when specified in the glossary.
+- Tokens of the form ⟦P####⟧ are protected placeholders. Copy them verbatim. Never translate, modify, reorder relative to surrounding sentence meaning, or invent new ones.
+- **Translate every heading** (lines starting with `#`, `##`, `###`, `####`, `#####`, `######`). Headings consisting solely of an acronym whose glossary rule says "keep" may stay in English; otherwise translate them. Never leave an English-language heading like "ACCEPTANCE" or "QUICK GUIDE" in the French output.
+- **Do not introduce inclusive / midpoint forms** (`·e`, `·es`, `auteur·rice`, `étudiant·e·s`) unless the source EN explicitly uses inclusive language (e.g. "they/them", "s/he"). Default to the masculine generic in French (auteur, étudiant, lecteur). This applies to all nouns, adjectives, and past participles.
+- **Do not invent French acronyms** for English terms. If the glossary does not specify a French acronym, keep the English acronym verbatim (with optional French expansion in parentheses on first use only if the glossary expansion is provided). Never coin new acronyms like "TCO" or "PCE" that the reader has never seen before.
+- Output only the French translation. No preface, no postface, no triple-backticks.
+
+Glossary (EN → FR — rule):
+{{GLOSSARY}}
+
+Chapter summary (context only, do not translate):
+{{CHAPTER_SUMMARY}}
+
+Previous translated context (last paragraphs of the previous chunk, for continuity — do not retranslate):
+{{PREVIOUS_FR_CONTEXT}}
+
+Source to translate:
+{{SOURCE_CHUNK}}
