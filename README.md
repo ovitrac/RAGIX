@@ -49,7 +49,9 @@ The **`translate`** family (KOAS-Translate) is newly landed and verified byte-fo
 
 In addition, the **RAGIX-Sealed** subsystem contributes **9** confidential-document kernels (inventory/analysis over placeholderized content — see below), kept in a separate registry.
 
-**Architectural guarantee:** Kernels compute deterministically — LLMs are used only for planning and reasoning, never for metrics. No hallucinated numbers.
+**Architectural guarantee — two kernel classes:**
+- **Compute kernels** (audit, security, most of docs/summary): fully deterministic — **no LLM in the numeric path**, no hallucinated numbers (same input → same output).
+- **Generative kernels** (reviewer, summary authoring, translate): the LLM produces *content*, so they guarantee **reproducibility** instead — greedy decoding (temperature 0), pinned model digests, and a recorded `prompt_version`. Metrics are still computed deterministically, never by the LLM.
 
 ### Multi-Model Reasoning
 
