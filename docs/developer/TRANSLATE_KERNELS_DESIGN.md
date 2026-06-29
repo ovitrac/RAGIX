@@ -36,7 +36,10 @@ rather than a single-book one-off.
 - Register the six stages as KOAS kernels (orchestrator-driven, provenance-tracked).
 - Reuse `ragix_core/llm_backends.py`, the orchestrator, activity logging, MCP/CLI.
 - Generalize beyond EN→FR (language-pair parameter) and beyond one book.
-- Unify the protected-span codec (3rd incarnation: presenter, sealed, translate).
+- Extract the protected-span codec to `shared/` (tested), for translate and any
+  future substitution-based caller. *(Note — verified 2026-06-29: this codec is
+  translate-specific; presenter, sealed, and reviewer use **different** protection
+  mechanisms, so there is no cross-family consolidation. See §5.2.)*
 - Add a test suite (the current pipeline has none).
 
 **Non-goals (for v1)**
@@ -117,8 +120,22 @@ def protect(text: str, rules: list[str]) -> tuple[str, dict[str,str]]   # → ma
 def restore(text: str, mapping: dict[str,str]) -> tuple[str, Report]    # → text, missing/hallucinated
 ```
 
-Then refactor presenter marp-protection and the sealed placeholder masking to use
-it. This is the highest-leverage consolidation (one tested codec, three callers).
+**Reality check (verified 2026-06-29):** the original "unify across presenter,
+sealed, translate" premise was wrong. A repo-wide audit shows the `⟦P####⟧`
+substitution codec has **no other caller** and the superficially-similar
+mechanisms are fundamentally different:
+- **presenter** (`marp_postprocess.py`): no span codec at all — pure layout regexes.
+- **sealed** (`ragix_sealed/kernels/analysis.py`): `[TYPE_123 | role]` placeholders
+  with crypto-vault reversal + entity semantics (redaction, not span-shielding).
+- **reviewer** (`ragix_kernels/reviewer/models.py::ProtectedSpan`): a
+  *region-avoidance* model `(kind, line_start, line_end, content_hash)` — marks
+  line ranges the editor must not split/touch; the text is **never substituted**.
+
+Token-substitution (translate) vs region-avoidance (reviewer) vs crypto-redaction
+(sealed) are three different abstractions; force-fitting them would be harmful.
+**P2 (cross-family consolidation) is therefore dropped.** The codec stays in
+`shared/` as a tested, reusable utility — available if a real substitution-based
+caller ever appears.
 
 ### 5.3 Glossary & model registry
 - `glossary/<lang_pair>.csv` (EN,FR,rule today) → resolved by `lang_pair`.
@@ -170,8 +187,10 @@ Pure-ish, no-LLM targets first:
   gated on `RAGIX_TRANSLATE_FIXTURE` — copyrighted book data never committed).
   *Deferred to P3:* orchestrator manifest + `koas` CLI status; the full real-LLM
   `make all` end-to-end (runs on the GPU, ~hours).
-- **P2 — consolidate:** refactor presenter (marp protection) and sealed
-  (placeholder masking) onto `shared/protected_spans` (codec already extracted).
+- **P2 — DROPPED (2026-06-29):** the planned cross-family consolidation does not
+  exist — presenter has no span codec, sealed uses crypto entity placeholders, and
+  reviewer uses region-avoidance `ProtectedSpan`. The codec stays translate-local
+  in `shared/`. (See §5.2.) Next real work is therefore P3.
 - **P3 — generalize:** language-pair parameter + glossary/model registry; MCP +
   CLI + `docs/KOAS_TRANSLATE.md`; `[translate]` extra packaging (ship `prompts/`);
   README "kernel classes" wording.

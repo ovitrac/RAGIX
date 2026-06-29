@@ -45,7 +45,7 @@
 | **summary** | 12 | Multi-document summarization: Graph-RAG, secrecy tiers, drift detection |
 | **translate** | 6 | EN→FR scientific translation: extract → segment → draft → qa → harmonize → rebuild (newest; see below) |
 
-The **`translate`** family (KOAS-Translate) is newly landed and verified byte-for-byte against the original translation pipeline; consolidation (sharing the protected-span codec with presenter/sealed) and generalization (language pairs, MCP/CLI) are pending — see [docs/developer/TRANSLATE_KERNELS_DESIGN.md](docs/developer/TRANSLATE_KERNELS_DESIGN.md).
+The **`translate`** family (KOAS-Translate) is newly landed and verified byte-for-byte against the original translation pipeline; generalization (language pairs, MCP/CLI) is pending (P3); a planned cross-family codec consolidation was dropped after audit (see design doc) — see [docs/developer/TRANSLATE_KERNELS_DESIGN.md](docs/developer/TRANSLATE_KERNELS_DESIGN.md).
 
 In addition, the **RAGIX-Sealed** subsystem contributes **9** confidential-document kernels (inventory/analysis over placeholderized content — see below), kept in a separate registry.
 
