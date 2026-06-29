@@ -19,31 +19,18 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from ragix_kernels.base import Kernel, KernelInput
 
 from . import glossary as glossary_mod
 from . import tm_store
-
-#: A translation backend: full prompt → completion text.
-Backend = Callable[[str], str]
+from .backends import Backend, resolve_backend
 
 DEFAULT_MODEL = "granite4.1-translate"
 PROMPT_VERSION = "v2"
 PREVIOUS_FR_TAIL_PARAGRAPHS = 2
 DEFAULT_PROMPT_PATH = Path(__file__).parent / "prompts" / "translate.txt"
-
-
-def build_ollama_backend(model: str, base_url: str = "http://localhost:11434") -> Backend:
-    """Default backend: a single-prompt wrapper over ``llm_backends.OllamaLLM``."""
-    from ragix_core.llm_backends import OllamaLLM
-    llm = OllamaLLM(model=model, base_url=base_url)
-
-    def _generate(prompt: str) -> str:
-        return llm.generate(system_prompt=prompt, history=[])
-
-    return _generate
 
 
 def _tail_paragraphs(text: str, n: int) -> str:
@@ -82,12 +69,7 @@ class TranslateDraftKernel(Kernel):
     backend: Optional[Backend] = None
 
     def _resolve_backend(self, cfg: Dict[str, Any]) -> Backend:
-        if self.backend is not None:
-            return self.backend
-        return build_ollama_backend(
-            cfg.get("model", DEFAULT_MODEL),
-            cfg.get("ollama_url", "http://localhost:11434"),
-        )
+        return resolve_backend(self.backend, cfg, DEFAULT_MODEL)
 
     def compute(self, input: KernelInput) -> Dict[str, Any]:
         cfg = input.config or {}

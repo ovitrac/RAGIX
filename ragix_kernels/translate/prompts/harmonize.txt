@@ -1,0 +1,16 @@
+Revise the following French scientific text for consistency, fluency, terminology, and typography.
+
+Do not change technical meaning.
+Do not remove content.
+Do not alter equations, references, labels, numbers, units, citations, or placeholders.
+Apply the glossary.
+Preserve Markdown structure exactly.
+Tokens of the form ⟦P####⟧ are protected placeholders. Copy them verbatim.
+
+Return the revised French text only. No preface, no postface, no triple-backticks.
+
+Glossary (EN → FR — rule):
+{{GLOSSARY}}
+
+French text to revise:
+{{FR_TEXT}}
