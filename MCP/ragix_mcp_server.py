@@ -1271,6 +1271,102 @@ def koas_list_kernels(stage: int = 0, category: str = "") -> Dict[str, Any]:
 
 
 @mcp.tool()
+def koas_translate_run(
+    workspace: str,
+    stages: str = "all",
+    model: str = "",
+    glossary: str = "",
+    lang_pair: str = "en-fr",
+    limit: int = 0,
+    src_dir: str = "",
+    tm_path: str = "",
+) -> Dict[str, Any]:
+    """
+    Run the KOAS-Translate pipeline over a workspace translation memory.
+
+    Chains extract -> segment -> draft -> qa -> harmonize -> rebuild in
+    dependency order. LLM stages use the local Ollama backend (the host must have
+    the translation models). Idempotent/resumable — re-running only does
+    outstanding work. The deterministic stages (extract/segment/rebuild) need no
+    LLM.
+
+    Parameters
+    ----------
+    workspace : str
+        Project directory (holds src/ PDFs and out/ artifacts).
+    stages : str, default "all"
+        "all" or comma list of: translate_extract, translate_segment,
+        translate_draft, translate_qa, translate_harmonize, translate_rebuild.
+    model : str
+        LLM model override for all LLM stages (empty = per-stage defaults).
+    glossary : str
+        Glossary CSV path (EN,FR,rule).
+    lang_pair : str, default "en-fr"
+        Language pair; selects prompts/<stage>.<pair>.txt override when present.
+    limit : int, default 0
+        Cap new chunks translated by the draft stage (0 = no cap).
+    src_dir : str
+        Source PDFs directory (default <workspace>/src).
+    tm_path : str
+        Translation-memory SQLite path (default <workspace>/out/tm.sqlite).
+
+    Returns
+    -------
+    dict
+        {"status": "completed"|"failed",
+         "stages": [{"kernel", "success", "summary", "errors"}, ...]}
+    """
+    try:
+        from ragix_kernels.translate.cli import run_pipeline, STAGE_NAMES
+        sel = STAGE_NAMES if stages == "all" else [s.strip() for s in stages.split(",")]
+        unknown = [s for s in sel if s not in STAGE_NAMES]
+        if unknown:
+            return {"error": f"unknown stage(s): {unknown}; valid: {STAGE_NAMES}"}
+        cfg: Dict[str, Any] = {}
+        if model:
+            cfg["model"] = model
+        if glossary:
+            cfg["glossary_path"] = glossary
+        if lang_pair:
+            cfg["lang_pair"] = lang_pair
+        if limit:
+            cfg["limit"] = limit
+        if src_dir:
+            cfg["src_dir"] = src_dir
+        if tm_path:
+            cfg["tm_path"] = tm_path
+        results = run_pipeline(workspace, cfg, sel)
+        ok = bool(results) and all(r["success"] for r in results)
+        return {"status": "completed" if ok else "failed", "stages": results}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool()
+def koas_translate_status(workspace: str, tm_path: str = "") -> Dict[str, Any]:
+    """
+    Translation-memory progress for a KOAS-Translate workspace.
+
+    Parameters
+    ----------
+    workspace : str
+        Project directory.
+    tm_path : str
+        Translation-memory SQLite path (default <workspace>/out/tm.sqlite).
+
+    Returns
+    -------
+    dict
+        {"segments", "translated", "qa", "final", "chapter_revisions", ...}
+    """
+    try:
+        from ragix_kernels.translate.cli import status
+        return status(workspace, tm_path or None)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool()
 def koas_report(workspace: str, max_chars: int = 10000) -> Dict[str, Any]:
     """
     Get the generated audit report content.

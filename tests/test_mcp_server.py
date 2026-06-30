@@ -422,6 +422,25 @@ class TestToolAvailability:
 
 
 # =============================================================================
+# KOAS-Translate MCP tools
+# =============================================================================
+
+class TestKoasTranslateTools:
+    """The translate MCP tools wrap the tested run_pipeline/status; confirm they
+    are importable and their wrapper paths execute."""
+
+    def test_translate_status_no_tm(self, tmp_path):
+        from ragix_mcp_server import koas_translate_status
+        r = koas_translate_status(workspace=str(tmp_path))
+        assert r["exists"] is False
+
+    def test_translate_run_validates_stages(self, tmp_path):
+        from ragix_mcp_server import koas_translate_run
+        r = koas_translate_run(workspace=str(tmp_path), stages="bogus")
+        assert "unknown stage" in r["error"]
+
+
+# =============================================================================
 # Main
 # =============================================================================
 
