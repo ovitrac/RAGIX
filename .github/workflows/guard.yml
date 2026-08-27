@@ -1,0 +1,52 @@
+# Repository guard — refuses content that must not enter this public repository.
+#
+# The pre-commit hook in tools/ is local to one clone. It does not protect a
+# second clone, a contributor, or anything arriving through a pull request, and
+# it can be stepped over with --no-verify. This workflow is the half that cannot
+# be, and it is a precondition of the first public push rather than a nicety.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-08-27
+
+name: guard
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  forbidden-strings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The guard scans what a change introduces as well as what is already
+          # here, so it needs more than the tip commit.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Prove the guard fires
+        # A guard nobody has seen fire says nothing about the files it passed.
+        # This runs first: if the self-test fails, the scan below is worthless.
+        run: python3 tools/check_forbidden.py --selftest
+
+      - name: Scan every tracked file
+        run: |
+          git ls-files -z | xargs -0 python3 tools/check_forbidden.py
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python3 -m pip install --upgrade pip && python3 -m pip install -e ".[saqqara,dev]"
+
+      - name: Gates
+        run: python3 -m pytest tests/saqqara -q

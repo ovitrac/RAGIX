@@ -45,7 +45,11 @@ sealed = ["ragix[vault,ci]", "pypdf>=4.0.0", "pdfminer.six>=20221105", "python-d
 # text-layer PDF→Markdown path; marker-pdf (heavy ML OCR, multi-GB weights) is an
 # optional fallback for scanned/image-only PDFs — install separately if needed.
 translate = ["pymupdf4llm>=0.0.17", "pymupdf>=1.24.0"]
-all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports,koas,docs,sealed,translate]"]
+# saqqara: document substrate kernels. Regroups packages already declared elsewhere
+# (docs covers docx/pptx/xlsx, pypdf covers the pdf reader) rather than widening
+# `docs` — a document tree needs the pdf reader, an odf converter does not.
+saqqara = ["ragix[docs]", "pypdf>=4.0.0"]
+all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports,koas,docs,sealed,translate,saqqara]"]
 
 [project.scripts]
 ragix = "ragix_core.cli:main"
