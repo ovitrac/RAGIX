@@ -144,7 +144,16 @@ from generators import FIXTURES, FIXTURE_SUFFIX  # noqa: E402
 #:                test nothing while appearing to pass. Two did exactly that
 #:                earlier in this work. The remaining nine land with their steps:
 #:                office readers, caption binding, vector regions, routing, skips.
-FROZEN_COUNTS = {"K1": 9, "K2": 24, "K3": 71, "K4": 2, "K6": 6}
+#:   K6 6  -> 7   K6.7, after the first parity of the objects layer. The layer
+#:                closed 108 of the 119 documents where the previous kernel found
+#:                figures and this one found none -- and left a shortfall of 1 126
+#:                placements over 24 documents that nothing could account for.
+#:                Nothing could, because the reader dropped an image it failed to
+#:                decode WITHOUT COUNTING IT: two bare handlers, written in the
+#:                step before, made the reader's own failures invisible to the
+#:                measurement meant to find them. Counted drops are doctrine here;
+#:                this proposition is the doctrine made checkable for objects.
+FROZEN_COUNTS = {"K1": 9, "K2": 24, "K3": 71, "K4": 2, "K6": 7}
 
 _ROW = re.compile(r"^\|\s*(K[1-6])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 _TICKED = re.compile(r"`([a-z0-9_']+)`")

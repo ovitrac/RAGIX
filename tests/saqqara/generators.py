@@ -1989,6 +1989,39 @@ def pdf_inline_image(path: Path) -> Path:
     return _pdf_with_images(path, [(100, 0, 0, 50, 72, 700)], inline=True)
 
 
+def pdf_image_unreadable(path: Path) -> Path:
+    """Three placements: one readable, one that decodes to nothing, one absent.
+
+    Written from measured behaviour rather than assumed: a stream declaring a
+    compression its bytes do not honour does NOT raise — it decodes to zero
+    bytes, which a reader will happily store as a picture of no length under a
+    perfectly valid hash. A resource pointing at an object that does not exist
+    raises instead. Both must be counted, and neither must become an asset.
+    """
+    pixels = _grey_pixels()
+    payload = (b"q 100 0 0 50 72 700 cm /Im0 Do Q\n"
+               b"q 100 0 0 50 72 600 cm /Im1 Do Q\n"
+               b"q 100 0 0 50 72 500 cm /Im2 Do Q\n")
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [4 0 R] /Count 1 >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        (b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources "
+         b"<< /XObject << /Im0 6 0 R /Im1 7 0 R /Im2 99 0 R >> >> "
+         b"/Contents 5 0 R >>"),
+        _pdf_stream(payload),
+        (b"<< /Type /XObject /Subtype /Image /Width 4 /Height 4 "
+         b"/ColorSpace /DeviceGray /BitsPerComponent 8 /Length "
+         + str(len(pixels)).encode("ascii") + b" >>\nstream\n" + pixels
+         + b"\nendstream"),
+        (b"<< /Type /XObject /Subtype /Image /Width 4 /Height 4 "
+         b"/ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode "
+         b"/Length 16 >>\nstream\n" + b"not compressed!!" + b"\nendstream"),
+    ]
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
 def no_format_contrast(path: Path) -> Path:
     """Every line at one size: the negative. Nothing here is larger than anything.
 
@@ -2064,6 +2097,7 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "format_headings_pdf": format_headings_pdf,
     "pdf_image_xobject": pdf_image_xobject,
     "pdf_image_twice": pdf_image_twice,
+    "pdf_image_unreadable": pdf_image_unreadable,
     "pdf_inline_image": pdf_inline_image,
     "pdf_declared_outline": pdf_declared_outline,
     "format_headings_docx": format_headings_docx,
@@ -2109,6 +2143,7 @@ FIXTURE_SUFFIX: Dict[str, str] = {
     "overlapping_merges": ".xlsx",
     "pdf_declared_outline": ".pdf",
     "pdf_image_twice": ".pdf",
+    "pdf_image_unreadable": ".pdf",
     "pdf_image_xobject": ".pdf",
     "pdf_inline_image": ".pdf",
     "pdf_no_text_layer": ".pdf",

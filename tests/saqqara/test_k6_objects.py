@@ -191,3 +191,53 @@ def test_k6_6_the_store_verifies_what_it_returns(tmp_path):
     (store.root / digest).write_bytes(b"different bytes entirely")
     with pytest.raises(MissingAsset):
         store.read(digest)
+
+
+# ------------------------------------------------- K6.7 nothing is dropped in silence
+
+def test_k6_7_an_undecodable_image_is_counted_not_dropped(tmp_path):
+    """The defect the first corpus measurement of this layer exposed.
+
+    A reader that drops what it cannot decode reports a document as holding fewer
+    pictures than it does, and nothing anywhere records that the others were seen.
+    """
+    path = G.FIXTURES["pdf_image_unreadable"](tmp_path / "broken.pdf")
+    store = AssetStore(tmp_path / "store")
+    adapter = adapter_for(path)
+    adapter.skips.clear()
+    records = read_path(path, store=store)
+
+    assert len(_figures(records)) == 1, "the readable image is still read"
+    assert adapter.skips.get("xobject-empty") == 1, (
+        "the stream that decodes to nothing is counted, not stored"
+    )
+    assert adapter.skips.get("xobject-unresolvable") == 1, (
+        "and so is the resource naming an object that is not there"
+    )
+    assert store.ids() == [_figures(records)[0].facts["asset"]], (
+        "a picture of zero length never becomes an asset"
+    )
+
+
+def test_k6_7_every_placement_is_read_or_counted(tmp_path):
+    """The invariant: seen equals read plus declined, always."""
+    path = G.FIXTURES["pdf_image_unreadable"](tmp_path / "broken.pdf")
+    store = AssetStore(tmp_path / "store")
+    adapter = adapter_for(path)
+    adapter.skips.clear()
+    records = read_path(path, store=store)
+    assert len(_figures(records)) + sum(adapter.skips.values()) == 3
+
+
+def test_k6_7_skip_reasons_come_from_the_closed_vocabulary(tmp_path):
+    from ragix_kernels.saqqara.adapters.pdf import OBJECT_SKIPS
+
+    seen = set()
+    for name in ("pdf_image_unreadable", "pdf_inline_image"):
+        path = G.FIXTURES[name](tmp_path / f"{name}.pdf")
+        adapter = adapter_for(path)
+        adapter.skips.clear()
+        read_path(path, store=AssetStore(tmp_path / f"{name}.store"))
+        seen |= set(adapter.skips)
+    assert seen <= set(OBJECT_SKIPS)
+    assert seen == set(OBJECT_SKIPS), "a declared reason nothing produces is a wish"

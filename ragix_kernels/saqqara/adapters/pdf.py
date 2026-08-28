@@ -52,8 +52,12 @@ FIGURE_FACTS = ("asset", "source", "media_type", "width", "height",
 #: exists to prevent, and a specification is not a licence to commit it early.
 FIGURE_SOURCES = ("xobject",)
 
-#: Why an object was not read. Closed.
-OBJECT_SKIPS = ("inline-image-not-extracted",)
+#: Why an object was not read. Closed, and every entry is produced by something:
+#: an image carried in the content stream, a resource naming an object that is not
+#: there, and a stream that decodes to nothing at all. The last is the quiet one —
+#: it raises nothing, and a reader that trusted it would store a picture of zero
+#: length under a perfectly valid hash.
+OBJECT_SKIPS = ("inline-image-not-extracted", "xobject-unresolvable", "xobject-empty")
 
 
 def _concat(a, b) -> tuple[float, ...]:
@@ -197,8 +201,13 @@ class PdfAdapter(Adapter):
 
     # --------------------------------------------------------------- placements
 
-    @staticmethod
-    def _boxes(page) -> list[tuple[str, tuple[float, float, float, float]]]:
+    def _skip(self, reason: str) -> None:
+        """Count an object this reader declined. Named, never silent."""
+        if reason not in OBJECT_SKIPS:
+            raise ValueError(f"undeclared skip reason: {reason!r}")
+        self.skips[reason] = self.skips.get(reason, 0) + 1
+
+    def _boxes(self, page) -> list[tuple[str, tuple[float, float, float, float]]]:
         """Every `Do` of an image, with the box the transformation gave it.
 
         The content stream is walked keeping the graphics state: `q` and `Q` push
@@ -211,14 +220,17 @@ class PdfAdapter(Adapter):
 
         resources = page.get("/Resources") or {}
         xobjects = resources.get("/XObject") or {}
-        images = set()
+        images, unresolved = set(), set()
         for name in list(xobjects.keys()):
             try:
                 if xobjects[name].get("/Subtype") == "/Image":
                     images.add(str(name))
-            except Exception:                       # a resource we cannot resolve
-                continue
-        if not images:
+            except Exception:
+                # A resource naming an object that is not there. It is still a
+                # placement the document asks for, so it is counted where it is
+                # first noticed rather than dropped here and missed downstream.
+                unresolved.add(str(name))
+        if not images and not unresolved:
             return []
 
         content = ContentStream(page.get_contents(), page.pdf)
@@ -237,6 +249,8 @@ class PdfAdapter(Adapter):
                 name = str(operands[0])
                 if name in images:
                     found.append((name, _unit_square(ctm)))
+                elif name in unresolved:
+                    self._skip("xobject-unresolvable")
         return found
 
     @staticmethod
@@ -254,10 +268,8 @@ class PdfAdapter(Adapter):
     def _figures(self, page, number: int) -> Iterator[Mastaba]:
         if self.store is None:
             return
-        inline = self._inline_count(page)
-        if inline:
-            self.skips["inline-image-not-extracted"] = (
-                self.skips.get("inline-image-not-extracted", 0) + inline)
+        for _ in range(self._inline_count(page)):
+            self._skip("inline-image-not-extracted")
 
         resources = page.get("/Resources") or {}
         xobjects = resources.get("/XObject") or {}
@@ -266,6 +278,14 @@ class PdfAdapter(Adapter):
                 obj = xobjects[name]
                 payload = obj.get_data()
             except Exception:
+                # A resource naming an object that is not there. Counted: a
+                # placement the reader could not honour is a fact about the
+                # document, and dropping it silently is how a shortfall becomes
+                # invisible to the measurement meant to find it (K6.7).
+                self._skip("xobject-unresolvable")
+                continue
+            if not payload:
+                self._skip("xobject-empty")
                 continue
             media = _media_type(obj)
             left, bottom, right, top = box          # pdf space: y increases upward
