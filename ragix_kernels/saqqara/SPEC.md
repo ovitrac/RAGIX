@@ -325,3 +325,32 @@ finishing touches:
 output file: the shared envelope stamps a wall-clock timestamp into every output, so two identical
 runs never produce identical files. That is correct behaviour for the envelope and out of scope
 for this family to change.
+
+## K6 — objects: what a document shows rather than says
+
+Phase P6. `figure` and `caption` have been registered kinds with no producer; this gate gives them
+one, and adds `vector_region`.
+
+The layer turns on the distinction the rest of this specification already carries. What a file
+**contains** is an observation: the bytes of a picture are in the file, and saying so claims
+nothing. What its parts **have to do with each other** is an inference: "the line beneath this
+image is its caption" is a judgement about layout, and layout lies.
+
+**A placement is the node, not the stored object.** An image drawn twice is two figures sharing one
+asset — the file holds the bytes once and puts them on the page twice, and a tree reporting one node
+would be describing the file's storage rather than its pages. The placement's box is the unit square
+under the transformation that drew it, which is the same distinction K2.24 settles for type: the
+operand says what was asked for, the matrix says what reached the page.
+
+**No image bytes enter the tree.** A node carries the hash of its source and its provenance; the
+bytes live in a side-car store addressed by that hash, so the JSON round-trip of K1 is unaffected —
+a reference is a string like any other.
+
+| id | proposition | fixture | falsified by |
+|---|---|---|---|
+| K6.1 | An image a file holds is emitted as an **observation**, one node per **placement**: `origin` read, confidence 1.0, `source` naming how it was held, and the coordinates of that placement. Extraction claims nothing about meaning. | `pdf_image_xobject` | an extracted figure below confidence 1, one emitted as inferred, or one node standing for two placements |
+| K6.2 | **No image bytes enter the tree.** A node carries a hash and its provenance, and the canonical JSON round-trip is byte-identical to that of a tree carrying no assets at all. | `pdf_image_xobject` | a byte payload reachable from a node, or a round-trip that differs |
+| K6.3 | One image drawn twice is **two nodes and one asset**: the store holds the bytes once, the manifest records both positions, and the two nodes differ in locator and in box. | `pdf_image_twice` | two assets stored, one node emitted, or a position the manifest does not record |
+| K6.4 | A figure's box is the **unit square under the transformation that drew it**, never the stored image's pixel dimensions — the same distinction between what was asked for and what reached the page that K2.24 settles for type. | `pdf_image_twice` | a box taken from the stored width and height, or two placements of one image reporting the same box |
+| K6.5 | An image carried inline in the content stream is a **named, counted skip** in this phase, and `source` therefore carries only the values something emits. A declared value nothing produces is the defect K2.20 exists to prevent. | `pdf_inline_image` | a silent skip, an uncounted one, or a declared source value never emitted |
+| K6.6 | A node whose asset is absent from the store is a **counted, named failure** — never a node quietly without its picture. | `pdf_image_xobject` | a missing asset passing for success |

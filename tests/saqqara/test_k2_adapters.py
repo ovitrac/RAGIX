@@ -23,6 +23,7 @@ sys.path.insert(0, str(ROOT / "tests" / "saqqara"))
 
 import generators as G  # noqa: E402
 
+from ragix_kernels.saqqara.assets import AssetStore  # noqa: E402
 from ragix_kernels.saqqara.adapters import (  # noqa: E402
     GRID_CELL_FACTS,
     GRID_TABLE_FACTS,
@@ -201,10 +202,12 @@ PINNED = {
         "heading": ("level",),
         "paragraph": (),
     }),
-    "pdf": ("0.3.0", {
+    "pdf": ("0.4.0", {
         "outline_entry": ("level",),
         "page": ("has_text", "image_count", "needs_ocr"),
         "text": ("x", "y", "font_size", "font"),
+        "figure": ("asset", "source", "media_type", "width", "height",
+                   "x", "y", "w", "h", "colorspace", "bits", "smask"),
     }),
 }
 
@@ -217,6 +220,11 @@ def emitted(tmp_path_factory):
     a description of the emissions would be one more declaration to keep true.
     """
     root = tmp_path_factory.mktemp("k2vocab")
+    # With a store, so the object vocabularies are exercised too: a reader that
+    # emits figures only when it has somewhere to put them would otherwise
+    # declare a vocabulary this sweep never sees, which is precisely what K2.20
+    # refuses.
+    store = AssetStore(root / "_assets")
     out = {}
     for name, build in sorted(G.FIXTURES.items()):
         home = root / name
@@ -226,7 +234,7 @@ def emitted(tmp_path_factory):
             adapter = adapter_for(path)
             if adapter is None:                       # the refusal fixtures, on purpose
                 continue
-            for record in read_path(path):
+            for record in read_path(path, store=store):
                 out.setdefault(adapter.format, {}).setdefault(record.kind, set()).update(
                     record.facts
                 )

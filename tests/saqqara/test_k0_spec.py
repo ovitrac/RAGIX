@@ -129,9 +129,24 @@ from generators import FIXTURES, FIXTURE_SUFFIX  # noqa: E402
 #:                headings beside a declaration that needed none. An inference set
 #:                beside a declaration cannot corroborate it: it agrees redundantly
 #:                or it disagrees, and the second is worse than the first is useful.
-FROZEN_COUNTS = {"K1": 9, "K2": 24, "K3": 71, "K4": 2}
+#:   K6 0  -> 6   the objects layer opens (K6.1-K6.6): the asset store, and images
+#:                read per placement. `figure` and `caption` have been registered
+#:                kinds with no producer since P1 -- measured, 119 documents where
+#:                the previous kernel emits a figure and this one emits none.
+#:
+#:                The signed specification carries FIFTEEN propositions for this
+#:                gate; six are declared here because a proposition is declared in
+#:                the same edit as the fixture that exercises it and the code that
+#:                answers it. K0 requires every fixture a proposition names to
+#:                exist and to build, so declaring all fifteen now would mean
+#:                writing nine fixtures for code that does not exist -- fixtures no
+#:                failing test has ever refused, which is how a fixture comes to
+#:                test nothing while appearing to pass. Two did exactly that
+#:                earlier in this work. The remaining nine land with their steps:
+#:                office readers, caption binding, vector regions, routing, skips.
+FROZEN_COUNTS = {"K1": 9, "K2": 24, "K3": 71, "K4": 2, "K6": 6}
 
-_ROW = re.compile(r"^\|\s*(K[1-4])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
+_ROW = re.compile(r"^\|\s*(K[1-6])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 _TICKED = re.compile(r"`([a-z0-9_']+)`")
 
 

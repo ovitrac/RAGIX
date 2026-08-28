@@ -1907,6 +1907,88 @@ def pdf_declared_outline(path: Path) -> Path:
     return path
 
 
+# ------------------------------------------------------- objects: images a file holds
+
+#: Four by four, eight bits, grey. Generated here, so the origin of every byte in
+#: every fixture picture is this function and nothing else.
+def _grey_pixels(width: int = 4, height: int = 4) -> bytes:
+    step = max(1, 255 // max(1, width * height - 1))
+    return bytes(min(255, i * step) for i in range(width * height))
+
+
+def _pdf_with_images(path: Path, placements, inline: bool = False,
+                     text: str | None = None) -> Path:
+    """One page carrying one image XObject, drawn once per placement.
+
+    `placements` are (a, b, c, d, e, f) matrices: the image occupies the unit
+    square under each, which is what the reader has to recover. Passing two
+    placements draws the SAME object twice, which is the whole point of the
+    fixture that uses it.
+    """
+    pixels = _grey_pixels()
+    resources = "/XObject << /Im0 6 0 R >>"
+    if text is not None:
+        resources = "/Font << /F1 3 0 R >> " + resources
+
+    payload = b""
+    for matrix in placements:
+        payload += (b"q " + " ".join(f"{v:g}" for v in matrix).encode("ascii")
+                    + b" cm /Im0 Do Q\n")
+    if inline:
+        # BI/ID/EI: the bytes live in the content stream, not in an object.
+        payload += (b"q 20 0 0 20 72 500 cm\n"
+                    b"BI /W 2 /H 2 /CS /G /BPC 8 ID " + bytes([0, 85, 170, 255])
+                    + b" EI Q\n")
+    if text is not None:
+        payload += (b"BT /F1 10 Tf 72 300 Td (" + _pdf_escape(text) + b") Tj ET\n")
+
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [4 0 R] /Count 1 >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        ("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << "
+         + resources + " >> /Contents 5 0 R >>").encode("ascii"),
+        _pdf_stream(payload),
+        (b"<< /Type /XObject /Subtype /Image /Width 4 /Height 4 "
+         b"/ColorSpace /DeviceGray /BitsPerComponent 8 /Length "
+         + str(len(pixels)).encode("ascii") + b" >>\nstream\n" + pixels
+         + b"\nendstream"),
+    ]
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
+def pdf_image_xobject(path: Path) -> Path:
+    """One image, drawn once, at a known place and a known size.
+
+    The matrix scales the unit square to 100 by 50 points and puts its corner at
+    (72, 700). The image itself is 4 by 4 pixels — deliberately unlike its
+    placement, so a reader reporting pixel counts as page geometry is caught.
+    """
+    return _pdf_with_images(path, [(100, 0, 0, 50, 72, 700)])
+
+
+def pdf_image_twice(path: Path) -> Path:
+    """ONE image object, drawn TWICE, at two positions and two scales.
+
+    Two placements, two nodes, one asset. A reader that emits one node per stored
+    object reports this document as holding one picture, which is true of its
+    storage and false of its pages.
+    """
+    return _pdf_with_images(path, [(100, 0, 0, 50, 72, 700),
+                                   (60, 0, 0, 30, 300, 400)])
+
+
+def pdf_inline_image(path: Path) -> Path:
+    """An image carried inline in the content stream, beside one held as an object.
+
+    The inline one is a named, counted skip in this phase; the object one must
+    still be read. A fixture holding only the inline image could not tell a skip
+    from a reader that found nothing.
+    """
+    return _pdf_with_images(path, [(100, 0, 0, 50, 72, 700)], inline=True)
+
+
 def no_format_contrast(path: Path) -> Path:
     """Every line at one size: the negative. Nothing here is larger than anything.
 
@@ -1980,6 +2062,9 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "empty_string_cells": empty_string_cells,
     "pdf_type_scales": pdf_type_scales,
     "format_headings_pdf": format_headings_pdf,
+    "pdf_image_xobject": pdf_image_xobject,
+    "pdf_image_twice": pdf_image_twice,
+    "pdf_inline_image": pdf_inline_image,
     "pdf_declared_outline": pdf_declared_outline,
     "format_headings_docx": format_headings_docx,
     "no_weight_contrast": no_weight_contrast,
@@ -2023,6 +2108,9 @@ FIXTURE_SUFFIX: Dict[str, str] = {
     "numeric_bold_header": ".xlsx",
     "overlapping_merges": ".xlsx",
     "pdf_declared_outline": ".pdf",
+    "pdf_image_twice": ".pdf",
+    "pdf_image_xobject": ".pdf",
+    "pdf_inline_image": ".pdf",
     "pdf_no_text_layer": ".pdf",
     "pdf_outline": ".pdf",
     "pdf_type_scales": ".pdf",

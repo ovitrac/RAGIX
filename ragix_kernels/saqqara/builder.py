@@ -98,7 +98,8 @@ FORMAT_PLANS: dict[str, FormatPlan] = {
         format="pdf",
         containers={"page": "page"},
         container_key="page",
-        node_kinds={"text": "paragraph", "outline_entry": "heading"},
+        node_kinds={"text": "paragraph", "outline_entry": "heading",
+                    "figure": "figure"},
     ),
     "pptx": FormatPlan(
         format="pptx",

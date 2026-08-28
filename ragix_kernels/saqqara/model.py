@@ -161,9 +161,12 @@ class PdfLocator(Locator):
     format: ClassVar[str] = "pdf"
     page: int = 0
     bbox: Optional[tuple[float, float, float, float]] = None
+    #: The resource name an image was drawn under. Addressing belongs to the
+    #: locator; the facts describe the object, not where it was found.
+    xobject: Optional[str] = None
 
     def key(self) -> tuple:
-        return (self.page, self.bbox or (0.0, 0.0, 0.0, 0.0))
+        return (self.page, self.bbox or (0.0, 0.0, 0.0, 0.0), self.xobject or "")
 
 
 @register_locator

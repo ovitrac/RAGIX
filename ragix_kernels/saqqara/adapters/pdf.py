@@ -38,6 +38,69 @@ from .contract import Adapter, Mastaba, register_adapter
 #: The declared vocabularies, one per record kind this reader emits (K2.19).
 TEXT_FACTS = ("x", "y", "font_size", "font")
 
+#: One vocabulary for a figure, shared by every reader that finds one (K6.13).
+#: `width`/`height` are the stored image's pixels; `x`/`y`/`w`/`h` are the box it
+#: occupied on the page. The two are not the same measurement and a reader that
+#: reported one for the other would be describing storage as if it were geometry.
+FIGURE_FACTS = ("asset", "source", "media_type", "width", "height",
+                "x", "y", "w", "h", "colorspace", "bits", "smask")
+
+#: How an image was held. ONE value today, because one is emitted: this reader
+#: finds images stored as objects. `part` joins it when the office readers land
+#: and not before, and an image carried inline in the content stream is a counted
+#: skip in this phase. Declaring a value nothing produces is the defect K2.20
+#: exists to prevent, and a specification is not a licence to commit it early.
+FIGURE_SOURCES = ("xobject",)
+
+#: Why an object was not read. Closed.
+OBJECT_SKIPS = ("inline-image-not-extracted",)
+
+
+def _concat(a, b) -> tuple[float, ...]:
+    """a then b, in pdf order: the new matrix multiplies into the current one."""
+    return (
+        a[0] * b[0] + a[1] * b[2], a[0] * b[1] + a[1] * b[3],
+        a[2] * b[0] + a[3] * b[2], a[2] * b[1] + a[3] * b[3],
+        a[4] * b[0] + a[5] * b[2] + b[4], a[4] * b[1] + a[5] * b[3] + b[5],
+    )
+
+
+def _unit_square(m) -> tuple[float, float, float, float]:
+    """The box an image occupies: the unit square under `m`.
+
+    Returned as (left, bottom, right, top) in page space, where y increases
+    upward. The caller reorders it for the locator, whose bbox is declared
+    left/top/right/bottom.
+    """
+    corners = [(m[4], m[5]),
+               (m[0] + m[4], m[1] + m[5]),
+               (m[2] + m[4], m[3] + m[5]),
+               (m[0] + m[2] + m[4], m[1] + m[3] + m[5])]
+    xs = [c[0] for c in corners]
+    ys = [c[1] for c in corners]
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
+def _media_type(obj) -> str:
+    filters = obj.get("/Filter")
+    names = {str(f) for f in (filters if isinstance(filters, list) else [filters]) if f}
+    if "/DCTDecode" in names:
+        return "image/jpeg"
+    if "/JPXDecode" in names:
+        return "image/jp2"
+    return "image/x-raw"
+
+
+def _int_or_none(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _name_or_none(value):
+    return str(value) if value is not None and not isinstance(value, list) else None
+
 
 def _y_scale(matrix) -> float:
     """How much a matrix stretches the vertical direction (K2.24).
@@ -68,15 +131,23 @@ class PdfAdapter(Adapter):
     """Read a laid-out document into outline, page and text observations."""
 
     format = "pdf"
-    # 0.3.0 reports the size type is set at rather than the size it asked for:
-    # the operand scaled by the text matrix and the page transformation (K2.24).
-    version = "0.3.0"
+    # 0.4.0 reads the images a document holds, one record per placement (K6.1).
+    version = "0.4.0"
     extensions = (".pdf",)
     fact_sets = {
         "outline_entry": OUTLINE_FACTS,
         "page": PAGE_FACTS,
         "text": TEXT_FACTS,
+        "figure": FIGURE_FACTS,
     }
+
+    def __init__(self) -> None:
+        #: What this reader declined to read, by name. Counted, never silent.
+        self.skips: dict[str, int] = {}
+        #: Where extracted bytes go. A reader with no store reads no images: it
+        #: has nowhere to put them, and putting them in the tree is what K6.2
+        #: forbids.
+        self.store = None
 
     def read(self, path: Path) -> Iterator[Mastaba]:
         from pypdf import PdfReader
@@ -124,6 +195,103 @@ class PdfAdapter(Adapter):
         except Exception:
             return 0
 
+    # --------------------------------------------------------------- placements
+
+    @staticmethod
+    def _boxes(page) -> list[tuple[str, tuple[float, float, float, float]]]:
+        """Every `Do` of an image, with the box the transformation gave it.
+
+        The content stream is walked keeping the graphics state: `q` and `Q` push
+        and pop, `cm` concatenates, and a `Do` names a resource. An image occupies
+        the UNIT SQUARE under the current transformation, so its box is that
+        matrix applied to (0,0) and (1,1) — not the stored image's pixel counts,
+        which say how finely it was sampled and nothing about where it landed.
+        """
+        from pypdf.generic import ContentStream, NameObject
+
+        resources = page.get("/Resources") or {}
+        xobjects = resources.get("/XObject") or {}
+        images = set()
+        for name in list(xobjects.keys()):
+            try:
+                if xobjects[name].get("/Subtype") == "/Image":
+                    images.add(str(name))
+            except Exception:                       # a resource we cannot resolve
+                continue
+        if not images:
+            return []
+
+        content = ContentStream(page.get_contents(), page.pdf)
+        ctm = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+        stack: list[tuple[float, ...]] = []
+        found: list[tuple[str, tuple[float, float, float, float]]] = []
+
+        for operands, operator in content.operations:
+            if operator == b"q":
+                stack.append(ctm)
+            elif operator == b"Q":
+                ctm = stack.pop() if stack else (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+            elif operator == b"cm" and len(operands) == 6:
+                ctm = _concat(tuple(float(v) for v in operands), ctm)
+            elif operator == b"Do" and operands:
+                name = str(operands[0])
+                if name in images:
+                    found.append((name, _unit_square(ctm)))
+        return found
+
+    @staticmethod
+    def _inline_count(page) -> int:
+        """Images carried in the content stream rather than as objects (K6.5)."""
+        from pypdf.generic import ContentStream
+
+        try:
+            content = ContentStream(page.get_contents(), page.pdf)
+        except Exception:
+            return 0
+        return sum(1 for _, operator in content.operations
+                   if operator == b"INLINE IMAGE")
+
+    def _figures(self, page, number: int) -> Iterator[Mastaba]:
+        if self.store is None:
+            return
+        inline = self._inline_count(page)
+        if inline:
+            self.skips["inline-image-not-extracted"] = (
+                self.skips.get("inline-image-not-extracted", 0) + inline)
+
+        resources = page.get("/Resources") or {}
+        xobjects = resources.get("/XObject") or {}
+        for name, box in self._boxes(page):
+            try:
+                obj = xobjects[name]
+                payload = obj.get_data()
+            except Exception:
+                continue
+            media = _media_type(obj)
+            left, bottom, right, top = box          # pdf space: y increases upward
+            digest = self.store.put(payload, media,
+                                    reference={"page": number, "xobject": name,
+                                               "bbox": [left, top, right, bottom]})
+            yield Mastaba(
+                kind="figure",
+                locator=PdfLocator(page=number, bbox=(left, top, right, bottom),
+                                   xobject=name),
+                facts={
+                    "asset": digest,
+                    "source": "xobject",
+                    "media_type": media,
+                    "width": _int_or_none(obj.get("/Width")),
+                    "height": _int_or_none(obj.get("/Height")),
+                    "x": round(left, 2),
+                    "y": round(bottom, 2),
+                    "w": round(right - left, 2),
+                    "h": round(top - bottom, 2),
+                    "colorspace": _name_or_none(obj.get("/ColorSpace")),
+                    "bits": _int_or_none(obj.get("/BitsPerComponent")),
+                    "smask": obj.get("/SMask") is not None,
+                },
+            )
+
     # ------------------------------------------------------------------- page
 
     def _page(self, page, number: int) -> Iterator[Mastaba]:
@@ -163,6 +331,8 @@ class PdfAdapter(Adapter):
                 "needs_ocr": not has_text,
             },
         )
+
+        yield from self._figures(page, number)
 
         for text, x, y, size, font in placements:
             yield Mastaba(

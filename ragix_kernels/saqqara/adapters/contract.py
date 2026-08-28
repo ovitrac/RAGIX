@@ -152,6 +152,9 @@ class Adapter:
     extensions: tuple[str, ...] = ()
     fact_sets: Mapping[str, tuple[str, ...] | OpenVocabulary] = {}
 
+    #: What a reader declined to read, by name. Counted, never silent.
+    skips: dict = {}
+
     def read(self, path: Path) -> Iterator[Mastaba]:
         raise NotImplementedError
 
@@ -183,13 +186,21 @@ def adapter_for(path: Path) -> Adapter | None:
     return _ADAPTERS.get(path.suffix.lower())
 
 
-def read_path(path: Path) -> list[Mastaba]:
-    """Read one file. Raises rather than returning an empty result."""
+def read_path(path: Path, store=None) -> list[Mastaba]:
+    """Read one file. Raises rather than returning an empty result.
+
+    `store` is where extracted bytes go. A reader given none reads no objects:
+    it has nowhere to put them, and putting them in the tree is exactly what
+    K6.2 forbids. So the objects layer is opt-in at the call site, and a caller
+    that wants only structure pays nothing for pictures it will not read.
+    """
     adapter = adapter_for(path)
     if adapter is None:
         raise UnsupportedFormat(f"no reader claims {path.suffix!r}: {path.name}")
     if not path.is_file():
         raise UnreadableFile(f"not a file: {path}")
+    if store is not None and hasattr(adapter, "store"):
+        adapter.store = store
     try:
         return list(adapter.read(path))
     except (UnsupportedFormat, UnreadableFile):
