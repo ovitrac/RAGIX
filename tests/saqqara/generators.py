@@ -1987,3 +1987,61 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "unsupported_format": unsupported_format,
     "duplicate_pair": duplicate_pair,
 }
+
+
+#: The suffix each fixture's bytes require, declared beside the fixture itself.
+#:
+#: A fixture writes one format. Which one is a property of the fixture, and it used
+#: to be recorded in a table inside a test module — so a new fixture was handed to
+#: the word-processing reader until somebody remembered to edit a file it has
+#: nothing to do with. That failed closed and loudly, four times, with a message
+#: about a zip archive that said nothing about the real mistake. The declaration
+#: belongs here, and `test_k0_1_every_fixture_declares_its_suffix` refuses a
+#: registry where the two halves disagree.
+FIXTURE_SUFFIX: Dict[str, str] = {
+    "ambiguous_layout": ".xlsx",
+    "docx_header_stream": ".docx",
+    "docx_label_tiling": ".docx",
+    "docx_layout_prose": ".docx",
+    "docx_markers": ".docx",
+    "docx_nested": ".docx",
+    "docx_twin_pair": ".docx",
+    "docx_two_tier": ".docx",
+    "duplicate_pair": ".md",
+    "empty_string_cells": ".xlsx",
+    "format_headings_docx": ".docx",
+    "format_headings_pdf": ".pdf",
+    "full_width_title": ".xlsx",
+    "headerless_list": ".xlsx",
+    "label_tiling": ".xlsx",
+    "markdown_document": ".md",
+    "merged_answer_area": ".xlsx",
+    "mixed_workbook": ".xlsx",
+    "no_format_contrast": ".pdf",
+    "no_weight_contrast": ".docx",
+    "numbered_outline_trees": ".json",
+    "numeric_bold_header": ".xlsx",
+    "overlapping_merges": ".xlsx",
+    "pdf_declared_outline": ".pdf",
+    "pdf_no_text_layer": ".pdf",
+    "pdf_outline": ".pdf",
+    "pdf_type_scales": ".pdf",
+    "running_headers": ".pdf",
+    "section_row": ".xlsx",
+    "sections_multi_channel": ".json",
+    "slide_deck": ".pptx",
+    "totals_row_and_column": ".xlsx",
+    "trees_per_format": ".json",
+    "twin_grid_docx": ".docx",
+    "twin_grid_pptx": ".pptx",
+    "twin_grid_xlsx": ".xlsx",
+    "two_islands": ".xlsx",
+    "two_tier_header": ".xlsx",
+    "undecidable_block": ".xlsx",
+    "unsupported_format": ".tmp",
+}
+
+
+def fixture_path(name: str, root: Path) -> Path:
+    """Where a fixture should be written: its own name, its own declared suffix."""
+    return root / f"{name}{FIXTURE_SUFFIX[name]}"

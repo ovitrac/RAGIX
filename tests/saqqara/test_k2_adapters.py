@@ -37,28 +37,6 @@ from ragix_kernels.saqqara.adapters import (  # noqa: E402
 from ragix_kernels.saqqara.adapters.docx import CELL_FACTS as DOCX_CELL_FACTS  # noqa: E402
 from ragix_kernels.saqqara.adapters.xlsx import CELL_FACTS as XLSX_CELL_FACTS  # noqa: E402
 
-#: Fixtures whose suffix is not `.docx`, and the spreadsheet family, so that the
-#: whole registry can be swept: K2.20 is a claim about every reader on every
-#: fixture, and a sweep that quietly skipped some would prove nothing.
-_SUFFIX = {
-    "unsupported_format": ".tmp", "trees_per_format": ".json",
-    "numbered_outline_trees": ".json", "sections_multi_channel": ".json",
-    "markdown_document": ".md", "duplicate_pair": ".md",
-    "slide_deck": ".pptx", "twin_grid_pptx": ".pptx",
-    "pdf_outline": ".pdf", "pdf_no_text_layer": ".pdf", "running_headers": ".pdf",
-    "format_headings_pdf": ".pdf", "no_format_contrast": ".pdf",
-    "pdf_type_scales": ".pdf",
-    "pdf_declared_outline": ".pdf",
-    "format_headings_docx": ".docx", "no_weight_contrast": ".docx",
-}
-_XLSX = frozenset({
-    "mixed_workbook", "two_tier_header", "numeric_bold_header", "empty_string_cells",
-    "label_tiling", "full_width_title", "section_row", "merged_answer_area",
-    "headerless_list", "undecidable_block", "totals_row_and_column", "two_islands",
-    "overlapping_merges", "ambiguous_layout", "twin_grid_xlsx",
-})
-
-
 def _cells(records, flow=None):
     out = [r for r in records if r.kind == "cell"]
     return [r for r in out if flow is None or r.locator.flow == flow]
@@ -75,13 +53,8 @@ def _at(records, row, col, flow="body"):
 def built(tmp_path_factory):
     """Every fixture this gate needs, built once."""
     root = tmp_path_factory.mktemp("k2")
-    suffix = {
-        "mixed_workbook": ".xlsx", "two_tier_header": ".xlsx", "numeric_bold_header": ".xlsx",
-        "slide_deck": ".pptx", "markdown_document": ".md", "duplicate_pair": ".md",
-        "unsupported_format": ".tmp", "empty_string_cells": ".xlsx",
-    }
     return {
-        name: G.FIXTURES[name](root / f"{name}{suffix.get(name, '.docx')}")
+        name: G.FIXTURES[name](G.fixture_path(name, root))
         for name in (
             "numeric_bold_header", "two_tier_header", "mixed_workbook",
             "docx_two_tier", "docx_label_tiling", "docx_layout_prose", "docx_markers",
@@ -246,10 +219,9 @@ def emitted(tmp_path_factory):
     root = tmp_path_factory.mktemp("k2vocab")
     out = {}
     for name, build in sorted(G.FIXTURES.items()):
-        suffix = _SUFFIX.get(name, ".xlsx" if name in _XLSX else ".docx")
         home = root / name
         home.mkdir(parents=True, exist_ok=True)
-        build(home / f"{name}{suffix}")
+        build(G.fixture_path(name, home))
         for path in sorted(q for q in home.rglob("*") if q.is_file()):
             adapter = adapter_for(path)
             if adapter is None:                       # the refusal fixtures, on purpose

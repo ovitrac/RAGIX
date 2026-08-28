@@ -38,7 +38,7 @@ TESTS = ROOT / "tests" / "saqqara"
 GUARD = ROOT / "tools" / "check_forbidden.py"
 
 sys.path.insert(0, str(TESTS))
-from generators import FIXTURES  # noqa: E402
+from generators import FIXTURES, FIXTURE_SUFFIX  # noqa: E402
 
 #: gate -> number of propositions it must carry.
 #:
@@ -178,6 +178,19 @@ def props() -> list[Proposition]:
 def test_k0_1_spec_exists_and_parses(props):
     assert SPEC.is_file()
     assert len(props) == sum(FROZEN_COUNTS.values())
+
+
+def test_k0_1_every_fixture_declares_its_suffix():
+    """A fixture writes one format, and which one is part of registering it.
+
+    Without this, a new fixture is written under the default suffix and handed to
+    whichever reader claims it — which fails, loudly but unhelpfully, somewhere far
+    from the omission.
+    """
+    undeclared = sorted(set(FIXTURES) - set(FIXTURE_SUFFIX))
+    orphaned = sorted(set(FIXTURE_SUFFIX) - set(FIXTURES))
+    assert not undeclared, f"registered with no declared suffix: {undeclared}"
+    assert not orphaned, f"suffix declared for no fixture: {orphaned}"
 
 
 def test_k0_1_identifiers_unique(props):
