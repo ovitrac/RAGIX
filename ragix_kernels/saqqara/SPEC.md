@@ -22,6 +22,24 @@ convention in this repository.
 Phases: **P1** model · **P2** adapters · **P2'** pdf adapter · **P3** analyzers ·
 **P3'** section analyzer · **P4** envelope.
 
+### Reading a measurement
+
+Two rules earned against this package's own corpus comparison, kept here because they decide what a
+number is allowed to settle.
+
+**A proposition about an emitted kind asserts on the tree, not on records.** Records are a reader's
+contract; a layer that produces them and no nodes has produced nothing. Seven green tests once
+certified a layer that emitted no node at all, and the builder had been counting the loss under
+`unmapped-observation` throughout. *A drop nobody reads is a silent drop.*
+
+**Mass decides what to fix first; it does not decide what is true.** Quantities in real corpora
+concentrate — a handful of documents routinely carry most of any total — so a uniform sample
+measures the median document and answers a question nobody asked. But the converse error is
+symmetrical: a hypothesis refuted **on aggregate** is refuted *for the aggregate*, and must be
+re-asked wherever the aggregate is not the question. One hypothesis here was recorded refuted at 1%
+of a corpus-wide total while being 100% of the cause in the four documents that actually carried the
+defect.
+
 ---
 
 ## K1 — model: nodes, provenance, serialisation
@@ -357,3 +375,16 @@ a reference is a string like any other.
 | K6.7 | **No object is dropped in silence.** Every image the reader declines — carried inline, naming an object that is not there, or decoding to nothing — is counted under a reason from a closed vocabulary, so a shortfall is always visible as a number somewhere rather than as an absence nobody can see. | `pdf_image_unreadable`, `pdf_inline_image` | an image neither read nor counted, or a reason outside the declared list |
 | K6.8 | The office formats produce figures **with no renderer**: their pictures are stored as parts, and all four readers emit them under **one vocabulary held in one place**, with format-specific addressing in the **typed locator** rather than among the facts. A format that does not state a placement emits it as unknown rather than omitting it or guessing. | `docx_embedded_image`, `pptx_embedded_image`, `xlsx_embedded_image` | a per-format fact set, an addressing key smuggled into the facts, a renderer required to read a part, a fact dropped where a format is silent, or a figure record no build plan turns into a node |
 | K6.9 | A picture an office reader cannot take whole **never costs the document it is in**. Where the bytes are reachable the figure is emitted with what could not be read left **unknown**; where they are not, it is a **counted skip** under one vocabulary the three readers share. An exception raised while describing one picture is not a reason to lose the rest of a document. | `docx_image_unreadable`, `pptx_image_unreadable` | a document that fails to read because one picture will not parse, a picture dropped without a count, a reason outside the shared vocabulary, or a dimension guessed where the header gave none |
+
+---
+
+## Known holes — where an invariant stops holding
+
+Not propositions: a proposition is a claim this package makes and defends with a fixture. These are
+places where a claim is known to be **narrower than it reads**, recorded so that nobody rediscovers
+them as surprises. Each names the boundary, what it costs, and the route by which it could be
+closed. Ids are `H`-prefixed so they can never be read as gate propositions.
+
+| id | where the invariant stops | cost | route to closing it |
+|---|---|---|---|
+| H1 | K6.7 and K6.9 promise that every picture is **read or counted**. That holds above the library boundary only. In the spreadsheet format, `openpyxl` discards an image it cannot decode **during load** — `UserWarning: The image xl/media/....png will be removed because it cannot be read` — so `worksheet._images` never contains it and no reader code runs. Both a corrupt part and an empty one vanish this way; measured, not inferred. | A spreadsheet can hold pictures this kernel neither emits nor counts, and the count cannot see its own blind spot. The two other office formats do not share it: both expose the bytes independently of parsing them. | Compare the drawing anchors declared in the sheet's own XML (`xl/drawings/drawing*.xml` and its relationships) against the images the library kept, and count the difference under the existing `PART_SKIPS` vocabulary. This reads the format directly rather than trusting the library's inventory, which is the same move `_boxes` already makes for the page description format. |
