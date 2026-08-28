@@ -34,7 +34,13 @@ from pathlib import Path
 from typing import Iterator
 
 from ..model import XlsxLocator
-from .contract import Adapter, Mastaba, register_adapter
+from .contract import (
+    FIGURE_FACTS,
+    PART_SKIPS,
+    Adapter,
+    Mastaba,
+    register_adapter,
+)
 
 #: The declared vocabularies, one per record kind this reader emits (K2.19).
 #: Changing any of them means changing `version` in the same edit (K2.5).
@@ -49,13 +55,51 @@ class XlsxAdapter(Adapter):
     """Read a workbook into sheet, cell and border observations."""
 
     format = "xlsx"
-    version = "0.4.0"          # 0.4.0: a vocabulary declared per record kind
+    version = "0.6.0"          # 0.5.0: a vocabulary declared per record kind
+    skip_reasons = PART_SKIPS
     extensions = (".xlsx", ".xlsm")
     fact_sets = {
+        "figure": FIGURE_FACTS,
         "sheet": SHEET_FACTS,
         "cell": CELL_FACTS,
         "border": BORDER_EDGES,
     }
+
+    def _figures(self, sheet, index: int) -> Iterator[Mastaba]:
+        """Pictures anchored to cells. The workbook says where, not how large."""
+        if self.store is None:
+            return
+        for image in getattr(sheet, "_images", []) or []:
+            try:
+                payload = image._data()
+            except Exception:
+                self._skip("image-part-unreadable")
+                continue
+            if not payload:
+                self._skip("image-part-empty")
+                continue
+            anchor = getattr(getattr(image, "anchor", None), "_from", None)
+            cell = None
+            if anchor is not None:
+                from openpyxl.utils import get_column_letter
+
+                cell = f"{get_column_letter(anchor.col + 1)}{anchor.row + 1}"
+            media = f"image/{(getattr(image, 'format', '') or 'png').lower()}"
+            digest = self.store.put(payload, media,
+                                    reference={"sheet": sheet.title, "anchor": cell})
+            yield Mastaba(
+                kind="figure",
+                locator=XlsxLocator(sheet=sheet.title, sheet_index=index, anchor=cell),
+                facts={
+                    "asset": digest,
+                    "source": "part",
+                    "media_type": media,
+                    "width": getattr(image, "width", None),
+                    "height": getattr(image, "height", None),
+                    "x": None, "y": None, "w": None, "h": None,
+                    "colorspace": None, "bits": None, "smask": None,
+                },
+            )
 
     def read(self, path: Path) -> Iterator[Mastaba]:
         from openpyxl import load_workbook
@@ -64,6 +108,7 @@ class XlsxAdapter(Adapter):
         try:
             for index, sheet in enumerate(workbook.worksheets):
                 yield from self._sheet(sheet, index)
+                yield from self._figures(sheet, index)
         finally:
             workbook.close()
 

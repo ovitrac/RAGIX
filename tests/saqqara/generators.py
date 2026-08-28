@@ -2022,6 +2022,158 @@ def pdf_image_unreadable(path: Path) -> Path:
     return path
 
 
+def _png_bytes(width: int = 4, height: int = 4) -> bytes:
+    """A greyscale PNG, assembled here from its chunks.
+
+    Written by hand rather than by an imaging library so that the bytes of every
+    fixture picture are produced by this repository's own code and by nothing
+    else — the same reason no document is ever committed here.
+    """
+    import struct
+    import zlib
+
+    raw = b"".join(b"\x00" + bytes(_grey_pixels(width, 1)) for _ in range(height))
+
+    def chunk(tag: bytes, payload: bytes) -> bytes:
+        return (struct.pack(">I", len(payload)) + tag + payload
+                + struct.pack(">I", zlib.crc32(tag + payload) & 0xFFFFFFFF))
+
+    return (b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 0, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw))
+            + chunk(b"IEND", b""))
+
+
+def docx_embedded_image(path: Path) -> Path:
+    """A word-processing document holding one picture as a part."""
+    from io import BytesIO
+
+    from docx import Document
+    from docx.shared import Pt
+
+    doc = Document()
+    doc.add_paragraph("Un paragraphe avant la figure.")
+    doc.add_picture(BytesIO(_png_bytes()), width=Pt(72))
+    doc.add_paragraph("Un paragraphe apres la figure.")
+    doc.save(path)
+    return path
+
+
+def docx_image_unreadable(path: Path) -> Path:
+    """A word-processing document holding two pictures the reader cannot take whole.
+
+    One header will not parse; one part is present but empty. Built by writing a
+    valid document and then damaging it, because the library refuses to *write* a
+    picture it cannot read -- which is precisely why a reader meets these shapes
+    only in documents it did not produce.
+    """
+    import zipfile
+    from io import BytesIO
+
+    from docx import Document
+    from docx.shared import Pt
+
+    doc = Document()
+    doc.add_paragraph("Un paragraphe avant les figures.")
+    for size in (4, 5):                    # distinct bytes, or the library stores one part
+        doc.add_picture(BytesIO(_png_bytes(size, size)), width=Pt(72))
+    doc.add_paragraph("Un paragraphe apres les figures.")
+    intact = path.with_name(path.stem + "_intact.docx")
+    doc.save(intact)
+
+    # A part removed outright is NOT one of the shapes: measured, the library
+    # then refuses to open the package at all, which is a document-level failure
+    # and not a picture the reader could have counted.
+    with zipfile.ZipFile(intact) as src:
+        media = sorted(i.filename for i in src.infolist()
+                       if i.filename.startswith("word/media/"))
+        assert len(media) == 2, media
+        unparseable, empty = media
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as out:
+            for item in src.infolist():
+                payload = src.read(item.filename)
+                if item.filename == unparseable:
+                    payload = b"NOT-AN-IMAGE-BUT-CERTAINLY-BYTES"
+                elif item.filename == empty:
+                    payload = b""
+                out.writestr(item, payload)
+    intact.unlink()
+    return path
+
+
+def pptx_image_unreadable(path: Path) -> Path:
+    """A presentation holding two pictures the reader cannot take whole.
+
+    One picture's header will not parse -- its bytes are still reachable, so it
+    survives with less known about it. The other's part is gone from the package
+    entirely, and unlike a word-processing document, a presentation still opens:
+    the bytes are simply unreachable, which is the one shape that is a counted
+    skip rather than a picture with unknowns.
+    """
+    import zipfile
+    from io import BytesIO
+
+    from pptx import Presentation
+    from pptx.util import Pt
+
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[6])
+    for offset, size in ((0, 4), (200, 5)):   # distinct bytes, or one part is stored
+        slide.shapes.add_picture(BytesIO(_png_bytes(size, size)),
+                                 Pt(72), Pt(144 + offset), width=Pt(96), height=Pt(48))
+    intact = path.with_name(path.stem + "_intact.pptx")
+    deck.save(intact)
+
+    with zipfile.ZipFile(intact) as src:
+        media = sorted(i.filename for i in src.infolist()
+                       if i.filename.startswith("ppt/media/"))
+        assert len(media) == 2, media
+        unparseable, absent = media
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as out:
+            for item in src.infolist():
+                if item.filename == absent:
+                    continue              # the shape survives its bytes
+                payload = src.read(item.filename)
+                if item.filename == unparseable:
+                    payload = b"NOT-AN-IMAGE-BUT-CERTAINLY-BYTES"
+                out.writestr(item, payload)
+    intact.unlink()
+    return path
+
+
+def pptx_embedded_image(path: Path) -> Path:
+    """A presentation holding one picture, at a position the format states."""
+    from io import BytesIO
+
+    from pptx import Presentation
+    from pptx.util import Emu, Pt
+
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[5])
+    slide.shapes.title.text = "Une diapositive avec une figure"
+    slide.shapes.add_picture(BytesIO(_png_bytes()), Pt(72), Pt(144),
+                             width=Pt(96), height=Pt(48))
+    deck.save(path)
+    return path
+
+
+def xlsx_embedded_image(path: Path) -> Path:
+    """A workbook holding one picture, anchored to a cell."""
+    from io import BytesIO
+
+    from openpyxl import Workbook
+    from openpyxl.drawing.image import Image
+
+    wb = Workbook()
+    ws = wb.active
+    ws["A1"] = "Reference"
+    ws["A2"] = "R-1"
+    image = Image(BytesIO(_png_bytes()))
+    ws.add_image(image, "C3")
+    wb.save(path)
+    return path
+
+
 def no_format_contrast(path: Path) -> Path:
     """Every line at one size: the negative. Nothing here is larger than anything.
 
@@ -2098,6 +2250,11 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "pdf_image_xobject": pdf_image_xobject,
     "pdf_image_twice": pdf_image_twice,
     "pdf_image_unreadable": pdf_image_unreadable,
+    "docx_embedded_image": docx_embedded_image,
+    "docx_image_unreadable": docx_image_unreadable,
+    "pptx_image_unreadable": pptx_image_unreadable,
+    "pptx_embedded_image": pptx_embedded_image,
+    "xlsx_embedded_image": xlsx_embedded_image,
     "pdf_inline_image": pdf_inline_image,
     "pdf_declared_outline": pdf_declared_outline,
     "format_headings_docx": format_headings_docx,
@@ -2144,6 +2301,11 @@ FIXTURE_SUFFIX: Dict[str, str] = {
     "pdf_declared_outline": ".pdf",
     "pdf_image_twice": ".pdf",
     "pdf_image_unreadable": ".pdf",
+    "docx_embedded_image": ".docx",
+    "docx_image_unreadable": ".docx",
+    "pptx_image_unreadable": ".pptx",
+    "pptx_embedded_image": ".pptx",
+    "xlsx_embedded_image": ".xlsx",
     "pdf_image_xobject": ".pdf",
     "pdf_inline_image": ".pdf",
     "pdf_no_text_layer": ".pdf",

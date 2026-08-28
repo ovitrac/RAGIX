@@ -31,6 +31,9 @@ from ..model import Locator
 
 __all__ = [
     "Adapter",
+    "FIGURE_FACTS",
+    "FIGURE_SOURCES",
+    "PART_SKIPS",
     "GRID_CELL_FACTS",
     "GRID_TABLE_FACTS",
     "Mastaba",
@@ -46,6 +49,35 @@ __all__ = [
     "register_adapter",
     "registered_adapters",
 ]
+
+
+#: The vocabulary of a figure, shared by every reader that finds one.
+#:
+#: A picture is the same object whichever format carried it, so one set is
+#: declared here and four readers point at it. `width`/`height` are the stored
+#: image's own pixels; `x`/`y`/`w`/`h` are the box it occupied, in points, and a
+#: format that does not state one emits it as None rather than omitting it or
+#: guessing — a fact present with an unknown value keeps the shared pin
+#: checkable, while a fact absent from one reader and present in another would
+#: break it. Where the picture came from lives in `source`; WHERE IT WAS FOUND
+#: lives in the locator, never here.
+FIGURE_FACTS: tuple[str, ...] = (
+    "asset", "source", "media_type", "width", "height",
+    "x", "y", "w", "h", "colorspace", "bits", "smask",
+)
+
+#: How a picture was held. Every value is produced by something: an image stored
+#: as its own object in a laid-out document, and an image stored as a part by the
+#: office formats. A declared value nothing emits is the defect K2.20 prevents.
+FIGURE_SOURCES: tuple[str, ...] = ("xobject", "part")
+
+#: What an office reader may decline, and why. One vocabulary, three readers.
+#:
+#: A picture is declined only where its bytes cannot be reached at all. A
+#: picture whose bytes are readable but whose *header* will not parse is not
+#: declined: it is emitted with its dimensions unknown (K6.9), because the
+#: evidence is the picture, not the library's opinion of its format.
+PART_SKIPS: tuple[str, ...] = ("image-part-empty", "image-part-unreadable")
 
 
 #: The vocabulary of a grid, shared by every reader that finds one.
@@ -152,8 +184,23 @@ class Adapter:
     extensions: tuple[str, ...] = ()
     fact_sets: Mapping[str, tuple[str, ...] | OpenVocabulary] = {}
 
-    #: What a reader declined to read, by name. Counted, never silent.
-    skips: dict = {}
+    #: The reasons this reader may decline something. Closed, per reader, and
+    #: checked at the point of counting so the vocabulary cannot drift.
+    skip_reasons: tuple[str, ...] = ()
+
+    def __init__(self) -> None:
+        #: Where extracted bytes go. A reader with no store reads no objects: it
+        #: has nowhere to put them, and putting them in the tree is what K6.2
+        #: forbids. So the objects layer is opt-in at the call site.
+        self.store = None
+        #: What this reader declined, by name. Counted, never silent.
+        self.skips: dict[str, int] = {}
+
+    def _skip(self, reason: str) -> None:
+        """Count something this reader declined. Named, and never silent."""
+        if reason not in self.skip_reasons:
+            raise ValueError(f"{self.format}: undeclared skip reason {reason!r}")
+        self.skips[reason] = self.skips.get(reason, 0) + 1
 
     def read(self, path: Path) -> Iterator[Mastaba]:
         raise NotImplementedError

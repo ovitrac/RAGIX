@@ -85,14 +85,15 @@ FORMAT_PLANS: dict[str, FormatPlan] = {
         format="xlsx",
         containers={"sheet": "section"},
         container_key="sheet_index",
-        node_kinds={"cell": "cell"},
+        node_kinds={"cell": "cell", "figure": "figure"},
         attach=frozenset({"border"}),
     ),
     "docx": FormatPlan(
         format="docx",
         containers={"table": "table"},
         container_key="table_key",
-        node_kinds={"cell": "cell", "marker": "marker", "paragraph": "paragraph"},
+        node_kinds={"cell": "cell", "marker": "marker", "paragraph": "paragraph",
+                    "figure": "figure"},
     ),
     "pdf": FormatPlan(
         format="pdf",
@@ -105,7 +106,8 @@ FORMAT_PLANS: dict[str, FormatPlan] = {
         format="pptx",
         containers={"slide": "slide", "table": "table"},
         container_key="pptx_key",
-        node_kinds={"shape": "shape", "notes": "note", "cell": "cell"},
+        node_kinds={"shape": "shape", "notes": "note", "cell": "cell",
+                    "figure": "figure"},
     ),
     "md": FormatPlan(
         format="md",

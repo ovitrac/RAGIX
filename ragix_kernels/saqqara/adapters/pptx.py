@@ -27,6 +27,8 @@ from typing import Iterator
 
 from ..model import PptxLocator
 from .contract import (
+    FIGURE_FACTS,
+    PART_SKIPS,
     GRID_CELL_FACTS,
     GRID_TABLE_FACTS,
     Adapter,
@@ -46,19 +48,77 @@ SHAPE_FACTS = ("shape_type", "is_title", "on_slide")
 NOTES_FACTS = ("on_slide",)
 
 
+def _described(image, name: str):
+    """One property of a picture, or None where the header will not parse.
+
+    Every descriptive property of this library's image object parses the
+    header on access -- `content_type`, `size` and `ext` alike -- so each is
+    a place an unparseable picture can raise. The bytes are reachable
+    regardless, and a property that cannot be read is emitted as unknown.
+    """
+    try:
+        return getattr(image, name)
+    except Exception:
+        return None
+
+
+
 class PptxAdapter(Adapter):
     """Read a deck into slide, shape and notes observations."""
 
     format = "pptx"
-    version = "0.3.0"          # 0.3.0: a vocabulary declared per record kind
+    version = "0.5.0"          # 0.4.0: a vocabulary declared per record kind
+    skip_reasons = PART_SKIPS
     extensions = (".pptx",)
     fact_sets = {
+        "figure": FIGURE_FACTS,
         "slide": SLIDE_FACTS,
         "shape": SHAPE_FACTS,
         "notes": NOTES_FACTS,
         "table": TABLE_FACTS,
         "cell": CELL_FACTS,
     }
+
+    def _figure(self, shape, number: int):
+        """A picture on a slide, with the box the format states for it."""
+        if self.store is None:
+            return None
+        # Reaching the bytes and describing them are two different operations
+        # here, and only the second parses. A picture whose header will not parse
+        # keeps its bytes and its placement, and loses only what the header would
+        # have said; a picture whose part is gone has nothing to keep (K6.9).
+        try:
+            image = shape.image
+            payload = image.blob
+        except Exception:
+            self._skip("image-part-unreadable")
+            return None
+        if not payload:
+            self._skip("image-part-empty")
+            return None
+        media = _described(image, "content_type") or "application/octet-stream"
+        pixels = _described(image, "size") or (None, None)
+        digest = self.store.put(payload, media,
+                                reference={"slide": number,
+                                           "shape_id": int(shape.shape_id)})
+        return Mastaba(
+            kind="figure",
+            locator=PptxLocator(slide=number, shape_id=int(shape.shape_id)),
+            facts={
+                "asset": digest,
+                "source": "part",
+                "media_type": media,
+                "width": pixels[0],
+                "height": pixels[1],
+                "x": _points(shape.left),
+                "y": _points(shape.top),
+                "w": _points(shape.width),
+                "h": _points(shape.height),
+                "colorspace": None,
+                "bits": None,
+                "smask": None,
+            },
+        )
 
     def read(self, path: Path) -> Iterator[Mastaba]:
         from pptx import Presentation
@@ -80,6 +140,10 @@ class PptxAdapter(Adapter):
             for index, shape in enumerate(slide.shapes):
                 if getattr(shape, "has_table", False):
                     yield from self._table(shape, number, index)
+                    continue
+                figure = self._figure(shape, number)
+                if figure is not None:
+                    yield figure
                     continue
                 if not shape.has_text_frame:
                     continue
@@ -188,3 +252,13 @@ class PptxAdapter(Adapter):
 
 
 register_adapter(PptxAdapter())
+
+
+#: A point is 12700 English Metric Units. The presentation format states where a
+#: picture landed, so this reader fills the geometry the word-processing one
+#: cannot: what a format says, its reader reports.
+_EMU_PER_POINT = 12700
+
+
+def _points(value):
+    return round(value / _EMU_PER_POINT, 2) if value is not None else None

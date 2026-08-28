@@ -153,7 +153,14 @@ from generators import FIXTURES, FIXTURE_SUFFIX  # noqa: E402
 #:                step before, made the reader's own failures invisible to the
 #:                measurement meant to find them. Counted drops are doctrine here;
 #:                this proposition is the doctrine made checkable for objects.
-FROZEN_COUNTS = {"K1": 9, "K2": 24, "K3": 71, "K4": 2, "K6": 7}
+#:   K6 7  -> 8   K6.8, the office readers. Three of the five formats store their
+#:                pictures as parts, so `figure` acquires a producer in three more
+#:                readers with no renderer and no new dependency -- which is why
+#:                this step comes before the one that rasterises anything. The
+#:                proposition is about the SHARED vocabulary: one set held in the
+#:                contract, four readers pointing at it, and the addressing that
+#:                differs per format kept in the typed locator where it belongs.
+FROZEN_COUNTS = {"K1": 9, "K2": 24, "K3": 71, "K4": 2, "K6": 9}
 
 _ROW = re.compile(r"^\|\s*(K[1-6])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 _TICKED = re.compile(r"`([a-z0-9_']+)`")

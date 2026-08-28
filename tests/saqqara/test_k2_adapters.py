@@ -177,12 +177,16 @@ def test_k2_4_a_fact_may_be_a_list_of_primitives(built):
 #: kind whose facts it happened to hold, which is how five readers came to
 #: declare five vocabularies while emitting sixteen.
 PINNED = {
-    "xlsx": ("0.4.0", {
+    "xlsx": ("0.6.0", {
+        "figure": ("asset", "source", "media_type", "width", "height",
+                   "x", "y", "w", "h", "colorspace", "bits", "smask"),
         "sheet": ("hidden", "list_objects", "max_row", "max_column"),
         "cell": ("dtype", "bold", "number_format", "locked", "formula", "merged"),
         "border": ("left", "right", "top", "bottom"),
     }),
-    "docx": ("0.4.0", {
+    "docx": ("0.6.0", {
+        "figure": ("asset", "source", "media_type", "width", "height",
+                   "x", "y", "w", "h", "colorspace", "bits", "smask"),
         "table": ("n_rows", "n_grid_cols", "ragged", "style"),
         "cell": ("span", "vmerge", "empty", "fillable", "marker", "bold", "shaded"),
         "paragraph": ("marker", "in_table", "style", "numbered", "outline_level",
@@ -190,7 +194,9 @@ PINNED = {
         "marker": ("marker", "in_table", "style", "numbered", "outline_level",
                    "bold_frac", "size", "size_frac"),
     }),
-    "pptx": ("0.3.0", {
+    "pptx": ("0.5.0", {
+        "figure": ("asset", "source", "media_type", "width", "height",
+                   "x", "y", "w", "h", "colorspace", "bits", "smask"),
         "slide": ("shape_count",),
         "shape": ("shape_type", "is_title", "on_slide"),
         "notes": ("on_slide",),

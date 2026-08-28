@@ -33,24 +33,16 @@ from pathlib import Path
 from typing import Iterator
 
 from ..model import PdfLocator
-from .contract import Adapter, Mastaba, register_adapter
+from .contract import (
+    FIGURE_FACTS,
+    FIGURE_SOURCES,
+    Adapter,
+    Mastaba,
+    register_adapter,
+)
 
 #: The declared vocabularies, one per record kind this reader emits (K2.19).
 TEXT_FACTS = ("x", "y", "font_size", "font")
-
-#: One vocabulary for a figure, shared by every reader that finds one (K6.13).
-#: `width`/`height` are the stored image's pixels; `x`/`y`/`w`/`h` are the box it
-#: occupied on the page. The two are not the same measurement and a reader that
-#: reported one for the other would be describing storage as if it were geometry.
-FIGURE_FACTS = ("asset", "source", "media_type", "width", "height",
-                "x", "y", "w", "h", "colorspace", "bits", "smask")
-
-#: How an image was held. ONE value today, because one is emitted: this reader
-#: finds images stored as objects. `part` joins it when the office readers land
-#: and not before, and an image carried inline in the content stream is a counted
-#: skip in this phase. Declaring a value nothing produces is the defect K2.20
-#: exists to prevent, and a specification is not a licence to commit it early.
-FIGURE_SOURCES = ("xobject",)
 
 #: Why an object was not read. Closed, and every entry is produced by something:
 #: an image carried in the content stream, a resource naming an object that is not
@@ -144,14 +136,7 @@ class PdfAdapter(Adapter):
         "text": TEXT_FACTS,
         "figure": FIGURE_FACTS,
     }
-
-    def __init__(self) -> None:
-        #: What this reader declined to read, by name. Counted, never silent.
-        self.skips: dict[str, int] = {}
-        #: Where extracted bytes go. A reader with no store reads no images: it
-        #: has nowhere to put them, and putting them in the tree is what K6.2
-        #: forbids.
-        self.store = None
+    skip_reasons = OBJECT_SKIPS
 
     def read(self, path: Path) -> Iterator[Mastaba]:
         from pypdf import PdfReader
@@ -200,12 +185,6 @@ class PdfAdapter(Adapter):
             return 0
 
     # --------------------------------------------------------------- placements
-
-    def _skip(self, reason: str) -> None:
-        """Count an object this reader declined. Named, never silent."""
-        if reason not in OBJECT_SKIPS:
-            raise ValueError(f"undeclared skip reason: {reason!r}")
-        self.skips[reason] = self.skips.get(reason, 0) + 1
 
     def _boxes(self, page) -> list[tuple[str, tuple[float, float, float, float]]]:
         """Every `Do` of an image, with the box the transformation gave it.

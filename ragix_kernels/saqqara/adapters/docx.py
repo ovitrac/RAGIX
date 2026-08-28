@@ -39,6 +39,8 @@ from typing import Iterator
 
 from ..model import DocxLocator
 from .contract import (
+    FIGURE_FACTS,
+    PART_SKIPS,
     GRID_CELL_FACTS,
     GRID_TABLE_FACTS,
     Adapter,
@@ -79,15 +81,35 @@ PARAGRAPH_FACTS = (
 )
 
 
+def _part_pixels(part) -> tuple[int | None, int | None]:
+    """The stored pixel size of an image part, or unknown.
+
+    `part.image` is a property that *parses* the header, and it raises on a
+    picture the library does not recognise. A default on `getattr` does not
+    protect against an exception raised inside a property -- which is how one
+    unparseable picture came to cost a whole document, every paragraph in it
+    included. The bytes are still a picture; only its dimensions are unknown,
+    and unknown is what gets emitted (K6.9).
+    """
+    try:
+        image = part.image
+    except Exception:
+        return (None, None)
+    return (getattr(image, "px_width", None), getattr(image, "px_height", None))
+
+
+
 class DocxAdapter(Adapter):
     """Read a document into table, cell, paragraph and marker observations."""
 
     format = "docx"
     # 0.4.0 replaces the paragraph's boolean `bold` with `bold_frac`, and adds
     # `size` / `size_frac`: the facts a rule about dominance is written against.
-    version = "0.4.0"
+    version = "0.6.0"
+    skip_reasons = PART_SKIPS
     extensions = (".docx",)
     fact_sets = {
+        "figure": FIGURE_FACTS,
         "table": TABLE_FACTS,
         "cell": CELL_FACTS,
         "paragraph": PARAGRAPH_FACTS,
@@ -99,6 +121,8 @@ class DocxAdapter(Adapter):
 
         document = Document(path)
         modal = self._modal_size(document)
+
+        yield from self._figures(document)
 
         for index, table in enumerate(document.tables):
             yield from self._table(table, flow="body", index=index)
@@ -306,6 +330,32 @@ class DocxAdapter(Adapter):
     def _content_control(element) -> str | None:
         return "content-control" if element.find(_q("sdt")) is not None else None
 
+    def _figures(self, document) -> Iterator[Mastaba]:
+        """Pictures the document stores as parts. No rendering is involved."""
+        if self.store is None:
+            return
+        for rel_id, rel in sorted(document.part.rels.items()):
+            if "image" not in rel.reltype:
+                continue
+            try:
+                part = rel.target_part
+                payload = part.blob
+            except Exception:
+                self._skip("image-part-unreadable")
+                continue
+            if not payload:
+                self._skip("image-part-empty")
+                continue
+            media = getattr(part, "content_type", "") or "application/octet-stream"
+            pixels = _part_pixels(part)
+            digest = self.store.put(payload, media,
+                                    reference={"relationship": str(rel_id)})
+            yield Mastaba(
+                kind="figure",
+                locator=DocxLocator(flow="body", relationship=str(rel_id)),
+                facts=_figure_facts(payload, media, digest, pixels=pixels),
+            )
+
     # -------------------------------------------------- weight and size, by mass
 
     @classmethod
@@ -402,3 +452,28 @@ class DocxAdapter(Adapter):
 
 
 register_adapter(DocxAdapter())
+
+
+def _figure_facts(payload: bytes, media: str, digest: str, box=None,
+                  pixels=(None, None)) -> dict:
+    """The shared figure vocabulary, filled as far as a format states it.
+
+    An office format stores a picture as a part and says little about where it
+    landed on a rendered page; what it does not state is emitted as None rather
+    than omitted or guessed, so the pin stays one set across four readers.
+    """
+    left, bottom, width, height = box or (None, None, None, None)
+    return {
+        "asset": digest,
+        "source": "part",
+        "media_type": media,
+        "width": pixels[0],
+        "height": pixels[1],
+        "x": left,
+        "y": bottom,
+        "w": width,
+        "h": height,
+        "colorspace": None,
+        "bits": None,
+        "smask": None,
+    }

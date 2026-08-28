@@ -181,6 +181,8 @@ class XlsxLocator(Locator):
     row: Optional[int] = None
     col: Optional[int] = None
     merged_range: Optional[str] = None
+    #: Where a picture is anchored. Addressing belongs to the locator.
+    anchor: Optional[str] = None
 
     def key(self) -> tuple:
         return (self.sheet_index, self.row or 0, self.col or 0)
@@ -199,6 +201,8 @@ class DocxLocator(Locator):
     flow: str = "body"
     paragraph: Optional[int] = None
     run: Optional[int] = None
+    #: The relationship a picture part was reached through.
+    relationship: Optional[str] = None
     table_index: Optional[int] = None
     row: Optional[int] = None
     col: Optional[int] = None
@@ -233,6 +237,8 @@ class PptxLocator(Locator):
     slide: int = 1
     shape: Optional[int] = None
     notes: bool = False
+    #: The shape's own identifier, which the format states and the index does not.
+    shape_id: Optional[int] = None
     row: Optional[int] = None
     col: Optional[int] = None
 
