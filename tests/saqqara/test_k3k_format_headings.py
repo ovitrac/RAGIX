@@ -445,3 +445,40 @@ def test_k3_70_every_bold_line_is_no_contrast_either(tmp_path):
     result = FormatHeadingsAnalyzer().run(tree)
     assert _promotions(tree) == []
     assert result.trace["abstained"]["reason"] == "no-weight-contrast"
+
+
+# ============================== K3.71 a declaration is not corroborated by a guess
+
+@pytest.fixture(scope="module")
+def declared(tmp_path_factory):
+    path = G.FIXTURES["pdf_declared_outline"](tmp_path_factory.mktemp("k3k71") / "d.pdf")
+    tree = _prepared(path)
+    return tree, FormatHeadingsAnalyzer().run(tree)
+
+
+def test_k3_71_a_declared_outline_suppresses_size_inference(declared):
+    tree, result = declared
+    assert [n for n in tree.walk() if n.kind == "heading" and n.origin == "read"], (
+        "the fixture must declare an outline, or this proves nothing"
+    )
+    assert _promotions(tree) == []
+    assert result.trace["promoted"] == 0
+
+
+def test_k3_71_the_skip_is_named_and_counted(declared):
+    """A decision not to act has to be as visible as a decision to act."""
+    _, result = declared
+    skip = result.trace["abstained"]
+    assert skip["reason"] == "declared-outline"
+    assert skip["reason"] in FORMAT_ABSTENTIONS
+    assert skip["signals"]["declared_headings"] == 3
+    assert skip["signals"]["would_have_promoted"] == 3, (
+        "the count must be what it would have done, not zero"
+    )
+
+
+def test_k3_71_a_document_that_declares_nothing_is_untouched(contrast):
+    """The suppression is about declarations, not about laid-out documents."""
+    tree, result = contrast
+    assert result.trace["abstained"] is None
+    assert result.trace["promoted"] == 4

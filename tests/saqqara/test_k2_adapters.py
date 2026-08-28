@@ -48,6 +48,7 @@ _SUFFIX = {
     "pdf_outline": ".pdf", "pdf_no_text_layer": ".pdf", "running_headers": ".pdf",
     "format_headings_pdf": ".pdf", "no_format_contrast": ".pdf",
     "pdf_type_scales": ".pdf",
+    "pdf_declared_outline": ".pdf",
     "format_headings_docx": ".docx", "no_weight_contrast": ".docx",
 }
 _XLSX = frozenset({

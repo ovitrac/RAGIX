@@ -50,6 +50,7 @@ and one way to decline outright:
 
   `no-size-contrast`        no size stands above the body, and no weight stands out either.
   `no-weight-contrast`      the document offers weight alone, and every line carries the same.
+  `declared-outline`        the document states its own structure; inference has nothing to add.
 """
 
 from __future__ import annotations
@@ -147,7 +148,7 @@ SHAPE_RULES = ("empty", "too-long", "too-many-words", "ends-mid-sentence")
 TIER_DROPS = ("no-heading-shaped-line", "unsupported-tier", "beyond-the-ladder")
 
 #: Why the analyzer declined to read a document at all. Closed.
-FORMAT_ABSTENTIONS = ("no-size-contrast", "no-weight-contrast")
+FORMAT_ABSTENTIONS = ("no-size-contrast", "no-weight-contrast", "declared-outline")
 
 
 def shape_refusal(text: str, signal: str = "size") -> str | None:
@@ -311,6 +312,30 @@ class FormatHeadingsAnalyzer(Analyzer):
             trace["abstained"] = {"reason": "no-size-contrast", "signals": {"lines": 0}}
             return AnalyzerResult(tree=tree, trace=trace)
 
+        declared = [
+            node for node in tree.walk()
+            if node.kind == "heading" and node.origin == "read"
+        ]
+        if declared:
+            # The document has stated its own structure. An inference set beside a
+            # declaration cannot corroborate it — it agrees redundantly, or it
+            # disagrees and casts doubt on the better evidence. So the rules run,
+            # and their result is counted rather than attached: a decision not to
+            # act has to be as visible as a decision to act.
+            probe: dict[str, Any] = {"tiers": [], "levels": {}, "promoted": 0,
+                                     "dropped": 0, "drops": [], "body": None,
+                                     "signal": None}
+            self._by_size(lines, probe, attach=False)
+            trace["body"] = probe["body"]
+            trace["abstained"] = {
+                "reason": "declared-outline",
+                "signals": {
+                    "declared_headings": len(declared),
+                    "would_have_promoted": probe["promoted"],
+                },
+            }
+            return AnalyzerResult(tree=tree, trace=trace)
+
         if self._by_size(lines, trace):
             return AnalyzerResult(tree=tree, trace=trace)
         if self._by_weight(lines, trace):
@@ -336,7 +361,7 @@ class FormatHeadingsAnalyzer(Analyzer):
 
     # ---------------------------------------------------------------- by size
 
-    def _by_size(self, lines, trace) -> bool:
+    def _by_size(self, lines, trace, attach: bool = True) -> bool:
         """Size first: it ranks, so it can say how deep a heading sits."""
         mass: Counter[float] = Counter()
         shaped: Counter[float] = Counter()
@@ -360,7 +385,7 @@ class FormatHeadingsAnalyzer(Analyzer):
             level = level_of.get(line.size)
             if level is None:
                 continue
-            self._consider(line, level, "size", CONFIDENCE, trace)
+            self._consider(line, level, "size", CONFIDENCE, trace, attach)
         return True
 
     # -------------------------------------------------------------- by weight
@@ -389,8 +414,12 @@ class FormatHeadingsAnalyzer(Analyzer):
 
     # ----------------------------------------------------------------- shared
 
-    def _consider(self, line, level, signal, confidence, trace) -> None:
-        """One line, one level, one gauntlet: promote it or count why not."""
+    def _consider(self, line, level, signal, confidence, trace, attach=True) -> None:
+        """One line, one level, one gauntlet: promote it or count why not.
+
+        `attach` False counts what would have been promoted without promoting it,
+        which is how a named skip reports the size of what it declined to do.
+        """
         refusal = shape_refusal(line.text, signal)
         if refusal is not None:
             trace["dropped"] += 1
@@ -399,9 +428,10 @@ class FormatHeadingsAnalyzer(Analyzer):
                  "chars": len(line.text)}
             )
             return
-        line.nodes[0].children.append(
-            self._promotion(line, level, signal, confidence)
-        )
+        if attach:
+            line.nodes[0].children.append(
+                self._promotion(line, level, signal, confidence)
+            )
         trace["promoted"] += 1
 
     @staticmethod

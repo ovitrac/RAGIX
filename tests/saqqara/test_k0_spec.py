@@ -120,7 +120,16 @@ from generators import FIXTURES  # noqa: E402
 #:                No analyzer proposition was false: the thresholds were applied
 #:                to the wrong measurements, which is why this lands in K2 and
 #:                K3 does not move.
-FROZEN_COUNTS = {"K1": 9, "K2": 24, "K3": 70, "K4": 2}
+#:   K3 70 -> 71  K3.71: a declared outline suppresses size inference. Measured on
+#:                the reference corpus: five documents carry a native table of
+#:                contents, both kernels read it identically -- 76 entries against
+#:                76, 15 against 15, 1, 1, and 24 against 24 -- and the previous
+#:                kernel routes those documents to its bookmark reader, which never
+#:                infers by size. This analyzer inferred anyway and added 88
+#:                headings beside a declaration that needed none. An inference set
+#:                beside a declaration cannot corroborate it: it agrees redundantly
+#:                or it disagrees, and the second is worse than the first is useful.
+FROZEN_COUNTS = {"K1": 9, "K2": 24, "K3": 71, "K4": 2}
 
 _ROW = re.compile(r"^\|\s*(K[1-4])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 _TICKED = re.compile(r"`([a-z0-9_']+)`")

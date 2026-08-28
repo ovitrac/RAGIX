@@ -1852,6 +1852,61 @@ def pdf_type_scales(path: Path) -> Path:
                                     page_page_transform, page_rotated])
 
 
+def pdf_declared_outline(path: Path) -> Path:
+    """A document that declares its own outline AND shows size contrast.
+
+    Both signals are present and they are not equals: the outline is what the
+    document says about itself, the sizes are what a reader infers from how it
+    looks. Set beside each other, the inference has nothing to add and every
+    chance to disagree — so the analyzer must decline, and say how much it
+    declined to promote.
+
+    Written with the same title text in the outline and on the page, so that a
+    reader which mistook one for the other would be caught by the count rather
+    than by the words.
+    """
+    titles = ["Perimetre", "Gouvernance", "Moyens techniques"]
+    body = ("Cette phrase de corps de texte occupe une ligne entiere et se "
+            "termine par un point final.")
+
+    objects: list[bytes] = []
+    outline_root, first_item = 6, 7
+    objects.append(f"<< /Type /Catalog /Pages 2 0 R /Outlines {outline_root} 0 R >>".encode())
+    objects.append(b"<< /Type /Pages /Kids [4 0 R] /Count 1 >>")
+    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+    objects.append(b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+                   b"/Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>")
+
+    payload = b""
+    y = 800
+    for title in titles:                       # the same headings, set larger
+        payload += (b"BT /F1 16 Tf 72 " + f"{y:g}".encode() + b" Td ("
+                    + _pdf_escape(title) + b") Tj ET\n")
+        y -= 26
+        for _ in range(3):
+            payload += (b"BT /F1 10 Tf 72 " + f"{y:g}".encode() + b" Td ("
+                        + _pdf_escape(body) + b") Tj ET\n")
+            y -= 26
+    objects.append(_pdf_stream(payload))
+
+    objects.append(
+        (f"<< /Type /Outlines /First {first_item} 0 R "
+         f"/Last {first_item + len(titles) - 1} 0 R /Count {len(titles)} >>").encode())
+    for index, title in enumerate(titles):
+        parts = [b"<< /Title (" + _pdf_escape(title) + b")",
+                 b" /Dest [4 0 R /Fit]",
+                 f" /Parent {outline_root} 0 R".encode()]
+        if index > 0:
+            parts.append(f" /Prev {first_item + index - 1} 0 R".encode())
+        if index < len(titles) - 1:
+            parts.append(f" /Next {first_item + index + 1} 0 R".encode())
+        parts.append(b" >>")
+        objects.append(b"".join(parts))
+
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
 def no_format_contrast(path: Path) -> Path:
     """Every line at one size: the negative. Nothing here is larger than anything.
 
@@ -1925,6 +1980,7 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "empty_string_cells": empty_string_cells,
     "pdf_type_scales": pdf_type_scales,
     "format_headings_pdf": format_headings_pdf,
+    "pdf_declared_outline": pdf_declared_outline,
     "format_headings_docx": format_headings_docx,
     "no_weight_contrast": no_weight_contrast,
     "no_format_contrast": no_format_contrast,
