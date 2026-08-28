@@ -28,6 +28,7 @@ of plausible number that survives precisely because it looks like the others.
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Iterator
 
@@ -36,6 +37,29 @@ from .contract import Adapter, Mastaba, register_adapter
 
 #: The declared vocabularies, one per record kind this reader emits (K2.19).
 TEXT_FACTS = ("x", "y", "font_size", "font")
+
+
+def _y_scale(matrix) -> float:
+    """How much a matrix stretches the vertical direction (K2.24).
+
+    A pdf matrix (a, b, c, d, e, f) sends a point (x, y) to
+    (a*x + c*y, b*x + d*y), so the unit vertical vector (0, 1) lands on (c, d)
+    and the height scale is the LENGTH of that image, hypot(c, d).
+
+    Two other readings are available and both are wrong here. Taking `d` alone
+    is the same number for upright type and zero for type turned a quarter turn,
+    which would report rotated headings as sizeless. Taking the square root of
+    the determinant averages the horizontal and vertical scales, so type stretched
+    in one direction only would read at a size it is set in neither.
+
+    A matrix that cannot be read is treated as neutral rather than as a reason to
+    fail: the size is then the operand alone, which is what this reader did for
+    every document before this fact was corrected.
+    """
+    try:
+        return math.hypot(float(matrix[2]), float(matrix[3]))
+    except (TypeError, ValueError, IndexError):
+        return 1.0
 PAGE_FACTS = ("has_text", "image_count", "needs_ocr")
 OUTLINE_FACTS = ("level",)
 
@@ -44,7 +68,9 @@ class PdfAdapter(Adapter):
     """Read a laid-out document into outline, page and text observations."""
 
     format = "pdf"
-    version = "0.2.0"          # 0.2.0: a vocabulary declared per record kind
+    # 0.3.0 reports the size type is set at rather than the size it asked for:
+    # the operand scaled by the text matrix and the page transformation (K2.24).
+    version = "0.3.0"
     extensions = (".pdf",)
     fact_sets = {
         "outline_entry": OUTLINE_FACTS,
@@ -108,8 +134,11 @@ class PdfAdapter(Adapter):
                 name = ""
                 if isinstance(font_dict, dict):
                     name = str(font_dict.get("/BaseFont", ""))
+                # The operand is what the type asked for; the two matrices are what
+                # it got. Only their product is the size on the page (K2.24).
+                size = float(font_size or 0) * _y_scale(tm) * _y_scale(cm)
                 placements.append((text.strip(), float(tm[4]), float(tm[5]),
-                                   float(font_size or 0), name))
+                                   size, name))
 
         try:
             page.extract_text(visitor_text=visitor)
@@ -140,7 +169,8 @@ class PdfAdapter(Adapter):
                 kind="text",
                 locator=PdfLocator(page=number),
                 text=text,
-                facts={"x": round(x, 2), "y": round(y, 2), "font_size": size, "font": font},
+                facts={"x": round(x, 2), "y": round(y, 2),
+                       "font_size": round(size, 2), "font": font},
             )
 
 

@@ -1770,6 +1770,88 @@ def no_weight_contrast(path: Path) -> Path:
     return path
 
 
+def _pdf_matrix_pages(path: Path, pages) -> Path:
+    """Write pages whose type is sized through explicit matrices.
+
+    Each entry is (text, tf, tm, cm): the size operand, the text matrix and the
+    page transformation to set around it. This is the only way to write the same
+    visual type four different ways, which is what the fixture below needs.
+    """
+    page_count = len(pages)
+    first_page_obj = 4
+    content_obj = first_page_obj + page_count
+
+    objects: list[bytes] = []
+    kids = " ".join(f"{first_page_obj + i} 0 R" for i in range(page_count))
+    objects.append(b"<< /Type /Catalog /Pages 2 0 R >>")
+    objects.append(f"<< /Type /Pages /Kids [{kids}] /Count {page_count} >>".encode())
+    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+    for index in range(page_count):
+        objects.append(
+            (
+                f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+                f"/Resources << /Font << /F1 3 0 R >> >> "
+                f"/Contents {content_obj + index} 0 R >>"
+            ).encode()
+        )
+
+    for entries in pages:
+        payload = b""
+        for text, tf, tm, cm in entries:
+            matrix = " ".join(f"{v:g}" for v in tm)
+            payload += b"q\n"
+            if cm is not None:
+                payload += (" ".join(f"{v:g}" for v in cm) + " cm\n").encode("ascii")
+            payload += (
+                b"BT /F1 " + f"{tf:g}".encode() + b" Tf " + matrix.encode() + b" Tm ("
+                + _pdf_escape(text) + b") Tj ET\nQ\n"
+            )
+        objects.append(_pdf_stream(payload))
+
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
+#: The two effective sizes the four pages below must all be read at. Chosen so
+#: every route reaches them without rounding: 0.5 and 18 and 10 are exact in
+#: binary, so a difference in the reading is a difference in the method.
+TYPE_SCALE_SIZES = (18.0, 10.0)
+
+
+def pdf_type_scales(path: Path) -> Path:
+    """One document, four pages, the same type sized four different ways.
+
+    A reader is told a size by an operand and by two matrices, and only their
+    product is the size on the page. These pages set the SAME visual sizes and
+    disagree about which of the three carries them:
+
+      page 1  the operand carries it        Tf 18            identity matrices
+      page 2  the text matrix carries it    Tf 1             Tm scaled by 18
+      page 3  the page transform carries it Tf 36            cm scaled by 0.5
+      page 4  as page 2, rotated a quarter turn — the scale is the same, and a
+              reader that takes a single matrix cell rather than the length of a
+              column will read zero here
+
+    Every page must read as {18.0, 10.0}. A reader reporting the operand alone
+    passes page 1 and fails the other three.
+    """
+    big, small = TYPE_SCALE_SIZES
+    ident = (1, 0, 0, 1, 72, 700)
+
+    page_operand = [("Titre du document", big, ident, None),
+                    ("Corps du texte", small, (1, 0, 0, 1, 72, 650), None)]
+    page_text_matrix = [("Titre du document", 1, (big, 0, 0, big, 72, 700), None),
+                        ("Corps du texte", 1, (small, 0, 0, small, 72, 650), None)]
+    page_page_transform = [("Titre du document", big * 2, ident, (0.5, 0, 0, 0.5, 0, 0)),
+                           ("Corps du texte", small * 2, (1, 0, 0, 1, 72, 650),
+                            (0.5, 0, 0, 0.5, 0, 0))]
+    page_rotated = [("Titre du document", 1, (0, big, -big, 0, 300, 400), None),
+                    ("Corps du texte", 1, (0, small, -small, 0, 350, 400), None)]
+
+    return _pdf_matrix_pages(path, [page_operand, page_text_matrix,
+                                    page_page_transform, page_rotated])
+
+
 def no_format_contrast(path: Path) -> Path:
     """Every line at one size: the negative. Nothing here is larger than anything.
 
@@ -1841,6 +1923,7 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "twin_grid_docx": twin_grid_docx,
     "twin_grid_pptx": twin_grid_pptx,
     "empty_string_cells": empty_string_cells,
+    "pdf_type_scales": pdf_type_scales,
     "format_headings_pdf": format_headings_pdf,
     "format_headings_docx": format_headings_docx,
     "no_weight_contrast": no_weight_contrast,

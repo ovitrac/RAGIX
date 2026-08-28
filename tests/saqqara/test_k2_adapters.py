@@ -47,6 +47,7 @@ _SUFFIX = {
     "slide_deck": ".pptx", "twin_grid_pptx": ".pptx",
     "pdf_outline": ".pdf", "pdf_no_text_layer": ".pdf", "running_headers": ".pdf",
     "format_headings_pdf": ".pdf", "no_format_contrast": ".pdf",
+    "pdf_type_scales": ".pdf",
     "format_headings_docx": ".docx", "no_weight_contrast": ".docx",
 }
 _XLSX = frozenset({
@@ -226,7 +227,7 @@ PINNED = {
         "heading": ("level",),
         "paragraph": (),
     }),
-    "pdf": ("0.2.0", {
+    "pdf": ("0.3.0", {
         "outline_entry": ("level",),
         "page": ("has_text", "image_count", "needs_ocr"),
         "text": ("x", "y", "font_size", "font"),
@@ -608,6 +609,42 @@ def test_k2_16_every_block_knows_the_line_it_starts_on(built):
     assert lines == sorted(lines) and all(line > 0 for line in lines)
     heading = next(r for r in body if r.kind == "heading")
     assert heading.facts["level"] == 1 and heading.text == "Titre principal"
+
+
+# ------------------------------------ K2.24 the size on the page, not the operand
+
+def test_k2_24_the_same_type_reads_the_same_however_it_is_scaled(tmp_path):
+    """Four pages, one visual size pair, four ways of expressing it.
+
+    A reader that reports the operand passes the first page and fails the rest,
+    which is exactly the shape of the corpus finding this proposition came from.
+    """
+    path = G.FIXTURES["pdf_type_scales"](tmp_path / "scales.pdf")
+    by_page = {}
+    for record in read_path(path):
+        if record.kind != "text":
+            continue
+        by_page.setdefault(record.locator.page, set()).add(
+            round(record.facts["font_size"], 1)
+        )
+
+    assert len(by_page) == 4, "the fixture writes four pages"
+    expected = {round(v, 1) for v in G.TYPE_SCALE_SIZES}
+    for page in sorted(by_page):
+        assert by_page[page] == expected, (
+            f"page {page} reads {sorted(by_page[page])}, expected {sorted(expected)}"
+        )
+
+
+def test_k2_24_rotated_text_is_not_read_as_zero(tmp_path):
+    """The reason the scale is a column length and not a single matrix cell."""
+    path = G.FIXTURES["pdf_type_scales"](tmp_path / "scales.pdf")
+    rotated = [
+        r for r in read_path(path)
+        if r.kind == "text" and r.locator.page == 4
+    ]
+    assert rotated, "the fourth page carries the rotated text"
+    assert all(r.facts["font_size"] > 0 for r in rotated)
 
 
 # ------------------------------------- K2.23 weight as a fraction, size as a ratio

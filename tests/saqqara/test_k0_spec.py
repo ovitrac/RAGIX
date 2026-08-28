@@ -111,7 +111,16 @@ from generators import FIXTURES  # noqa: E402
 #:                bold does not rank and cannot say how deep a heading sits
 #:                (K3.69); and that weight means dominance rather than presence,
 #:                measured against the boolean baseline in both directions (K3.70).
-FROZEN_COUNTS = {"K1": 9, "K2": 23, "K3": 70, "K4": 2}
+#:   K2 23 -> 24  K2.24, after the corpus parity was traced to its cause: the
+#:                laid-out reader reported the `Tf` operand as the font size and
+#:                ignored both matrices that scale it. Measured, 26 of the 32
+#:                documents finding fewer headings than the old side disagreed
+#:                with it about the body size -- 9 with every size collapsed onto
+#:                one constant, 14 with every size inflated by a single factor.
+#:                No analyzer proposition was false: the thresholds were applied
+#:                to the wrong measurements, which is why this lands in K2 and
+#:                K3 does not move.
+FROZEN_COUNTS = {"K1": 9, "K2": 24, "K3": 70, "K4": 2}
 
 _ROW = re.compile(r"^\|\s*(K[1-4])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 _TICKED = re.compile(r"`([a-z0-9_']+)`")
