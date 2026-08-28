@@ -28,6 +28,7 @@ from ..model import Tree
 
 __all__ = [
     "ABSTENTION_REASONS",
+    "CAPTION_ABSTENTIONS",
     "Abstention",
     "Analyzer",
     "AnalyzerResult",
@@ -51,6 +52,19 @@ TYPING_REASONS = (
     "no-value-evidence",
 )
 
+#: Why a figure could not be given a caption. Closed for the same reason: a
+#: reason outside this list is a bug, not a new case.
+#:
+#: `candidate-already-bound` is the one that is easy to leave out, and it is the
+#: one that matters most: a figure whose only candidate went to a nearer figure
+#: has NOT been examined and found wanting, and reporting it as though no line
+#: was ever near would lose the competition that actually decided it.
+CAPTION_ABSTENTIONS = (
+    "ambiguous-candidates",
+    "no-candidate-within-gap",
+    "candidate-already-bound",
+)
+
 
 @dataclass(frozen=True)
 class Abstention:
@@ -60,7 +74,7 @@ class Abstention:
     signals: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if self.reason not in ABSTENTION_REASONS + TYPING_REASONS:
+        if self.reason not in ABSTENTION_REASONS + TYPING_REASONS + CAPTION_ABSTENTIONS:
             raise ValueError(
                 f"abstention reason {self.reason!r} is outside the frozen vocabulary"
             )

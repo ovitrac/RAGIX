@@ -32,6 +32,14 @@ contract; a layer that produces them and no nodes has produced nothing. Seven gr
 certified a layer that emitted no node at all, and the builder had been counting the loss under
 `unmapped-observation` throughout. *A drop nobody reads is a silent drop.*
 
+**Every classification ends in an `else` that counts.** A branch structure over resources, objects
+or reasons with no terminal counter is a defect by construction: whatever it fails to recognise
+falls through it in silence, and silence is indistinguishable from absence. Three placements were
+lost that way in this package — an office record no build plan mapped, a form the resource walk
+matched in neither branch, and, inside the fix for the second, a reference that resolved to nothing
+and so had no subtype to match at all. The vocabulary test must read the fixture that produces the
+terminal reason, or the `else` is decoration.
+
 **Mass decides what to fix first; it does not decide what is true.** Quantities in real corpora
 concentrate — a handful of documents routinely carry most of any total — so a uniform sample
 measures the median document and answers a question nobody asked. But the converse error is
@@ -376,6 +384,9 @@ a reference is a string like any other.
 | K6.8 | The office formats produce figures **with no renderer**: their pictures are stored as parts, and all four readers emit them under **one vocabulary held in one place**, with format-specific addressing in the **typed locator** rather than among the facts. A format that does not state a placement emits it as unknown rather than omitting it or guessing. | `docx_embedded_image`, `pptx_embedded_image`, `xlsx_embedded_image` | a per-format fact set, an addressing key smuggled into the facts, a renderer required to read a part, a fact dropped where a format is silent, or a figure record no build plan turns into a node |
 | K6.9 | A picture an office reader cannot take whole **never costs the document it is in**. Where the bytes are reachable the figure is emitted with what could not be read left **unknown**; where they are not, it is a **counted skip** under one vocabulary the three readers share. An exception raised while describing one picture is not a reason to lose the rest of a document. | `docx_image_unreadable`, `pptx_image_unreadable` | a document that fails to read because one picture will not parse, a picture dropped without a count, a reason outside the shared vocabulary, or a dimension guessed where the header gave none |
 | K6.10 | An image is a placement **wherever it is drawn**, including inside a Form XObject. The reader descends into forms to a declared depth, composing each form's `/Matrix` and the transformations around it, so a box is still the box the image reached the page with. A descent that will not terminate — a form deeper than the limit, a form that invokes itself — is a **counted skip**, never an unseen one: a bound that stops in silence is the same lost placement in a new place. | `pdf_image_in_form`, `pdf_form_pathologies` | an image drawn only inside a form going unemitted and uncounted, a box that ignores the form's matrix or the transformation that invoked it, or a depth limit or cycle guard that stops without counting |
+| K6.11 | A caption binding is an **inference**: a new node, `origin=inferred`, confidence below 1, under the `caption-binding` channel, naming the rule that produced it and citing the paragraph it was read from. The figure and the words each keep their own provenance; neither is rewritten by the claim that they belong together. **Figures only.** | `pdf_caption_below` | a binding at confidence 1, one filed as an observation, one on a reader channel, or a binding to a table |
+| K6.12 | Binding applies **ordered hard rules, each naming itself** — below-overlapping, below-offset, above-overlapping — and the first that binds is the one recorded, with **that rule's** declared confidence. Assignment is set-level: a line captions at most one figure, and candidates are taken best-first across the page rather than in the order figures happen to appear. | `pdf_caption_below` | an unordered test, a confidence not drawn from the rule that fired, a blended score, or one line captioning two figures |
+| K6.13 | Where the evidence does not decide, the analyzer **abstains**, in a word from a closed vocabulary, carried by the figure it is about. Two candidates equally close on opposite sides are not settled by rule order — an order is a preference, not evidence. A figure whose only candidate went to a nearer figure says **that**, and is never reported as one nothing came near. | `pdf_caption_ambiguous` | a binding settled by tie-break, an abstention that is merely absence, a reason outside the vocabulary, or `candidate-already-bound` reported as `no-candidate-within-gap` |
 
 ---
 

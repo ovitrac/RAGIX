@@ -1958,6 +1958,99 @@ def _pdf_with_images(path: Path, placements, inline: bool = False,
     return path
 
 
+def _pdf_figures_and_lines(path: Path, placements, lines) -> Path:
+    """One page carrying images at given matrices and text at given positions.
+
+    `placements` are (a, b, c, d, e, f) matrices; `lines` are (size, y, [(x, text)])
+    so a line can be several text-showing operations, which is what a real page
+    does and what the line assembler exists to put back together.
+    """
+    pixels = _grey_pixels()
+    payload = b""
+    for matrix in placements:
+        payload += (b"q " + " ".join(f"{v:g}" for v in matrix).encode("ascii")
+                    + b" cm /Im0 Do Q\n")
+    for size, y, runs in lines:
+        # ONE text object per line, with the later runs placed by RELATIVE Td.
+        # A `BT` resets the text matrix, so a run in its own text object that
+        # used an absolute Td reported its position as the origin -- measured,
+        # after the first version of this generator produced three runs all
+        # claiming (0, 0) and a line assembler that dutifully grouped them.
+        first_x, first_text = runs[0]
+        payload += (f"BT /F1 {size:g} Tf {first_x:g} {y:g} Td (".encode("ascii")
+                    + _pdf_escape(first_text) + b") Tj")
+        previous = first_x
+        for x, text in runs[1:]:
+            payload += (f" {x - previous:g} 0 Td (".encode("ascii")
+                        + _pdf_escape(text) + b") Tj")
+            previous = x
+        payload += b" ET\n"
+
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [4 0 R] /Count 1 >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        (b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << "
+         b"/Font << /F1 3 0 R >> /XObject << /Im0 6 0 R >> >> /Contents 5 0 R >>"),
+        _pdf_stream(payload),
+        (b"<< /Type /XObject /Subtype /Image /Width 4 /Height 4 "
+         b"/ColorSpace /DeviceGray /BitsPerComponent 8 /Length "
+         + str(len(pixels)).encode("ascii") + b" >>\nstream\n" + pixels
+         + b"\nendstream"),
+    ]
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
+def pdf_caption_below(path: Path) -> Path:
+    """Four figures: one per binding rule, and one with nothing near it.
+
+    Each rule must fire somewhere or it is a wish, so the three of them appear
+    here together with the figure that no line comes close enough to caption:
+
+        A (100,600)-(300,700)  line below at y=590, overlapping   -> below-overlapping
+        B (100,400)-(300,500)  line below at y=390, off to the right -> below-offset
+        C (100,200)-(300,300)  line ABOVE at y=310, overlapping    -> above-overlapping
+        D (100, 80)-(300,150)  nothing within the gap              -> abstention
+
+    Every gap is 10 points against a line height of 10, comfortably inside the
+    declared 1.5, and every non-pair is 90 points apart, comfortably outside it:
+    the fixture must not depend on where the threshold sits.
+    """
+    return _pdf_figures_and_lines(
+        path,
+        [(200, 0, 0, 100, 100, 600),
+         (200, 0, 0, 100, 100, 400),
+         (200, 0, 0, 100, 100, 200),
+         (200, 0, 0, 70, 100, 80)],
+        [(10, 590, [(110, "Figure 1"), (180, "la legende dessous")]),
+         (10, 390, [(380, "Figure 2"), (450, "legende decalee")]),
+         (10, 310, [(110, "Figure 3"), (180, "la legende dessus")])],
+    )
+
+
+def pdf_caption_ambiguous(path: Path) -> Path:
+    """Two ways a caption cannot be assigned, in one page.
+
+        X (100,600)-(300,700)  a line 10 above AND a line 10 below
+            -> equally close on either side; only the rule ORDER could choose,
+               and an order is a preference, not evidence.
+        Y (100,400)-(300,470)  and  Z (100,308)-(300,378), one line between them
+            at y=390: 10 points from Y, 12 from Z. The nearer takes it, and the
+            other must say that its only candidate is spoken for rather than
+            report that it had none.
+    """
+    return _pdf_figures_and_lines(
+        path,
+        [(200, 0, 0, 100, 100, 600),
+         (200, 0, 0, 70, 100, 400),
+         (200, 0, 0, 70, 100, 308)],
+        [(10, 710, [(110, "Figure X"), (180, "legende dessus")]),
+         (10, 590, [(110, "Figure X"), (180, "legende dessous")]),
+         (10, 390, [(110, "Figure Y"), (180, "ou Z, la legende")])],
+    )
+
+
 def _form(payload: bytes, resources: str, matrix: str = "") -> bytes:
     """A Form XObject: a content stream invoked by name, with its own resources."""
     extra = (" /Type /XObject /Subtype /Form /BBox [0 0 595 842] "
@@ -2342,6 +2435,8 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "format_headings_pdf": format_headings_pdf,
     "pdf_image_xobject": pdf_image_xobject,
     "pdf_image_in_form": pdf_image_in_form,
+    "pdf_caption_below": pdf_caption_below,
+    "pdf_caption_ambiguous": pdf_caption_ambiguous,
     "pdf_form_pathologies": pdf_form_pathologies,
     "pdf_image_twice": pdf_image_twice,
     "pdf_image_unreadable": pdf_image_unreadable,
@@ -2403,6 +2498,8 @@ FIXTURE_SUFFIX: Dict[str, str] = {
     "xlsx_embedded_image": ".xlsx",
     "pdf_image_xobject": ".pdf",
     "pdf_image_in_form": ".pdf",
+    "pdf_caption_below": ".pdf",
+    "pdf_caption_ambiguous": ".pdf",
     "pdf_form_pathologies": ".pdf",
     "pdf_inline_image": ".pdf",
     "pdf_no_text_layer": ".pdf",
