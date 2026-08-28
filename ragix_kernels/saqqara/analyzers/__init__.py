@@ -10,6 +10,7 @@ Each analyzer takes a tree and returns a tree plus a trace. They chain — the c
 
   grid_tables   is this a declared table, or a page layout drawn with one
   outline       a typed label promotes only where the walk supports it
+  format_headings  a line set larger than the body is a heading where a tier supports it
   sections      section names per channel, with the gauntlet and the ancestry
   tables        segmentation cascade: declared table objects, then bordered boxes, then connected
                 regions, then typing
@@ -37,6 +38,16 @@ from .contract import (  # noqa: F401
     Abstention,
     Analyzer,
     AnalyzerResult,
+)
+from .format_headings import (  # noqa: F401
+    FORMAT_ABSTENTIONS,
+    FORMAT_CHANNEL,
+    SHAPE_RULES,
+    TIER_DROPS,
+    FormatHeadingsAnalyzer,
+    assemble_lines,
+    baseline_format_headings,
+    shape_refusal,
 )
 from .header_bands import HeaderBandsAnalyzer, analyze_block  # noqa: F401
 from .islands import IslandsAnalyzer, find_islands  # noqa: F401
@@ -82,6 +93,14 @@ PIPELINE = (
 #: tree, which is the one thing a view must not do.
 
 __all__ = [
+    "FORMAT_ABSTENTIONS",
+    "FORMAT_CHANNEL",
+    "FormatHeadingsAnalyzer",
+    "SHAPE_RULES",
+    "TIER_DROPS",
+    "assemble_lines",
+    "baseline_format_headings",
+    "shape_refusal",
     "parse_label",
     "baseline_sections",
     "SectionsAnalyzer",

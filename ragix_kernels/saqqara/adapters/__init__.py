@@ -17,8 +17,11 @@ parse, and `read_paths` turns those into counted refusals rather than a quietly 
 """
 
 from .contract import (  # noqa: F401
+    GRID_CELL_FACTS,
+    GRID_TABLE_FACTS,
     Adapter,
     Mastaba,
+    OpenVocabulary,
     ReadReport,
     Refusal,
     UnreadableFile,
@@ -38,7 +41,10 @@ from . import xlsx as _xlsx      # noqa: F401  registers the spreadsheet reader
 
 __all__ = [
     "Adapter",
+    "GRID_CELL_FACTS",
+    "GRID_TABLE_FACTS",
     "Mastaba",
+    "OpenVocabulary",
     "ReadReport",
     "Refusal",
     "UnreadableFile",

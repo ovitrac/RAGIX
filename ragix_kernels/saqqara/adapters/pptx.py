@@ -26,20 +26,39 @@ from pathlib import Path
 from typing import Iterator
 
 from ..model import PptxLocator
-from .contract import Adapter, Mastaba, register_adapter
+from .contract import (
+    GRID_CELL_FACTS,
+    GRID_TABLE_FACTS,
+    Adapter,
+    Mastaba,
+    register_adapter,
+)
 
 #: A table on a slide is a grid, and it is described in the same words a grid is
-#: described in everywhere else — so the same recognition rules can read it.
-CELL_FACTS = ("span", "vmerge", "empty", "fillable", "marker", "bold", "shaded")
+#: described in everywhere else — so the same recognition rules can read it. The
+#: words themselves come from the contract, not from a copy kept here (K2.22).
+CELL_FACTS = GRID_CELL_FACTS
+TABLE_FACTS = GRID_TABLE_FACTS
+
+#: The vocabularies of what only a deck has (K2.19).
+SLIDE_FACTS = ("shape_count",)
+SHAPE_FACTS = ("shape_type", "is_title", "on_slide")
+NOTES_FACTS = ("on_slide",)
 
 
 class PptxAdapter(Adapter):
     """Read a deck into slide, shape and notes observations."""
 
     format = "pptx"
-    version = "0.2.0"          # 0.2.0: tables on slides are read as grids
+    version = "0.3.0"          # 0.3.0: a vocabulary declared per record kind
     extensions = (".pptx",)
-    fact_set = CELL_FACTS
+    fact_sets = {
+        "slide": SLIDE_FACTS,
+        "shape": SHAPE_FACTS,
+        "notes": NOTES_FACTS,
+        "table": TABLE_FACTS,
+        "cell": CELL_FACTS,
+    }
 
     def read(self, path: Path) -> Iterator[Mastaba]:
         from pptx import Presentation

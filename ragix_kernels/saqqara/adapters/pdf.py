@@ -34,17 +34,23 @@ from typing import Iterator
 from ..model import PdfLocator
 from .contract import Adapter, Mastaba, register_adapter
 
+#: The declared vocabularies, one per record kind this reader emits (K2.19).
 TEXT_FACTS = ("x", "y", "font_size", "font")
 PAGE_FACTS = ("has_text", "image_count", "needs_ocr")
+OUTLINE_FACTS = ("level",)
 
 
 class PdfAdapter(Adapter):
     """Read a laid-out document into outline, page and text observations."""
 
     format = "pdf"
-    version = "0.1.0"
+    version = "0.2.0"          # 0.2.0: a vocabulary declared per record kind
     extensions = (".pdf",)
-    fact_set = PAGE_FACTS
+    fact_sets = {
+        "outline_entry": OUTLINE_FACTS,
+        "page": PAGE_FACTS,
+        "text": TEXT_FACTS,
+    }
 
     def read(self, path: Path) -> Iterator[Mastaba]:
         from pypdf import PdfReader

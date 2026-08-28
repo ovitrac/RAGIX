@@ -61,6 +61,11 @@ OUTLINE_CHANNEL = "outline-promotion"
 #: Fewer promoted labels than this is not evidence of an outline.
 MIN_CHAIN = 3
 
+#: What counts as bold for corroboration. A fraction, not a flag: a line with
+#: one emphasised word is not styled as a heading, and the boolean this rule
+#: used to read could not say so.
+BOLD_DOMINANT = 0.9
+
 #: Why a label did not become a heading. Closed.
 OUTLINE_DROPS = ("illegal-step", "chain-too-short", "flat-uncorroborated")
 
@@ -196,7 +201,10 @@ class OutlineAnalyzer(Analyzer):
             return
 
         descends = any(len(parsed[1]) > 1 for _, parsed in surviving)
-        corroborated = all(node.facts.get("bold") for node, _ in surviving)
+        corroborated = all(
+            (node.facts.get("bold_frac") or 0.0) >= BOLD_DOMINANT
+            for node, _ in surviving
+        )
         if not descends and not corroborated:
             # A flat chain with nothing but its own numbering: a list, not an outline.
             self._reject(surviving, "flat-uncorroborated", trace)

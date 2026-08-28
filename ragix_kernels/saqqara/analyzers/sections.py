@@ -64,7 +64,7 @@ READER_CHANNELS = (
 #: Channels fed by an analyzer rather than a reader. Kept separate on purpose:
 #: a promotion is an inference about the document, and filing it beside the
 #: observations would let it pass for one.
-DERIVED_CHANNELS = ("outline-promotion",)
+DERIVED_CHANNELS = ("outline-promotion", "format-promotion")
 
 #: Everything a record may be routed by.
 CHANNELS = READER_CHANNELS + DERIVED_CHANNELS

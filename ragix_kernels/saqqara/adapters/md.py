@@ -20,18 +20,37 @@ from pathlib import Path
 from typing import Iterator
 
 from ..model import MdLocator
-from .contract import Adapter, Mastaba, register_adapter
+from .contract import Adapter, Mastaba, OpenVocabulary, register_adapter
 
 FENCE = "---"
+
+#: The declared vocabularies, one per record kind this reader emits (K2.19).
+#:
+#: A paragraph carries no facts at all — declared as the empty set, because a
+#: kind emitted without a declaration is a failure and silence is not one.
+#: Metadata is the one open vocabulary in this kernel: its fact names are the
+#: front-matter keys the author wrote, so a closed set here would pin the
+#: fixture rather than the reader (K2.21). `_unparsed` is the reader's own,
+#: reserved for the front-matter lines that are not `key: value`.
+HEADING_FACTS = ("level",)
+PARAGRAPH_FACTS: tuple[str, ...] = ()
+METADATA_FACTS = OpenVocabulary(reserved=("_unparsed",))
 
 
 class MarkdownAdapter(Adapter):
     """Read a markdown file into metadata, heading and paragraph observations."""
 
     format = "md"
-    version = "0.1.0"
+    # 0.2.0 declares a vocabulary per record kind, and drops `kind_hint`: it was
+    # declared here and emitted by nothing, on any file — a name the pin had been
+    # comparing only with itself.
+    version = "0.2.0"
     extensions = (".md", ".markdown")
-    fact_set = ("level", "kind_hint")
+    fact_sets = {
+        "metadata": METADATA_FACTS,
+        "heading": HEADING_FACTS,
+        "paragraph": PARAGRAPH_FACTS,
+    }
 
     def read(self, path: Path) -> Iterator[Mastaba]:
         lines = path.read_text(encoding="utf-8").splitlines()

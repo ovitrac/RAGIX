@@ -709,7 +709,7 @@ def build_outline_trees() -> Dict[str, Tree]:
                     facts={
                         "style": "Normal",
                         "numbered": False,
-                        "bold": case in OUTLINE_BOLD,
+                        "bold_frac": 1.0 if case in OUTLINE_BOLD else 0.0,
                     },
                 )
                 for index, line in enumerate(lines)
@@ -774,6 +774,8 @@ EXPECTED_EMPTY_STRINGS = {
     "B3": {"text": None, "dtype": "s", "held_a_string": True},
     "B4": {"text": None, "dtype": "n", "held_a_string": False},
 }
+
+
 
 
 # ------------------------------------------------------------------ refusals
@@ -1582,11 +1584,18 @@ def slide_deck(path: Path) -> Path:
 
 
 def markdown_document(path: Path) -> Path:
-    """Front matter, then headings and paragraphs."""
+    """Front matter, then headings and paragraphs.
+
+    The third front-matter line is deliberately not a `key: value` pair: it is
+    what sends the reader down its reserved `_unparsed` key, which is both the
+    one open-vocabulary reserved name in the kernel and one of the two facts
+    whose value is a list rather than a scalar (K2.4, K2.21).
+    """
     path.write_text(
         "---\n"
         "title: Document de controle\n"
         "language: fr\n"
+        "une ligne sans deux-points\n"
         "---\n"
         "\n"
         "# Titre principal\n"
@@ -1599,6 +1608,183 @@ def markdown_document(path: Path) -> Path:
         encoding="utf-8",
     )
     return path
+
+
+
+# ------------------------------------------------- headings shown, not declared
+
+def _pdf_typeset(path: Path, pages: list[list[list[tuple[str, float]]]]) -> Path:
+    """Write a laid-out document line by line, each line a list of (text, size).
+
+    A line holding more than one segment is written as several text-showing
+    operations at the same vertical position, which is what a real document does
+    whenever a line changes font mid-way — and what the line assembly of K3.59
+    has to put back together.
+    """
+    page_count = len(pages)
+    first_page_obj = 4
+    content_obj = first_page_obj + page_count
+
+    objects: list[bytes] = []
+    kids = " ".join(f"{first_page_obj + i} 0 R" for i in range(page_count))
+    objects.append(f"<< /Type /Catalog /Pages 2 0 R >>".encode())
+    objects.append(f"<< /Type /Pages /Kids [{kids}] /Count {page_count} >>".encode())
+    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+
+    for index in range(page_count):
+        objects.append(
+            (
+                f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+                f"/Resources << /Font << /F1 3 0 R >> >> "
+                f"/Contents {content_obj + index} 0 R >>"
+            ).encode()
+        )
+
+    for lines in pages:
+        payload = b""
+        y = 800
+        for line in lines:
+            x = 72
+            for text, size in line:
+                payload += (
+                    b"BT /F1 " + f"{size:g}".encode() + b" Tf "
+                    + f"{x:g} {y:g}".encode() + b" Td ("
+                    + _pdf_escape(text) + b") Tj ET\n"
+                )
+                x += 6 * len(text)
+            y -= 26
+        objects.append(_pdf_stream(payload))
+
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
+#: A body line: long, ends in a full stop, set at the body size.
+_BODY = (
+    "Cette phrase de corps de texte occupe une ligne entiere et se termine "
+    "par un point final."
+)
+
+
+def format_headings_pdf(path: Path) -> Path:
+    """Four sizes: a title, a heading tier split across two nearby sizes, a body,
+    and one decorative line nothing supports.
+
+    Every trap the gauntlet has to refuse is present at a promotable size, so
+    that refusing them cannot be confused with never having seen them: a line
+    that ends in a full stop, and a line too long to be a heading. The heading
+    tier is written at 15 and 15.5 so that a rule which treats them as two tiers
+    reports two levels where a reader sees one. The 18-point line is heading
+    shaped and alone: below the title factor, unsupported as a ladder tier, and
+    therefore droppable only for want of support.
+    """
+    body = [[(_BODY, 12.0)]] * 4
+    return _pdf_typeset(path, [
+        [
+            [("Rapport annuel de conformite", 24.0)],
+            *body,
+            [("Perimetre", 15.0)],
+            *body,
+            [("Gouvernance", 15.5)],
+            *body,
+            [("Mesures ", 15.0), ("techniques", 15.0)],       # one line, two segments
+            *body,
+            [("Une ligne decorative isolee", 18.0)],
+            *body,
+            [("Ceci ressemble a un titre mais se termine par un point.", 15.0)],
+            [(
+                "Une ligne beaucoup trop longue pour etre un titre car elle "
+                "enchaine les mots bien au dela de ce qu un lecteur accepterait "
+                "de lire comme un intitule de section quelconque", 15.0,
+            )],
+            *body,
+        ],
+    ])
+
+
+def _weighted(doc, parts, size=None):
+    """One paragraph from (text, bold) parts, so the bold fraction is exact."""
+    from docx.shared import Pt
+
+    paragraph = doc.add_paragraph()
+    for text, bold in parts:
+        run = paragraph.add_run(text)
+        run.bold = bold
+        if size is not None:
+            run.font.size = Pt(size)
+    return paragraph
+
+
+#: Twenty words, one of them bold. The population this fixture exists for: a
+#: boolean `bold` reports True here and True on a fully bold heading, so a rule
+#: reading the boolean promotes both and a rule reading the fraction promotes
+#: neither this nor anything like it.
+_ONE_IN_TWENTY = (
+    [("Le prestataire applique la procedure ", False), ("integralement", True)]
+    + [(" et la documente selon les regles internes en vigueur cette annee la.", False)]
+)
+
+
+def format_headings_docx(path: Path) -> Path:
+    """A document that styles nothing: its headings are carried by weight alone.
+
+    Every trap is present, and each is a different way of being bold without being
+    a heading: an emphasis inside a sentence, a fully bold line that ends in a full
+    stop, and a bold line far too long to be an intitule. The one-bold-word-in-
+    twenty paragraph is the case a boolean cannot tell from a heading at all.
+    """
+    from docx import Document
+
+    doc = Document()
+    _weighted(doc, [("Perimetre de la prestation", True)], size=11)
+    _weighted(doc, [("Le corps du document se lit normalement et se termine par un "
+                     "point final.", False)], size=11)
+    _weighted(doc, [("Gouvernance et pilotage", True)], size=11)
+    _weighted(doc, [("Une seconde phrase de corps, sans aucune emphase particuliere.",
+                     False)], size=11)
+    _weighted(doc, [("Moyens techniques", True)], size=11)
+    _weighted(doc, _ONE_IN_TWENTY, size=11)                       # the negative case
+    _weighted(doc, [("Cette ligne est en gras mais se termine par un point.", True)],
+              size=11)
+    _weighted(doc, [("Une ligne entierement en gras beaucoup trop longue pour etre un "
+                     "intitule car elle enchaine bien plus de mots qu un lecteur "
+                     "accepterait", True)], size=11)
+    doc.save(path)
+    return path
+
+
+def no_weight_contrast(path: Path) -> Path:
+    """Every run identical: the negative for the weight branch.
+
+    Nothing here is bolder than anything else, so a rule that reads contrast finds
+    none and a rule that reads its own defaults finds a document full of headings.
+    """
+    from docx import Document
+
+    doc = Document()
+    for text in ("Introduction", "Le corps du document se lit normalement.",
+                 "Perimetre", "Une seconde phrase de corps sans emphase.",
+                 "Gouvernance"):
+        _weighted(doc, [(text, False)], size=11)
+    doc.save(path)
+    return path
+
+
+def no_format_contrast(path: Path) -> Path:
+    """Every line at one size: the negative. Nothing here is larger than anything.
+
+    A method that elects a heading tier regardless will elect one here, so this
+    fixture is what separates a rule that reads contrast from a rule that reads
+    its own defaults.
+    """
+    return _pdf_typeset(path, [[
+        [("Introduction", 12.0)],
+        [(_BODY, 12.0)],
+        [("Perimetre", 12.0)],
+        [(_BODY, 12.0)],
+        [("Gouvernance", 12.0)],
+        [(_BODY, 12.0)],
+    ]])
 
 
 # ------------------------------------------------------------------ refusals
@@ -1655,6 +1841,10 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "twin_grid_docx": twin_grid_docx,
     "twin_grid_pptx": twin_grid_pptx,
     "empty_string_cells": empty_string_cells,
+    "format_headings_pdf": format_headings_pdf,
+    "format_headings_docx": format_headings_docx,
+    "no_weight_contrast": no_weight_contrast,
+    "no_format_contrast": no_format_contrast,
     "unsupported_format": unsupported_format,
     "duplicate_pair": duplicate_pair,
 }

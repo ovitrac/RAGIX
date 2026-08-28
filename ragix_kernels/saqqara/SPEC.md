@@ -65,7 +65,7 @@ Phase P2; the pdf reader in P2'. An adapter emits facts; it never interprets the
 | K2.1 | Every spreadsheet cell record carries exactly the declared fact set — data type, boldness, number format, lock flag, formula, merge flag — and its geometric keys live in the locator, not among the facts. Nothing more, nothing less. | `numeric_bold_header` | one fact missing, one fact present that the declared set does not contain, or a geometric key smuggled in as a fact |
 | K2.2 | The facts are raw reads, never interpretation: a numeric bold header records both its numeric type and its boldness, and neither fact alone disqualifies it as a header. | `numeric_bold_header` | a fact rewritten by the adapter, or a header discarded at read time |
 | K2.3 | A merged region records its facts at the anchor; continuation cells invent none. | `two_tier_header` | a continuation carrying invented facts |
-| K2.4 | Every emitted fact is a JSON primitive; no library object reaches the output. | `numeric_bold_header` | a value that fails to serialise |
+| K2.4 | Every emitted fact is a JSON-serialisable value built from primitives, lists of primitives, and mappings of them; no library object reaches the output. | `numeric_bold_header`, `mixed_workbook`, `markdown_document` | a value that fails to serialise |
 | K2.5 | The adapter declares its version, and the version changes whenever the emitted fact set changes. | `mixed_workbook` | a fact-set change shipped under an unchanged version |
 | K2.6 | The word-processing adapter emits, per table, the resolved grid and per-cell facts — span, vertical merge, text, emptiness, fillability, bold, shading — plus the locator, including tables that live in the page-header flow and tables nested inside a cell. | `docx_header_stream`, `docx_nested` | a table in either flow absent from the output |
 | K2.7 | A nested table does not bleed into the text of its parent cell. | `docx_nested` | parent cell text containing the nested table's content |
@@ -80,6 +80,11 @@ Phase P2; the pdf reader in P2'. An adapter emits facts; it never interprets the
 | K2.16 | The markdown reader emits one record per block with the line it starts on, and front matter is carried as document metadata rather than as body text. | `markdown_document` | front matter read as a paragraph, or a block without its line |
 | K2.17 | A cell whose value is empty or only whitespace is emitted as blank, and is an addressable slot where it is ruled or anchors a merge. Its data type still records that the file held a string, so an empty string and an absent value stay distinguishable. | `empty_string_cells` | an empty string counted as a value, or the distinction from an absent value lost |
 | K2.18 | A table on a slide is read as a grid, in the same fact vocabulary a spreadsheet or word-processing grid uses, and its cells are addressable individually. A shape carrying a table is never passed over for having no text frame. | `twin_grid_pptx`, `slide_deck` | a slide table absent from the output, or its cells emitted in a vocabulary the grid core cannot read |
+| K2.19 | Every reader declares its fact vocabulary **per record kind**, not as one flat set for the whole reader: a cell and a paragraph are not described by the same facts, and a kind emitted with no declaration is a failure rather than a default. | `mixed_workbook`, `docx_markers`, `slide_deck`, `pdf_outline`, `markdown_document` | a record whose kind no declaration covers, or a fact outside the vocabulary declared for its kind |
+| K2.20 | The declarations are checked against what the readers emit **in both directions**: a declared name that no reader produces on any fixture is a defect, not a reserve held for later. | `mixed_workbook`, `docx_markers`, `slide_deck`, `pdf_outline`, `markdown_document` | a declared name never emitted, or an emitted fact never declared |
+| K2.21 | Where a record kind takes its fact names from the document rather than from the reader, the vocabulary is declared **open**, with the names the reader reserves for itself listed; open is a declaration, not the absence of one. | `markdown_document` | an open vocabulary declared as a closed set, a closed one declared open, or a reserved name the declaration does not list |
+| K2.22 | The grid kinds — a table and its cells — carry **one** vocabulary shared by the word-processing and the presentation reader, held in one place rather than agreed by two copies, so the grid core reads a contract and not a coincidence. | `twin_grid_docx`, `twin_grid_pptx` | the two readers declaring different vocabularies for the same grid kind |
+| K2.23 | A paragraph's weight is emitted as a **fraction of its characters**, never as a flag, and its size is emitted both absolutely and against the document's own modal size. A boolean cannot separate a heading set entirely in bold from a sentence with one word emphasised, and a rule about dominance written over a flag is a rule that cannot hold. | `format_headings_docx` | a boolean weight fact, a fraction taken over runs rather than characters, or a size ratio against anything but the document's modal size |
 
 ## K3 — analyzers: tables, header bands, islands, tree services
 
@@ -261,6 +266,41 @@ fixture, two blocks.
 | K3.51 | A walk too short to be evidence abstains, and a flat walk promotes only where a second signal corroborates it. | `numbered_outline_trees` | a two-item chain promoted, or a flat chain promoted uncorroborated |
 | K3.52 | A restart at an annex yields a second walk rather than breaking the first, and a stray restart never captures the walk in progress. | `numbered_outline_trees` | two walks fused, or a stray label capturing the walk |
 | K3.53 | Every label considered and not promoted is counted in the trace. | `numbered_outline_trees` | a rejection absent from the counts |
+
+### K3.k — headings the document only shows
+
+Phase P3''. Opt-in, and ordered after K3.h for the reason K3.i is: promoted first, this analyzer
+would feed the section channels its own conclusions and read them back as corroboration.
+
+Some documents carry no outline, no heading style and no numbering — nothing an outline is
+*declared* with. They still have headings, and a reader sees them instantly, because they are set
+in larger type than the text around them. That contrast is a fact the reader already records; what
+is missing is the step that reads it. This block specifies that step for both kinds of
+document: for laid-out ones, where the signal is size, and for word-processing ones that style
+nothing, where it is weight.
+
+The unit is a **line**, not a placement. A reader emits one observation per text-showing operation,
+and a line of a laid-out document is on average two and a half of them, so a rule applied to
+placements would cut a heading into fragments and count each as separate evidence. Line assembly is
+therefore a declared step of this analyzer with its own trace, not a preparation hidden before it.
+
+A promotion **adds** a node, exactly as in K3.i: the paragraph a reader observed stays what it was,
+and the inference sits beneath it citing the position it came from.
+
+| id | proposition | fixture | falsified by |
+|---|---|---|---|
+| K3.59 | Placements are assembled into lines before any rule is applied — same page, same vertical band, ordered by horizontal position — and the assembly is reported in the trace with the count it collapsed. | `format_headings_pdf` | a rule applied to a placement, or an assembly the trace does not report |
+| K3.60 | Body size is the modal size by **character mass**, not by how many blocks carry it: a heading repeated on every page must not outweigh the text it heads. Sizes are binned before counting, and a tie is broken by the smaller size so that the choice is deterministic rather than an artefact of reading order. | `format_headings_pdf` | body taken by block count, an unbinned comparison, or a tie resolved by insertion order |
+| K3.61 | Sizes within the declared gap are one visual tier: a document setting a heading at 15.0 and 15.5 has one heading tier, not two. Clustering never reaches down to the body mass. | `format_headings_pdf` | two tiers where a reader sees one, or a cluster chaining into the body size |
+| K3.62 | A tier at or above the declared factor times body size is the title level; the remaining tiers are a ladder by descending size, each admitted only with a minimum number of heading-shaped lines behind it, so that a single decorative line does not become a level. Every tier refused is counted with its reason. | `format_headings_pdf` | a one-off promoted to a level, a ladder ordered other than by descending size, or a refusal absent from the counts |
+| K3.63 | Promotion runs an **ordered** shape gauntlet, each rule naming itself in the trace: a line that is empty, too long, too many words, or ends in sentence punctuation is refused, and the first rule that refuses it is the one recorded. | `format_headings_pdf` | an unordered test, a refusal recorded against a later rule, or a line promoted on size alone |
+| K3.64 | A document with no size contrast **abstains** — every line at one size yields no promotion at all, rather than a document promoted entire or a body size elected as a heading tier. | `no_format_contrast` | any promotion on a document of uniform size |
+| K3.65 | Promotions are new inferred nodes under the `format-promotion` channel: `origin` inferred, confidence below 1, provenance citing the line's own position, producer named as this analyzer, and every pre-existing node byte-identical afterwards. | `format_headings_pdf` | a mutated node, a promotion at confidence 1, or a promotion whose provenance cites the document rather than the line |
+| K3.66 | The channel is routed with the other derived channels, never among the eight a reader fills. | `format_headings_pdf` | `format-promotion` counted as a reader channel |
+| K3.67 | Against the baseline — every line larger than the most common size is a heading — the difference is measured and reported **in both directions**, and every comparable fixture lands on one side or the other so that none drops quietly out of the comparison. | `format_headings_pdf`, `no_format_contrast` | a comparison asserted without measurement, one that reports only the wins, or a fixture in neither column |
+| K3.68 | Two signals, tried in a **declared order**: size first, because sizes rank and can carry a ladder of levels; weight second and only where size found no contrast, because a document that has already ranked its headings must not be given a second, contradictory answer. The trace names the signal that decided. | `format_headings_pdf`, `format_headings_docx` | weight consulted where size decided, an undeclared order, or a trace that does not say which signal ran |
+| K3.69 | A weight promotion is **flat**: bold does not rank, so it yields one declared level and never a ladder, at a confidence below the one size earns. | `format_headings_docx` | a weight promotion at more than one level, or at the same confidence as a size promotion |
+| K3.70 | Weight is read as dominance, not as presence: a line is promoted only where the declared fraction of it is bold, so a paragraph carrying one emphasised word is refused. Against the boolean baseline — any bold run makes a heading — the difference is measured in both directions. | `format_headings_docx`, `no_weight_contrast` | a partly bold paragraph promoted, or a comparison against the boolean asserted without measurement |
 
 ## K4 — envelope
 

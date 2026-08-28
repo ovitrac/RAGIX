@@ -36,10 +36,12 @@ from typing import Iterator
 from ..model import XlsxLocator
 from .contract import Adapter, Mastaba, register_adapter
 
-#: The declared cell fact set. Changing it means changing `version` in the same edit (K2.5).
+#: The declared vocabularies, one per record kind this reader emits (K2.19).
+#: Changing any of them means changing `version` in the same edit (K2.5).
+SHEET_FACTS = ("hidden", "list_objects", "max_row", "max_column")
 CELL_FACTS = ("dtype", "bold", "number_format", "locked", "formula", "merged")
 
-#: Border edges, emitted as their own record kind.
+#: Border edges, emitted as their own record kind — and its vocabulary.
 BORDER_EDGES = ("left", "right", "top", "bottom")
 
 
@@ -47,9 +49,13 @@ class XlsxAdapter(Adapter):
     """Read a workbook into sheet, cell and border observations."""
 
     format = "xlsx"
-    version = "0.3.0"          # 0.3.0: a whitespace-only value reads as blank
+    version = "0.4.0"          # 0.4.0: a vocabulary declared per record kind
     extensions = (".xlsx", ".xlsm")
-    fact_set = CELL_FACTS
+    fact_sets = {
+        "sheet": SHEET_FACTS,
+        "cell": CELL_FACTS,
+        "border": BORDER_EDGES,
+    }
 
     def read(self, path: Path) -> Iterator[Mastaba]:
         from openpyxl import load_workbook

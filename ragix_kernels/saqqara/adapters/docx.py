@@ -33,11 +33,18 @@ in a body paragraph outside every table mean different things, and a reader that
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 from typing import Iterator
 
 from ..model import DocxLocator
-from .contract import Adapter, Mastaba, register_adapter
+from .contract import (
+    GRID_CELL_FACTS,
+    GRID_TABLE_FACTS,
+    Adapter,
+    Mastaba,
+    register_adapter,
+)
 
 _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
@@ -49,21 +56,49 @@ def _q(tag: str) -> str:
 #: Keywords that mark a fillable position in the legacy field syntax.
 FIELD_MARKERS = {"FORMTEXT": "form-text", "FORMCHECKBOX": "form-checkbox"}
 
-CELL_FACTS = ("span", "vmerge", "empty", "fillable", "marker", "bold", "shaded")
+#: The declared vocabularies, one per record kind this reader emits (K2.19).
+#: The grid kinds take theirs from the contract, shared with the presentation
+#: reader: the same table seen through two formats, described once (K2.22).
+CELL_FACTS = GRID_CELL_FACTS
+TABLE_FACTS = GRID_TABLE_FACTS
+
+#: A paragraph and a marker outside any table are described by the same facts —
+#: a marker is a paragraph the reader could name, not a different observation.
+#:
+#: `bold_frac` rather than a boolean, and the difference is not a refinement: a
+#: paragraph with one bold word in twenty and a heading set entirely in bold both
+#: report True, so a boolean cannot tell an emphasis inside a sentence from a
+#: title. The fraction is character mass — bold characters over all characters of
+#: the paragraph's own runs — which is what a rule written against dominance needs.
+#: `size` is the paragraph's own modal run size in points, and `size_frac` the same
+#: against the document's modal size, so that a comparison between paragraphs does
+#: not require re-reading the file.
+PARAGRAPH_FACTS = (
+    "marker", "in_table", "style", "numbered", "outline_level",
+    "bold_frac", "size", "size_frac",
+)
 
 
 class DocxAdapter(Adapter):
     """Read a document into table, cell, paragraph and marker observations."""
 
     format = "docx"
-    version = "0.2.0"          # 0.2.0: body paragraphs, with style and numbering
+    # 0.4.0 replaces the paragraph's boolean `bold` with `bold_frac`, and adds
+    # `size` / `size_frac`: the facts a rule about dominance is written against.
+    version = "0.4.0"
     extensions = (".docx",)
-    fact_set = CELL_FACTS
+    fact_sets = {
+        "table": TABLE_FACTS,
+        "cell": CELL_FACTS,
+        "paragraph": PARAGRAPH_FACTS,
+        "marker": PARAGRAPH_FACTS,
+    }
 
     def read(self, path: Path) -> Iterator[Mastaba]:
         from docx import Document
 
         document = Document(path)
+        modal = self._modal_size(document)
 
         for index, table in enumerate(document.tables):
             yield from self._table(table, flow="body", index=index)
@@ -87,7 +122,7 @@ class DocxAdapter(Adapter):
                     "style": self._style(paragraph),
                     "numbered": self._numbered(paragraph),
                     "outline_level": self._outline_level(paragraph),
-                    "bold": self._bold(paragraph._p),
+                    **self._weight_and_size(paragraph._p, modal),
                 },
             )
 
@@ -270,6 +305,81 @@ class DocxAdapter(Adapter):
     @staticmethod
     def _content_control(element) -> str | None:
         return "content-control" if element.find(_q("sdt")) is not None else None
+
+    # -------------------------------------------------- weight and size, by mass
+
+    @classmethod
+    def _modal_size(cls, document) -> float | None:
+        """The size most of the document's characters are set in, or None.
+
+        Computed once over the body before anything is emitted, because
+        `size_frac` compares a paragraph with its own document and a reader that
+        answered that question per paragraph would have to read the file again
+        for every one of them.
+        """
+        mass: Counter[float] = Counter()
+        for paragraph in document.paragraphs:
+            for size, count in cls._size_mass(paragraph._p).items():
+                mass[size] += count
+        if not mass:
+            return None
+        heaviest = max(mass.values())
+        return min(size for size, weight in mass.items() if weight == heaviest)
+
+    @staticmethod
+    def _runs(p):
+        """The paragraph's own runs — the same ones its text is read from.
+
+        Direct children only: a run inside a hyperlink contributes to neither the
+        text this record carries nor the facts about it, and counting it in one
+        but not the other would make the two disagree.
+        """
+        return p.findall(_q("r"))
+
+    @classmethod
+    def _size_mass(cls, p) -> "Counter[float]":
+        """Characters per declared size, in points. A run with no declared size is
+        not guessed at: it inherits from a style this reader does not resolve, and
+        inventing a value here would be interpretation."""
+        mass: Counter[float] = Counter()
+        for run in cls._runs(p):
+            text = "".join(t.text or "" for t in run.findall(_q("t")))
+            if not text:
+                continue
+            properties = run.find(_q("rPr"))
+            size = properties.find(_q("sz")) if properties is not None else None
+            value = size.get(_q("val")) if size is not None else None
+            if value:
+                try:
+                    mass[float(value) / 2] += len(text)     # OOXML counts half-points
+                except ValueError:
+                    continue
+        return mass
+
+    @classmethod
+    def _weight_and_size(cls, p, modal: float | None) -> dict:
+        bold = total = 0
+        for run in cls._runs(p):
+            text = "".join(t.text or "" for t in run.findall(_q("t")))
+            if not text:
+                continue
+            total += len(text)
+            properties = run.find(_q("rPr"))
+            weight = properties.find(_q("b")) if properties is not None else None
+            if weight is not None and weight.get(_q("val"), "1") not in ("0", "false"):
+                bold += len(text)
+
+        mass = cls._size_mass(p)
+        size = None
+        if mass:
+            heaviest = max(mass.values())
+            size = min(s for s, weight in mass.items() if weight == heaviest)
+
+        return {
+            "bold_frac": round(bold / total, 2) if total else 0.0,
+            "size": size,
+            "size_frac": round(size / modal, 2) if size and modal else None,
+        }
 
     @staticmethod
     def _bold(tc) -> bool:

@@ -24,6 +24,9 @@ sys.path.insert(0, str(ROOT / "tests" / "saqqara"))
 import generators as G  # noqa: E402
 
 from ragix_kernels.saqqara.adapters import (  # noqa: E402
+    GRID_CELL_FACTS,
+    GRID_TABLE_FACTS,
+    OpenVocabulary,
     UnreadableFile,
     UnsupportedFormat,
     adapter_for,
@@ -33,6 +36,25 @@ from ragix_kernels.saqqara.adapters import (  # noqa: E402
 )
 from ragix_kernels.saqqara.adapters.docx import CELL_FACTS as DOCX_CELL_FACTS  # noqa: E402
 from ragix_kernels.saqqara.adapters.xlsx import CELL_FACTS as XLSX_CELL_FACTS  # noqa: E402
+
+#: Fixtures whose suffix is not `.docx`, and the spreadsheet family, so that the
+#: whole registry can be swept: K2.20 is a claim about every reader on every
+#: fixture, and a sweep that quietly skipped some would prove nothing.
+_SUFFIX = {
+    "unsupported_format": ".tmp", "trees_per_format": ".json",
+    "numbered_outline_trees": ".json", "sections_multi_channel": ".json",
+    "markdown_document": ".md", "duplicate_pair": ".md",
+    "slide_deck": ".pptx", "twin_grid_pptx": ".pptx",
+    "pdf_outline": ".pdf", "pdf_no_text_layer": ".pdf", "running_headers": ".pdf",
+    "format_headings_pdf": ".pdf", "no_format_contrast": ".pdf",
+    "format_headings_docx": ".docx", "no_weight_contrast": ".docx",
+}
+_XLSX = frozenset({
+    "mixed_workbook", "two_tier_header", "numeric_bold_header", "empty_string_cells",
+    "label_tiling", "full_width_title", "section_row", "merged_answer_area",
+    "headerless_list", "undecidable_block", "totals_row_and_column", "two_islands",
+    "overlapping_merges", "ambiguous_layout", "twin_grid_xlsx",
+})
 
 
 def _cells(records, flow=None):
@@ -63,7 +85,7 @@ def built(tmp_path_factory):
             "docx_two_tier", "docx_label_tiling", "docx_layout_prose", "docx_markers",
             "docx_header_stream", "docx_nested", "docx_twin_pair",
             "slide_deck", "markdown_document", "unsupported_format", "duplicate_pair",
-            "empty_string_cells",
+            "empty_string_cells", "format_headings_docx",
         )
     }
 
@@ -156,28 +178,199 @@ def test_k2_4_every_record_serialises(built, name):
     assert json.loads(text) == payload
 
 
+def test_k2_4_a_fact_may_be_a_list_of_primitives(built):
+    """Both of the kernel's non-scalar facts, so the wording is exercised, not assumed.
+
+    The proposition says primitives *and lists of them*; a fixture holding only
+    scalars would leave the wider half of the claim untested and free to be wrong.
+    """
+    sheets = [r for r in read_path(built["mixed_workbook"]) if r.kind == "sheet"]
+    tables = [r.facts["list_objects"] for r in sheets]
+    assert any(t for t in tables), "no sheet declares a table: the list case is untested"
+    assert all(isinstance(t, list) and all(isinstance(x, str) for x in t) for t in tables)
+
+    metadata = next(r for r in read_path(built["markdown_document"]) if r.kind == "metadata")
+    assert metadata.facts["_unparsed"] == ["une ligne sans deux-points"]
+
+
 # -------------------------------------------------- K2.5 declared versions
 
-def test_k2_5_each_reader_declares_a_version_and_its_fact_set():
-    """Pinned here, so changing what a reader emits without bumping it fails."""
-    pinned = {
-        "xlsx": ("0.3.0", ("dtype", "bold", "number_format", "locked", "formula", "merged")),
-        "docx": ("0.2.0", ("span", "vmerge", "empty", "fillable", "marker", "bold", "shaded")),
-        "pptx": ("0.2.0", ("span", "vmerge", "empty", "fillable", "marker", "bold", "shaded")),
-        "md": ("0.1.0", ("level", "kind_hint")),
-        "pdf": ("0.1.0", ("has_text", "image_count", "needs_ocr")),
-    }
+#: version and declared vocabularies, per reader, per record kind.
+#:
+#: One entry per kind, not one per reader: a flat set could only ever pin the
+#: kind whose facts it happened to hold, which is how five readers came to
+#: declare five vocabularies while emitting sixteen.
+PINNED = {
+    "xlsx": ("0.4.0", {
+        "sheet": ("hidden", "list_objects", "max_row", "max_column"),
+        "cell": ("dtype", "bold", "number_format", "locked", "formula", "merged"),
+        "border": ("left", "right", "top", "bottom"),
+    }),
+    "docx": ("0.4.0", {
+        "table": ("n_rows", "n_grid_cols", "ragged", "style"),
+        "cell": ("span", "vmerge", "empty", "fillable", "marker", "bold", "shaded"),
+        "paragraph": ("marker", "in_table", "style", "numbered", "outline_level",
+                      "bold_frac", "size", "size_frac"),
+        "marker": ("marker", "in_table", "style", "numbered", "outline_level",
+                   "bold_frac", "size", "size_frac"),
+    }),
+    "pptx": ("0.3.0", {
+        "slide": ("shape_count",),
+        "shape": ("shape_type", "is_title", "on_slide"),
+        "notes": ("on_slide",),
+        "table": ("n_rows", "n_grid_cols", "ragged", "style"),
+        "cell": ("span", "vmerge", "empty", "fillable", "marker", "bold", "shaded"),
+    }),
+    "md": ("0.2.0", {
+        "metadata": OpenVocabulary(reserved=("_unparsed",)),
+        "heading": ("level",),
+        "paragraph": (),
+    }),
+    "pdf": ("0.2.0", {
+        "outline_entry": ("level",),
+        "page": ("has_text", "image_count", "needs_ocr"),
+        "text": ("x", "y", "font_size", "font"),
+    }),
+}
+
+
+@pytest.fixture(scope="module")
+def emitted(tmp_path_factory):
+    """Every record every reader produces over the whole fixture registry.
+
+    Built rather than described: K2.20 compares declarations with emissions, and
+    a description of the emissions would be one more declaration to keep true.
+    """
+    root = tmp_path_factory.mktemp("k2vocab")
+    out = {}
+    for name, build in sorted(G.FIXTURES.items()):
+        suffix = _SUFFIX.get(name, ".xlsx" if name in _XLSX else ".docx")
+        home = root / name
+        home.mkdir(parents=True, exist_ok=True)
+        build(home / f"{name}{suffix}")
+        for path in sorted(q for q in home.rglob("*") if q.is_file()):
+            adapter = adapter_for(path)
+            if adapter is None:                       # the refusal fixtures, on purpose
+                continue
+            for record in read_path(path):
+                out.setdefault(adapter.format, {}).setdefault(record.kind, set()).update(
+                    record.facts
+                )
+    return out
+
+
+def test_k2_5_each_reader_declares_a_version_and_its_vocabularies():
+    """Pinned here, so changing what a reader declares without bumping it fails."""
     seen = {a.format: a for a in registered_adapters().values()}
-    assert set(seen) >= set(pinned)
-    for fmt, (version, facts) in pinned.items():
+    assert set(seen) >= set(PINNED)
+    for fmt, (version, vocabularies) in PINNED.items():
         assert seen[fmt].version == version, f"{fmt}: version moved without updating this pin"
-        assert seen[fmt].fact_set == facts, f"{fmt}: fact set changed — bump the version"
+        assert dict(seen[fmt].fact_sets) == vocabularies, (
+            f"{fmt}: a declared vocabulary changed — bump the version"
+        )
 
 
-def test_k2_5_xlsx_and_docx_fact_sets_match_their_modules():
+def test_k2_5_xlsx_and_docx_cell_vocabularies_match_their_modules():
     seen = {a.format: a for a in registered_adapters().values()}
-    assert seen["xlsx"].fact_set == XLSX_CELL_FACTS
-    assert seen["docx"].fact_set == DOCX_CELL_FACTS
+    assert seen["xlsx"].fact_sets["cell"] == XLSX_CELL_FACTS
+    assert seen["docx"].fact_sets["cell"] == DOCX_CELL_FACTS
+
+
+# --------------------------------------------- K2.19 a vocabulary per record kind
+
+def test_k2_19_every_emitted_kind_has_a_declared_vocabulary(emitted):
+    seen = {a.format: a for a in registered_adapters().values()}
+    undeclared = [
+        f"{fmt}.{kind}"
+        for fmt, kinds in emitted.items()
+        for kind in kinds
+        if kind not in seen[fmt].fact_sets
+    ]
+    assert not undeclared, f"emitted with no declared vocabulary: {sorted(undeclared)}"
+
+
+def test_k2_19_no_fact_escapes_the_vocabulary_of_its_own_kind(emitted):
+    seen = {a.format: a for a in registered_adapters().values()}
+    escaped = []
+    for fmt, kinds in emitted.items():
+        for kind, facts in kinds.items():
+            declared = seen[fmt].fact_sets[kind]
+            if isinstance(declared, OpenVocabulary):
+                continue                              # its names are the document's (K2.21)
+            escaped += [f"{fmt}.{kind}.{f}" for f in sorted(facts) if f not in declared]
+    assert not escaped, f"emitted outside the declared vocabulary: {sorted(escaped)}"
+
+
+def test_k2_19_a_kind_is_not_described_by_another_kinds_facts(emitted):
+    """The claim that makes per-kind worth the edit: a cell and a paragraph differ."""
+    docx = emitted["docx"]
+    assert docx["cell"] != docx["paragraph"]
+    assert "span" in docx["cell"] and "span" not in docx["paragraph"]
+    assert "style" in docx["paragraph"] and "style" not in docx["cell"]
+
+
+# ------------------------------ K2.20 declaration against emission, both directions
+
+def test_k2_20_every_declared_name_is_produced_by_something(emitted):
+    """The direction the old flat pin could not check — and where `kind_hint` hid."""
+    seen = {a.format: a for a in registered_adapters().values()}
+    wished = []
+    for fmt, adapter in seen.items():
+        produced = emitted.get(fmt, {})
+        for kind, declared in adapter.fact_sets.items():
+            names = declared.reserved if isinstance(declared, OpenVocabulary) else declared
+            wished += [
+                f"{fmt}.{kind}.{name}"
+                for name in names
+                if name not in produced.get(kind, set())
+            ]
+    assert not wished, f"declared and emitted by nothing: {sorted(wished)}"
+
+
+def test_k2_20_the_sweep_reaches_every_reader(emitted):
+    """A direction-check over a corpus that missed a reader would prove nothing."""
+    assert set(emitted) == {"xlsx", "docx", "pptx", "pdf", "md"}
+
+
+# ------------------------------------------------- K2.21 declared-open vocabularies
+
+def test_k2_21_front_matter_is_declared_open_not_left_undeclared():
+    seen = {a.format: a for a in registered_adapters().values()}
+    assert isinstance(seen["md"].fact_sets["metadata"], OpenVocabulary)
+    assert seen["md"].fact_sets["metadata"].reserved == ("_unparsed",)
+
+
+def test_k2_21_an_open_vocabulary_takes_its_names_from_the_document(built):
+    records = read_path(built["markdown_document"])
+    metadata = next(r for r in records if r.kind == "metadata")
+    assert {"title", "language"} <= set(metadata.facts)
+    assert metadata.facts["_unparsed"] == ["une ligne sans deux-points"]
+
+
+def test_k2_21_every_other_vocabulary_is_closed():
+    seen = {a.format: a for a in registered_adapters().values()}
+    open_ones = [
+        f"{fmt}.{kind}"
+        for fmt, adapter in seen.items()
+        for kind, declared in adapter.fact_sets.items()
+        if isinstance(declared, OpenVocabulary)
+    ]
+    assert open_ones == ["md.metadata"]
+
+
+# --------------------------------------------- K2.22 one grid vocabulary, two readers
+
+def test_k2_22_the_grid_kinds_share_one_vocabulary():
+    seen = {a.format: a for a in registered_adapters().values()}
+    assert seen["docx"].fact_sets["cell"] == seen["pptx"].fact_sets["cell"] == GRID_CELL_FACTS
+    assert seen["docx"].fact_sets["table"] == seen["pptx"].fact_sets["table"] == GRID_TABLE_FACTS
+
+
+def test_k2_22_they_share_the_object_not_a_copy_of_it():
+    """Two equal tuples may drift apart; one tuple cannot."""
+    seen = {a.format: a for a in registered_adapters().values()}
+    assert seen["docx"].fact_sets["cell"] is seen["pptx"].fact_sets["cell"]
+    assert seen["docx"].fact_sets["table"] is seen["pptx"].fact_sets["table"]
 
 
 # ------------------------------------- K2.6 resolved grid, every table flow
@@ -415,6 +608,61 @@ def test_k2_16_every_block_knows_the_line_it_starts_on(built):
     assert lines == sorted(lines) and all(line > 0 for line in lines)
     heading = next(r for r in body if r.kind == "heading")
     assert heading.facts["level"] == 1 and heading.text == "Titre principal"
+
+
+# ------------------------------------- K2.23 weight as a fraction, size as a ratio
+
+def _paragraphs(records):
+    return [r for r in records if r.kind in ("paragraph", "marker")]
+
+
+def test_k2_23_weight_is_a_fraction_of_characters_not_a_flag(built):
+    records = read_path(built["format_headings_docx"])
+    paragraphs = _paragraphs(records)
+    assert paragraphs
+    for record in paragraphs:
+        assert "bold" not in record.facts, "the boolean was replaced, not kept alongside"
+        assert isinstance(record.facts["bold_frac"], float)
+
+    fractions = sorted({r.facts["bold_frac"] for r in paragraphs})
+    assert fractions[0] == 0.0 and fractions[-1] == 1.0
+
+
+def test_k2_23_one_bold_word_in_twenty_is_not_a_bold_paragraph(built):
+    """The case a boolean cannot express, and the reason this fact changed shape."""
+    records = _paragraphs(read_path(built["format_headings_docx"]))
+    partial = [r for r in records if 0.0 < r.facts["bold_frac"] < 1.0]
+    assert len(partial) == 1, "the fixture holds exactly one partly bold paragraph"
+    assert partial[0].facts["bold_frac"] < 0.2
+    # a boolean over the same paragraph would have said True, indistinguishably
+    # from the fully bold heading two paragraphs above it
+    fully = [r for r in records if r.facts["bold_frac"] == 1.0]
+    assert fully, "and the fixture holds fully bold lines to be distinguished from"
+
+
+def test_k2_23_the_fraction_is_character_mass_not_a_run_count(built):
+    """One short bold run among long plain ones: counted by runs it would dominate."""
+    record = next(
+        r for r in _paragraphs(read_path(built["format_headings_docx"]))
+        if 0.0 < r.facts["bold_frac"] < 1.0
+    )
+    # one bold run out of three would be 0.33 by run count; by character mass it is far less
+    assert record.facts["bold_frac"] < 0.33
+
+
+def test_k2_23_size_is_absolute_and_against_the_documents_own_modal(built):
+    records = _paragraphs(read_path(built["format_headings_docx"]))
+    for record in records:
+        assert record.facts["size"] == 11.0            # the fixture sets one size
+        assert record.facts["size_frac"] == 1.0        # so every ratio is one
+
+
+def test_k2_23_an_undeclared_size_is_not_guessed(built):
+    """A run that inherits its size from a style leaves the fact unknown, not zero."""
+    records = _paragraphs(read_path(built["docx_markers"]))
+    assert records
+    assert all(r.facts["size"] is None for r in records)
+    assert all(r.facts["size_frac"] is None for r in records)
 
 
 # ----------------------------------------- K2.17 a whitespace-only value is blank

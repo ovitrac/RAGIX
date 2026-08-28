@@ -31,7 +31,10 @@ from ..model import Locator
 
 __all__ = [
     "Adapter",
+    "GRID_CELL_FACTS",
+    "GRID_TABLE_FACTS",
     "Mastaba",
+    "OpenVocabulary",
     "ReadReport",
     "Refusal",
     "UnreadableFile",
@@ -43,6 +46,33 @@ __all__ = [
     "register_adapter",
     "registered_adapters",
 ]
+
+
+#: The vocabulary of a grid, shared by every reader that finds one.
+#:
+#: A table in a word-processing document and a table on a slide are the same
+#: object seen through two file formats, so they are described by one set of
+#: facts and not by two that happen to agree. Declared once here rather than
+#: repeated per reader: repeated, the two copies would be free to drift, and the
+#: grid core downstream would be reading a coincidence instead of a contract.
+GRID_TABLE_FACTS: tuple[str, ...] = ("n_rows", "n_grid_cols", "ragged", "style")
+GRID_CELL_FACTS: tuple[str, ...] = (
+    "span", "vmerge", "empty", "fillable", "marker", "bold", "shaded",
+)
+
+
+@dataclass(frozen=True)
+class OpenVocabulary:
+    """A record kind whose fact names come from the document, not from the reader.
+
+    Front matter is the case that forces this: the keys are whatever the author
+    wrote, so declaring the kind as a closed set would pin the fixture rather
+    than the reader. Open is itself a declaration — the reader says the names
+    are the document's, and lists the ones it reserves for itself — not the
+    absence of one.
+    """
+
+    reserved: tuple[str, ...] = ()
 
 
 class UnsupportedFormat(ValueError):
@@ -105,16 +135,22 @@ class ReadReport:
 class Adapter:
     """A reader for one family of files.
 
-    Subclasses declare `format`, `version`, `extensions` and `fact_set` — the
-    exact facts they emit. `fact_set` is declared rather than inferred so that a
-    change to it is a visible edit next to a version number, which is what makes
-    K2.5 checkable at all.
+    Subclasses declare `format`, `version`, `extensions` and `fact_sets` — the
+    exact facts they emit, *per record kind*. Declared rather than inferred, so
+    that a change to it is a visible edit next to a version number, which is
+    what makes K2.5 checkable at all.
+
+    Per kind, and not one flat set for the reader, because a reader speaks more
+    than one vocabulary: a cell and a paragraph are not described by the same
+    facts, and a single set either merges them — losing which fact belongs to
+    which — or, as it did here, declares one kind and leaves the others
+    unguarded. A kind emitted with no declaration is a failure, not a default.
     """
 
     format: str = ""
     version: str = "0.0.0"
     extensions: tuple[str, ...] = ()
-    fact_set: tuple[str, ...] = ()
+    fact_sets: Mapping[str, tuple[str, ...] | OpenVocabulary] = {}
 
     def read(self, path: Path) -> Iterator[Mastaba]:
         raise NotImplementedError

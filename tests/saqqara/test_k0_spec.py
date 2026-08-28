@@ -68,7 +68,50 @@ from generators import FIXTURES  # noqa: E402
 #:   K2 17 -> 18  K2.18, after the corpus parity found tables on slides being
 #:                passed over entirely: a table shape has no text frame, and the
 #:                reader walked text frames.
-FROZEN_COUNTS = {"K1": 9, "K2": 18, "K3": 58, "K4": 2}
+#:   K2 18 -> 22  the fact vocabularies (K2.19-K2.22). Measuring what the readers
+#:                emit, kind by kind, found five readers declaring one vocabulary
+#:                each and emitting sixteen: only `cell` was declared in the grid
+#:                readers, only `page` in the laid-out one, and everything else --
+#:                paragraphs, markers, tables, slides, shapes, notes, text runs,
+#:                borders, sheets, front matter -- was guarded by nothing. Four
+#:                propositions rather than one because four different things are
+#:                claimed: that a vocabulary is declared per kind (K2.19); that
+#:                declaration and emission are checked against each other in both
+#:                directions (K2.20), which is what a single flat set could not do
+#:                and which is how `kind_hint` survived, declared and produced by
+#:                nothing; that a vocabulary whose names come from the document is
+#:                declared open rather than left undeclared (K2.21); and that the
+#:                grid kinds share one vocabulary across two readers (K2.22)
+#:                instead of two copies free to drift.
+#:   K3 58 -> 67  the K3.k block: headings a document only shows, by size. The
+#:                gap it closes is the largest single row of the corpus parity,
+#:                and measurement put the mass on the laid-out documents -- the
+#:                old side promotes 3450 blocks there by size tier, against 164
+#:                by typed label on flat documents, which K3.i already covers.
+#:                Nine propositions because the method has nine independent ways
+#:                to be wrong, and one of them -- line assembly (K3.59) -- is a
+#:                step the old side never needed: it read blocks, a reader here
+#:                emits one observation per text-showing operation, two and a
+#:                half of them per line on the corpus. A rule applied to those
+#:                fragments would cut a heading into pieces and then count each
+#:                piece as separate evidence for its own tier.
+#:   K2 22 -> 23  K2.23: the word-processing reader emits a bold FRACTION and a
+#:                size, replacing a boolean. Measurement is why. The old kernel's
+#:                bold-dominant rule reads a fraction >= 0.9 and has promoted
+#:                nothing, ever, because the reader feeding it emitted no such
+#:                fact -- a rule and its input written past each other. Re-
+#:                expressing the rule faithfully meant re-expressing nothing, so
+#:                the lead ruled to follow the intent instead, and the intent
+#:                needs the fact. On the corpus, 229 heading-shaped paragraphs are
+#:                partly bold: a boolean promotes every one of them.
+#:   K3 67 -> 70  K3.68-K3.70: the weight branch of K3.k, and what separates it
+#:                from the size branch. Three propositions because three distinct
+#:                claims: that the two signals are tried in a declared order and
+#:                the trace says which decided (K3.68); that weight is flat, since
+#:                bold does not rank and cannot say how deep a heading sits
+#:                (K3.69); and that weight means dominance rather than presence,
+#:                measured against the boolean baseline in both directions (K3.70).
+FROZEN_COUNTS = {"K1": 9, "K2": 23, "K3": 70, "K4": 2}
 
 _ROW = re.compile(r"^\|\s*(K[1-4])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 _TICKED = re.compile(r"`([a-z0-9_']+)`")
