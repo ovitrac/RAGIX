@@ -49,7 +49,45 @@ TEXT_FACTS = ("x", "y", "font_size", "font")
 #: there, and a stream that decodes to nothing at all. The last is the quiet one —
 #: it raises nothing, and a reader that trusted it would store a picture of zero
 #: length under a perfectly valid hash.
-OBJECT_SKIPS = ("inline-image-not-extracted", "xobject-unresolvable", "xobject-empty")
+OBJECT_SKIPS = ("inline-image-not-extracted", "xobject-unresolvable", "xobject-empty",
+                "form-cycle", "form-too-deep")
+
+#: How far the reader follows a Form XObject into another. Six, because the
+#: deepest nesting measured over the reference corpus was three, and a limit
+#: set at the deepest thing yet seen is a limit that will be hit by the next
+#: document. It is a declared bound and not a guess about geometry: a form
+#: below it is a COUNTED skip, so the limit can be raised on evidence rather
+#: than on the absence of any.
+MAX_FORM_DEPTH = 6
+
+
+#: The transformation that changes nothing, and the starting state of every stream.
+_IDENTITY: tuple[float, ...] = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+
+
+def _deref(obj):
+    """Follow an indirect reference, or return what was already direct."""
+    from pypdf.generic import IndirectObject
+
+    if isinstance(obj, IndirectObject):
+        obj = obj.get_object()
+    return obj if obj is not None else {}
+
+
+def _form_matrix(form) -> tuple[float, ...]:
+    """A form's own `/Matrix`, which maps form space into the space that invoked it.
+
+    Absent, it is the identity. Malformed, it is also the identity: a matrix that
+    cannot be read is not a reason to lose every picture the form draws, and the
+    placement is still recorded where the rest of the transformation puts it.
+    """
+    try:
+        values = _deref(form.get("/Matrix"))
+        if values and len(values) == 6:
+            return tuple(float(v) for v in values)
+    except Exception:
+        pass
+    return _IDENTITY
 
 
 def _concat(a, b) -> tuple[float, ...]:
@@ -128,7 +166,7 @@ class PdfAdapter(Adapter):
 
     format = "pdf"
     # 0.4.0 reads the images a document holds, one record per placement (K6.1).
-    version = "0.4.0"
+    version = "0.5.0"
     extensions = (".pdf",)
     fact_sets = {
         "outline_entry": OUTLINE_FACTS,
@@ -186,51 +224,99 @@ class PdfAdapter(Adapter):
 
     # --------------------------------------------------------------- placements
 
-    def _boxes(self, page) -> list[tuple[str, tuple[float, float, float, float]]]:
-        """Every `Do` of an image, with the box the transformation gave it.
+    def _boxes(self, page) -> list[tuple[str, object, tuple[float, float, float, float]]]:
+        """Every image placed on this page, with the box the transformations gave it.
 
-        The content stream is walked keeping the graphics state: `q` and `Q` push
-        and pop, `cm` concatenates, and a `Do` names a resource. An image occupies
-        the UNIT SQUARE under the current transformation, so its box is that
-        matrix applied to (0,0) and (1,1) — not the stored image's pixel counts,
-        which say how finely it was sampled and nothing about where it landed.
+        A page description may put a picture on the page without ever naming it in
+        the page's own resources: a Form XObject is a content stream invoked by
+        name, and what it draws is on the page exactly as if it had been drawn
+        directly. So the walk descends, and the transformation composes across the
+        nesting -- the form's own `/Matrix` included, which maps form space into
+        the space that invoked it.
+
+        Four corpus documents stored images, drew them inside forms, and produced
+        nothing at all from a reader that walked the page stream alone: a `Do`
+        naming a form matched neither the image branch nor the unresolved one, so
+        nothing emitted it and nothing counted it either (K6.10).
         """
-        from pypdf.generic import ContentStream, NameObject
+        found: list[tuple[str, object, tuple[float, float, float, float]]] = []
+        self._descend(page.get_contents(), page.get("/Resources"), page.pdf,
+                      _IDENTITY, 0, (), found)
+        return found
 
-        resources = page.get("/Resources") or {}
-        xobjects = resources.get("/XObject") or {}
-        images, unresolved = set(), set()
-        for name in list(xobjects.keys()):
+    def _descend(self, source, resources, pdf, ctm, depth, seen, found) -> None:
+        """Walk one content stream, following the forms it invokes.
+
+        `seen` is the chain of forms currently open, by object number: a form that
+        invokes one already in that chain would never terminate. `depth` bounds
+        the descent for the chains that terminate only eventually. Both bounds
+        COUNT when they bite -- a descent that stops in silence loses exactly the
+        placements it was written to find.
+        """
+        from pypdf.generic import ContentStream
+
+        xobjects = _deref(_deref(resources).get("/XObject") if resources else None)
+        catalogue: dict[str, tuple[str, object, object]] = {}
+        for name in list(xobjects or {}):
+            # raw_get, because subscripting resolves the reference and the object
+            # number is what tells a cycle from a form merely invoked twice.
             try:
-                if xobjects[name].get("/Subtype") == "/Image":
-                    images.add(str(name))
+                ref = xobjects.raw_get(name)
             except Exception:
-                # A resource naming an object that is not there. It is still a
-                # placement the document asks for, so it is counted where it is
-                # first noticed rather than dropped here and missed downstream.
-                unresolved.add(str(name))
-        if not images and not unresolved:
-            return []
+                ref = xobjects[name]
+            try:
+                obj = _deref(ref)
+                subtype = obj.get("/Subtype")
+            except Exception:
+                obj, subtype = None, None
+            # A reference that resolves to nothing has no subtype, and a resource
+            # the reader cannot classify must not fall through every branch in
+            # silence -- that is the defect this proposition exists to close.
+            catalogue[str(name)] = (
+                str(subtype) if subtype is not None else "unresolvable", obj, ref)
+        if not catalogue:
+            return
 
-        content = ContentStream(page.get_contents(), page.pdf)
-        ctm = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+        try:
+            content = ContentStream(source, pdf)
+        except Exception:
+            # A stream the reader cannot open is a resource it cannot honour, and
+            # every placement inside it is one it will not see. Counted as such.
+            self._skip("xobject-unresolvable")
+            return
+
         stack: list[tuple[float, ...]] = []
-        found: list[tuple[str, tuple[float, float, float, float]]] = []
-
         for operands, operator in content.operations:
             if operator == b"q":
                 stack.append(ctm)
             elif operator == b"Q":
-                ctm = stack.pop() if stack else (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+                ctm = stack.pop() if stack else _IDENTITY
             elif operator == b"cm" and len(operands) == 6:
                 ctm = _concat(tuple(float(v) for v in operands), ctm)
             elif operator == b"Do" and operands:
-                name = str(operands[0])
-                if name in images:
-                    found.append((name, _unit_square(ctm)))
-                elif name in unresolved:
+                entry = catalogue.get(str(operands[0]))
+                if entry is None:
+                    continue
+                subtype, obj, ref = entry
+                if subtype == "/Image":
+                    found.append((str(operands[0]), obj, _unit_square(ctm)))
+                elif subtype == "/Form":
+                    self._enter(obj, ref, pdf, ctm, depth, seen, found)
+                elif subtype == "unresolvable":
                     self._skip("xobject-unresolvable")
-        return found
+
+    def _enter(self, form, ref, pdf, ctm, depth, seen, found) -> None:
+        """Follow one form, unless following it would not terminate."""
+        key = getattr(ref, "idnum", None)
+        if key is not None and key in seen:
+            self._skip("form-cycle")
+            return
+        if depth + 1 > MAX_FORM_DEPTH:
+            self._skip("form-too-deep")
+            return
+        chain = seen + (key,) if key is not None else seen
+        self._descend(form, form.get("/Resources"), pdf,
+                      _concat(_form_matrix(form), ctm), depth + 1, chain, found)
 
     @staticmethod
     def _inline_count(page) -> int:
@@ -250,11 +336,8 @@ class PdfAdapter(Adapter):
         for _ in range(self._inline_count(page)):
             self._skip("inline-image-not-extracted")
 
-        resources = page.get("/Resources") or {}
-        xobjects = resources.get("/XObject") or {}
-        for name, box in self._boxes(page):
+        for name, obj, box in self._boxes(page):
             try:
-                obj = xobjects[name]
                 payload = obj.get_data()
             except Exception:
                 # A resource naming an object that is not there. Counted: a

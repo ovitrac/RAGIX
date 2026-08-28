@@ -1958,6 +1958,99 @@ def _pdf_with_images(path: Path, placements, inline: bool = False,
     return path
 
 
+def _form(payload: bytes, resources: str, matrix: str = "") -> bytes:
+    """A Form XObject: a content stream invoked by name, with its own resources."""
+    extra = (" /Type /XObject /Subtype /Form /BBox [0 0 595 842] "
+             + matrix + " /Resources << " + resources + " >>")
+    return _pdf_stream(payload, extra=extra)
+
+
+def pdf_image_in_form(path: Path) -> Path:
+    """One image drawn twice, never at page level: once inside a form, once two deep.
+
+    A page description may put a picture on the page without ever naming it in
+    the page's own resources. Both placements below are of the SAME image, and
+    neither is reachable by walking the page content stream alone.
+
+    The geometry is chosen so that a reader which descends but does not compose
+    the transformation is caught as surely as one which does not descend:
+
+        page      q 2 0 0 2 10 20 cm /Fm0 Do Q
+        Fm0       q 50 0 0 25 0 0 cm /Im0 Do Q       -> (10, 20) .. (110, 70)
+                  q 1 0 0 1 100 200 cm /Fm1 Do Q
+        Fm1       /Matrix [1 0 0 1 5 5]
+                  q 30 0 0 15 0 0 cm /Im0 Do Q       -> (220, 430) .. (280, 460)
+
+    The inner form carries a non-identity `/Matrix`, which maps form space into
+    the space that invoked it and composes like any other transformation. A
+    reader that ignores it is out by exactly the ten points it contributes.
+    """
+    pixels = _grey_pixels()
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        (b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+         b"/Resources << /XObject << /Fm0 5 0 R >> >> /Contents 4 0 R >>"),
+        _pdf_stream(b"q 2 0 0 2 10 20 cm /Fm0 Do Q\n"),
+        _form(b"q 50 0 0 25 0 0 cm /Im0 Do Q\nq 1 0 0 1 100 200 cm /Fm1 Do Q\n",
+              "/XObject << /Im0 7 0 R /Fm1 6 0 R >>"),
+        _form(b"q 30 0 0 15 0 0 cm /Im0 Do Q\n",
+              "/XObject << /Im0 7 0 R >>", matrix="/Matrix [1 0 0 1 5 5]"),
+        (b"<< /Type /XObject /Subtype /Image /Width 4 /Height 4 "
+         b"/ColorSpace /DeviceGray /BitsPerComponent 8 /Length "
+         + str(len(pixels)).encode("ascii") + b" >>\nstream\n" + pixels
+         + b"\nendstream"),
+    ]
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
+#: How deep the chain in `pdf_form_pathologies` goes. One more than the reader's
+#: declared limit, so the limit is exercised rather than described.
+FORM_CHAIN = 8
+
+
+def pdf_form_pathologies(path: Path) -> Path:
+    """Two ways a descent can fail to terminate, in one file.
+
+    A form that invokes itself, and a chain of forms deeper than any reader
+    should follow with an image at the bottom of it. Neither is exotic: a
+    generator emitting a page as nested groups produces the second routinely,
+    and the first is what a damaged file looks like. A descent needs a limit and
+    a cycle guard, and both must COUNT when they bite -- a bound that stops
+    silently is the same lost placement in a new place.
+    """
+    pixels = _grey_pixels()
+    cycle_obj = 5
+    chain_first = 6
+    image_obj = chain_first + FORM_CHAIN
+
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        (f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+         f"/Resources << /XObject << /Fc {cycle_obj} 0 R /Fd0 {chain_first} 0 R >> >> "
+         f"/Contents 4 0 R >>").encode("ascii"),
+        _pdf_stream(b"q /Fc Do Q\nq /Fd0 Do Q\n"),
+        _form(b"q /Fc Do Q\n", f"/XObject << /Fc {cycle_obj} 0 R >>"),
+    ]
+    for index in range(FORM_CHAIN):
+        last = index == FORM_CHAIN - 1
+        if last:
+            objects.append(_form(b"q 10 0 0 10 0 0 cm /Im0 Do Q\n",
+                                 f"/XObject << /Im0 {image_obj} 0 R >>"))
+        else:
+            objects.append(_form(f"q /Fd{index + 1} Do Q\n".encode("ascii"),
+                                 f"/XObject << /Fd{index + 1} {chain_first + index + 1} 0 R >>"))
+    objects.append(
+        b"<< /Type /XObject /Subtype /Image /Width 4 /Height 4 "
+        b"/ColorSpace /DeviceGray /BitsPerComponent 8 /Length "
+        + str(len(pixels)).encode("ascii") + b" >>\nstream\n" + pixels
+        + b"\nendstream")
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
 def pdf_image_xobject(path: Path) -> Path:
     """One image, drawn once, at a known place and a known size.
 
@@ -2248,6 +2341,8 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "pdf_type_scales": pdf_type_scales,
     "format_headings_pdf": format_headings_pdf,
     "pdf_image_xobject": pdf_image_xobject,
+    "pdf_image_in_form": pdf_image_in_form,
+    "pdf_form_pathologies": pdf_form_pathologies,
     "pdf_image_twice": pdf_image_twice,
     "pdf_image_unreadable": pdf_image_unreadable,
     "docx_embedded_image": docx_embedded_image,
@@ -2307,6 +2402,8 @@ FIXTURE_SUFFIX: Dict[str, str] = {
     "pptx_embedded_image": ".pptx",
     "xlsx_embedded_image": ".xlsx",
     "pdf_image_xobject": ".pdf",
+    "pdf_image_in_form": ".pdf",
+    "pdf_form_pathologies": ".pdf",
     "pdf_inline_image": ".pdf",
     "pdf_no_text_layer": ".pdf",
     "pdf_outline": ".pdf",

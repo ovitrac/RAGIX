@@ -243,7 +243,7 @@ def test_k6_7_skip_reasons_come_from_the_closed_vocabulary(tmp_path):
     from ragix_kernels.saqqara.adapters.pdf import OBJECT_SKIPS
 
     seen = set()
-    for name in ("pdf_image_unreadable", "pdf_inline_image"):
+    for name in ("pdf_image_unreadable", "pdf_inline_image", "pdf_form_pathologies"):
         path = G.FIXTURES[name](tmp_path / f"{name}.pdf")
         adapter = adapter_for(path)
         adapter.skips.clear()
@@ -454,3 +454,58 @@ def test_k6_9_every_picture_is_read_or_counted(damaged):
     for name, total in held.items():
         _, _, records, skips = damaged[name]
         assert len(_figures(records)) + sum(skips.values()) == total, name
+
+
+# --------------------------- K6.10 a picture is a placement wherever it is drawn
+
+@pytest.fixture(scope="module")
+def nested(tmp_path_factory):
+    root = tmp_path_factory.mktemp("k6forms")
+    out = {}
+    for name in ("pdf_image_in_form", "pdf_form_pathologies"):
+        path = G.FIXTURES[name](G.fixture_path(name, root))
+        adapter = adapter_for(path)
+        adapter.skips.clear()
+        store = AssetStore(root / f"{name}.assets")
+        out[name] = (path, store, read_path(path, store=store), dict(adapter.skips))
+    return out
+
+
+def test_k6_10_an_image_drawn_only_inside_a_form_is_still_a_placement(nested):
+    """Four corpus documents stored images, drew them, and produced nothing."""
+    _, _, records, skips = nested["pdf_image_in_form"]
+    assert len(_figures(records)) == 2, "one placement per drawing, at any depth"
+    assert skips == {}, "nothing was declined here"
+
+
+def test_k6_10_the_box_composes_through_every_transformation(nested):
+    """The page's matrix, the form's own /Matrix, and the one around the image."""
+    _, _, records, _ = nested["pdf_image_in_form"]
+    boxes = sorted((f.facts["x"], f.facts["y"], f.facts["w"], f.facts["h"])
+                   for f in _figures(records))
+    assert boxes == [(10.0, 20.0, 100.0, 50.0), (220.0, 430.0, 60.0, 30.0)], boxes
+
+
+def test_k6_10_one_image_two_depths_is_one_asset(nested):
+    _, store, records, _ = nested["pdf_image_in_form"]
+    assert len({f.facts["asset"] for f in _figures(records)}) == 1
+    assert len(store.ids()) == 1
+    assert len(store.manifest()[_figures(records)[0].facts["asset"]]["references"]) == 2
+
+
+def test_k6_10_a_descent_that_will_not_terminate_is_counted(nested):
+    """A bound that stops in silence is the same lost placement in a new place."""
+    from ragix_kernels.saqqara.adapters.pdf import MAX_FORM_DEPTH
+
+    _, _, records, skips = nested["pdf_form_pathologies"]
+    assert skips.get("form-cycle") == 1, "a form that invokes itself"
+    assert skips.get("form-too-deep") == 1, "a chain deeper than the limit"
+    assert _figures(records) == [], "the image below the limit is not reached"
+    assert G.FORM_CHAIN > MAX_FORM_DEPTH, "the fixture must exceed the limit it tests"
+
+
+def test_k6_10_the_limit_is_declared_not_buried(nested):
+    from ragix_kernels.saqqara.adapters.pdf import MAX_FORM_DEPTH, OBJECT_SKIPS
+
+    assert isinstance(MAX_FORM_DEPTH, int) and MAX_FORM_DEPTH > 0
+    assert {"form-cycle", "form-too-deep"} <= set(OBJECT_SKIPS)
