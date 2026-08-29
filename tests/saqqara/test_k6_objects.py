@@ -236,7 +236,11 @@ def test_k6_7_every_placement_is_read_or_counted(tmp_path):
     adapter = adapter_for(path)
     adapter.skips.clear()
     records = read_path(path, store=store)
-    assert len(_figures(records)) + sum(adapter.skips.values()) == 3
+    from ragix_kernels.saqqara.adapters.pdf import PLACEMENT_SKIPS
+
+    placements = sum(n for reason, n in adapter.skips.items()
+                     if reason in PLACEMENT_SKIPS)
+    assert len(_figures(records)) + placements == 3
 
 
 def test_k6_7_skip_reasons_come_from_the_closed_vocabulary(tmp_path):
@@ -473,9 +477,11 @@ def nested(tmp_path_factory):
 
 def test_k6_10_an_image_drawn_only_inside_a_form_is_still_a_placement(nested):
     """Four corpus documents stored images, drew them, and produced nothing."""
+    from ragix_kernels.saqqara.adapters.pdf import PLACEMENT_SKIPS
+
     _, _, records, skips = nested["pdf_image_in_form"]
     assert len(_figures(records)) == 2, "one placement per drawing, at any depth"
-    assert skips == {}, "nothing was declined here"
+    assert not set(skips) & set(PLACEMENT_SKIPS), "no placement was declined here"
 
 
 def test_k6_10_the_box_composes_through_every_transformation(nested):

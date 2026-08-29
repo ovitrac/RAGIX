@@ -35,6 +35,8 @@ __all__ = [
     "REGION_FACTS",
     "REGION_REFUSALS",
     "RENDER_CHANNEL",
+    "TABLE_RULE",
+    "is_lattice",
     "VectorRegionAnalyzer",
 ]
 
@@ -88,6 +90,19 @@ MAX_REGION_SPAN = 0.95
 #: The rule that promotes, and the confidence it confers.
 REGION_RULE = ("region-render", 0.8)
 
+#: And the rule for a drawn lattice, at a lower confidence because what it is
+#: carrying is a table nobody can read: no cells, no header, no values (K6.18).
+TABLE_RULE = ("table-as-image", 0.5)
+
+#: How many distinct rules in each direction make a lattice rather than a corner.
+#: Two and two: one horizontal and one vertical line cross, and a crossing is not
+#: a table.
+TABLE_MIN_LINES = 2
+
+#: And how much of a region must be straight rules before it is one. A drawing
+#: with a few straight edges is still a drawing.
+TABLE_RULE_FRACTION = 0.8
+
 
 def is_furniture(mark: dict, width: float, height: float) -> bool:
     """Whether a mark is part of the page rather than part of a drawing.
@@ -138,6 +153,31 @@ def _merge(marks: list[dict], gap: float) -> list[list[dict]]:
     for index, mark in enumerate(marks):
         groups.setdefault(find(index), []).append(mark)
     return list(groups.values())
+
+
+def is_lattice(members: list[dict]) -> bool:
+    """Whether a cluster is a drawn table rather than a drawing.
+
+    Ordered facts, not a score: the marks are almost all straight rules, and they
+    run in both directions, at two or more distinct positions each. A column of
+    parallel lines is a chart axis or a hatch; a lattice needs both directions.
+    """
+    if not members:
+        return False
+    horizontal: set[float] = set()
+    vertical: set[float] = set()
+    straight = 0
+    for mark in members:
+        w, h = float(mark["w"]), float(mark["h"])
+        if h <= FURNITURE_THIN and w > FURNITURE_THIN:
+            straight += 1
+            horizontal.add(round(float(mark["y"]), 1))
+        elif w <= FURNITURE_THIN and h > FURNITURE_THIN:
+            straight += 1
+            vertical.add(round(float(mark["x"]), 1))
+    if straight < TABLE_RULE_FRACTION * len(members):
+        return False
+    return len(horizontal) >= TABLE_MIN_LINES and len(vertical) >= TABLE_MIN_LINES
 
 
 def _extent(members: list[dict]) -> tuple[float, float, float, float]:
@@ -302,7 +342,9 @@ class VectorRegionAnalyzer(Analyzer):
             )
         trace["rendered"] += 1
 
-        rule, confidence = REGION_RULE
+        # Ordered rules: a lattice first, because a drawn table is the specific
+        # case and a drawing is the general one.
+        rule, confidence = TABLE_RULE if is_lattice(members) else REGION_RULE
         left, bottom, right, top = box
         page.children.append(
             Node(

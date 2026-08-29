@@ -2048,6 +2048,71 @@ def pdf_vector_region(path: Path) -> Path:
     return _pdf_paths(path, [dense, rule, tiny])
 
 
+def pdf_table_as_image(path: Path) -> Path:
+    """A table drawn as ruled lines, with prose around it.
+
+    Nothing here is a table to a reader: there is no table structure in the file,
+    only a lattice of strokes. The prose above and below matters -- a page that
+    is nothing but a lattice could be anything, and a routing rule that only
+    worked on bare pages would not survive a real document.
+
+        four horizontal rules and four vertical rules over (100,400)-(400,600)
+        one line of prose above, one below
+    """
+    payload = b""
+    for i in range(4):                                   # rows
+        y = 400 + 66 * i
+        payload += (f"100 {y:g} m 400 {y:g} l S\n").encode("ascii")
+    for i in range(4):                                   # columns
+        x = 100 + 100 * i
+        payload += (f"{x:g} 400 m {x:g} 600 l S\n").encode("ascii")
+    payload += (b"BT /F1 11 Tf 100 700 Td ("
+                + _pdf_escape("Le tableau ci-dessous resume les engagements.")
+                + b") Tj ET\n")
+    payload += (b"BT /F1 11 Tf 100 340 Td ("
+                + _pdf_escape("Les valeurs sont donnees en euros hors taxes.")
+                + b") Tj ET\n")
+
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [4 0 R] /Count 1 >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        (b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << "
+         b"/Font << /F1 3 0 R >> >> /Contents 5 0 R >>"),
+        _pdf_stream(payload),
+    ]
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
+def pdf_ink_no_text(path: Path) -> Path:
+    """A page of ink and one picture, and not a single character.
+
+    A scan, or a drawing exported without its text layer. The kernel must say so
+    and say how much it declined to interpret: reporting such a page as read and
+    empty is the failure mode this fixture exists to prevent.
+    """
+    pixels = _grey_pixels()
+    payload = b"q 120 0 0 90 300 600 cm /Im0 Do Q\n"
+    for i in range(24):
+        x = 100 + 7 * i
+        payload += (f"{x:g} 200 m {x:g} 320 l S\n").encode("ascii")
+
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        (b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << "
+         b"/XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>"),
+        _pdf_stream(payload),
+        (b"<< /Type /XObject /Subtype /Image /Width 4 /Height 4 "
+         b"/ColorSpace /DeviceGray /BitsPerComponent 8 /Length "
+         + str(len(pixels)).encode("ascii") + b" >>\nstream\n" + pixels
+         + b"\nendstream"),
+    ]
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
 def pdf_page_furniture(path: Path) -> Path:
     """One small drawing on a page dressed in furniture.
 
@@ -2547,6 +2612,8 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "pdf_caption_below": pdf_caption_below,
     "pdf_vector_region": pdf_vector_region,
     "pdf_page_furniture": pdf_page_furniture,
+    "pdf_table_as_image": pdf_table_as_image,
+    "pdf_ink_no_text": pdf_ink_no_text,
     "pdf_no_objects": pdf_no_objects,
     "pdf_caption_ambiguous": pdf_caption_ambiguous,
     "pdf_form_pathologies": pdf_form_pathologies,
@@ -2613,6 +2680,8 @@ FIXTURE_SUFFIX: Dict[str, str] = {
     "pdf_caption_below": ".pdf",
     "pdf_vector_region": ".pdf",
     "pdf_page_furniture": ".pdf",
+    "pdf_table_as_image": ".pdf",
+    "pdf_ink_no_text": ".pdf",
     "pdf_no_objects": ".pdf",
     "pdf_caption_ambiguous": ".pdf",
     "pdf_form_pathologies": ".pdf",

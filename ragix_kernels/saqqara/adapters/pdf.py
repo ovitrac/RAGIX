@@ -49,8 +49,15 @@ TEXT_FACTS = ("x", "y", "font_size", "font")
 #: there, and a stream that decodes to nothing at all. The last is the quiet one —
 #: it raises nothing, and a reader that trusted it would store a picture of zero
 #: length under a perfectly valid hash.
-OBJECT_SKIPS = ("inline-image-not-extracted", "xobject-unresolvable", "xobject-empty",
-                "form-cycle", "form-too-deep")
+#: The subset that is about an IMAGE PLACEMENT rather than about a page. The
+#: invariant of K6.7 -- every placement is read or counted -- is over THESE. A
+#: page with no text layer is a statement about a different thing, and summing
+#: the two would make the invariant drift every time a page-level reason is
+#: added.
+PLACEMENT_SKIPS = ("inline-image-not-extracted", "xobject-unresolvable",
+                   "xobject-empty", "form-cycle", "form-too-deep")
+
+OBJECT_SKIPS = PLACEMENT_SKIPS + ("no-text-layer",)
 
 #: What a drawing observation records: how many vector operators, over what
 #: extent, and whether the path was stroked or filled. NOT a picture -- saying a
@@ -506,6 +513,13 @@ class PdfAdapter(Adapter):
         )
 
         found, drawings = self._content(page)
+        # A page carrying ink and not one character is a page nobody has read.
+        # Named and counted here, because "read and empty" and "not read at all"
+        # are indistinguishable downstream and only one of them is a problem
+        # (K6.19). What it declined to interpret is on the page node beside it.
+        if not has_text and (image_count or drawings):
+            self._skip("no-text-layer")
+
         yield from self._figures(page, number, found)
 
         # Ink, as read: how many operators over what extent. Whether any of it

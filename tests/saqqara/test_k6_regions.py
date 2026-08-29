@@ -314,3 +314,91 @@ def test_k6_17_the_existing_region_fixture_is_untouched(rendered):
     _, _, _, result = rendered["pdf_vector_region"]
     assert result.trace["promoted"] == 1
     assert result.trace["excluded"] == {}
+
+
+# ------------------------------- K6.18 a drawn lattice is routed, never a table
+
+@pytest.fixture(scope="module")
+def lattice(tmp_path_factory):
+    root = tmp_path_factory.mktemp("k6table")
+    path = G.FIXTURES["pdf_table_as_image"](G.fixture_path("pdf_table_as_image", root))
+    adapter = adapter_for(path)
+    store = AssetStore(root / "store")
+    records = read_path(path, store=store)
+    tree = build_tree(records, str(path), adapter.format, adapter.format,
+                      adapter.version).tree
+    return tree, VectorRegionAnalyzer(store=store, keep_raster=False).run(tree)
+
+
+def test_k6_18_a_drawn_lattice_is_routed_under_its_own_rule(lattice):
+    from ragix_kernels.saqqara.analyzers.vector_regions import TABLE_RULE
+
+    _, result = lattice
+    regions = _regions(result.tree)
+    assert len(regions) == 1
+    facts = regions[0].facts
+    assert facts["rule"] == TABLE_RULE[0] == "table-as-image"
+    assert facts["confidence"] == TABLE_RULE[1] == 0.5
+    assert regions[0].confidence == 0.5
+
+
+def test_k6_18_it_is_never_among_the_tables_a_reader_saw(lattice):
+    """A lattice of strokes has no cells to read and no header to find."""
+    _, result = lattice
+    assert [n for n in result.tree.walk() if n.kind == "table"] == []
+
+
+def test_k6_18_the_prose_around_it_is_still_read(lattice):
+    """A routing rule that only worked on bare pages would not survive a document."""
+    tree, _ = lattice
+    text = " ".join(n.text or "" for n in tree.walk() if n.kind == "paragraph")
+    assert "tableau" in text and "euros" in text
+
+
+def test_k6_18_ordinary_drawing_is_not_routed_as_a_table(rendered):
+    """The rule must separate a lattice from a drawing, or it separates nothing."""
+    _, _, _, result = rendered["pdf_vector_region"]
+    assert _regions(result.tree)[0].facts["rule"] == "region-render"
+
+
+def test_k6_18_the_confidences_are_the_declared_ones():
+    """Pinned from the contract, not read back from the module (see the caption gate)."""
+    from ragix_kernels.saqqara.analyzers.vector_regions import REGION_RULE, TABLE_RULE
+
+    assert dict([REGION_RULE, TABLE_RULE]) == {"region-render": 0.8, "table-as-image": 0.5}
+
+
+# ------------------------------------- K6.19 a page with no text layer says so
+
+def test_k6_19_a_page_of_ink_without_characters_is_a_named_skip(tmp_path):
+    path = G.FIXTURES["pdf_ink_no_text"](tmp_path / "ink.pdf")
+    adapter = adapter_for(path)
+    adapter.skips.clear()
+    read_path(path, store=AssetStore(tmp_path / "store"))
+    assert adapter.skips.get("no-text-layer") == 1
+
+
+def test_k6_19_it_carries_what_it_declined_to_interpret(tmp_path):
+    """A count of pages is not enough: what was on them is the point."""
+    path = G.FIXTURES["pdf_ink_no_text"](tmp_path / "ink.pdf")
+    adapter = adapter_for(path)
+    store = AssetStore(tmp_path / "store")
+    records = read_path(path, store=store)
+    page = [r for r in records if r.kind == "page"][0]
+    assert page.facts["needs_ocr"] is True
+    assert page.facts["has_text"] is False
+    assert page.facts["image_count"] == 1
+    assert len([r for r in records if r.kind == "drawing"]) == 24
+
+
+def test_k6_19_a_page_that_was_read_is_not_counted_as_skipped(lattice):
+    """The negative: a page with prose must not report a text-layer skip."""
+    tree, _ = lattice
+    page = next(n for n in tree.walk() if n.kind == "page")
+    assert page.facts["has_text"] is True and page.facts["needs_ocr"] is False
+
+
+def test_k6_19_the_reason_is_in_the_closed_vocabulary():
+    from ragix_kernels.saqqara.adapters.pdf import OBJECT_SKIPS
+
+    assert "no-text-layer" in OBJECT_SKIPS
