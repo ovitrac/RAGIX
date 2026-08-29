@@ -82,7 +82,17 @@ _TOKEN_SPLIT = re.compile(r"[^a-z0-9]+")
 # --------------------------------------------------------------------- tier 2
 
 #: Paths under which the scoped rules apply.
-SCOPED_PREFIXES = ("ragix_kernels/saqqara/", "tests/saqqara/")
+#:
+#: The `tender` prefixes are here BEFORE the family exists. A scope extended after
+#: the code it covers has already been reviewed against the old scope, and nobody
+#: notices the gap because nothing fires either way. Extending it against an empty
+#: directory costs nothing and cannot be argued with later.
+SCOPED_PREFIXES = (
+    "ragix_kernels/saqqara/",
+    "tests/saqqara/",
+    "ragix_kernels/tender/",
+    "tests/tender/",
+)
 
 #: Addresses that carry no deployment information.
 _ALLOWED_IPS = re.compile(
@@ -208,46 +218,59 @@ def repo_root() -> Path:
 
 
 def selftest() -> int:
-    """Prove the guard catches a planted hit. A guard never seen to fire is not a guard."""
+    """Prove the guard catches a planted hit. A guard never seen to fire is not a guard.
+
+    Every prefix in SCOPED_PREFIXES is exercised, rather than one representative
+    prefix: a scope is added by editing a tuple, and a scope nobody has watched
+    fire is indistinguishable from a typo in that tuple. Adding a prefix without
+    proving it therefore cannot happen — the loop below covers whatever is declared.
+    """
     import tempfile
 
     ok = True
+
+    def check(label: str, findings: list[str], want: bool) -> None:
+        nonlocal ok
+        good = bool(findings) is want
+        print(f"selftest {label}: {len(findings)} finding(s) — {'PASS' if good else 'FAIL'}")
+        ok &= good
+
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        (root / "ragix_kernels" / "saqqara").mkdir(parents=True)
 
-        # tier 1: the token is reconstructed here, never written as a literal.
+        # The token is reconstructed here, never written as a literal: this file is
+        # public, and spelling the word would be the leak the guard exists to prevent.
         token = "".join(chr(c) for c in (105, 110, 103, 101, 110, 116, 105, 115))
-        planted = root / "ragix_kernels" / "saqqara" / "planted.py"
-        planted.write_text(f"# forked from {token}-rag\n", encoding="utf-8")
-        hits = scan(["ragix_kernels/saqqara/planted.py"], root)
-        print(f"selftest tier1: {len(hits)} finding(s) — {'PASS' if hits else 'FAIL'}")
-        ok &= bool(hits)
 
-        # tier 2: routable address inside the scope
-        planted.write_text("endpoint = 'http://203.0.113.9:8080'\n", encoding="utf-8")
-        hits = scan(["ragix_kernels/saqqara/planted.py"], root)
-        print(f"selftest tier2: {len(hits)} finding(s) — {'PASS' if hits else 'FAIL'}")
-        ok &= bool(hits)
+        # ---- tier 1 is repository-wide, so prove it fires OUTSIDE any scope too.
+        # Nothing else in this selftest would notice if tier 1 silently became scoped.
+        loose = root / "anywhere.py"
+        loose.write_text(f"# forked from {token}-rag\n", encoding="utf-8")
+        check("tier1-unscoped", scan(["anywhere.py"], root), True)
 
-        # loopback stays allowed
-        planted.write_text("endpoint = 'http://127.0.0.1:11434'\n", encoding="utf-8")
-        hits = scan(["ragix_kernels/saqqara/planted.py"], root)
-        print(f"selftest loopback: {len(hits)} finding(s) — {'PASS' if not hits else 'FAIL'}")
-        ok &= not hits
+        # ---- every declared scope, exercised in turn
+        for prefix in SCOPED_PREFIXES:
+            rel = f"{prefix}planted.py"
+            planted = root / rel
+            planted.parent.mkdir(parents=True, exist_ok=True)
+            short = prefix.rstrip("/").replace("/", ".")
 
-        # attribution header stays allowed
-        planted.write_text("# Author: Someone | Adservio | 2026\n", encoding="utf-8")
-        hits = scan(["ragix_kernels/saqqara/planted.py"], root)
-        print(f"selftest author-exemption: {len(hits)} finding(s) — {'PASS' if not hits else 'FAIL'}")
-        ok &= not hits
+            planted.write_text(f"# forked from {token}-rag\n", encoding="utf-8")
+            check(f"tier1[{short}]", scan([rel], root), True)
 
-        # scope really is a scope: tier 2 must not fire outside it
+            planted.write_text("endpoint = 'http://203.0.113.9:8080'\n", encoding="utf-8")
+            check(f"tier2[{short}]", scan([rel], root), True)
+
+            planted.write_text("endpoint = 'http://127.0.0.1:11434'\n", encoding="utf-8")
+            check(f"loopback[{short}]", scan([rel], root), False)
+
+            planted.write_text("# Author: Someone | Adservio | 2026\n", encoding="utf-8")
+            check(f"author-exemption[{short}]", scan([rel], root), False)
+
+        # ---- scope really is a scope: tier 2 must not fire outside it
         other = root / "elsewhere.py"
         other.write_text("endpoint = 'http://203.0.113.9:8080'\n", encoding="utf-8")
-        hits = scan(["elsewhere.py"], root)
-        print(f"selftest scope: {len(hits)} finding(s) — {'PASS' if not hits else 'FAIL'}")
-        ok &= not hits
+        check("scope", scan(["elsewhere.py"], root), False)
 
     return 0 if ok else 1
 
