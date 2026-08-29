@@ -1,6 +1,6 @@
 # SWE Tooling Implementation Summary — RAGIX v0.4
 
-**Author:** Claude (Sonnet 4.5) + Olivier Vitrac, PhD, HDR
+**Author:** Olivier Vitrac, PhD, HDR
 **Date:** 2025-11-23
 **Status:** ✅ **COMPLETE** — All 6 phases implemented and tested
 
@@ -342,7 +342,7 @@ All limitations are by design (Unix simplicity principle).
 
 **Specification:** `SWE_TOOLING.md` by Olivier Vitrac
 **Approved Conventions:** Section 10 of `SWE_TOOLING.md`
-**Implementation:** Claude (Sonnet 4.5) with autonomous execution
+**Implementation:** autonomous execution under the SWE harness
 **Testing:** Automated test suite + manual verification
 **Philosophy:** Unix-RAG discipline + SWE-Agent capabilities
 

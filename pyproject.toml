@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-mcp = ["mcp[cli]>=0.1.0"]
+mcp = ["mcp[cli]>=1.0,<2"]
 dev = ["pytest>=7.0", "black", "ruff"]
 web = ["fastapi>=0.104.0", "uvicorn>=0.24.0", "websockets>=12.0"]
 retrieval = ["sentence-transformers>=2.2.0", "numpy>=1.24.0"]
@@ -45,7 +45,25 @@ sealed = ["ragix[vault,ci]", "pypdf>=4.0.0", "pdfminer.six>=20221105", "python-d
 # text-layer PDF→Markdown path; marker-pdf (heavy ML OCR, multi-GB weights) is an
 # optional fallback for scanned/image-only PDFs — install separately if needed.
 translate = ["pymupdf4llm>=0.0.17", "pymupdf>=1.24.0"]
-all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports,koas,docs,sealed,translate]"]
+# saqqara: document substrate kernels. Regroups packages already declared elsewhere
+# (docs covers docx/pptx/xlsx, pypdf covers the pdf reader) rather than widening
+# `docs` — a document tree needs the pdf reader, an odf converter does not.
+# pypdfium2 is Apache-2.0 and rasterises a region of drawing so it can be stored
+# and compared. It is the DEFAULT renderer precisely because its licence imposes
+# nothing on a deployment of this MIT package.
+saqqara = ["ragix[docs]", "pypdf>=4.0.0", "pypdfium2>=4.0.0"]
+# saqqara-mupdf: an ALTERNATIVE renderer, opt-in and never installed by default.
+#
+#   LICENCE WARNING -- pymupdf is AGPL-3.0 (or a paid commercial licence).
+#   Installing this extra subjects the deploying system to AGPL obligations that
+#   are incompatible with distributing this package under MIT. It is never
+#   required by any default path, by any test, or by the `all` extra, and the
+#   kernel refuses to import it outside its single named adapter.
+#
+# Offered because a caller who already holds a commercial licence, or who is not
+# distributing, may prefer its output. That choice is theirs to make explicitly.
+saqqara-mupdf = ["pymupdf>=1.24.0"]
+all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports,koas,docs,sealed,translate,saqqara]"]
 
 [project.scripts]
 ragix = "ragix_core.cli:main"
