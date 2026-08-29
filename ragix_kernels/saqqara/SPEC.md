@@ -15,7 +15,7 @@ repository, so every fixture's text is known to come from the generator. That po
 replaces any list of strings a fixture must avoid: there is nothing to enumerate when the origin
 of every character is provable.
 
-Gates are numbered K1–K4 by layer, and the tests that carry them live in `tests/saqqara/` as
+Gates are numbered K1–K4 and K6 by layer, and the tests that carry them live in `tests/saqqara/` as
 `test_k<N>_<subject>.py`. The numbering is this family's own; it does not follow any other
 convention in this repository.
 

@@ -367,3 +367,69 @@ def test_k0_4_no_committed_binary_fixture():
         if p.is_file() and "__pycache__" not in p.parts and b"\x00" in p.read_bytes()
     ]
     assert not offenders, offenders
+
+
+# --------------------------------------------------------------------------- k0.5
+# The prose that describes the specification is not the specification, and nothing
+# gated it. Three statements — two in README.md, one in SPEC.md — went on claiming
+# 85 and 65 propositions across "K1-K4" while the frozen counts said 126 across
+# five gates, because every check above reads the proposition TABLE and none reads
+# the sentences around it. A reader opens the README first.
+
+README = PACKAGE / "README.md"
+
+#: A count claimed about propositions: "85 falsifiable propositions", "65 propositions".
+_CLAIMED_COUNT = re.compile(r"(\d+)\s+(?:[a-z-]+\s+){0,3}propositions?\b", re.I)
+
+#: A gate range presented as the enumeration of gates: "K1-K4", "K1–K4".
+_GATE_RANGE = re.compile(r"\bK(\d)\s*[-–]\s*K(\d)\b")
+
+#: Any single gate identifier, so a range may be completed by naming the rest.
+_GATE_TOKEN = re.compile(r"\bK(\d)\b")
+
+
+def _prose_files() -> list[Path]:
+    return [README, SPEC]
+
+
+def test_k0_5_prose_proposition_counts_match_the_frozen_total():
+    """A number claimed about propositions is the frozen total, or it is wrong.
+
+    Falsified by: any sentence in README.md or SPEC.md claiming a proposition
+    count that differs from sum(FROZEN_COUNTS).
+    """
+    total = sum(FROZEN_COUNTS.values())
+    wrong = []
+    for path in _prose_files():
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            for claimed in _CLAIMED_COUNT.findall(line):
+                if int(claimed) != total:
+                    wrong.append(f"{path.name}:{n}: claims {claimed}, frozen total is {total}")
+    assert not wrong, "prose contradicts FROZEN_COUNTS:\n  " + "\n  ".join(wrong)
+
+
+def test_k0_5_prose_gate_ranges_name_every_gate():
+    """A line that enumerates the gates enumerates ALL of them.
+
+    A contiguous range cannot express the real set once a gate is skipped, so the
+    line must complete the range by naming the remainder. Falsified by: a line
+    mentioning a gate range whose gates, together with any other gate named on the
+    same line, are not exactly the frozen gate set.
+    """
+    expected = {int(g[1:]) for g in FROZEN_COUNTS}
+    wrong = []
+    for path in _prose_files():
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if "gate" not in line.lower():
+                continue
+            ranges = _GATE_RANGE.findall(line)
+            if not ranges:
+                continue
+            named = {int(g) for g in _GATE_TOKEN.findall(line)}
+            for lo, hi in ranges:
+                named |= set(range(int(lo), int(hi) + 1))
+            if named != expected:
+                wrong.append(
+                    f"{path.name}:{n}: names {sorted(named)}, frozen gates are {sorted(expected)}"
+                )
+    assert not wrong, "prose contradicts the frozen gate set:\n  " + "\n  ".join(wrong)
