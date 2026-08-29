@@ -43,7 +43,8 @@ BUILDER_VERSION = "0.1.0"
 
 #: Kinds this layer needs that the standard vocabulary does not declare.
 #: Registered deliberately rather than by widening the core (K1.3).
-for _kind in ("cell", "marker", "note", "shape", "page", "slide", "sheet"):
+for _kind in ("cell", "marker", "note", "shape", "page", "slide", "sheet",
+              "vector_region"):
     kind_registry.register(_kind)
 
 
@@ -101,6 +102,7 @@ FORMAT_PLANS: dict[str, FormatPlan] = {
         container_key="page",
         node_kinds={"text": "paragraph", "outline_entry": "heading",
                     "figure": "figure"},
+        attach=frozenset({"drawing"}),
     ),
     "pptx": FormatPlan(
         format="pptx",
@@ -228,6 +230,25 @@ class Builder:
 
             if kind == "metadata" and "metadata" in plan.attach:
                 meta.update(observation.facts)
+                attached += 1
+                continue
+
+            if kind == "drawing" and "drawing" in plan.attach:
+                # Ink is a property of a page, not a thing in the document. A
+                # page of a schematic paints thousands of paths and none of them
+                # is an object anybody would cite; making each a node would grow
+                # every tree by orders of magnitude to say "there is ink here".
+                # It is attached to the page it is on, where the analyzer that
+                # decides whether any of it amounts to a figure can find it.
+                container = containers.get(
+                    self._container_key(observation.locator, kind))
+                if container is None:
+                    drops.append({"reason": "drawing-without-a-page",
+                                  "kind": kind,
+                                  "locator": observation.locator.to_dict()})
+                    continue
+                container.facts.setdefault("drawings", []).append(
+                    dict(observation.facts))
                 attached += 1
                 continue
 

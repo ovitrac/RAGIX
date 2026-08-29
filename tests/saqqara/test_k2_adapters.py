@@ -208,12 +208,13 @@ PINNED = {
         "heading": ("level",),
         "paragraph": (),
     }),
-    "pdf": ("0.5.0", {
+    "pdf": ("0.6.0", {
         "outline_entry": ("level",),
         "page": ("has_text", "image_count", "needs_ocr"),
         "text": ("x", "y", "font_size", "font"),
         "figure": ("asset", "source", "media_type", "width", "height",
                    "x", "y", "w", "h", "colorspace", "bits", "smask"),
+        "drawing": ("x", "y", "w", "h", "ops", "stroke", "fill"),
     }),
 }
 

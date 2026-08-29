@@ -52,6 +52,30 @@ TEXT_FACTS = ("x", "y", "font_size", "font")
 OBJECT_SKIPS = ("inline-image-not-extracted", "xobject-unresolvable", "xobject-empty",
                 "form-cycle", "form-too-deep")
 
+#: What a drawing observation records: how many vector operators, over what
+#: extent, and whether the path was stroked or filled. NOT a picture -- saying a
+#: page has ink here claims nothing about whether the ink means anything.
+DRAWING_FACTS = ("x", "y", "w", "h", "ops", "stroke", "fill")
+
+#: Path construction, by operand shape. `re` is a rectangle and contributes four
+#: corners; the curve operators contribute every control point, because a curve
+#: stays inside the hull of its controls and an extent that ignored them would
+#: be too small rather than merely imprecise.
+_PATH_OPS: dict[bytes, str] = {
+    b"m": "point", b"l": "point", b"re": "rect",
+    b"c": "points", b"v": "points", b"y": "points",
+}
+
+#: Painting ends a path. `n` ends it having painted nothing -- a clip, usually --
+#: and is counted like the rest: the operators were there and the extent is real.
+_PAINT_OPS: dict[bytes, tuple[bool, bool]] = {
+    b"S": (True, False), b"s": (True, False),
+    b"f": (False, True), b"F": (False, True), b"f*": (False, True),
+    b"B": (True, True), b"B*": (True, True),
+    b"b": (True, True), b"b*": (True, True),
+    b"n": (False, False),
+}
+
 #: How far the reader follows a Form XObject into another. Six, because the
 #: deepest nesting measured over the reference corpus was three, and a limit
 #: set at the deepest thing yet seen is a limit that will be hit by the next
@@ -97,6 +121,26 @@ def _concat(a, b) -> tuple[float, ...]:
         a[2] * b[0] + a[3] * b[2], a[2] * b[1] + a[3] * b[3],
         a[4] * b[0] + a[5] * b[2] + b[4], a[4] * b[1] + a[5] * b[3] + b[5],
     )
+
+
+def _apply(m, x: float, y: float) -> tuple[float, float]:
+    """One point under a transformation."""
+    return (m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5])
+
+
+def _path_points(operator: bytes, operands) -> list[tuple[float, float]]:
+    """The points a construction operator contributes, in user space."""
+    try:
+        values = [float(v) for v in operands]
+    except (TypeError, ValueError):
+        return []
+    shape = _PATH_OPS.get(operator)
+    if shape == "rect" and len(values) == 4:
+        x, y, w, h = values
+        return [(x, y), (x + w, y), (x, y + h), (x + w, y + h)]
+    if shape in ("point", "points"):
+        return [(values[i], values[i + 1]) for i in range(0, len(values) - 1, 2)]
+    return []
 
 
 def _unit_square(m) -> tuple[float, float, float, float]:
@@ -166,13 +210,14 @@ class PdfAdapter(Adapter):
 
     format = "pdf"
     # 0.4.0 reads the images a document holds, one record per placement (K6.1).
-    version = "0.5.0"
+    version = "0.6.0"
     extensions = (".pdf",)
     fact_sets = {
         "outline_entry": OUTLINE_FACTS,
         "page": PAGE_FACTS,
         "text": TEXT_FACTS,
         "figure": FIGURE_FACTS,
+        "drawing": DRAWING_FACTS,
     }
     skip_reasons = OBJECT_SKIPS
 
@@ -239,12 +284,21 @@ class PdfAdapter(Adapter):
         naming a form matched neither the image branch nor the unresolved one, so
         nothing emitted it and nothing counted it either (K6.10).
         """
-        found: list[tuple[str, object, tuple[float, float, float, float]]] = []
-        self._descend(page.get_contents(), page.get("/Resources"), page.pdf,
-                      _IDENTITY, 0, (), found)
-        return found
+        return self._content(page)[0]
 
-    def _descend(self, source, resources, pdf, ctm, depth, seen, found) -> None:
+    def _content(self, page) -> tuple[list, list[dict]]:
+        """Both harvests of one walk: image placements, and painted paths.
+
+        Two walks would parse every content stream on every page twice, and the
+        descent into forms is the expensive half.
+        """
+        found: list[tuple[str, object, tuple[float, float, float, float]]] = []
+        drawings: list[dict] = []
+        self._descend(page.get_contents(), page.get("/Resources"), page.pdf,
+                      _IDENTITY, 0, (), found, drawings)
+        return found, drawings
+
+    def _descend(self, source, resources, pdf, ctm, depth, seen, found, drawings) -> None:
         """Walk one content stream, following the forms it invokes.
 
         `seen` is the chain of forms currently open, by object number: a form that
@@ -274,8 +328,9 @@ class PdfAdapter(Adapter):
             # silence -- that is the defect this proposition exists to close.
             catalogue[str(name)] = (
                 str(subtype) if subtype is not None else "unresolvable", obj, ref)
-        if not catalogue:
-            return
+        # No early return on an empty catalogue: a page whose only content is ink
+        # has no XObject resources at all, and skipping it would make the vector
+        # lane blind to exactly the pages it exists for.
 
         try:
             content = ContentStream(source, pdf)
@@ -286,7 +341,28 @@ class PdfAdapter(Adapter):
             return
 
         stack: list[tuple[float, ...]] = []
+        points: list[tuple[float, float]] = []
+        ops = 0
         for operands, operator in content.operations:
+            if operator in _PATH_OPS:
+                # Construction happens in the space in force NOW: a `cm` after the
+                # path is built moves later marks, not this one.
+                points.extend(_apply(ctm, x, y)
+                              for x, y in _path_points(operator, operands))
+                ops += 1
+                continue
+            if operator in _PAINT_OPS:
+                if ops and points:
+                    stroke, fill = _PAINT_OPS[operator]
+                    xs = [pt[0] for pt in points]
+                    ys = [pt[1] for pt in points]
+                    drawings.append({
+                        "x": min(xs), "y": min(ys),
+                        "w": max(xs) - min(xs), "h": max(ys) - min(ys),
+                        "ops": ops, "stroke": stroke, "fill": fill,
+                    })
+                points, ops = [], 0
+                continue
             if operator == b"q":
                 stack.append(ctm)
             elif operator == b"Q":
@@ -301,11 +377,11 @@ class PdfAdapter(Adapter):
                 if subtype == "/Image":
                     found.append((str(operands[0]), obj, _unit_square(ctm)))
                 elif subtype == "/Form":
-                    self._enter(obj, ref, pdf, ctm, depth, seen, found)
+                    self._enter(obj, ref, pdf, ctm, depth, seen, found, drawings)
                 elif subtype == "unresolvable":
                     self._skip("xobject-unresolvable")
 
-    def _enter(self, form, ref, pdf, ctm, depth, seen, found) -> None:
+    def _enter(self, form, ref, pdf, ctm, depth, seen, found, drawings) -> None:
         """Follow one form, unless following it would not terminate."""
         key = getattr(ref, "idnum", None)
         if key is not None and key in seen:
@@ -316,7 +392,8 @@ class PdfAdapter(Adapter):
             return
         chain = seen + (key,) if key is not None else seen
         self._descend(form, form.get("/Resources"), pdf,
-                      _concat(_form_matrix(form), ctm), depth + 1, chain, found)
+                      _concat(_form_matrix(form), ctm), depth + 1, chain,
+                      found, drawings)
 
     @staticmethod
     def _inline_count(page) -> int:
@@ -330,13 +407,13 @@ class PdfAdapter(Adapter):
         return sum(1 for _, operator in content.operations
                    if operator == b"INLINE IMAGE")
 
-    def _figures(self, page, number: int) -> Iterator[Mastaba]:
+    def _figures(self, page, number: int, found) -> Iterator[Mastaba]:
         if self.store is None:
             return
         for _ in range(self._inline_count(page)):
             self._skip("inline-image-not-extracted")
 
-        for name, obj, box in self._boxes(page):
+        for name, obj, box in found:
             try:
                 payload = obj.get_data()
             except Exception:
@@ -414,7 +491,22 @@ class PdfAdapter(Adapter):
             },
         )
 
-        yield from self._figures(page, number)
+        found, drawings = self._content(page)
+        yield from self._figures(page, number, found)
+
+        # Ink, as read: how many operators over what extent. Whether any of it
+        # amounts to a figure is a judgement, and it is made elsewhere (K6.14).
+        for mark in drawings:
+            yield Mastaba(
+                kind="drawing",
+                locator=PdfLocator(page=number),
+                facts={
+                    "x": round(mark["x"], 2), "y": round(mark["y"], 2),
+                    "w": round(mark["w"], 2), "h": round(mark["h"], 2),
+                    "ops": mark["ops"],
+                    "stroke": mark["stroke"], "fill": mark["fill"],
+                },
+            )
 
         for text, x, y, size, font in placements:
             yield Mastaba(

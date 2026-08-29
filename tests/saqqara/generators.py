@@ -2002,6 +2002,61 @@ def _pdf_figures_and_lines(path: Path, placements, lines) -> Path:
     return path
 
 
+def _pdf_paths(path: Path, groups, text: str | None = None) -> Path:
+    """One page of vector drawing: `groups` are lists of (x0, y0, x1, y1) segments.
+
+    Nothing here is an image. Every mark is a stroked path in the content stream,
+    which is exactly the shape the old rendering side reports as a figure block
+    and this kernel has never claimed.
+    """
+    payload = b""
+    for segments in groups:
+        for x0, y0, x1, y1 in segments:
+            payload += (f"{x0:g} {y0:g} m {x1:g} {y1:g} l S\n").encode("ascii")
+    if text is not None:
+        payload += (b"BT /F1 11 Tf 72 760 Td (" + _pdf_escape(text) + b") Tj ET\n")
+
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [4 0 R] /Count 1 >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        (b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << "
+         b"/Font << /F1 3 0 R >> >> /Contents 5 0 R >>"),
+        _pdf_stream(payload),
+    ]
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
+def pdf_vector_region(path: Path) -> Path:
+    """Drawing worth calling a figure, drawing that is not, and drawing too small.
+
+    Three groups, so that the minimum on operators and the minimum on extent are
+    each refused by something and neither is a wish:
+
+        A  40 segments across (100,500)-(300,650)   -> a region: enough of both
+        B  one rule line at y=200, 400 points wide  -> too few operators
+        C  12 segments inside (400,300)-(410,306)   -> enough operators, no extent
+
+    A rule line is the case that matters. It is the commonest mark in a tender
+    document, it is not a figure, and a rule that promoted it would fill every
+    tree with furniture.
+    """
+    dense = [(100 + 5 * i, 500, 100 + 5 * i, 650) for i in range(40)]
+    rule = [(100, 200, 500, 200)]
+    tiny = [(400 + i, 300, 400 + i, 306) for i in range(12)]
+    return _pdf_paths(path, [dense, rule, tiny])
+
+
+def pdf_no_objects(path: Path) -> Path:
+    """A page of prose and nothing else: the negative.
+
+    The trace must show that the kernel looked and found nothing, which is a
+    different statement from a kernel that never looked.
+    """
+    return _pdf_paths(path, [], text="Une page de prose, sans figure ni trace de dessin.")
+
+
 def pdf_caption_below(path: Path) -> Path:
     """Four figures: one per binding rule, and one with nothing near it.
 
@@ -2436,6 +2491,8 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "pdf_image_xobject": pdf_image_xobject,
     "pdf_image_in_form": pdf_image_in_form,
     "pdf_caption_below": pdf_caption_below,
+    "pdf_vector_region": pdf_vector_region,
+    "pdf_no_objects": pdf_no_objects,
     "pdf_caption_ambiguous": pdf_caption_ambiguous,
     "pdf_form_pathologies": pdf_form_pathologies,
     "pdf_image_twice": pdf_image_twice,
@@ -2499,6 +2556,8 @@ FIXTURE_SUFFIX: Dict[str, str] = {
     "pdf_image_xobject": ".pdf",
     "pdf_image_in_form": ".pdf",
     "pdf_caption_below": ".pdf",
+    "pdf_vector_region": ".pdf",
+    "pdf_no_objects": ".pdf",
     "pdf_caption_ambiguous": ".pdf",
     "pdf_form_pathologies": ".pdf",
     "pdf_inline_image": ".pdf",
