@@ -2085,6 +2085,44 @@ def pdf_table_as_image(path: Path) -> Path:
     return path
 
 
+def pdf_filled_cell_table(path: Path) -> Path:
+    """A table whose cells are FILLED, not ruled — as this corpus draws them.
+
+    Measured on a real document before being written: a severity column of
+    coloured cells beside ruled ones. A lattice test that counts only strokes
+    reads the fills as stray shapes and refuses the table for containing too
+    few rules, which is the wrong way round -- a filled cell is the strongest
+    evidence of a cell there is.
+
+        three horizontal rules over (100,500)-(400,620)
+        three vertical rules
+        six filled cells in the right-hand column
+    """
+    payload = b""
+    for i in range(3):
+        y = 500 + 60 * i
+        payload += (f"100 {y:g} m 400 {y:g} l S\n").encode("ascii")
+    for i in range(3):
+        x = 100 + 100 * i
+        payload += (f"{x:g} 500 m {x:g} 620 l S\n").encode("ascii")
+    for row in range(3):
+        for col in range(2):
+            x = 300 + 40 * col
+            y = 505 + 55 * row
+            payload += (f"{x:g} {y:g} 36 50 re f\n").encode("ascii")
+
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [4 0 R] /Count 1 >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        (b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << "
+         b"/Font << /F1 3 0 R >> >> /Contents 5 0 R >>"),
+        _pdf_stream(payload),
+    ]
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
 def pdf_ink_no_text(path: Path) -> Path:
     """A page of ink and one picture, and not a single character.
 
@@ -2613,6 +2651,7 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "pdf_vector_region": pdf_vector_region,
     "pdf_page_furniture": pdf_page_furniture,
     "pdf_table_as_image": pdf_table_as_image,
+    "pdf_filled_cell_table": pdf_filled_cell_table,
     "pdf_ink_no_text": pdf_ink_no_text,
     "pdf_no_objects": pdf_no_objects,
     "pdf_caption_ambiguous": pdf_caption_ambiguous,
@@ -2681,6 +2720,7 @@ FIXTURE_SUFFIX: Dict[str, str] = {
     "pdf_vector_region": ".pdf",
     "pdf_page_furniture": ".pdf",
     "pdf_table_as_image": ".pdf",
+    "pdf_filled_cell_table": ".pdf",
     "pdf_ink_no_text": ".pdf",
     "pdf_no_objects": ".pdf",
     "pdf_caption_ambiguous": ".pdf",

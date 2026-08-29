@@ -402,3 +402,24 @@ def test_k6_19_the_reason_is_in_the_closed_vocabulary():
     from ragix_kernels.saqqara.adapters.pdf import OBJECT_SKIPS
 
     assert "no-text-layer" in OBJECT_SKIPS
+
+
+def test_k6_18_a_table_with_filled_cells_is_still_a_table(tmp_path):
+    """How this corpus actually draws tables: rules plus coloured cells.
+
+    A lattice test counting only strokes reads the fills as stray shapes and
+    refuses the table for holding too few rules. A filled cell is the strongest
+    evidence of a cell there is.
+    """
+    path = G.FIXTURES["pdf_filled_cell_table"](tmp_path / "filled.pdf")
+    adapter = adapter_for(path)
+    store = AssetStore(tmp_path / "store")
+    records = read_path(path, store=store)
+    tree = build_tree(records, str(path), adapter.format, adapter.format,
+                      adapter.version).tree
+    result = VectorRegionAnalyzer(store=store, keep_raster=False).run(tree)
+    regions = _regions(result.tree)
+    assert len(regions) == 1
+    assert regions[0].facts["rule"] == "table-as-image"
+    assert regions[0].facts["confidence"] == 0.5
+    assert [n for n in result.tree.walk() if n.kind == "table"] == []

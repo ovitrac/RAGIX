@@ -99,8 +99,9 @@ TABLE_RULE = ("table-as-image", 0.5)
 #: a table.
 TABLE_MIN_LINES = 2
 
-#: And how much of a region must be straight rules before it is one. A drawing
-#: with a few straight edges is still a drawing.
+#: And how much of a region must be table evidence -- a straight rule, or a
+#: filled cell -- before it is a table. A drawing with a few straight edges is
+#: still a drawing.
 TABLE_RULE_FRACTION = 0.8
 
 
@@ -166,16 +167,25 @@ def is_lattice(members: list[dict]) -> bool:
         return False
     horizontal: set[float] = set()
     vertical: set[float] = set()
-    straight = 0
+    evidence = 0
     for mark in members:
         w, h = float(mark["w"]), float(mark["h"])
         if h <= FURNITURE_THIN and w > FURNITURE_THIN:
-            straight += 1
+            evidence += 1
             horizontal.add(round(float(mark["y"]), 1))
         elif w <= FURNITURE_THIN and h > FURNITURE_THIN:
-            straight += 1
+            evidence += 1
             vertical.add(round(float(mark["x"]), 1))
-    if straight < TABLE_RULE_FRACTION * len(members):
+        elif mark.get("fill") and not mark.get("stroke"):
+            # A filled rectangle in a grid is a CELL, and a cell is the strongest
+            # evidence of a table there is. Counting it against the lattice --
+            # which the first version of this rule did -- refuses exactly the
+            # tables this corpus draws: rules down one side, coloured cells down
+            # the other. Measured on a real document, then written.
+            evidence += 1
+            horizontal.add(round(float(mark["y"]), 1))
+            vertical.add(round(float(mark["x"]), 1))
+    if evidence < TABLE_RULE_FRACTION * len(members):
         return False
     return len(horizontal) >= TABLE_MIN_LINES and len(vertical) >= TABLE_MIN_LINES
 
