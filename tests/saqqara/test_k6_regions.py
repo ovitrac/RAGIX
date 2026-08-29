@@ -240,3 +240,77 @@ def test_k6_16_the_default_renderer_is_the_permissive_one(rendered):
     _, _, _, result = rendered["pdf_vector_region"]
     assert result.trace["renderer"].startswith("pypdfium2")
     assert not any(name in result.trace["renderer"] for name in AGPL_MODULES)
+
+
+# ---------------------------------- K6.17 a region is a drawing, not a page
+
+@pytest.fixture(scope="module")
+def furniture(tmp_path_factory):
+    root = tmp_path_factory.mktemp("k6furniture")
+    path = G.FIXTURES["pdf_page_furniture"](G.fixture_path("pdf_page_furniture", root))
+    adapter = adapter_for(path)
+    store = AssetStore(root / "store")
+    records = read_path(path, store=store)
+    tree = build_tree(records, str(path), adapter.format, adapter.format,
+                      adapter.version).tree
+    return tree, VectorRegionAnalyzer(store=store, keep_raster=False).run(tree)
+
+
+def test_k6_17_the_region_is_the_drawing_not_the_page(furniture):
+    """The defect this proposition exists for, in one assertion.
+
+    Before furniture was excluded, this page produced one region of 595 x 842 --
+    the MediaBox -- around a drawing 120 points wide.
+    """
+    _, result = furniture
+    regions = [n for n in _regions(result.tree)]
+    assert len(regions) == 1, "one drawing on page one, nothing on page two"
+    facts = regions[0].facts
+    assert (facts["x"], facts["y"]) == (200.0, 300.0)
+    assert (facts["w"], facts["h"]) == (120.0, 100.0)
+
+
+def test_k6_17_furniture_is_excluded_and_counted(furniture):
+    """Three marks removed: a background box, a full-width rule, a full-height one."""
+    _, result = furniture
+    assert result.trace["excluded"].get("page-furniture") == 3
+
+
+def test_k6_17_a_chain_that_still_spans_the_page_is_refused(furniture):
+    """The backstop, on a page carrying no furniture at all."""
+    _, result = furniture
+    assert result.trace["refused"].get("region-spans-page") == 1
+
+
+def test_k6_17_every_mark_is_grouped_or_excluded(furniture):
+    """Nothing considered simply disappears, one level below the cluster."""
+    tree, result = furniture
+    marks = sum(len(p.facts.get("drawings") or [])
+                for p in tree.walk() if p.kind == "page")
+    assert marks == result.trace["marks"]
+    assert result.trace["marks"] == (result.trace["grouped"]
+                                     + sum(result.trace["excluded"].values()))
+
+
+def test_k6_17_the_page_size_is_read_not_assumed(furniture):
+    """An extent minimum measured against a guessed page is measuring the guess."""
+    tree, _ = furniture
+    for page in [n for n in tree.walk() if n.kind == "page"]:
+        assert page.facts["width"] == 595.0
+        assert page.facts["height"] == 842.0
+
+
+def test_k6_17_the_exclusion_vocabulary_is_closed_and_produced(furniture):
+    from ragix_kernels.saqqara.analyzers.vector_regions import MARK_EXCLUSIONS
+
+    _, result = furniture
+    seen = set(result.trace["excluded"])
+    assert seen <= set(MARK_EXCLUSIONS)
+    assert seen == set(MARK_EXCLUSIONS), "a declared reason nothing produces is a wish"
+
+
+def test_k6_17_the_existing_region_fixture_is_untouched(rendered):
+    """Furniture exclusion must not eat the drawing it was written to protect."""
+    _, _, _, result = rendered["pdf_vector_region"]
+    assert result.trace["promoted"] == 1
+    assert result.trace["excluded"] == {}

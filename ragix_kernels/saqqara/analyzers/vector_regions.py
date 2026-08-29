@@ -61,10 +61,53 @@ REGION_MERGE_GAP = 12.0
 REGION_FACTS = ("asset", "x", "y", "w", "h", "ops", "rule", "confidence")
 
 #: Why a cluster of ink was refused. Closed: a reason outside this list is a bug.
-REGION_REFUSALS = ("too-few-operators", "too-small", "render-failed")
+REGION_REFUSALS = ("too-few-operators", "too-small", "render-failed",
+                   "region-spans-page")
+
+#: Why a mark never reached the grouping at all. Closed for the same reason, and
+#: counted for a sharper one: a mark removed in silence is a mark nobody can
+#: argue about, and this exclusion is the most opinionated judgement the module
+#: makes.
+MARK_EXCLUSIONS = ("page-furniture",)
+
+#: A mark covering this fraction of the page in BOTH dimensions is background,
+#: not drawing; a straight rule covering it in ONE is a border or a margin line.
+#: Measured, not guessed: the regions that turned out to be whole pages were
+#: chained by single-operator rectangles the size of the MediaBox.
+FURNITURE_SPAN = 0.9
+
+#: How thin a mark must be to count as a rule rather than a shape, in points.
+FURNITURE_THIN = 2.0
+
+#: And the backstop: a cluster still spanning this much of the page in both
+#: dimensions is refused. It is deliberately close to the whole page, because a
+#: genuine full-page schematic would be refused by it too -- that trade is
+#: visible in the count rather than hidden in the threshold.
+MAX_REGION_SPAN = 0.95
 
 #: The rule that promotes, and the confidence it confers.
 REGION_RULE = ("region-render", 0.8)
+
+
+def is_furniture(mark: dict, width: float, height: float) -> bool:
+    """Whether a mark is part of the page rather than part of a drawing.
+
+    Three shapes, all measured on real documents before being written here: a
+    rectangle the size of the page (a background fill or a clip), a straight rule
+    across its full width (a header or footer line), and one down its full height
+    (a margin line). Each is furniture; each, merged transitively, reaches every
+    other mark on the page and turns a region into the MediaBox.
+    """
+    if width <= 0 or height <= 0:
+        return False
+    w, h = float(mark["w"]), float(mark["h"])
+    if w >= FURNITURE_SPAN * width and h >= FURNITURE_SPAN * height:
+        return True
+    if w <= FURNITURE_THIN and h >= FURNITURE_SPAN * height:
+        return True
+    if h <= FURNITURE_THIN and w >= FURNITURE_SPAN * width:
+        return True
+    return False
 
 
 def _merge(marks: list[dict], gap: float) -> list[list[dict]]:
@@ -136,7 +179,9 @@ class VectorRegionAnalyzer(Analyzer):
             "pages_examined": 0,
             "marks": 0,
             "clusters": 0,
+            "grouped": 0,
             "promoted": 0,
+            "excluded": {},
             "refused": {},
             "rendered": 0,
             "renderer": None,
@@ -153,13 +198,34 @@ class VectorRegionAnalyzer(Analyzer):
             trace["marks"] += len(marks)
             if not marks:
                 continue
-            page_area = self._page_area(page)
-            for members in _merge(marks, REGION_MERGE_GAP):
+            width, height = self._page_size(page)
+            page_area = width * height
+            # Furniture goes BEFORE grouping, not after: refusing it afterwards
+            # is too late, because by then it has already merged everything it
+            # touched into one cluster.
+            drawing = []
+            for mark in marks:
+                if is_furniture(mark, width, height):
+                    self._exclude(trace, "page-furniture")
+                else:
+                    drawing.append(mark)
+            trace["grouped"] += len(drawing)
+            if not drawing:
+                continue
+            for members in _merge(drawing, REGION_MERGE_GAP):
                 trace["clusters"] += 1
                 ops = sum(int(m["ops"]) for m in members)
                 box = _extent(members)
                 if ops < MIN_REGION_OPS:
                     self._refuse(trace, "too-few-operators")
+                    continue
+                span_w = (box[2] - box[0]) / width if width > 0 else 0.0
+                span_h = (box[3] - box[1]) / height if height > 0 else 0.0
+                if span_w >= MAX_REGION_SPAN and span_h >= MAX_REGION_SPAN:
+                    # A chain furniture exclusion did not explain. Counted, so
+                    # that "how often does the backstop fire" is a number rather
+                    # than a guess.
+                    self._refuse(trace, "region-spans-page")
                     continue
                 area = (box[2] - box[0]) * (box[3] - box[1])
                 if page_area <= 0 or area / page_area < MIN_REGION_AREA:
@@ -180,11 +246,23 @@ class VectorRegionAnalyzer(Analyzer):
     # ------------------------------------------------------------------ steps
 
     @staticmethod
-    def _page_area(page: Node) -> float:
-        for key in ("width", "height"):
-            if page.facts.get(key) is None:
-                return 595.0 * 842.0          # the declared default page
-        return float(page.facts["width"]) * float(page.facts["height"])
+    def _page_size(page: Node) -> tuple[float, float]:
+        """The page's own dimensions, or the declared default if it will not say.
+
+        The default is a last resort and not a convenience: every fraction-of-the
+        -page test in this module is a test against these two numbers, and this
+        corpus holds pages of 720 x 405 beside pages of 595 x 842.
+        """
+        width, height = page.facts.get("width"), page.facts.get("height")
+        if width is None or height is None:
+            return (595.0, 842.0)
+        return (float(width), float(height))
+
+    @staticmethod
+    def _exclude(trace, reason: str) -> None:
+        if reason not in MARK_EXCLUSIONS:
+            raise ValueError(f"exclusion reason {reason!r} is outside the frozen vocabulary")
+        trace["excluded"][reason] = trace["excluded"].get(reason, 0) + 1
 
     @staticmethod
     def _refuse(trace, reason: str) -> None:

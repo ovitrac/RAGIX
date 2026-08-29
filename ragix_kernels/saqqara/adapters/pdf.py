@@ -123,6 +123,15 @@ def _concat(a, b) -> tuple[float, ...]:
     )
 
 
+def _page_side(page, axis: int) -> float | None:
+    """A page's width or height in points, or None if it will not say."""
+    try:
+        box = page.mediabox
+        return float(box.width if axis == 0 else box.height)
+    except Exception:
+        return None
+
+
 def _apply(m, x: float, y: float) -> tuple[float, float]:
     """One point under a transformation."""
     return (m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5])
@@ -201,7 +210,7 @@ def _y_scale(matrix) -> float:
         return math.hypot(float(matrix[2]), float(matrix[3]))
     except (TypeError, ValueError, IndexError):
         return 1.0
-PAGE_FACTS = ("has_text", "image_count", "needs_ocr")
+PAGE_FACTS = ("has_text", "image_count", "needs_ocr", "width", "height")
 OUTLINE_FACTS = ("level",)
 
 
@@ -210,7 +219,7 @@ class PdfAdapter(Adapter):
 
     format = "pdf"
     # 0.4.0 reads the images a document holds, one record per placement (K6.1).
-    version = "0.6.0"
+    version = "0.7.0"
     extensions = (".pdf",)
     fact_sets = {
         "outline_entry": OUTLINE_FACTS,
@@ -484,6 +493,11 @@ class PdfAdapter(Adapter):
             facts={
                 "has_text": has_text,
                 "image_count": image_count,
+                # The page's own dimensions. Anything measured as a fraction of
+                # "the page" against an assumed A4 is measuring the assumption:
+                # this corpus holds pages of 720 x 405 among others (K6.17).
+                "width": _page_side(page, 0),
+                "height": _page_side(page, 1),
                 # Declared, not inferred later: a page with ink and no characters
                 # is pending, and saying so here is what keeps it from passing for
                 # a page that was read and found empty.

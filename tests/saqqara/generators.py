@@ -2048,6 +2048,60 @@ def pdf_vector_region(path: Path) -> Path:
     return _pdf_paths(path, [dense, rule, tiny])
 
 
+def pdf_page_furniture(path: Path) -> Path:
+    """One small drawing on a page dressed in furniture.
+
+    The shapes that made a whole corpus of regions meaningless, measured on real
+    documents before being written here:
+
+        a page-sized rectangle, ONE operator      -- a background fill or a clip
+        a rule spanning the full page width       -- a header or footer line
+        a rule spanning the full page height      -- a margin line
+        twenty short segments in (200,300)-(320,400) -- the actual drawing
+
+    Merged transitively, the first three reach everything on the page and the
+    region becomes the MediaBox. Excluded first, the region is the drawing.
+
+    A second page carries no furniture and a chain of ordinary marks that walks
+    the page anyway, so the backstop is exercised by something rather than
+    declared and never reached.
+    """
+    segments = []
+    for i in range(10):
+        segments.append((200 + 12 * i, 300, 200 + 12 * i, 400))
+    for i in range(10):
+        segments.append((200, 300 + 10 * i, 320, 300 + 10 * i))
+
+    first = b"0 0 595 842 re f\n"                      # page-sized background
+    first += b"0 780 m 595 780 l S\n"                  # full-width rule
+    first += b"30 0 m 30 842 l S\n"                    # full-height rule
+    for x0, y0, x1, y1 in segments:
+        first += (f"{x0:g} {y0:g} m {x1:g} {y1:g} l S\n").encode("ascii")
+
+    # Page two: no furniture at all, and a chain of ordinary short marks that
+    # still walks the whole page. The backstop is for the chains furniture
+    # exclusion does not explain, and a backstop nothing reaches is a wish.
+    second = b""
+    for i in range(60):
+        x = 10 + 10 * i % 580
+        y = 10 + 14 * i
+        second += (f"{x:g} {y:g} m {x + 8:g} {y + 8:g} l S\n").encode("ascii")
+
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [4 0 R 6 0 R] /Count 2 >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        (b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << "
+         b"/Font << /F1 3 0 R >> >> /Contents 5 0 R >>"),
+        _pdf_stream(first),
+        (b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << "
+         b"/Font << /F1 3 0 R >> >> /Contents 7 0 R >>"),
+        _pdf_stream(second),
+    ]
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
 def pdf_no_objects(path: Path) -> Path:
     """A page of prose and nothing else: the negative.
 
@@ -2492,6 +2546,7 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "pdf_image_in_form": pdf_image_in_form,
     "pdf_caption_below": pdf_caption_below,
     "pdf_vector_region": pdf_vector_region,
+    "pdf_page_furniture": pdf_page_furniture,
     "pdf_no_objects": pdf_no_objects,
     "pdf_caption_ambiguous": pdf_caption_ambiguous,
     "pdf_form_pathologies": pdf_form_pathologies,
@@ -2557,6 +2612,7 @@ FIXTURE_SUFFIX: Dict[str, str] = {
     "pdf_image_in_form": ".pdf",
     "pdf_caption_below": ".pdf",
     "pdf_vector_region": ".pdf",
+    "pdf_page_furniture": ".pdf",
     "pdf_no_objects": ".pdf",
     "pdf_caption_ambiguous": ".pdf",
     "pdf_form_pathologies": ".pdf",
