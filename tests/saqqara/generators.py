@@ -2214,6 +2214,31 @@ def pdf_no_objects(path: Path) -> Path:
     return _pdf_paths(path, [], text="Une page de prose, sans figure ni trace de dessin.")
 
 
+def pdf_text_widths(path: Path) -> Path:
+    """Two lines: one in a font that declares its widths, one in a font that does not.
+
+    Every character in the first font is exactly half an em, so a ten-character
+    run at 10 points is exactly 50 points wide and the arithmetic is checkable by
+    hand. The second line is set in a standard font with no `/Widths` at all --
+    the shape that must come back as UNKNOWN rather than as a plausible number.
+    """
+    payload = (b"BT /FW 10 Tf 100 700 Td (" + _pdf_escape("0123456789") + b") Tj ET\n"
+               b"BT /FN 10 Tf 100 650 Td (" + _pdf_escape("0123456789") + b") Tj ET\n")
+    widths = " ".join(["500"] * 95)                  # codes 32..126, half an em each
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [5 0 R] /Count 1 >>",
+        ("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /FirstChar 32 "
+         "/LastChar 126 /Widths [" + widths + "] >>").encode("ascii"),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >>",
+        (b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << "
+         b"/Font << /FW 3 0 R /FN 4 0 R >> >> /Contents 6 0 R >>"),
+        _pdf_stream(payload),
+    ]
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
 def pdf_caption_below(path: Path) -> Path:
     """Four figures: one per binding rule, and one with nothing near it.
 
@@ -2648,6 +2673,7 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "pdf_image_xobject": pdf_image_xobject,
     "pdf_image_in_form": pdf_image_in_form,
     "pdf_caption_below": pdf_caption_below,
+    "pdf_text_widths": pdf_text_widths,
     "pdf_vector_region": pdf_vector_region,
     "pdf_page_furniture": pdf_page_furniture,
     "pdf_table_as_image": pdf_table_as_image,
@@ -2717,6 +2743,7 @@ FIXTURE_SUFFIX: Dict[str, str] = {
     "pdf_image_xobject": ".pdf",
     "pdf_image_in_form": ".pdf",
     "pdf_caption_below": ".pdf",
+    "pdf_text_widths": ".pdf",
     "pdf_vector_region": ".pdf",
     "pdf_page_furniture": ".pdf",
     "pdf_table_as_image": ".pdf",

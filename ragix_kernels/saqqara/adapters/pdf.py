@@ -42,7 +42,7 @@ from .contract import (
 )
 
 #: The declared vocabularies, one per record kind this reader emits (K2.19).
-TEXT_FACTS = ("x", "y", "font_size", "font")
+TEXT_FACTS = ("x", "y", "font_size", "font", "width")
 
 #: Why an object was not read. Closed, and every entry is produced by something:
 #: an image carried in the content stream, a resource naming an object that is not
@@ -128,6 +128,43 @@ def _concat(a, b) -> tuple[float, ...]:
         a[2] * b[0] + a[3] * b[2], a[2] * b[1] + a[3] * b[3],
         a[4] * b[0] + a[5] * b[2] + b[4], a[4] * b[1] + a[5] * b[3] + b[5],
     )
+
+
+def _x_scale(matrix) -> float:
+    """How much a matrix stretches horizontally, for the same reason `_y_scale`
+    exists: the operand says what was asked for, the matrix says what reached the
+    page (K2.24, along the other axis)."""
+    return math.hypot(matrix[0], matrix[1])
+
+
+def _run_width(text: str, font, size: float, tm, cm) -> float | None:
+    """How wide a run of type is on the page, or None where it cannot be known.
+
+    Measured from the font's own `/Widths`, never estimated. A run whose font
+    declares no widths, or which contains a character those widths do not cover,
+    returns **None**: an extent is either read from the document or it is
+    unknown, and a plausible number in this field would be indistinguishable
+    from a measured one everywhere downstream (K2.25).
+    """
+    if not text or not size:
+        return None
+    try:
+        widths = font.get("/Widths")
+        first = font.get("/FirstChar")
+        if widths is None or first is None:
+            return None
+        widths = widths.get_object() if hasattr(widths, "get_object") else widths
+        first = int(first)
+        total = 0.0
+        for character in text:
+            code = ord(character)
+            index = code - first
+            if code > 255 or index < 0 or index >= len(widths):
+                return None
+            total += float(widths[index])
+    except Exception:
+        return None
+    return total / 1000.0 * float(size) * _x_scale(tm) * _x_scale(cm)
 
 
 def _page_side(page, axis: int) -> float | None:
@@ -226,7 +263,7 @@ class PdfAdapter(Adapter):
 
     format = "pdf"
     # 0.4.0 reads the images a document holds, one record per placement (K6.1).
-    version = "0.7.0"
+    version = "0.8.0"
     extensions = (".pdf",)
     fact_sets = {
         "outline_entry": OUTLINE_FACTS,
@@ -480,8 +517,10 @@ class PdfAdapter(Adapter):
                 # The operand is what the type asked for; the two matrices are what
                 # it got. Only their product is the size on the page (K2.24).
                 size = float(font_size or 0) * _y_scale(tm) * _y_scale(cm)
+                width = _run_width(text, font_dict if isinstance(font_dict, dict) else {},
+                                   font_size or 0, tm, cm)
                 placements.append((text.strip(), float(tm[4]), float(tm[5]),
-                                   size, name))
+                                   size, name, width))
 
         try:
             page.extract_text(visitor_text=visitor)
@@ -536,13 +575,14 @@ class PdfAdapter(Adapter):
                 },
             )
 
-        for text, x, y, size, font in placements:
+        for text, x, y, size, font, width in placements:
             yield Mastaba(
                 kind="text",
                 locator=PdfLocator(page=number),
                 text=text,
                 facts={"x": round(x, 2), "y": round(y, 2),
-                       "font_size": round(size, 2), "font": font},
+                       "font_size": round(size, 2), "font": font,
+                       "width": None if width is None else round(width, 2)},
             )
 
 

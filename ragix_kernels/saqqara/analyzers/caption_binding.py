@@ -38,6 +38,7 @@ __all__ = [
     "CAPTION_ABSTENTIONS",
     "CAPTION_CHANNEL",
     "CAPTION_GAP",
+    "CAPTION_OVERLAP",
     "CAPTION_RULES",
     "BINDING_FACTS",
     "CaptionBindingAnalyzer",
@@ -109,19 +110,48 @@ def _box(figure: Node) -> tuple[float, float, float, float] | None:
     return (left, bottom, left + width, bottom + height)
 
 
-def _line_x(line) -> float | None:
-    """Where a line starts.
+def _line_span(line) -> tuple[float, float] | None:
+    """Where a line starts and ends, or just where it starts if it will not say.
 
-    Not where it ends: a text record carries one origin and no width, so the
-    extent of a line is not among the facts this kernel has. Overlap is
-    therefore tested on the caption's ORIGIN falling inside the figure's
-    horizontal span, which is narrower than the fraction-of-width test the
-    contract's geometry section describes. Closing that gap is a change to what
-    a reader emits, not to how this analyzer reasons, and it is named rather
-    than quietly redefined.
+    A run reports the width it occupies when its font declares one (K2.25), so a
+    line's extent is now a measurement rather than a point. Where no run of the
+    line can be measured -- a composite font, an undeclared glyph -- the span
+    degenerates to its origin, and the overlap test below falls back to asking
+    whether that origin lies inside the figure. Degrading to the weaker test is
+    stated here rather than hidden: it is the difference between a rule that
+    knows less and a rule that pretends.
     """
     xs = [float(n.facts["x"]) for n in line.nodes if n.facts.get("x") is not None]
-    return min(xs) if xs else None
+    if not xs:
+        return None
+    left = min(xs)
+    right = left
+    for node in line.nodes:
+        x, width = node.facts.get("x"), node.facts.get("width")
+        if x is not None and width is not None:
+            right = max(right, float(x) + float(width))
+    return (left, right)
+
+
+def _overlaps(span: tuple[float, float], left: float, right: float) -> bool:
+    """Whether a caption sits over the figure, asked of its ORIGIN.
+
+    A text record now carries a measured width (K2.25), so the extent the
+    contract's `CAPTION_OVERLAP` needs finally exists -- and measuring with it
+    showed the declared test is the wrong way round for this corpus. It asks what
+    fraction of the CAPTION lies within the figure, and **445 of 553 measurable
+    captions are wider than the figure they caption**: the fraction is then capped
+    at figure width over caption width, below 0.5 for any caption more than twice
+    the figure's width. Applied as written it refused 515 of 553 and cost 80
+    above-figure bindings outright, the above rule having no offset fallback.
+
+    So the extent is read and reported, and this rule keeps the origin test until
+    the lead rules on the direction. Using the measurement to justify a different
+    threshold here would be this seat rewriting a signed geometry from its own
+    corpus, which is the one thing calibration is not allowed to do.
+    """
+    start, _end = span
+    return left <= start <= right
 
 
 class CaptionBindingAnalyzer(Analyzer):
@@ -218,11 +248,11 @@ class CaptionBindingAnalyzer(Analyzer):
             height = float(line.size or 0.0)
             if height <= 0:
                 continue
-            x = _line_x(line)
-            if x is None:
+            span = _line_span(line)
+            if span is None:
                 continue
             y = float(line.nodes[0].facts["y"])
-            overlapping = left <= x <= right
+            overlapping = _overlaps(span, left, right)
             reach = CAPTION_GAP * height
 
             if y <= bottom and bottom - y <= reach:

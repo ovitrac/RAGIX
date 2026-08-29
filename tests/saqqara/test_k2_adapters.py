@@ -208,10 +208,10 @@ PINNED = {
         "heading": ("level",),
         "paragraph": (),
     }),
-    "pdf": ("0.7.0", {
+    "pdf": ("0.8.0", {
         "outline_entry": ("level",),
         "page": ("has_text", "image_count", "needs_ocr", "width", "height"),
-        "text": ("x", "y", "font_size", "font"),
+        "text": ("x", "y", "font_size", "font", "width"),
         "figure": ("asset", "source", "media_type", "width", "height",
                    "x", "y", "w", "h", "colorspace", "bits", "smask"),
         "drawing": ("x", "y", "w", "h", "ops", "stroke", "fill"),
@@ -740,3 +740,29 @@ def test_k2_17_the_blank_does_not_count_as_a_value_downstream(built):
     header = block.facts["header"]
     assert header["uncertain"] is False
     assert header["label_cols"] == ["A"], "the answer column is a slot column, not a value column"
+
+
+# ------------------------------- K2.25 a run reports the width it occupies
+
+def test_k2_25_a_width_is_measured_from_the_font_not_estimated(tmp_path):
+    """Every glyph is half an em, so ten of them at 10 points is exactly 50."""
+    import generators as G
+    from ragix_kernels.saqqara.adapters import adapter_for, read_path
+
+    path = G.FIXTURES["pdf_text_widths"](tmp_path / "widths.pdf")
+    records = [r for r in read_path(path) if r.kind == "text"]
+    measured = [r for r in records if r.facts["width"] is not None]
+    assert measured, "the font that declares widths must produce one"
+    assert measured[0].facts["width"] == 50.0, measured[0].facts
+
+
+def test_k2_25_a_font_without_widths_reports_unknown(tmp_path):
+    """The branch that must never be filled in with something plausible."""
+    import generators as G
+    from ragix_kernels.saqqara.adapters import read_path
+
+    path = G.FIXTURES["pdf_text_widths"](tmp_path / "widths.pdf")
+    records = [r for r in read_path(path) if r.kind == "text"]
+    unknown = [r for r in records if r.facts["width"] is None]
+    assert len(unknown) == 1, [r.facts for r in records]
+    assert len(records) == 2, "both runs are read; only one can be measured"
