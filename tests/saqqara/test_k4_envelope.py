@@ -205,32 +205,50 @@ def test_k4_the_opt_in_outline_pass_is_off_by_default(run, tmp_path):
 
 # ------------------------------------------------------------ the MCP surface
 
-def _mcp_module():
-    import importlib.util
-
-    path = ROOT / "MCP" / "ragix_mcp_server.py"
-    if not path.is_file():
-        pytest.skip("MCP server is not part of this checkout")
-    spec = importlib.util.spec_from_file_location("ragix_mcp_server_under_test", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+#: The tools this family exposes, in the order it registers them.
+DECLARED_TOOLS = ["koas_saqqara_run", "koas_saqqara_status"]
 
 
-def _tool(module, name):
-    """The decorator may wrap the function or hand it back; either is fine."""
-    tool = getattr(module, name)
-    return getattr(tool, "fn", tool)
+class _StubServer:
+    """The smallest thing that looks like a FastMCP server to a registrar.
+
+    The surface is reached through `register_saqqara_tools`, which is how the real
+    server reaches it too, rather than by looking up attributes on the server
+    MODULE. The earlier version did the latter, and so asserted that two functions
+    were defined at the top level of `MCP/ragix_mcp_server.py` — true only while
+    the family did not own its own surface. Moving the tools into the family, which
+    is the pattern every other family follows, broke four tests without changing
+    what any caller can do. A gate should pin what the family exposes, not which
+    file happens to hold it.
+    """
+
+    def __init__(self):
+        self.tools: dict = {}
+
+    def tool(self):
+        def register(fn):
+            self.tools[fn.__name__] = fn
+            return fn
+        return register
 
 
 @pytest.fixture(scope="module")
 def mcp():
-    return _mcp_module()
+    from ragix_kernels.saqqara.mcp.tools import register_saqqara_tools
+
+    server = _StubServer()
+    register_saqqara_tools(server)
+    return server
 
 
-def test_k4_mcp_exposes_both_tools(mcp):
-    for name in ("koas_saqqara_run", "koas_saqqara_status"):
-        assert _tool(mcp, name) is not None
+def _tool(server, name):
+    """The decorator may wrap the function or hand it back; either is fine."""
+    tool = server.tools[name]
+    return getattr(tool, "fn", tool)
+
+
+def test_k4_mcp_exposes_exactly_the_declared_tools(mcp):
+    assert list(mcp.tools) == DECLARED_TOOLS
 
 
 def test_k4_mcp_run_reads_a_corpus(mcp, tmp_path):
@@ -256,6 +274,23 @@ def test_k4_mcp_status_says_so_when_there_is_nothing_to_read(mcp, tmp_path):
     """An empty answer and a missing result must not look alike."""
     status = _tool(mcp, "koas_saqqara_status")(workspace=str(tmp_path / "never-ran"))
     assert "error" in status
+
+
+def test_k4_the_server_registers_the_family_surface():
+    """The server must still reach the tools — the family owning them is not enough.
+
+    Checked on the source rather than by importing: loading the server pulls in the
+    whole project, and a dependency missing from this environment would turn a
+    registration question into an unrelated ImportError.
+    """
+    server = ROOT / "MCP" / "ragix_mcp_server.py"
+    if not server.is_file():
+        pytest.skip("MCP server is not part of this checkout")
+    text = server.read_text(encoding="utf-8")
+    assert "register_saqqara_tools" in text, "the server no longer registers saqqara"
+    assert "koas_saqqara_run" not in text.split("def _register_saqqara_tools")[-1].split(
+        "\ndef "
+    )[0], "the server should register the tools, not define them"
 
 
 # ------------------------------------------------------------- the CI guard
