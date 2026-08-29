@@ -788,6 +788,28 @@ See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
 MIT License — See [LICENSE](LICENSE) for details.
 
+### Optional extras and their licences
+
+Every dependency installed by default, and every one in the `all` extra bar the exception noted
+below, carries a licence compatible with distributing this package under MIT.
+
+**`saqqara-mupdf` is the exception, and it is opt-in.** It installs `pymupdf`, which is
+**AGPL-3.0** (or a paid commercial licence from its vendor). Installing it subjects the deploying
+system to AGPL obligations that are **incompatible with distributing this package under MIT**.
+
+- it is never installed by default, never pulled in by the `all` extra, and never required by any
+  test;
+- the document kernel's default renderer is `pypdfium2` (Apache-2.0), which imposes nothing;
+- the kernel refuses to import `pymupdf` from anywhere but its single named adapter, and a gate
+  enforces that.
+
+Install it only if you already hold a commercial licence from the vendor, or if you are not
+distributing the result and accept the AGPL terms. That choice is yours to make explicitly.
+
+> Note: the pre-existing `translate` extra also installs `pymupdf` (via `pymupdf4llm`), and
+> `translate` **is** part of `all`. Installing `all` therefore already brings AGPL code into the
+> environment, independently of the document kernel.
+
 ---
 
 ## Author
