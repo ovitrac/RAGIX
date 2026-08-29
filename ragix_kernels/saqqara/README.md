@@ -23,6 +23,7 @@ Complete and gated. `SPEC.md` holds 126 falsifiable propositions and every one i
 | `builder.py` | observations into a tree, with the accounting reconciled | K3.j |
 | `analyzers/` | tables, header bands, islands, chains, sections, outline | K3.a–K3.i |
 | `services.py` | title cascade, page policy, lookup | K3.g |
+| `assets.py`, `render/`, object analyzers | figures, captions and drawn regions — what a document shows rather than says | K6 |
 | `kernel.py` | the envelope, the roots, the MCP surface | K4 |
 
 ## Using it
