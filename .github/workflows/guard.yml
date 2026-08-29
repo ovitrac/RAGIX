@@ -46,7 +46,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install
-        run: python3 -m pip install --upgrade pip && python3 -m pip install -e ".[saqqara,dev]"
+        run: python3 -m pip install --upgrade pip && python3 -m pip install -e ".[saqqara,mcp,dev]"
 
       - name: Gates
         run: python3 -m pytest tests/saqqara -q
