@@ -164,6 +164,8 @@ class SqliteDocumentStore:
         self._db.commit()
         #: What the store removed, and why. Read by the CLI and the kernel report.
         self.drops: list[dict[str, Any]] = []
+        #: Dense indexes, one per model, built on demand from the rows above.
+        self._retrievers: dict[str, Any] = {}
 
     def close(self) -> None:
         self._db.close()
@@ -332,6 +334,12 @@ class SqliteDocumentStore:
         to_insert = [c for cid, c in incoming.items() if cid not in existing]
         to_delete = sorted(existing - set(incoming))
 
+        if to_insert or to_delete:
+            # The cached index describes rows that just changed, so it is dropped
+            # rather than patched: an index patched in parallel with its source is
+            # a second answer waiting to diverge.
+            self._retrievers.clear()
+
         for chunk in to_insert:
             self._db.execute(
                 """INSERT INTO chunks
@@ -477,15 +485,26 @@ class SqliteDocumentStore:
                 for i, r in enumerate(rows, 1)]
 
     def search(self, vector: Iterable[float], top_k: int, model: str) -> list[Hit]:
-        """The dense lane. Implemented in retrieve.py, which owns the index.
+        """The dense lane, over vectors read from this database.
 
-        Failing closed rather than returning [] is deliberate: an empty result is
-        a claim that nothing matched, and this store is in no position to make it.
+        The index is built by retrieve.py and cached per model on this store. It is
+        a cache and never an artefact: it is rebuilt from the rows here, so it
+        cannot outlive or contradict them.
         """
-        raise NotImplementedError(
-            "the dense lane is provided by saqqara.store.retrieve; "
-            "use retrieve.search(store, ...) or a store built through that module"
-        )
+        from .retrieve import Retriever
+
+        retriever = self._retrievers.get(model)
+        if retriever is None:
+            retriever = Retriever(self, model=model)
+            self._retrievers[model] = retriever
+        return retriever.dense(vector, top_k)
+
+    def invalidate_index(self, model: Optional[str] = None) -> None:
+        """Drop a cached index, or all of them. The next search rebuilds from here."""
+        for name, retriever in list(self._retrievers.items()):
+            if model is None or name == model:
+                retriever.invalidate()
+                self._retrievers.pop(name, None)
 
 
 register_store("sqlite", SqliteDocumentStore)

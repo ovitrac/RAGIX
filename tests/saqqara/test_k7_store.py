@@ -430,10 +430,38 @@ def test_k7_13_an_empty_query_returns_nothing_rather_than_everything(store):
     assert store.lexical_search("   ", top_k=5) == []
 
 
-def test_k7_8_the_dense_lane_refuses_rather_than_returning_empty(store):
-    """An empty result claims nothing matched; this store cannot claim that."""
-    with pytest.raises(NotImplementedError, match="dense lane"):
-        store.search([0.1, 0.2], top_k=5, model="m")
+def test_k7_8_the_store_answers_its_own_dense_lane(store, trees):
+    """The protocol is satisfied by the store, not by a helper the caller must find."""
+    tree = trees["docx"]
+    sha = "e" * 64
+    fed = feed_tree(tree, source_path="/a.docx", source_sha256=sha)
+    store.upsert_document(fed.document)
+    store.replace_chunks(sha, fed.chunks)
+    embed_missing(store, fed.chunks, build_embedder("dummy"), model="d")
+
+    hits = store.search([0.1] * 384, top_k=5, model="d")
+    assert hits and all(h.dense_rank is not None for h in hits)
+    assert all(h.lexical_rank is None for h in hits)
+
+
+def test_k7_8_changing_the_chunks_drops_the_cached_index(store, trees):
+    """An index patched in parallel with its source is a second answer waiting.
+
+    Falsified by: a search after a chunk change still answering from stale vectors.
+    """
+    tree = trees["docx"]
+    sha = "f" * 64
+    fed = feed_tree(tree, source_path="/a.docx", source_sha256=sha)
+    store.upsert_document(fed.document)
+    store.replace_chunks(sha, fed.chunks)
+    embed_missing(store, fed.chunks, build_embedder("dummy"), model="d")
+
+    before = store.search([0.1] * 384, top_k=10, model="d")
+    assert before
+
+    store.replace_chunks(sha, fed.chunks[:1])
+    after = store.search([0.1] * 384, top_k=10, model="d")
+    assert len(after) < len(before), "the cache outlived the rows it described"
 
 
 # ================================================================ the chunker
@@ -906,3 +934,139 @@ def test_k7_6_the_ollama_backend_embeds_live(store, tree):
     vectors = store.get_embeddings("ollama-live")
     assert len({v.dimensions for v in vectors}) == 1
     assert all(any(c != 0.0 for c in v.vector) for v in vectors)
+
+
+# ====================================================== retrieval, K7.8/K7.9/K7.10
+
+from ragix_kernels.saqqara.store.retrieve import (  # noqa: E402
+    RRF_K,
+    Retriever,
+    provenance_of,
+    related_of,
+)
+
+
+@pytest.fixture
+def indexed(store, trees):
+    """A store holding one real document, chunked, embedded with a dummy backend."""
+    tree = trees["docx"]
+    sha = "b" * 64
+    fed = feed_tree(tree, source_path="/a.docx", source_sha256=sha)
+    store.upsert_document(fed.document, objects=fed.objects, edges=fed.edges)
+    store.replace_chunks(sha, fed.chunks)
+    embed_missing(store, fed.chunks, build_embedder("dummy"), model="d")
+    return store, tree, sha, fed
+
+
+def test_k7_8_the_dense_lane_reads_its_vectors_from_the_database(indexed):
+    """Not from a file beside it: the DB is the source, the index is the cache."""
+    store, _tree, _sha, fed = indexed
+    retriever = Retriever(store, model="d")
+    vector = [0.0] * store.get_embeddings("d")[0].dimensions
+    vector[0] = 1.0
+
+    hits = retriever.dense(vector, top_k=5)
+    assert hits and all(h.dense_rank is not None for h in hits)
+    assert all(h.lexical_rank is None for h in hits)
+
+
+def test_k7_8_dropping_the_cache_reproduces_identical_hits(indexed):
+    """A cache that changes the answer is a second store, not a cache.
+
+    Falsified by: a different hit list after invalidate() and a rebuild.
+    """
+    store, _tree, _sha, _fed = indexed
+    retriever = Retriever(store, model="d")
+    vector = [0.1] * store.get_embeddings("d")[0].dimensions
+
+    before = [(h.chunk.chunk_id, h.dense_rank) for h in retriever.dense(vector, top_k=10)]
+    retriever.invalidate()
+    after = [(h.chunk.chunk_id, h.dense_rank) for h in retriever.dense(vector, top_k=10)]
+    assert before == after and before
+
+
+def test_k7_8_a_store_with_no_vectors_has_an_empty_dense_lane(store, trees):
+    """Empty because nothing was embedded — and the lexical lane still answers."""
+    tree = trees["docx"]
+    sha = "c" * 64
+    fed = feed_tree(tree, source_path="/a.docx", source_sha256=sha)
+    store.upsert_document(fed.document)
+    store.replace_chunks(sha, fed.chunks)
+
+    retriever = Retriever(store, model="d")
+    assert retriever.dense([0.1, 0.2], top_k=5) == []
+    assert retriever.lexical(fed.chunks[0].text.split()[0], top_k=5)
+
+
+def test_k7_9_a_fused_hit_keeps_both_lane_ranks(indexed):
+    """The fused rank is added beside the lane ranks, never in place of them."""
+    store, _tree, _sha, fed = indexed
+    retriever = Retriever(store, model="d")
+    vector = [0.1] * store.get_embeddings("d")[0].dimensions
+    word = fed.chunks[0].text.split()[0]
+
+    hits = retriever.search(query=word, vector=vector, top_k=10)
+    assert hits
+    for hit in hits:
+        assert hit.final_rank is not None
+        assert hit.dense_rank is not None or hit.lexical_rank is not None
+    assert any(h.dense_rank is not None for h in hits)
+
+
+def test_k7_9_a_hit_from_one_lane_says_none_for_the_other(indexed):
+    """Absent and last are different answers; only None can say the first."""
+    store, _tree, _sha, fed = indexed
+    retriever = Retriever(store, model="")   # no model -> no dense lane at all
+    word = fed.chunks[0].text.split()[0]
+
+    hits = retriever.search(query=word, vector=None, top_k=10)
+    assert hits
+    assert all(h.dense_rank is None for h in hits)
+    assert all(h.lexical_rank is not None for h in hits)
+    assert all(h.final_rank is not None for h in hits)
+
+
+def test_k7_9_the_fusion_is_over_ranks_not_scores(indexed):
+    """RRF: 1/(k+rank). A lane's raw score never enters the objective."""
+    store, _tree, _sha, fed = indexed
+    retriever = Retriever(store, model="d", rrf_k=RRF_K)
+    vector = [0.1] * store.get_embeddings("d")[0].dimensions
+    word = fed.chunks[0].text.split()[0]
+
+    hits = retriever.search(query=word, vector=vector, top_k=10)
+    ranks = [h.final_rank for h in hits]
+    assert ranks == sorted(ranks) == list(range(1, len(hits) + 1))
+    assert all(h.boosts == {} for h in hits), "boosts are declared but empty in this PR"
+
+
+def test_k7_10_every_hit_resolves_to_a_non_empty_provenance_chain(indexed):
+    """What a hit is FOR. Text with a score and no citation is the failure."""
+    store, tree, _sha, fed = indexed
+    retriever = Retriever(store, model="d")
+    word = fed.chunks[0].text.split()[0]
+
+    hits = retriever.search(query=word, vector=None, top_k=10)
+    assert hits
+    for hit in hits:
+        chains = provenance_of(tree, hit.chunk)
+        assert chains, "a hit that leads nowhere"
+        for entry in chains:
+            assert entry["chain"], "a node citing nothing"
+            assert entry["source_path"] and entry["source_format"]
+
+
+def test_k7_11_a_hit_carries_the_objects_and_edges_of_its_nodes(bound_tree, tmp_path):
+    """related/objects follow edges an analyzer decided; nothing is decided here."""
+    fed = feed_tree(bound_tree, source_path="/a.pdf", source_sha256="d" * 64)
+    with SqliteDocumentStore(path=str(tmp_path / "r.db")) as s:
+        s.upsert_document(fed.document, objects=fed.objects, edges=fed.edges)
+        s.replace_chunks(fed.document.doc_id, fed.chunks)
+
+        bound_nodes = {e.src for e in fed.edges} | {e.dst for e in fed.edges}
+        touching = [c for c in fed.chunks if set(c.node_ids) & bound_nodes]
+        assert touching, "no chunk covers a bound node; the fixture changed"
+
+        found = related_of(s, touching[0])
+        assert found["related"], "a chunk over a bound node reported no relation"
+        for edge in found["related"]:
+            assert edge["type"] == "binds"
