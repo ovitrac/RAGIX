@@ -77,6 +77,9 @@ jobs:
       - name: Gates
         run: python3 -m pytest tests/saqqara -q
 
+      - name: Family gates
+        run: python3 -m pytest tests/tender -q
+
       # The demo is what a reader runs first, so it is checked like anything else.
       # It found two defects the gates could not: registration by import side
       # effect is invisible to a suite where some other test did the importing.

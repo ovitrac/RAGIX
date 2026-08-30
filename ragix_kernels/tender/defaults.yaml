@@ -1,0 +1,17 @@
+# tender — packaged defaults, the single source of truth for shape.
+#
+# A user file is a partial overlay naming only what it changes; every key it names
+# must exist here, or loading refuses with the path.
+#
+# The family READS a document store. It never builds one, so there is no provider
+# choice here: the store is whatever saqqara wrote.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+
+store:
+  path: .ragix/saqqara.db
+
+probe:
+  # Nothing to configure yet. The section exists so that the first option added
+  # here is an overlay against a declared shape rather than a new top-level key.
+  {}
