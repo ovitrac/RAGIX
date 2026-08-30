@@ -191,17 +191,17 @@ Each is carried by a proposition in `SPEC.md` and by a test, not by convention:
 
 ## 7. Gates and Specification
 
-`ragix_kernels/saqqara/SPEC.md` holds **126 falsifiable propositions**, each with the fixture
+`ragix_kernels/saqqara/SPEC.md` holds **127 falsifiable propositions**, each with the fixture
 that exercises it and what would falsify it.
 
 | gate | layer | propositions |
 |---|---|---:|
-| K1 | `model.py` — nodes, kinds, locators, provenance, stable JSON | 9 |
+| K1 | `model.py` — nodes, kinds, locators, provenance, stable JSON | 10 |
 | K2 | `adapters/` — one reader per format | 25 |
 | K3 | `analyzers/` + `builder.py` + `services.py` | 71 |
 | K4 | `kernels/` — the envelope and the roots | 2 |
 | K6 | objects — figures, captions, drawn regions | 19 |
-| | **total** | **126** |
+| | **total** | **127** |
 
 K0 is the gate that lets the others mean something. It proves the specification parses and is
 self-consistent, that specification and fixtures agree **in both directions**, that the package

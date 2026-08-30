@@ -81,6 +81,7 @@ added in the same edit so the property is now asserted rather than assumed.
 | K1.7 | The same content read from two different paths yields the same core signature. | `trees_per_format` | a signature that varies with the file path |
 | K1.8 | The signature separates structured mass from flat mass, and stays meaningful for both a spreadsheet and a flat word-processing tree. | `trees_per_format` | a flat tree and a structured tree scoring alike |
 | K1.9 | Within one document and one format, a locator chain is a unique address for a node: no two nodes of the tree **the builder produces** serialise to the same coordinate. Analyzers add derived nodes later, and a derived node legitimately cites the position it was derived from — it is told apart by naming its own producer, not by holding a different address. Several observations may share a position — a cell and its own border — but only where they become one node. | `slide_deck`, `mixed_workbook`, `docx_two_tier`, `markdown_document` | two nodes of one document sharing a coordinate |
+| K1.10 | A tree remains serialisable after any analyzer in this package has run over it: `to_json` writes it and the round trip is byte-identical. A fact that is neither JSON-native nor `to_dict`-aware is refused at serialisation, never stringified. | `pdf_caption_below` | an analyzer leaving a tree `to_json` cannot write, a round trip that is not byte-identical, or a fact stored as its repr |
 
 ## K2 — adapters: raw facts, one reader per format
 

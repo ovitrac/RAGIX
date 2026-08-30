@@ -375,6 +375,35 @@ kind_registry = KindRegistry()
 
 # ----------------------------------------------------------------------- nodes
 
+def _serialisable(value: Any) -> Any:
+    """A fact as JSON, asking objects that know how to serialise themselves.
+
+    `facts` is deliberately open: an adapter records what it observed, and an
+    analyzer may record a decision as the object that decision is. `Abstention` is
+    the standing example — abstention is an object in this package and travels
+    onward as a fact, so it must survive being written down rather than be
+    flattened at the door.
+
+    Anything that is neither JSON-native nor `to_dict`-aware RAISES. Falling back
+    to `str()` would store a repr that parses back as text and looks like data: a
+    corruption that survives every round-trip test, because it round-trips
+    perfectly. A refusal here is loud and immediate; the alternative is a fact
+    that quietly stopped being one.
+    """
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if hasattr(value, "to_dict"):
+        return _serialisable(value.to_dict())
+    if isinstance(value, dict):
+        return {k: _serialisable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_serialisable(v) for v in value]
+    raise TypeError(
+        f"fact of type {type(value).__name__} cannot be serialised: give it a "
+        "to_dict() or store it as JSON-native data"
+    )
+
+
 @dataclass
 class Node:
     """One element of a document, with its citation.
@@ -436,7 +465,7 @@ class Node:
         if self.span is not None:
             out["span"] = self.span
         if self.facts:
-            out["facts"] = self.facts
+            out["facts"] = _serialisable(self.facts)
         if self.children:
             out["children"] = [c.to_dict() for c in self.children]
         return out
