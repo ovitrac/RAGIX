@@ -3763,6 +3763,28 @@ def _register_saqqara_tools() -> bool:
 _saqqara_registered = _register_saqqara_tools()
 
 
+def _register_tender_tools() -> bool:
+    """Register the tender family's own MCP surface.
+
+    Defined in ragix_kernels/tender/mcp/tools.py, beside the kernels it exposes,
+    like every other family here.
+    """
+    try:
+        from ragix_kernels.tender.mcp.tools import register_tender_tools
+
+        register_tender_tools(mcp)
+        return True
+    except Exception as e:  # pragma: no cover - registration is environmental
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Tender tools registration failed (continuing without tender): {e}"
+        )
+        return False
+
+
+_tender_registered = _register_tender_tools()
+
+
 
 
 # ---------------------------------------------------------------------------
