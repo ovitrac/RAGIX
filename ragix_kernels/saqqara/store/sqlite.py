@@ -30,6 +30,14 @@ import struct
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
+# Reading a stored tree reconstructs its nodes, and Node refuses a kind the
+# registry does not know. The adapters register their kinds at import time, so a
+# process that only imports the store — the CLI, an example script — could not
+# deserialise a tree it had written itself: KindError: unregistered kind: 'page'.
+# The test suite could not see it, because importing an adapter anywhere registers
+# for everything after. Same shape as the provider-registration defect in ports.py.
+from .. import analyzers as _analyzers  # noqa: F401  (registers "block")
+from .. import builder as _builder      # noqa: F401  (registers cell, shape, page, …)
 from ..model import CANONICAL_JSON, Tree
 from .records import ChunkRecord, DocumentRecord, EdgeRecord, EmbeddingRecord, Hit, ObjectRecord
 from .ports import register_store

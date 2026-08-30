@@ -36,9 +36,22 @@ from .records import ChunkRecord, chunk_id_for, node_ids_of
 
 __all__ = ["CHUNKABLE_KINDS", "ChunkPlan", "chunk_tree"]
 
-#: Kinds that carry text a reader would retrieve. `document` and `section` are
-#: containers: they are the context of a chunk, never a chunk themselves.
-CHUNKABLE_KINDS = ("paragraph", "heading", "list", "list_item", "table", "caption", "block")
+#: Kinds that carry text a reader would retrieve.
+#:
+#: Written first from the shapes the fixture GENERATORS produce, which was wrong:
+#: the adapters emit `slide`, `shape` and `note` for presentations and `cell` for
+#: grids, none of which were here. A whole format contributed zero chunks and the
+#: gates did not notice, because they assert on trees the generators built rather
+#: than on trees a reader produced. The demo found it in one run.
+CHUNKABLE_KINDS = (
+    "paragraph", "heading", "list", "list_item", "table", "caption", "block",
+    "slide", "shape", "note", "cell",
+)
+
+#: Kinds that AGGREGATE their descendants' text into their own chunk. A cell
+#: inside a table is already in the table's chunk; chunking it again would return
+#: the same words twice under two ids and call that two pieces of evidence.
+AGGREGATING_KINDS = ("table",)
 
 #: Kinds that open a section and therefore name a roll-up.
 SECTION_KINDS = ("section", "heading")
@@ -119,8 +132,15 @@ def chunk_tree(
     current_section = ""
     seq = 0
 
+    absorbed: set[str] = set()
+
     for address in addresses:
         node = by_address[address]
+
+        if address in absorbed:
+            plan.refusals.append({"reason": "absorbed-by-an-aggregating-node",
+                                  "node_id": address, "kind": node.kind})
+            continue
 
         if node.kind in SECTION_KINDS:
             title = _text_of(node) or node.facts.get("title") or ""
@@ -147,6 +167,11 @@ def chunk_tree(
         if not text:
             plan.refusals.append({"reason": "no-text", "node_id": address, "kind": node.kind})
             continue
+
+        if node.kind in AGGREGATING_KINDS:
+            # Its descendants' text is in this chunk, so they are not chunks.
+            prefix = f"{address}." if address else ""
+            absorbed |= {a for a in addresses if a.startswith(prefix) and a != address}
 
         pieces = [text]
         oversize = len(text) > unit_max_chars

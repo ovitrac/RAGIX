@@ -500,7 +500,8 @@ def test_k7_3_refusals_are_counted_not_silent(trees, fmt):
     assert accounted == set(node_ids_of(tree)), f"{fmt}: nodes neither chunked nor refused"
     for refusal in plan.refusals:
         assert refusal["reason"] in (
-            "not-a-chunkable-kind", "no-text", "section-is-context")
+            "not-a-chunkable-kind", "no-text", "section-is-context",
+            "absorbed-by-an-aggregating-node")
 
 
 def test_k7_3_a_chunk_record_with_no_node_cannot_be_built():
@@ -1361,3 +1362,117 @@ def test_k7_15_a_provider_resolves_without_anyone_importing_its_module():
                           capture_output=True, text=True)
     assert done.returncode == 0, done.stderr
     assert done.stdout.strip() == "SqliteDocumentStore"
+
+
+# ------------------- K7.3, on trees a READER produced rather than a generator built
+
+@pytest.fixture(scope="module")
+def read_trees(tmp_path_factory):
+    """One tree per format, as the ADAPTERS emit them.
+
+    The generator trees use a tidy vocabulary; a real read emits `slide`, `shape`,
+    `note` and `cell`. Chunking was written against the first and silently dropped
+    a whole format of the second, so these tests use what a reader produces.
+    """
+    workspace = tmp_path_factory.mktemp("k7read")
+    source = workspace / "corpus"
+    source.mkdir()
+    for name, fixture in (("a.docx", "docx_two_tier"), ("b.xlsx", "mixed_workbook"),
+                          ("c.pdf", "pdf_outline"), ("d.pptx", "slide_deck"),
+                          ("e.md", "markdown_document")):
+        G.FIXTURES[fixture](source / name)
+    result = SaqqaraKernel().compute(
+        KernelInput(workspace=workspace, config={"source": {"path": str(source)}}))
+    return {Path(d["path"]).suffix.lstrip("."): Tree.from_dict(d["tree"])
+            for d in result["documents"]}
+
+
+@pytest.mark.parametrize("fmt", ["docx", "xlsx", "pdf", "pptx", "md"])
+def test_k7_3_every_format_a_reader_produces_yields_chunks(read_trees, fmt):
+    """A format that contributes nothing to the store is invisible to every query.
+
+    Falsified by: a read document of any supported format producing zero chunks.
+    This failed for pptx — slide, shape and note were not chunkable kinds — and
+    the store held a presentation nobody could search.
+    """
+    plan = chunk_tree(read_trees[fmt], doc_id="1" * 64)
+    level0 = [c for c in plan.chunks if c.level == 0]
+    assert level0, f"{fmt}: a read document produced no chunk"
+
+
+@pytest.mark.parametrize("fmt", ["docx", "xlsx", "pdf", "pptx", "md"])
+def test_k7_3_no_text_a_reader_found_is_lost(read_trees, fmt):
+    """Every node carrying text is chunked, or absorbed by a node that was.
+
+    This is the property the kind list was standing in for, and the reason the
+    stand-in failed: a list of kinds is a guess about what carries text, while
+    this is the thing actually meant.
+    """
+    tree = read_trees[fmt]
+    plan = chunk_tree(tree, doc_id="2" * 64)
+
+    chunked = {nid for c in plan.chunks if c.level == 0 for nid in c.node_ids}
+    absorbed = {r["node_id"] for r in plan.refusals
+                if r["reason"] == "absorbed-by-an-aggregating-node"}
+
+    lost = []
+    for node_id in node_ids_of(tree):
+        node = node_at(tree, node_id)
+        if not (node.text or "").strip():
+            continue
+        if node_id in chunked or node_id in absorbed:
+            continue
+        # A section title is context, carried on every chunk beneath it.
+        if node.kind in ("section",):
+            continue
+        lost.append((node_id, node.kind, (node.text or "")[:30]))
+    assert not lost, f"{fmt}: text a reader found reached no chunk: {lost}"
+
+
+def test_k7_3_an_aggregating_node_absorbs_its_cells_exactly_once(read_trees):
+    """A table's cells are in the table's chunk, not in chunks of their own.
+
+    Falsified by: the same words returned twice under two chunk ids, which would
+    be one piece of evidence counted as two.
+    """
+    tree = read_trees["docx"]
+    plan = chunk_tree(tree, doc_id="3" * 64)
+
+    tables = [c for c in plan.chunks
+              if c.level == 0 and node_at(tree, c.node_ids[0]).kind == "table"]
+    assert tables, "the docx fixture stopped carrying a table"
+
+    absorbed = {r["node_id"] for r in plan.refusals
+                if r["reason"] == "absorbed-by-an-aggregating-node"}
+    assert absorbed, "a table absorbed nothing"
+    chunked = {nid for c in plan.chunks if c.level == 0 for nid in c.node_ids}
+    assert not (absorbed & chunked), "a cell was both absorbed and chunked"
+
+
+def test_k7_2_a_stored_tree_deserialises_with_only_the_store_imported():
+    """Node kinds must be registered wherever a tree is read back.
+
+    The adapters do not register them — builder.py does — and a process that
+    imports only the store could not deserialise a tree it had written itself:
+    KindError: unregistered kind: 'page', then 'shape'. Invisible to the suite,
+    because importing the builder anywhere registers for everything after; fatal
+    in an example script. Same shape as the provider-registration defect.
+
+    Falsified by: any kind a reader can emit being unknown after importing only
+    the store. Run in a SUBPROCESS, which is the only place the failure exists.
+    """
+    import subprocess
+    import sys as _sys
+
+    code = (
+        "from ragix_kernels.saqqara.store.sqlite import SqliteDocumentStore;"
+        "from ragix_kernels.saqqara.model import kind_registry;"
+        "need={'cell','marker','note','shape','page','slide','sheet',"
+        "'vector_region','block','figure','caption'};"
+        "missing=need-set(kind_registry.known());"
+        "print(sorted(missing));"
+        "raise SystemExit(1 if missing else 0)"
+    )
+    done = subprocess.run([_sys.executable, "-c", code], cwd=str(ROOT),
+                          capture_output=True, text=True)
+    assert done.returncode == 0, f"unregistered kinds: {done.stdout.strip()}"
