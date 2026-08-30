@@ -95,7 +95,7 @@ infrastructure:
 # =============================================================================
 repositories:
   - name: "iog-support-commons"
-    url: "git@gitlab.internal:iowizme/iog-support-commons.git"
+    url: "git@git.example.com:example-org/example-repo.git"
     branch: "master"
     language: "Java"
     build_tool: "Maven"
