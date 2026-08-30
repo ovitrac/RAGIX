@@ -97,10 +97,17 @@ SCOPED_PREFIXES = (
 )
 
 #: Addresses that carry no deployment information.
+#:
+#: The last three are the RFC 5737 documentation ranges — TEST-NET-1, TEST-NET-2
+#: and TEST-NET-3. They exist to be written down: an address from them cannot
+#: identify a deployment, because it is reserved from ever being one. Refusing
+#: them made the guard fire on demo network configuration, which teaches people
+#: to write a realistic address instead — the opposite of what the rule wants.
 _ALLOWED_IPS = re.compile(
     r"^(127\.\d{1,3}\.\d{1,3}\.\d{1,3}|0\.0\.0\.0|255\.255\.255\.255"
     r"|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}"
-    r"|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})$"
+    r"|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}"
+    r"|192\.0\.2\.\d{1,3}|198\.51\.100\.\d{1,3}|203\.0\.113\.\d{1,3})$"
 )
 _IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 
@@ -330,11 +337,28 @@ def selftest() -> int:
             planted.write_text(f"# forked from {token}-rag\n", encoding="utf-8")
             check(f"tier1[{short}]", scan([rel], root), True)
 
-            planted.write_text("endpoint = 'http://203.0.113.9:8080'\n", encoding="utf-8")
+            # The positive control for the routable-address rule.
+            #
+            # It used a documentation address, which the allowlist now admits, so
+            # the control went silent — a check that cannot fail, guarding a rule
+            # nobody would notice breaking. It uses shared address space (RFC 6598,
+            # carrier-grade NAT) instead, and the distinction is the point: a
+            # documentation address is reserved from ever identifying a deployment,
+            # while CGNAT space is used in real infrastructure, so an address from
+            # it appearing in source CAN be a deployment fact. Refusing it is what
+            # the rule is for. Writing it here reveals nothing: the range is shared
+            # and belongs to no one.
+            planted.write_text("endpoint = 'http://100.64.0.1:8080'\n", encoding="utf-8")
             check(f"tier2[{short}]", scan([rel], root), True)
 
             planted.write_text("endpoint = 'http://127.0.0.1:11434'\n", encoding="utf-8")
             check(f"loopback[{short}]", scan([rel], root), False)
+
+            # The other half of the change: what the allowlist now admits must be
+            # observed being admitted, or "documentation ranges are allowed" is a
+            # claim resting on one rule not firing for some other reason.
+            planted.write_text("endpoint = 'http://203.0.113.9:8080'\n", encoding="utf-8")
+            check(f"doc-range[{short}]", scan([rel], root), False)
 
             planted.write_text("# Author: Someone | Adservio | 2026\n", encoding="utf-8")
             check(f"author-exemption[{short}]", scan([rel], root), False)
@@ -350,7 +374,7 @@ def selftest() -> int:
 
         # ---- scope really is a scope: tier 2 must not fire outside it
         other = root / "elsewhere.py"
-        other.write_text("endpoint = 'http://203.0.113.9:8080'\n", encoding="utf-8")
+        other.write_text("endpoint = 'http://100.64.0.1:8080'\n", encoding="utf-8")
         check("scope", scan(["elsewhere.py"], root), False)
 
     return 0 if ok else 1
