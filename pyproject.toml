@@ -51,7 +51,7 @@ translate = ["pymupdf4llm>=0.0.17", "pymupdf>=1.24.0"]
 # pypdfium2 is Apache-2.0 and rasterises a region of drawing so it can be stored
 # and compared. It is the DEFAULT renderer precisely because its licence imposes
 # nothing on a deployment of this MIT package.
-saqqara = ["ragix[docs]", "pypdf>=4.0.0", "pypdfium2>=4.0.0"]
+saqqara = ["ragix[docs]", "pypdf>=4.0.0", "pypdfium2>=4.0.0", "numpy>=1.24.0"]
 # saqqara-mupdf: an ALTERNATIVE renderer, opt-in and never installed by default.
 #
 #   LICENCE WARNING -- pymupdf is AGPL-3.0 (or a paid commercial licence).
