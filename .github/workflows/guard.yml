@@ -36,6 +36,32 @@ jobs:
         run: |
           git ls-files -z | xargs -0 python3 tools/check_forbidden.py
 
+  # The scan above reads the tip tree, and the hook reads what is staged. Neither
+  # sees a blob that existed only in an intermediate commit, and neither reads a
+  # commit message at all. Removing a name in a later commit does not remove it
+  # from what merging this branch would publish, so the range is scanned as well.
+  # pull_request only: on a push there is no second ref to define a range against.
+  forbidden-strings-history:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The whole range must be present, not just the tip commit.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Prove the guard fires
+        run: python3 tools/check_forbidden.py --selftest
+
+      - name: Scan every blob revision and every commit message in this pull request
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          python3 tools/check_forbidden.py --history "origin/${{ github.base_ref }}..HEAD"
+
   tests:
     runs-on: ubuntu-latest
     steps:

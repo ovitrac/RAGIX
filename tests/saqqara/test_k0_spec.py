@@ -12,8 +12,9 @@ about the package before any of it computes anything:
   2. the specification and the fixture generators agree IN BOTH DIRECTIONS — a
      fixture named by a proposition exists, and a generator nobody names is a
      finding, not a spare part;
-  3. the package presents exactly one kernel to the registry, so the internal
-     layers cannot register themselves as independent kernels by accident;
+  3. the package defines exactly the kernels it declares, named by their defining
+     module, so an internal layer cannot register itself as an independent kernel
+     by accident and every deliberate addition amends a reviewed list;
   4. nothing in the package or its tests trips the repository guard, and the
      guard is observed to fire on a planted violation — a guard that never
      fires proves nothing about the files it passed.
@@ -285,9 +286,24 @@ def test_k0_2_generators_either_build_or_refuse(tmp_path):
             assert out.stat().st_size > 0, f"{name}: generator produced an empty file"
 
 
-# --------------------------------------------------- 3. one kernel, not several
+# --------------------------------------------------- 3. the kernels are the pinned list
 
-def test_k0_3_package_presents_exactly_one_kernel():
+#: Every Kernel subclass this package defines, by the module that DEFINES it.
+#:
+#: This is an exact list and not a count, deliberately. The registry discovers
+#: kernels by walking the package, so a module that grows a Kernel subclass becomes
+#: an independently registered kernel with no other ceremony — which is exactly the
+#: kind of change that should never arrive as a side effect. Pinning the paths means
+#: every kernel added, moved or removed amends this line, in the commit that does it,
+#: under review. The edit is the point; it is not an obstacle to the edit.
+#:
+#: A re-export does not appear here: the walk records a class only under the module
+#: whose `__module__` it answers to, so `kernel.py` re-exporting SaqqaraKernel is
+#: invisible to this gate, and compatibility shims cost nothing.
+DECLARED_KERNELS = ["ragix_kernels.saqqara.kernels.saqqara_run.SaqqaraKernel"]
+
+
+def test_k0_3_package_defines_exactly_the_declared_kernels():
     from ragix_kernels.base import Kernel
     import importlib
     import pkgutil
@@ -302,7 +318,7 @@ def test_k0_3_package_presents_exactly_one_kernel():
             if isinstance(attr, type) and issubclass(attr, Kernel) and attr is not Kernel:
                 if attr.__module__ == module_name:
                     found.append(f"{module_name}.{attr.__name__}")
-    assert found == ["ragix_kernels.saqqara.kernel.SaqqaraKernel"], found
+    assert found == DECLARED_KERNELS, found
     assert package.__doc__, "the family package must document itself"
 
 
