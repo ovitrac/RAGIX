@@ -434,3 +434,135 @@ def test_k7_8_the_dense_lane_refuses_rather_than_returning_empty(store):
     """An empty result claims nothing matched; this store cannot claim that."""
     with pytest.raises(NotImplementedError, match="dense lane"):
         store.search([0.1, 0.2], top_k=5, model="m")
+
+
+# ================================================================ the chunker
+
+from ragix_kernels.saqqara.store.chunker import (  # noqa: E402
+    CHUNKABLE_KINDS,
+    chunk_tree,
+)
+
+
+@pytest.mark.parametrize("fmt", ["xlsx", "docx", "pdf", "pptx", "md"])
+def test_k7_3_every_chunk_names_a_node_that_resolves(trees, fmt):
+    """A chunk that cites nothing cannot be traced back, so it is never stored.
+
+    Falsified by: a chunk whose node_ids do not resolve in the tree it came from.
+    """
+    tree = trees[fmt]
+    plan = chunk_tree(tree, doc_id="1" * 64)
+    assert plan.chunks, f"{fmt} produced no chunk at all"
+    for chunk in plan.chunks:
+        assert chunk.node_ids, "a chunk with no node reached the plan"
+        for node_id in chunk.node_ids:
+            assert node_at(tree, node_id) is not None, f"{fmt}: {node_id} does not resolve"
+
+
+@pytest.mark.parametrize("fmt", ["xlsx", "docx", "pdf", "pptx", "md"])
+def test_k7_3_refusals_are_counted_not_silent(trees, fmt):
+    """Containers and empty nodes are refused with a reason, never dropped quietly.
+
+    Falsified by: a tree whose nodes are neither chunked nor accounted for.
+    """
+    tree = trees[fmt]
+    plan = chunk_tree(tree, doc_id="1" * 64)
+    level0 = [c for c in plan.chunks if c.level == 0]
+    accounted = {c.node_ids[0] for c in level0} | {r["node_id"] for r in plan.refusals}
+    assert accounted == set(node_ids_of(tree)), f"{fmt}: nodes neither chunked nor refused"
+    for refusal in plan.refusals:
+        assert refusal["reason"] in (
+            "not-a-chunkable-kind", "no-text", "section-is-context")
+
+
+def test_k7_3_a_chunk_record_with_no_node_cannot_be_built():
+    """The refusal is in the record, so no path can construct an untraceable chunk."""
+    with pytest.raises(ValueError):
+        ChunkRecord(chunk_id="d" * 64, doc_id="c" * 64, seq=0, text="t",
+                    level=0, node_ids=[])
+
+
+def test_k7_4_a_rollup_covers_exactly_its_children(trees):
+    """Exactly: the union of its level-0 children's nodes, not a window over them.
+
+    Falsified by: a roll-up naming a node no child names, or missing one a child does.
+    """
+    tree = trees["docx"]
+    plan = chunk_tree(tree, doc_id="2" * 64)
+    rollups = [c for c in plan.chunks if c.level == 1]
+    assert rollups, "no roll-up was produced"
+
+    for rollup in rollups:
+        children = [c for c in plan.chunks if c.level == 0 and c.parent_id == rollup.chunk_id]
+        assert children, "a roll-up with no children is a roll-up of nothing"
+        covered = []
+        for child in children:
+            for nid in child.node_ids:
+                if nid not in covered:
+                    covered.append(nid)
+        assert rollup.node_ids == covered
+
+
+def test_k7_4_a_rollup_has_no_parent_of_its_own(trees):
+    """One level of roll-up. A roll-up with a parent would be a third level."""
+    plan = chunk_tree(trees["docx"], doc_id="2" * 64)
+    for rollup in [c for c in plan.chunks if c.level == 1]:
+        assert rollup.parent_id is None
+
+
+def test_k7_4_rollups_can_be_switched_off(trees):
+    """rollup_levels=0 yields units only — the roll-up is a choice, not a fixture."""
+    plan = chunk_tree(trees["docx"], doc_id="2" * 64, rollup_levels=0)
+    assert plan.chunks and all(c.level == 0 for c in plan.chunks)
+    assert all(c.parent_id is None for c in plan.chunks)
+
+
+def test_k7_5_chunking_the_same_tree_twice_yields_the_same_ids(trees):
+    """The claim the store's incremental write depends on."""
+    for fmt, tree in trees.items():
+        first = chunk_tree(tree, doc_id="3" * 64)
+        again = chunk_tree(tree, doc_id="3" * 64)
+        assert [c.chunk_id for c in first.chunks] == [c.chunk_id for c in again.chunks], fmt
+
+
+def test_k7_5_rechunking_writes_nothing_through_the_store(store, trees):
+    """End to end: tree -> chunks -> store, twice, with no row touched the second time."""
+    sha = "4" * 64
+    tree = trees["docx"]
+    store.upsert_document(_doc(sha, "/m.docx", tree))
+    plan = chunk_tree(tree, doc_id=sha)
+
+    first = store.replace_chunks(sha, plan.chunks)
+    assert first["inserted"] == len(plan.chunks) and first["deleted"] == 0
+
+    again = store.replace_chunks(sha, chunk_tree(tree, doc_id=sha).chunks)
+    assert again == {"inserted": 0, "deleted": 0, "unchanged": len(plan.chunks)}
+
+
+def test_k7_3_an_oversized_unit_is_flagged_rather_than_cut(trees):
+    """A semantic unit is kept whole; being large is recorded, not resolved by cutting."""
+    tree = trees["md"]
+    plan = chunk_tree(tree, doc_id="5" * 64, unit_max_chars=5)
+    flagged = [c for c in plan.chunks if c.meta.get("oversize")]
+    assert flagged, "nothing was flagged although the limit was tiny"
+    assert all("fallback" not in c.meta for c in flagged), "an oversized unit was windowed"
+
+
+def test_k7_3_only_a_unit_beyond_the_window_is_windowed_and_says_so(trees):
+    """The window is the declared fallback: every piece of it carries the flag."""
+    tree = trees["md"]
+    plan = chunk_tree(tree, doc_id="6" * 64, unit_max_chars=5, window_fallback_chars=10)
+    windowed = [c for c in plan.chunks if c.meta.get("fallback") == "window"]
+    if windowed:
+        assert all(len(c.text) <= 10 for c in windowed)
+        for chunk in windowed:
+            assert chunk.node_ids and node_at(tree, chunk.node_ids[0]) is not None
+
+
+def test_k7_3_containers_are_never_chunks(trees):
+    """A document or a section is the context of a chunk, never a chunk."""
+    for fmt, tree in trees.items():
+        plan = chunk_tree(tree, doc_id="7" * 64)
+        for chunk in [c for c in plan.chunks if c.level == 0]:
+            node = node_at(tree, chunk.node_ids[0])
+            assert node.kind in CHUNKABLE_KINDS, f"{fmt}: {node.kind} became a chunk"
