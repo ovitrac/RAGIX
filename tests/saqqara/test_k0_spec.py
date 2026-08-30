@@ -300,7 +300,10 @@ def test_k0_2_generators_either_build_or_refuse(tmp_path):
 #: A re-export does not appear here: the walk records a class only under the module
 #: whose `__module__` it answers to, so `kernel.py` re-exporting SaqqaraKernel is
 #: invisible to this gate, and compatibility shims cost nothing.
-DECLARED_KERNELS = ["ragix_kernels.saqqara.kernels.saqqara_run.SaqqaraKernel"]
+DECLARED_KERNELS = [
+    "ragix_kernels.saqqara.kernels.saqqara_index.SaqqaraIndexKernel",
+    "ragix_kernels.saqqara.kernels.saqqara_run.SaqqaraKernel",
+]
 
 
 def test_k0_3_package_defines_exactly_the_declared_kernels():

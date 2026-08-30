@@ -70,6 +70,16 @@ def register_store(name: str, factory: Callable[..., DocumentStore]) -> None:
     _PROVIDERS[name] = factory
 
 
+#: Providers this package ships, and the module that registers each. Resolved
+#: lazily so that registration does not depend on someone having imported the
+#: right module first — it did, and the kernel (which imports only this file)
+#: failed with "unknown store provider 'sqlite'; registered: none" in any process
+#: that had not separately imported the sqlite module. The test suite could not
+#: see it, because a test that imports SqliteDocumentStore registers it as a side
+#: effect for everything after.
+BUILTIN_PROVIDERS = {"sqlite": "ragix_kernels.saqqara.store.sqlite"}
+
+
 def build_store(config: dict[str, Any]) -> DocumentStore:
     """Build the store a config asks for.
 
@@ -77,9 +87,13 @@ def build_store(config: dict[str, Any]) -> DocumentStore:
     getting here, and a list is the answer to it.
     """
     provider = config.get("provider", "sqlite")
+    if provider not in _PROVIDERS and provider in BUILTIN_PROVIDERS:
+        import importlib
+
+        importlib.import_module(BUILTIN_PROVIDERS[provider])
     factory = _PROVIDERS.get(provider)
     if factory is None:
         raise ValueError(
-            f"unknown store provider {provider!r}; registered: {sorted(_PROVIDERS) or 'none'}"
+            f"unknown store provider {provider!r}; registered: {sorted(set(_PROVIDERS) | set(BUILTIN_PROVIDERS))}"
         )
     return factory(**{k: v for k, v in config.items() if k != "provider"})

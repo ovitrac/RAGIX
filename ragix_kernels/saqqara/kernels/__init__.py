@@ -7,6 +7,7 @@ list in the K0.3 gate: that edit is the point, not an obstacle to it.
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 """
 
+from .saqqara_index import SaqqaraIndexKernel
 from .saqqara_run import SaqqaraKernel
 
-__all__ = ["SaqqaraKernel"]
+__all__ = ["SaqqaraIndexKernel", "SaqqaraKernel"]

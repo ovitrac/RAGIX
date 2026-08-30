@@ -1190,3 +1190,174 @@ def test_k7_14_a_labelled_secret_file_selects_its_line(tmp_path):
 def test_k7_14_an_unreadable_secret_file_fails_closed(tmp_path):
     with pytest.raises(ValueError, match="cannot read secret file"):
         resolve_secret(f"file:{tmp_path / 'nope.txt'}")
+
+
+# ================================================ the kernel and its surfaces, K7.15/K7.16
+
+from ragix_kernels.saqqara.kernels.saqqara_index import SaqqaraIndexKernel  # noqa: E402
+
+
+def test_k7_15_the_index_kernel_declares_what_it_needs_and_gives():
+    """The registry orders it, rather than anyone remembering to."""
+    assert SaqqaraIndexKernel.requires == ["document_tree"]
+    assert SaqqaraIndexKernel.provides == ["document_store"]
+    assert SaqqaraIndexKernel.stage == 2
+    assert SaqqaraKernel.provides == ["document_tree", "traces", "merkle_root"]
+
+
+def test_k7_15_the_registry_orders_the_reader_before_the_indexer():
+    """Falsified by: an order in which the store is built before anything is read."""
+    from ragix_kernels.registry import KernelRegistry
+
+    KernelRegistry.discover()
+    found = {k.name for k in (KernelRegistry.get("saqqara"), KernelRegistry.get("saqqara_index"))
+             if k is not None}
+    assert found == {"saqqara", "saqqara_index"}
+    assert KernelRegistry.get("saqqara_index").stage > KernelRegistry.get("saqqara").stage
+
+
+@pytest.fixture(scope="module")
+def indexed_workspace(tmp_path_factory):
+    """A real run then a real index, over generated fixtures, with no embedder."""
+    workspace = tmp_path_factory.mktemp("k7kernel")
+    source = workspace / "corpus"
+    source.mkdir()
+    for name, fixture in (("a.docx", "docx_two_tier"), ("b.md", "markdown_document")):
+        G.FIXTURES[fixture](source / name)
+    SaqqaraKernel().run(KernelInput(workspace=workspace,
+                                    config={"source": {"path": str(source)}}))
+    read = workspace / "stage1" / "saqqara.json"
+    output = SaqqaraIndexKernel().run(KernelInput(
+        workspace=workspace, config={}, dependencies={"document_tree": read}))
+    return workspace, output
+
+
+def test_k7_15_the_index_kernel_stores_what_the_reader_read(indexed_workspace):
+    _workspace, output = indexed_workspace
+    assert output.success is True
+    assert len(output.data["documents"]) == 2
+    assert output.data["status"]["chunks"] > 0
+    assert output.data["status"]["dense"] == "disabled (no embedder)"
+    assert output.data["embedded"] == 0, "provider none wrote a vector"
+
+
+def test_k7_15_the_envelope_refuses_the_kernel_without_its_dependency(tmp_path):
+    """The declaration is enforced by the envelope, not merely documented.
+
+    Falsified by: a run that proceeds with no document_tree and produces an empty
+    store that looks like a successful one.
+    """
+    output = SaqqaraIndexKernel().run(KernelInput(workspace=tmp_path, config={}))
+    assert output.success is False
+    assert any("document_tree" in str(e) for e in output.errors), output.errors
+
+
+def test_k7_15_a_declared_dependency_that_is_absent_is_refused(tmp_path):
+    """Declared but missing is refused too — the file is checked, not just the key."""
+    output = SaqqaraIndexKernel().run(KernelInput(
+        workspace=tmp_path, config={},
+        dependencies={"document_tree": tmp_path / "never-written.json"}))
+    assert output.success is False
+    assert any("does not exist" in str(e) for e in output.errors), output.errors
+
+
+def test_k7_16_the_cli_and_the_mcp_tool_return_the_same_hits(indexed_workspace):
+    """One shape, or two surfaces that will disagree about a citation.
+
+    Falsified by: any difference between the CLI's --json output and the MCP
+    tool's hits for the same query on the same store.
+    """
+    import argparse
+    import contextlib
+    import io
+
+    from ragix_kernels.saqqara.cli.saqqaractl import cmd_search
+    from ragix_kernels.saqqara.mcp.tools import register_saqqara_tools
+
+    workspace, _output = indexed_workspace
+    query = "paragraphe"   # the generated fixtures are French
+
+    args = argparse.Namespace(workspace=str(workspace), query=query, config=None,
+                              top_k=5, json=True, verbose=False)
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        assert cmd_search(args) == 0
+    from_cli = json.loads(buffer.getvalue() or "[]")
+
+    server = _StubServer()
+    register_saqqara_tools(server)
+    from_mcp = server.tools["koas_saqqara_search"](
+        workspace=str(workspace), query=query, k=5)
+
+    assert "error" not in from_mcp, from_mcp
+    assert from_mcp["hits"] == from_cli
+
+
+class _StubServer:
+    def __init__(self):
+        self.tools: dict = {}
+
+    def tool(self):
+        def register(fn):
+            self.tools[fn.__name__] = fn
+            return fn
+        return register
+
+
+def test_k7_16_the_mcp_surface_declares_all_four_tools():
+    from ragix_kernels.saqqara.mcp.tools import register_saqqara_tools
+
+    server = _StubServer()
+    register_saqqara_tools(server)
+    assert list(server.tools) == ["koas_saqqara_run", "koas_saqqara_status",
+                                  "koas_saqqara_index", "koas_saqqara_search"]
+
+
+def test_k7_16_every_hit_from_either_surface_carries_its_citation(indexed_workspace):
+    """The shape is not merely equal on both sides; it is the useful one."""
+    import argparse
+    import contextlib
+    import io
+
+    from ragix_kernels.saqqara.cli.saqqaractl import cmd_search
+
+    workspace, _output = indexed_workspace
+    args = argparse.Namespace(workspace=str(workspace), query="paragraphe", config=None,
+                              top_k=5, json=True, verbose=False)
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        cmd_search(args)
+    hits = json.loads(buffer.getvalue() or "[]")
+    assert hits, "the fixture stopped producing a hit"
+    for hit in hits:
+        assert hit["provenance"], "a hit with no citation"
+        for entry in hit["provenance"]:
+            assert entry["chain"] and entry["source_path"]
+        assert "dense_rank" in hit and "lexical_rank" in hit and "final_rank" in hit
+
+
+def test_k7_15_a_provider_resolves_without_anyone_importing_its_module():
+    """Registration must not depend on import order, and this is how it failed.
+
+    register_store runs as an import side effect of the sqlite module. The kernel
+    imports only ports, so in any process that had not separately imported sqlite,
+    build_store raised "unknown store provider 'sqlite'; registered: none". The
+    test suite could not see it: a test importing SqliteDocumentStore registers it
+    for everything that follows.
+
+    So this runs in a SUBPROCESS that imports ports and nothing else. Falsified by:
+    a provider that resolves only when something else imported it first.
+    """
+    import subprocess
+    import sys as _sys
+
+    code = (
+        "from ragix_kernels.saqqara.store.ports import build_store;"
+        "import tempfile;"
+        "s = build_store({'provider':'sqlite','path':tempfile.mkdtemp()+'/x.db'});"
+        "print(type(s).__name__)"
+    )
+    done = subprocess.run([_sys.executable, "-c", code], cwd=str(ROOT),
+                          capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == "SqliteDocumentStore"

@@ -3,6 +3,8 @@ saqqara MCP tools.
 
     koas_saqqara_run     - read documents into typed trees and recognise structure
     koas_saqqara_status  - read back what a previous run found
+    koas_saqqara_index   - chunk what was read into a store, embedding what is missing
+    koas_saqqara_search  - query that store, with both lane ranks and every citation
 
 The tool names, parameters and return shapes are the frozen public envelope: this
 module is where they are DEFINED, not a second definition of them. They moved here
@@ -144,5 +146,107 @@ def register_saqqara_tools(mcp_server) -> None:
                 "report": data.get("report"),
                 "abstentions": abstentions,
             }
+        except Exception as e:
+            return {"error": str(e)}
+
+    @mcp_server.tool()
+    def koas_saqqara_index(workspace: str, config: str = "") -> Dict[str, Any]:
+        """
+        Chunk what a previous read produced into a queryable store.
+
+        Reads the trees stage 1 wrote, cuts them along their own structure, stores
+        them in one SQLite file and embeds only the chunks that model has not seen.
+        With `embedder.provider: none` the store is lexical-only and says so — no
+        zero vectors are written.
+
+        Parameters
+        ----------
+        workspace : str
+            The workspace a previous saqqara run wrote to.
+        config : str
+            Optional path to a saqqara.yaml overlaying the packaged defaults.
+
+        Returns
+        -------
+        dict
+            {"success", "summary", "documents", "status", "embedded", "skipped"}
+            `status.dense` states the model and vector count, or that dense is
+            disabled and why.
+        """
+        try:
+            from pathlib import Path as _Path
+
+            from ragix_kernels.base import KernelInput
+            from ragix_kernels.saqqara.kernels.saqqara_index import SaqqaraIndexKernel
+
+            target = _Path(workspace)
+            target.mkdir(parents=True, exist_ok=True)
+            payload: Dict[str, Any] = {}
+            if config.strip():
+                payload["config"] = config
+            read = target / "stage1" / "saqqara.json"
+            if not read.is_file():
+                return {"error": f"nothing has been read into {workspace}; "
+                                 "run koas_saqqara_run first"}
+            output = SaqqaraIndexKernel().run(KernelInput(
+                workspace=target, config=payload,
+                dependencies={"document_tree": read}))
+            return {
+                "success": output.success,
+                "summary": output.summary,
+                "output_file": str(output.output_file),
+                "documents": output.data.get("documents") or [],
+                "status": output.data.get("status") or {},
+                "embedded": output.data.get("embedded", 0),
+                "skipped": output.data.get("skipped", 0),
+                "errors": output.errors,
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    @mcp_server.tool()
+    def koas_saqqara_search(workspace: str, query: str, k: int = 10,
+                            config: str = "") -> Dict[str, Any]:
+        """
+        Query the store, keeping both lane ranks and every hit's citation.
+
+        A hit carries `dense_rank`, `lexical_rank` and `final_rank` separately: the
+        fused rank never replaces the ranks it was computed from, and a hit found
+        by one lane carries null for the other rather than a worst-case number.
+        Every hit resolves to the provenance chain of the nodes it was cut from.
+
+        Parameters
+        ----------
+        workspace : str
+            The workspace holding the store.
+        query : str
+            What to look for.
+        k : int
+            How many hits to return.
+        config : str
+            Optional path to a saqqara.yaml.
+
+        Returns
+        -------
+        dict
+            {"hits": [...], "dense": str} — `hits` is exactly what `saqqaractl
+            search --json` prints, so the two surfaces cannot drift apart.
+        """
+        try:
+            import argparse
+            import contextlib
+            import io
+            import json as _json
+
+            from ragix_kernels.saqqara.cli.saqqaractl import cmd_search
+
+            args = argparse.Namespace(workspace=workspace, query=query, config=config or None,
+                                      top_k=k, json=True, verbose=False)
+            buffer = io.StringIO()
+            with contextlib.redirect_stdout(buffer):
+                code = cmd_search(args)
+            if code != 0:
+                return {"error": f"search failed with code {code}"}
+            return {"hits": _json.loads(buffer.getvalue() or "[]")}
         except Exception as e:
             return {"error": str(e)}
