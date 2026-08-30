@@ -207,6 +207,80 @@ class DummyEmbeddingBackend:
         return "dummy"
 
 
+class OllamaEmbeddingBackend:
+    """Embeddings from a local Ollama server.
+
+    A port implementation, deliberately minimal: one HTTP call, no batching beyond
+    a loop, no model management. Ollama is a local service, so this keeps the
+    sovereign posture — nothing leaves the machine — without adding a dependency.
+
+    Two endpoints exist across Ollama versions: /api/embed returns {"embeddings":
+    [[...]]} and the older /api/embeddings returns {"embedding": [...]}. Both are
+    accepted, because which one a given server speaks is not something a caller
+    should have to know, and guessing wrong is a confusing failure rather than an
+    obvious one.
+
+    Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+    """
+
+    def __init__(
+        self,
+        model: str = "nomic-embed-text",
+        base_url: str = "http://localhost:11434",
+        timeout: int = 120,
+    ):
+        self.model = model
+        self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
+        self._dimension: Optional[int] = None
+
+    @property
+    def dimension(self) -> int:
+        """The dimension this model produces, learned from its first answer.
+
+        Not declared up front: a hardcoded dimension is a claim about a model the
+        caller chose, and it is wrong the first time someone chooses another.
+        """
+        if self._dimension is None:
+            self._dimension = len(self.embed_text("dimension probe"))
+        return self._dimension
+
+    def embed_text(self, text: str) -> List[float]:
+        import requests
+
+        for endpoint, payload, key in (
+            ("/api/embed", {"model": self.model, "input": text}, "embeddings"),
+            ("/api/embeddings", {"model": self.model, "prompt": text}, "embedding"),
+        ):
+            try:
+                response = requests.post(
+                    f"{self.base_url}{endpoint}", json=payload, timeout=self.timeout
+                )
+            except Exception as exc:  # pragma: no cover - network shape
+                raise RuntimeError(f"ollama embedding request failed: {exc}") from exc
+            if response.status_code == 404:
+                continue
+            response.raise_for_status()
+            data = response.json()
+            vector = data.get(key)
+            if key == "embeddings" and vector:
+                vector = vector[0]
+            if not vector:
+                raise RuntimeError(
+                    f"ollama returned no vector for model {self.model!r}; "
+                    "an empty embedding is not a zero vector, and storing one "
+                    "would make an unembedded chunk look embedded"
+                )
+            return [float(v) for v in vector]
+
+        raise RuntimeError(
+            f"no embedding endpoint on {self.base_url}: tried /api/embed and /api/embeddings"
+        )
+
+    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+        return [self.embed_text(text) for text in texts]
+
+
 def create_embedding_backend(
     backend_type: str = "sentence-transformers", config: Optional[EmbeddingConfig] = None
 ) -> EmbeddingBackend:
@@ -225,6 +299,10 @@ def create_embedding_backend(
     """
     if backend_type == "sentence-transformers":
         return SentenceTransformerBackend(config)
+    elif backend_type == "ollama":
+        model = getattr(config, "model_name", None) or "nomic-embed-text"
+        base_url = getattr(config, "base_url", None) or "http://localhost:11434"
+        return OllamaEmbeddingBackend(model=model, base_url=base_url)
     elif backend_type == "dummy":
         dimension = 384
         if config and hasattr(config, "dimension"):
@@ -233,7 +311,7 @@ def create_embedding_backend(
     else:
         raise ValueError(
             f"Unknown backend type: {backend_type}. "
-            f"Choose 'sentence-transformers' or 'dummy'."
+            f"Choose 'sentence-transformers', 'ollama' or 'dummy'."
         )
 
 

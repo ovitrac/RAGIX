@@ -755,3 +755,154 @@ def test_k7_1_a_whole_run_stores_and_reads_back(run_result, tmp_path):
                     node = node_at(tree, node_id)
                     assert node is not None
                     assert node.provenance.chain, "a stored chunk cites a node citing nothing"
+
+
+# ============================================================ embedding, K7.6/K7.7
+
+import os  # noqa: E402
+
+from ragix_kernels.saqqara.store.embed import (  # noqa: E402
+    PROVIDERS,
+    build_embedder,
+    embed_missing,
+)
+
+
+class _CountingEmbedder:
+    """A dummy that reports how many texts it was actually asked to embed."""
+
+    def __init__(self, dimension: int = 4) -> None:
+        self.dimension = dimension
+        self.calls: list[int] = []
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        self.calls.append(len(texts))
+        return [[float(len(t) % 7), 0.5, -0.25, 1.0] for t in texts]
+
+
+def _stored(store, tree, sha: str, texts: list[str]):
+    store.upsert_document(_doc(sha, "/m.docx", tree))
+    chunks = _chunks(sha, texts)
+    store.replace_chunks(sha, chunks)
+    return chunks
+
+
+def test_k7_7_provider_none_builds_no_embedder(tmp_path):
+    """Choosing to run without embeddings is a decision, and it is a provider."""
+    assert build_embedder("none") is None
+    assert "none" in PROVIDERS
+
+
+def test_k7_7_an_unknown_provider_is_refused_by_name():
+    with pytest.raises(ValueError, match="embedder provider"):
+        build_embedder("word2vec")
+
+
+def test_k7_7_no_embedder_writes_nothing_at_all(store, tree):
+    """Not a zero vector, not a placeholder — nothing.
+
+    Falsified by: any row in embeddings after indexing with provider none.
+    """
+    sha = "e" * 64
+    chunks = _stored(store, tree, sha, ["alpha", "beta"])
+    plan = embed_missing(store, chunks, embedder=None, model="")
+    assert plan.disabled is True and plan.embedded == 0 and plan.skipped == 2
+    assert store.status()["embeddings"] == 0
+    assert store.get_embeddings("") == []
+
+
+def test_k7_7_a_lexical_only_store_still_answers(store, tree):
+    """The point of provider none: the store works, it just has one lane."""
+    sha = "f" * 64
+    chunks = _stored(store, tree, sha, ["the quick brown fox", "a slow green turtle"])
+    embed_missing(store, chunks, embedder=None, model="")
+    hits = store.lexical_search("turtle", top_k=5)
+    assert len(hits) == 1 and hits[0].dense_rank is None
+
+
+def test_k7_6_only_missing_chunks_are_embedded(store, tree):
+    """The claim that makes re-indexing cheap: a set difference, not a re-run."""
+    sha = "1" * 64
+    chunks = _stored(store, tree, sha, ["alpha", "beta", "gamma"])
+    embedder = _CountingEmbedder()
+
+    first = embed_missing(store, chunks, embedder, model="m")
+    assert first.embedded == 3 and embedder.calls == [3]
+
+    second = embed_missing(store, chunks, embedder, model="m")
+    assert second.embedded == 0 and second.skipped == 3
+    assert embedder.calls == [3], "the embedder was asked again for chunks it had done"
+
+
+def test_k7_6_a_new_chunk_embeds_only_itself(store, tree):
+    sha = "2" * 64
+    chunks = _stored(store, tree, sha, ["alpha", "beta"])
+    embedder = _CountingEmbedder()
+    embed_missing(store, chunks, embedder, model="m")
+
+    grown = _stored(store, tree, sha, ["alpha", "beta", "gamma"])
+    embed_missing(store, grown, embedder, model="m")
+    assert embedder.calls == [2, 1], "a new chunk cost more than itself"
+
+
+def test_k7_6_two_models_coexist_rather_than_overwrite(store, tree):
+    """Whose opinion a vector is belongs to the key, so both are kept."""
+    sha = "3" * 64
+    chunks = _stored(store, tree, sha, ["alpha", "beta"])
+    embed_missing(store, chunks, _CountingEmbedder(), model="m1")
+    embed_missing(store, chunks, _CountingEmbedder(dimension=4), model="m2")
+
+    status = store.status()
+    assert status["models"] == ["m1", "m2"] and status["embeddings"] == 4
+    assert len(store.get_embeddings("m1")) == 2
+    assert len(store.get_embeddings("m2")) == 2
+
+
+def test_k7_6_a_partial_answer_from_an_embedder_is_refused(store, tree):
+    """Vectors that cannot be matched to their inputs are not stored."""
+    class _Short:
+        def embed_batch(self, texts):
+            return [[1.0, 0.0]] * (len(texts) - 1)
+
+    sha = "4" * 64
+    chunks = _stored(store, tree, sha, ["alpha", "beta"])
+    with pytest.raises(RuntimeError, match="cannot be matched"):
+        embed_missing(store, chunks, _Short(), model="m")
+    assert store.status()["embeddings"] == 0
+
+
+def test_k7_6_an_empty_vector_is_refused(store, tree):
+    """An absent embedding is not a zero vector; storing one would hide it."""
+    class _Empty:
+        def embed_batch(self, texts):
+            return [[] for _ in texts]
+
+    sha = "5" * 64
+    chunks = _stored(store, tree, sha, ["alpha"])
+    with pytest.raises(RuntimeError, match="empty vector"):
+        embed_missing(store, chunks, _Empty(), model="m")
+    assert store.status()["embeddings"] == 0
+
+
+def test_k7_6_the_dummy_backend_from_ragix_core_is_usable(store, tree):
+    """The family uses ragix_core's backends; it does not grow its own."""
+    sha = "6" * 64
+    chunks = _stored(store, tree, sha, ["alpha", "beta"])
+    plan = embed_missing(store, chunks, build_embedder("dummy"), model="dummy-384")
+    assert plan.embedded == 2
+    assert all(e.dimensions == 384 for e in store.get_embeddings("dummy-384"))
+
+
+@pytest.mark.skipif(os.environ.get("OLLAMA_LIVE") != "1",
+                    reason="live embedding test; set OLLAMA_LIVE=1 to run")
+def test_k7_6_the_ollama_backend_embeds_live(store, tree):
+    """Opt-in: nothing in this suite talks to a model server by default."""
+    sha = "7" * 64
+    chunks = _stored(store, tree, sha, ["alpha", "beta"])
+    embedder = build_embedder("ollama", model=os.environ.get("OLLAMA_EMBED_MODEL",
+                                                             "nomic-embed-text"))
+    plan = embed_missing(store, chunks, embedder, model="ollama-live")
+    assert plan.embedded == 2
+    vectors = store.get_embeddings("ollama-live")
+    assert len({v.dimensions for v in vectors}) == 1
+    assert all(any(c != 0.0 for c in v.vector) for v in vectors)
