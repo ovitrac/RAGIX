@@ -1,0 +1,44 @@
+# saqqara store — packaged defaults, the single source of truth for shape.
+#
+# A user file is a PARTIAL overlay: it names only what it changes, and every key
+# it names must exist here. That is what makes an unknown key a typo rather than
+# a feature nobody implemented — see config.py.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+
+source:
+  path: ./docs
+  formats: [pdf, docx, xlsx, pptx, md]
+  promote_outline: false
+
+store:
+  provider: sqlite
+  path: .ragix/saqqara.db
+  corpus: default
+
+embedder:
+  # none | sentence-transformers | ollama | dummy
+  # `none` is a choice, not an omission: it yields a lexical-only store and the
+  # status line says so rather than leaving the caller to infer it.
+  provider: none
+  model: ""
+  base_url: ""
+  # A reference, never a value: env:VAR or file:/path#Label. Resolved at use and
+  # never serialised, so a config object is always safe to log or POST.
+  api_key_ref: ""
+
+index:
+  backend: numpy      # numpy | faiss
+  use_gpu: false
+
+chunker:
+  unit_max_chars: 1200
+  rollup_levels: 1
+  window_fallback_chars: 4000
+
+retrieval:
+  fusion: rrf
+  rrf_k: 60
+  dense_k: 40
+  lexical_k: 40
+  top_k: 10

@@ -1070,3 +1070,123 @@ def test_k7_11_a_hit_carries_the_objects_and_edges_of_its_nodes(bound_tree, tmp_
         assert found["related"], "a chunk over a bound node reported no relation"
         for edge in found["related"]:
             assert edge["type"] == "binds"
+
+
+# ============================================================ configuration, K7.14
+
+from ragix_kernels.saqqara.store.config import (  # noqa: E402
+    DEFAULTS_PATH,
+    load_config,
+    resolve_secret,
+)
+
+
+def test_k7_14_the_packaged_defaults_load_and_declare_every_section():
+    """The defaults are the shape. If they do not load, nothing below means anything."""
+    assert DEFAULTS_PATH.is_file()
+    config = load_config()
+    for section in ("source", "store", "embedder", "index", "chunker", "retrieval"):
+        assert config.section(section), f"{section} is missing from the defaults"
+    assert config.get("embedder.provider") == "none"
+    assert config.get("retrieval.rrf_k") == 60
+
+
+def test_k7_14_a_user_file_overlays_only_what_it_names(tmp_path):
+    path = tmp_path / "saqqara.yaml"
+    path.write_text("store:\n  corpus: mine\nretrieval:\n  top_k: 3\n", encoding="utf-8")
+    config = load_config(path)
+    assert config.get("store.corpus") == "mine"
+    assert config.get("retrieval.top_k") == 3
+    assert config.get("retrieval.rrf_k") == 60, "an untouched key lost its default"
+    assert config.get("store.provider") == "sqlite"
+
+
+def test_k7_14_an_unknown_key_is_refused_with_its_path(tmp_path):
+    """A typo discarded in silence is the user's instruction thrown away.
+
+    Falsified by: a run that accepts `embedder.privider` and uses the default.
+    """
+    path = tmp_path / "bad.yaml"
+    path.write_text("embedder:\n  privider: ollama\n", encoding="utf-8")
+    with pytest.raises(ValueError, match=r"embedder\.privider"):
+        load_config(path)
+
+
+def test_k7_14_an_unknown_top_level_key_is_refused_with_its_path(tmp_path):
+    path = tmp_path / "bad2.yaml"
+    path.write_text("embeder:\n  provider: ollama\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="embeder"):
+        load_config(path)
+
+
+def test_k7_14_a_value_where_a_mapping_belongs_is_refused(tmp_path):
+    """Shape is part of the contract, not only the key name."""
+    path = tmp_path / "bad3.yaml"
+    path.write_text("embedder: ollama\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="embedder"):
+        load_config(path)
+
+
+def test_k7_14_a_missing_file_is_refused_rather_than_ignored(tmp_path):
+    """Silently falling back to defaults would run the wrong configuration."""
+    with pytest.raises(ValueError, match="no configuration file"):
+        load_config(tmp_path / "absent.yaml")
+
+
+def test_k7_14_an_impossible_provider_is_refused_by_name(tmp_path):
+    path = tmp_path / "bad4.yaml"
+    path.write_text("embedder:\n  provider: word2vec\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="embedder.provider"):
+        load_config(path)
+
+
+def test_k7_14_an_override_is_validated_like_a_file():
+    """A key typed on a command line is refused by the same rule as one in a file."""
+    assert load_config(None, **{"retrieval.top_k": 5}).get("retrieval.top_k") == 5
+    with pytest.raises(ValueError, match=r"retrieval\.topk"):
+        load_config(None, **{"retrieval.topk": 5})
+
+
+def test_k7_14_no_secret_is_resolved_during_load(monkeypatch, tmp_path):
+    """A config object is always safe to write down, which is why nothing resolves.
+
+    Falsified by: a loaded configuration whose serialisation contains the value.
+    """
+    monkeypatch.setenv("SAQQARA_TEST_KEY", "the-actual-secret")
+    path = tmp_path / "s.yaml"
+    path.write_text('embedder:\n  api_key_ref: "env:SAQQARA_TEST_KEY"\n', encoding="utf-8")
+
+    config = load_config(path)
+    serialised = json.dumps(config.to_dict())
+    assert "the-actual-secret" not in serialised
+    assert "env:SAQQARA_TEST_KEY" in serialised
+    assert config.api_key() == "the-actual-secret", "it must still resolve at use"
+
+
+def test_k7_14_a_secret_reference_resolves_from_the_environment(monkeypatch):
+    monkeypatch.setenv("SAQQARA_TEST_KEY", "v")
+    assert resolve_secret("env:SAQQARA_TEST_KEY") == "v"
+
+
+def test_k7_14_an_unresolvable_secret_fails_closed(monkeypatch):
+    """Returning the reference would send the string "env:TOKEN" as a credential."""
+    monkeypatch.delenv("SAQQARA_ABSENT", raising=False)
+    with pytest.raises(ValueError, match="unset or empty"):
+        resolve_secret("env:SAQQARA_ABSENT")
+    with pytest.raises(ValueError, match="named by reference"):
+        resolve_secret("just-a-raw-value")
+    with pytest.raises(ValueError, match="unknown secret scheme"):
+        resolve_secret("vault:something")
+
+
+def test_k7_14_a_labelled_secret_file_selects_its_line(tmp_path):
+    path = tmp_path / "keys.txt"
+    path.write_text("Other abc\nEmbedKey s3cret\n", encoding="utf-8")
+    assert resolve_secret(f"file:{path}#EmbedKey") == "s3cret"
+    with pytest.raises(ValueError, match="not found"):
+        resolve_secret(f"file:{path}#Missing")
+
+
+def test_k7_14_an_unreadable_secret_file_fails_closed(tmp_path):
+    with pytest.raises(ValueError, match="cannot read secret file"):
+        resolve_secret(f"file:{tmp_path / 'nope.txt'}")
