@@ -566,3 +566,192 @@ def test_k7_3_containers_are_never_chunks(trees):
         for chunk in [c for c in plan.chunks if c.level == 0]:
             node = node_at(tree, chunk.node_ids[0])
             assert node.kind in CHUNKABLE_KINDS, f"{fmt}: {node.kind} became a chunk"
+
+
+# =================================================================== the feed
+
+import tempfile  # noqa: E402
+
+from ragix_kernels.base import KernelInput  # noqa: E402
+from ragix_kernels.saqqara.analyzers.caption_binding import CaptionBindingAnalyzer  # noqa: E402
+from ragix_kernels.saqqara.kernels.saqqara_run import SaqqaraKernel  # noqa: E402
+from ragix_kernels.saqqara.store.feed import edges_of, feed_result, feed_tree, objects_of  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def run_result(tmp_path_factory):
+    """One real kernel run over generated fixtures, reused by the feed tests."""
+    workspace = tmp_path_factory.mktemp("feed")
+    source = workspace / "corpus"
+    source.mkdir()
+    for name, fixture in (("a.docx", "docx_two_tier"), ("b.xlsx", "mixed_workbook"),
+                          ("c.pdf", "pdf_caption_below"), ("d.md", "markdown_document")):
+        G.FIXTURES[fixture](source / name)
+    kernel = SaqqaraKernel()
+    return kernel.run(KernelInput(workspace=workspace, config={"source": {"path": str(source)}}))
+
+
+def test_k7_11_a_tree_feeds_documents_chunks_and_objects(trees):
+    fed = feed_tree(trees["docx"], source_path="/a.docx", source_sha256="1" * 64)
+    assert fed.document.doc_id == "1" * 64
+    assert fed.chunks and all(c.node_ids for c in fed.chunks)
+    counts = fed.counts()
+    assert counts["chunks"] == len(fed.chunks)
+    assert "refused" in counts
+
+
+def test_k7_11_objects_are_the_kinds_the_store_keeps(trees):
+    """A table is an object; a paragraph is not. The set is closed, not guessed."""
+    for fmt, tree in trees.items():
+        objects = objects_of(tree, doc_id="2" * 64)
+        for obj in objects:
+            assert obj.kind in ("table", "figure", "vector_region")
+            assert node_at(tree, obj.node_id) is not None, f"{fmt}: object cites no node"
+
+
+def test_k7_11_a_figure_with_no_stored_bytes_is_still_an_object():
+    """A figure that was SEEN is a fact whether or not its pixels were kept."""
+    from ragix_kernels.saqqara.model import DocumentLocator, Node, Provenance, Tree as T
+    prov = Provenance(source_path="/x.docx", source_format="docx",
+                      chain=(DocumentLocator(),), kernel="k", kernel_version="1")
+    root = Node(kind="document", provenance=prov, children=[
+        Node(kind="figure", provenance=prov, facts={"width": 10}),
+    ])
+    objects = objects_of(T(root=root), doc_id="3" * 64)
+    assert len(objects) == 1
+    assert objects[0].kind == "figure" and objects[0].asset_ref is None
+
+
+def test_k7_11_bindings_become_edges_and_nothing_is_inferred(trees):
+    """The feed copies a decision an analyzer recorded; it does not make one."""
+    tree = trees["docx"]
+    before = edges_of(tree, doc_id="4" * 64)
+    assert before == [], "an edge appeared with no analyzer having decided one"
+
+
+@pytest.fixture(scope="module")
+def bound_tree(tmp_path_factory):
+    """A tree that genuinely carries figures and bindings.
+
+    Built the way the K6 gate builds it — adapter, asset store, builder, then the
+    caption analyzer — because the DEFAULT kernel pipeline does not run the object
+    analyzers, so a tree from a plain run has no figure to bind and no edge to
+    store. The first version of these tests used a plain run and passed on empty
+    lists: it asserted that nothing equalled nothing.
+    """
+    from ragix_kernels.saqqara.adapters import adapter_for, read_path
+    from ragix_kernels.saqqara.assets import AssetStore
+    from ragix_kernels.saqqara.builder import build_tree
+
+    root = tmp_path_factory.mktemp("k7bound")
+    path = G.FIXTURES["pdf_caption_below"](G.fixture_path("pdf_caption_below", root))
+    adapter = adapter_for(path)
+    records = read_path(path, store=AssetStore(root / "assets"))
+    tree = build_tree(records, str(path), adapter.format, adapter.format,
+                      adapter.version).tree
+    CaptionBindingAnalyzer().run(tree)
+    return tree
+
+
+def test_k7_11_the_bound_fixture_actually_has_objects_and_bindings(bound_tree):
+    """The control on the tests below: they must not be able to pass on nothing."""
+    assert len(objects_of(bound_tree, doc_id="6" * 64)) >= 1
+    assert len(edges_of(bound_tree, doc_id="6" * 64)) >= 1
+
+
+def test_k7_11_a_bound_caption_reaches_the_store_as_an_edge(bound_tree, tmp_path):
+    """End to end on the K6 fixture: bind, feed, store, read the edge back."""
+    fed = feed_tree(bound_tree, source_path="/a.pdf", source_sha256="7" * 64)
+    assert fed.objects and fed.edges, "the fixture stopped carrying what it is for"
+
+    with SqliteDocumentStore(path=str(tmp_path / "e.db")) as s:
+        s.upsert_document(fed.document, objects=fed.objects, edges=fed.edges)
+        s.replace_chunks(fed.document.doc_id, fed.chunks)
+
+        stored_objects = s.get_objects(fed.document.doc_id)
+        stored_edges = s.get_edges(fed.document.doc_id)
+        assert [o.to_dict() for o in stored_objects] == [o.to_dict() for o in fed.objects]
+        assert [(e.src, e.dst, e.type) for e in stored_edges] == \
+               [(e.src, e.dst, e.type) for e in fed.edges]
+
+        for edge in stored_edges:
+            assert edge.type == "binds"
+            assert node_at(bound_tree, edge.src).kind == "caption"
+            assert node_at(bound_tree, edge.dst).kind == "figure"
+
+
+def test_k7_11_the_caption_source_line_does_not_become_an_edge(bound_tree):
+    """captioned_by is the caption's own provenance, not a relation to a figure.
+
+    Falsified by: an edge per caption to the text line it was made from, which
+    would double the count and assert a binding no analyzer decided.
+    """
+    edges = edges_of(bound_tree, doc_id="8" * 64)
+    captions = [n for n in bound_tree.walk() if n.kind == "caption"]
+    assert len(edges) == len(captions), "one edge per bound caption, not two"
+
+
+def test_k7_11_an_unresolvable_binding_is_refused_and_counted(bound_tree):
+    """A binding whose target cannot be resolved is counted, never dropped."""
+    from ragix_kernels.saqqara.model import Tree as T
+
+    tree = T.from_dict(bound_tree.to_dict())
+    for node in tree.walk():
+        if node.facts and "caption_of" in node.facts:
+            node.facts["caption_of"] = {"format": "pdf", "page": 9999}
+    refusals: list = []
+    edges = edges_of(tree, doc_id="9" * 64, refusals=refusals)
+    assert edges == []
+    assert refusals and all(r["reason"] == "binding-target-not-found" for r in refusals)
+
+
+def test_k7_11_a_chunk_cites_the_objects_its_nodes_carry(trees):
+    """object_refs is computed where assets are known, not inside the chunker."""
+    tree = trees["docx"]
+    fed = feed_tree(tree, source_path="/a.docx", source_sha256="5" * 64)
+    object_nodes = {o.node_id for o in fed.objects}
+    for chunk in fed.chunks:
+        expected = [n for n in chunk.node_ids if n in object_nodes]
+        assert chunk.object_refs == expected
+
+
+def test_k7_1_both_feeds_agree(run_result, tmp_path):
+    """A store fed two ways must not depend on which way it was fed."""
+    stored = Path(run_result.output_file)
+    from_disk = feed_result(stored)
+    assert from_disk, "the stored result fed nothing"
+
+    for fed in from_disk:
+        tree = fed.document.tree
+        again = feed_tree(tree, source_path=fed.document.source_path,
+                          source_sha256=fed.document.source_sha256,
+                          doc_class=fed.document.doc_class)
+        assert [c.chunk_id for c in fed.chunks] == [c.chunk_id for c in again.chunks]
+        assert [o.to_dict() for o in fed.objects] == [o.to_dict() for o in again.objects]
+        assert [e.to_dict() for e in fed.edges] == [e.to_dict() for e in again.edges]
+
+
+def test_k7_1_feeding_an_empty_result_is_refused(tmp_path):
+    """An empty store that looks like a successful one is the failure to avoid."""
+    with pytest.raises(ValueError, match="no documents"):
+        feed_result({"data": {"documents": []}})
+
+
+def test_k7_1_a_whole_run_stores_and_reads_back(run_result, tmp_path):
+    """Four formats, one store, every chunk still resolving to its tree."""
+    with SqliteDocumentStore(path=str(tmp_path / "w.db")) as s:
+        for fed in feed_result(Path(run_result.output_file)):
+            s.upsert_document(fed.document, objects=fed.objects, edges=fed.edges)
+            s.replace_chunks(fed.document.doc_id, fed.chunks)
+
+        status = s.status()
+        assert status["documents"] == 4
+        assert status["chunks"] > 0
+
+        for doc in s.list_documents():
+            tree = doc.tree
+            for chunk in s.get_chunks(doc.doc_id):
+                for node_id in chunk.node_ids:
+                    node = node_at(tree, node_id)
+                    assert node is not None
+                    assert node.provenance.chain, "a stored chunk cites a node citing nothing"
