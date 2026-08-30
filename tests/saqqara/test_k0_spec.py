@@ -393,6 +393,7 @@ def test_k0_4_no_committed_binary_fixture():
 # the sentences around it. A reader opens the README first.
 
 README = PACKAGE / "README.md"
+KOAS_DOC = ROOT / "docs" / "KOAS_SAQQARA.md"
 
 #: A count claimed about propositions: "85 falsifiable propositions", "65 propositions".
 _CLAIMED_COUNT = re.compile(r"(\d+)\s+(?:[a-z-]+\s+){0,3}propositions?\b", re.I)
@@ -405,7 +406,14 @@ _GATE_TOKEN = re.compile(r"\bK(\d)\b")
 
 
 def _prose_files() -> list[Path]:
-    return [README, SPEC]
+    """Every file whose prose describes the specification and can contradict it.
+
+    KOAS_SAQQARA.md joined this list the day it was written, not later: it states
+    the gate table and the proposition count, which is exactly what had already
+    gone stale twice in README.md and once in SPEC.md. A third unwatched copy of a
+    number is a third chance to publish the wrong one.
+    """
+    return [p for p in (README, SPEC, KOAS_DOC) if p.is_file()]
 
 
 def test_k0_5_prose_proposition_counts_match_the_frozen_total():
