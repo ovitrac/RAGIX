@@ -161,9 +161,9 @@ from generators import FIXTURES, FIXTURE_SUFFIX  # noqa: E402
 #:                proposition is about the SHARED vocabulary: one set held in the
 #:                contract, four readers pointing at it, and the addressing that
 #:                differs per format kept in the typed locator where it belongs.
-FROZEN_COUNTS = {"K1": 10, "K2": 25, "K3": 71, "K4": 2, "K6": 19}
+FROZEN_COUNTS = {"K1": 10, "K2": 25, "K3": 71, "K4": 2, "K6": 19, "K7": 16}
 
-_ROW = re.compile(r"^\|\s*(K[1-6])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
+_ROW = re.compile(r"^\|\s*(K[1-7])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 _TICKED = re.compile(r"`([a-z0-9_']+)`")
 
 

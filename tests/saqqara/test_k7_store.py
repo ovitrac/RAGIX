@@ -1476,3 +1476,28 @@ def test_k7_2_a_stored_tree_deserialises_with_only_the_store_imported():
     done = subprocess.run([_sys.executable, "-c", code], cwd=str(ROOT),
                           capture_output=True, text=True)
     assert done.returncode == 0, f"unregistered kinds: {done.stdout.strip()}"
+
+
+def test_k7_14_a_configuration_overlay_drives_a_real_index_run(tmp_path):
+    """The configuration is not a schema exercise: it changes what a run does.
+
+    Named `docx_two_tier` in the specification, and this is why that naming is
+    true — the overlay is applied to a document a reader actually read.
+    """
+    workspace = tmp_path / "cfg"
+    source = workspace / "corpus"
+    source.mkdir(parents=True)
+    G.FIXTURES["docx_two_tier"](source / "a.docx")
+    SaqqaraKernel().run(KernelInput(workspace=workspace,
+                                    config={"source": {"path": str(source)}}))
+
+    overlay = tmp_path / "saqqara.yaml"
+    overlay.write_text("store:\n  corpus: overlaid\n  path: chosen.db\n", encoding="utf-8")
+    output = SaqqaraIndexKernel().run(KernelInput(
+        workspace=workspace, config={"config": str(overlay)},
+        dependencies={"document_tree": workspace / "stage1" / "saqqara.json"}))
+
+    assert output.success, output.errors
+    assert (workspace / "chosen.db").is_file(), "the overlay's store path was ignored"
+    assert output.data["status"]["corpus"] == "overlaid"
+    assert output.data["config"]["retrieval"]["rrf_k"] == 60, "an untouched default moved"
