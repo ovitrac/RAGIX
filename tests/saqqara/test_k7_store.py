@@ -209,3 +209,228 @@ def test_k7_9_a_hit_keeps_its_lane_ranks_separate():
     assert hit.dense_rank is None and hit.lexical_rank == 3
     assert hit.boosts == {}
     assert Hit.from_dict(hit.to_dict()).to_dict() == hit.to_dict()
+
+
+# =========================================================== the SQLite store
+
+from ragix_kernels.saqqara.store.ports import DocumentStore, build_store  # noqa: E402
+from ragix_kernels.saqqara.store.sqlite import SqliteDocumentStore  # noqa: E402
+
+
+def _doc(sha: str, path: str, tree: Tree | None = None) -> DocumentRecord:
+    return DocumentRecord(doc_id=sha, corpus="default", doc_class="x",
+                          source_path=path, source_sha256=sha,
+                          kernel="saqqara", kernel_version="1.0", tree=tree)
+
+
+def _chunks(doc_id: str, texts: list[str], level: int = 0) -> list[ChunkRecord]:
+    out = []
+    for i, text in enumerate(texts):
+        node_ids = [f"0.{i}"]
+        out.append(ChunkRecord(
+            chunk_id=chunk_id_for(doc_id=doc_id, level=level, node_ids=node_ids, text=text),
+            doc_id=doc_id, seq=i, text=text, level=level, node_ids=node_ids,
+            section_path=["Body"],
+        ))
+    return out
+
+
+@pytest.fixture
+def store(tmp_path) -> SqliteDocumentStore:
+    with SqliteDocumentStore(path=str(tmp_path / "s.db")) as s:
+        yield s
+
+
+def test_k7_1_the_store_satisfies_the_protocol(store):
+    """The seam is real: a store that answers half the protocol is half a store."""
+    assert isinstance(store, DocumentStore)
+
+
+def test_k7_1_a_provider_is_built_by_name(tmp_path):
+    built = build_store({"provider": "sqlite", "path": str(tmp_path / "b.db")})
+    assert isinstance(built, SqliteDocumentStore)
+    built.close()
+
+
+def test_k7_1_an_unknown_provider_is_refused_by_name(tmp_path):
+    with pytest.raises(ValueError, match="unknown store provider"):
+        build_store({"provider": "postgres", "path": str(tmp_path / "n.db")})
+
+
+def test_k7_1_the_same_bytes_at_two_paths_are_one_document(store, tree):
+    """Identity is the bytes; the paths are a history, not a second document."""
+    sha = "1" * 64
+    store.upsert_document(_doc(sha, "/one/m.xlsx", tree))
+    store.upsert_document(_doc(sha, "/another/m.xlsx", tree))
+    assert len(store.list_documents()) == 1
+    assert sorted(store.source_paths(sha)) == ["/another/m.xlsx", "/one/m.xlsx"]
+
+
+def test_k7_2_a_stored_tree_returns_identical(store, trees):
+    """The store keeps the document, not an approximation of it."""
+    for i, (fmt, tree) in enumerate(sorted(trees.items())):
+        sha = f"{i}" * 64
+        store.upsert_document(_doc(sha, f"/m.{fmt}", tree))
+        back = store.get_document(sha)
+        assert json.dumps(back.tree.to_dict(), **CANONICAL_JSON) == json.dumps(
+            tree.to_dict(), **CANONICAL_JSON), fmt
+
+
+def test_k7_5_rechunking_an_unchanged_tree_writes_nothing(store, tree):
+    """The claim that makes embedding incremental rather than a re-run."""
+    sha = "2" * 64
+    store.upsert_document(_doc(sha, "/m.xlsx", tree))
+    chunks = _chunks(sha, ["alpha", "beta", "gamma"])
+
+    first = store.replace_chunks(sha, chunks)
+    assert first == {"inserted": 3, "deleted": 0, "unchanged": 0}
+
+    again = store.replace_chunks(sha, chunks)
+    assert again == {"inserted": 0, "deleted": 0, "unchanged": 3}
+    assert len(store.get_chunks(sha)) == 3
+
+
+def test_k7_5_a_changed_chunk_replaces_only_itself(store, tree):
+    sha = "3" * 64
+    store.upsert_document(_doc(sha, "/m.xlsx", tree))
+    store.replace_chunks(sha, _chunks(sha, ["alpha", "beta"]))
+    moved = store.replace_chunks(sha, _chunks(sha, ["alpha", "changed"]))
+    assert moved == {"inserted": 1, "deleted": 1, "unchanged": 1}
+
+
+def test_k7_6_embeddings_are_keyed_by_chunk_and_model(store, tree):
+    """Two models coexist: whose opinion a vector is belongs to the key."""
+    sha = "4" * 64
+    store.upsert_document(_doc(sha, "/m.xlsx", tree))
+    chunks = _chunks(sha, ["alpha", "beta"])
+    store.replace_chunks(sha, chunks)
+    ids = [c.chunk_id for c in chunks]
+
+    store.upsert_embeddings([EmbeddingRecord(chunk_id=ids[0], model="m1",
+                                             dimensions=2, vector=(1.0, 0.0))])
+    store.upsert_embeddings([EmbeddingRecord(chunk_id=ids[0], model="m2",
+                                             dimensions=2, vector=(0.0, 1.0))])
+    assert store.status()["embeddings"] == 2
+    assert store.status()["models"] == ["m1", "m2"]
+
+    # embedding again embeds only what is missing
+    assert store.existing_embeddings(ids, "m1") == {ids[0]}
+    assert store.existing_embeddings(ids, "m2") == {ids[0]}
+
+
+def test_k7_6_a_stored_vector_returns_component_wise(store, tree):
+    """float32 round trip: a vector that changes on the way back is not a cache."""
+    sha = "5" * 64
+    store.upsert_document(_doc(sha, "/m.xlsx", tree))
+    chunks = _chunks(sha, ["alpha"])
+    store.replace_chunks(sha, chunks)
+    store.upsert_embeddings([EmbeddingRecord(chunk_id=chunks[0].chunk_id, model="m",
+                                             dimensions=3, vector=(0.5, -0.25, 0.125))])
+    got = store.get_embeddings("m")
+    assert len(got) == 1
+    assert got[0].vector == (0.5, -0.25, 0.125)
+
+
+def test_k7_12_delete_trashes_and_parks_its_embeddings(store, tree):
+    """Delete is trash. The vectors are parked, because recomputing is not restoring."""
+    sha = "6" * 64
+    store.upsert_document(_doc(sha, "/m.xlsx", tree))
+    chunks = _chunks(sha, ["alpha", "beta"])
+    store.replace_chunks(sha, chunks)
+    store.upsert_embeddings([
+        EmbeddingRecord(chunk_id=c.chunk_id, model="m", dimensions=2, vector=(0.5, 0.5))
+        for c in chunks])
+
+    counted = store.delete_document(sha)
+    assert counted["documents"] == 1 and counted["parked"] == 2
+
+    status = store.status()
+    assert status["documents"] == 0 and status["trashed"] == 1
+    assert status["embeddings"] == 0 and status["embeddings_parked"] == 2
+    assert store.list_documents() == []
+    assert len(store.list_documents(include_trashed=True)) == 1
+
+
+def test_k7_12_restore_returns_the_same_vectors(store, tree):
+    """Byte-identical, not merely present."""
+    sha = "7" * 64
+    store.upsert_document(_doc(sha, "/m.xlsx", tree))
+    chunks = _chunks(sha, ["alpha"])
+    store.replace_chunks(sha, chunks)
+    store.upsert_embeddings([EmbeddingRecord(chunk_id=chunks[0].chunk_id, model="m",
+                                             dimensions=2, vector=(0.25, -0.5))])
+    before = store.get_embeddings("m")[0].vector
+
+    store.delete_document(sha)
+    assert store.get_embeddings("m") == []
+    assert store.restore_document(sha) is True
+
+    after = store.get_embeddings("m")
+    assert len(after) == 1 and after[0].vector == before
+    assert store.status()["embeddings_parked"] == 0
+
+
+def test_k7_12_restoring_a_live_document_reports_false(store, tree):
+    """Absence of an effect is reported, not disguised as success."""
+    sha = "8" * 64
+    store.upsert_document(_doc(sha, "/m.xlsx", tree))
+    assert store.restore_document(sha) is False
+    assert store.restore_document("9" * 64) is False
+
+
+def test_k7_12_purge_is_opt_in_and_counted(store, tree):
+    """A purge that reports nothing cannot be told from a purge that did nothing."""
+    sha = "a" * 64
+    store.upsert_document(_doc(sha, "/m.xlsx", tree))
+    chunks = _chunks(sha, ["alpha", "beta"])
+    store.replace_chunks(sha, chunks)
+    store.upsert_embeddings([
+        EmbeddingRecord(chunk_id=c.chunk_id, model="m", dimensions=2, vector=(1.0, 0.0))
+        for c in chunks])
+
+    counted = store.delete_document(sha, purge=True)
+    assert counted == {"documents": 1, "chunks": 2, "embeddings": 2, "parked": 0}
+
+    status = store.status()
+    assert status["documents"] == 0 and status["trashed"] == 0
+    assert status["chunks"] == 0 and status["embeddings"] == 0
+    assert any(d["reason"] == "document-purged" for d in status["drops"])
+    assert store.get_document(sha) is None
+
+
+def test_k7_12_deleting_an_absent_document_counts_zero(store):
+    assert store.delete_document("b" * 64) == {
+        "documents": 0, "chunks": 0, "embeddings": 0, "parked": 0}
+
+
+def test_k7_13_lexical_search_finds_text_after_an_upsert(store, tree):
+    """FTS is written with the chunk, so a search after an upsert finds it."""
+    sha = "c" * 64
+    store.upsert_document(_doc(sha, "/m.xlsx", tree))
+    store.replace_chunks(sha, _chunks(sha, ["the quick brown fox", "a slow green turtle"]))
+
+    hits = store.lexical_search("brown", top_k=5)
+    assert len(hits) == 1
+    assert "brown" in hits[0].chunk.text
+    assert hits[0].lexical_rank == 1
+    assert hits[0].dense_rank is None, "a lane that did not answer says None, not a number"
+
+
+def test_k7_13_a_trashed_document_leaves_the_lexical_lane(store, tree):
+    """A store that returns rows it considers deleted has two answers."""
+    sha = "d" * 64
+    store.upsert_document(_doc(sha, "/m.xlsx", tree))
+    store.replace_chunks(sha, _chunks(sha, ["findable text"]))
+    assert len(store.lexical_search("findable", top_k=5)) == 1
+    store.delete_document(sha)
+    assert store.lexical_search("findable", top_k=5) == []
+
+
+def test_k7_13_an_empty_query_returns_nothing_rather_than_everything(store):
+    assert store.lexical_search("   ", top_k=5) == []
+
+
+def test_k7_8_the_dense_lane_refuses_rather_than_returning_empty(store):
+    """An empty result claims nothing matched; this store cannot claim that."""
+    with pytest.raises(NotImplementedError, match="dense lane"):
+        store.search([0.1, 0.2], top_k=5, model="m")
