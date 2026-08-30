@@ -90,6 +90,25 @@ Python 3.12. No model server, no vector store, no network.
 pip install -e ".[saqqara]"
 ```
 
+**What a plain install can do.** `.[saqqara]` gives you the readers, the analyzers,
+the store and **both retrieval lanes** — lexical over FTS5 and dense over the
+vectors in the database. `DocumentStore.search` is part of the protocol, so the
+extra declares what the code imports rather than leaving a method that raises on a
+clean install.
+
+What it does not give you is a way to *produce* vectors. An embedder is a separate
+choice, and each comes through its own extra:
+
+| you want | install | then set |
+|---|---|---|
+| lexical only (the default) | `.[saqqara]` | `embedder.provider: none` |
+| local sentence-transformers | `.[saqqara,retrieval]` | `embedder.provider: sentence-transformers` |
+| a local Ollama server | `.[saqqara]` | `embedder.provider: ollama` |
+| FAISS instead of numpy | `.[saqqara,retrieval]` | `index.backend: faiss` |
+
+With `provider: none` the store is lexical-only and says so — `dense: disabled (no
+embedder)`. It never writes a zero vector to make the column look populated.
+
 ### Basic Workflow
 
 ```bash
@@ -191,17 +210,18 @@ Each is carried by a proposition in `SPEC.md` and by a test, not by convention:
 
 ## 7. Gates and Specification
 
-`ragix_kernels/saqqara/SPEC.md` holds **126 falsifiable propositions**, each with the fixture
+`ragix_kernels/saqqara/SPEC.md` holds **143 falsifiable propositions**, each with the fixture
 that exercises it and what would falsify it.
 
 | gate | layer | propositions |
 |---|---|---:|
-| K1 | `model.py` — nodes, kinds, locators, provenance, stable JSON | 9 |
+| K1 | `model.py` — nodes, kinds, locators, provenance, stable JSON | 10 |
 | K2 | `adapters/` — one reader per format | 25 |
 | K3 | `analyzers/` + `builder.py` + `services.py` | 71 |
 | K4 | `kernels/` — the envelope and the roots | 2 |
 | K6 | objects — figures, captions, drawn regions | 19 |
-| | **total** | **126** |
+| K7 | the store — one SQLite file, embeddings beside the chunks | 16 |
+| | **total** | **143** |
 
 K0 is the gate that lets the others mean something. It proves the specification parses and is
 self-consistent, that specification and fixtures agree **in both directions**, that the package

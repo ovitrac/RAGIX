@@ -161,9 +161,9 @@ from generators import FIXTURES, FIXTURE_SUFFIX  # noqa: E402
 #:                proposition is about the SHARED vocabulary: one set held in the
 #:                contract, four readers pointing at it, and the addressing that
 #:                differs per format kept in the typed locator where it belongs.
-FROZEN_COUNTS = {"K1": 9, "K2": 25, "K3": 71, "K4": 2, "K6": 19}
+FROZEN_COUNTS = {"K1": 10, "K2": 25, "K3": 71, "K4": 2, "K6": 19, "K7": 16}
 
-_ROW = re.compile(r"^\|\s*(K[1-6])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
+_ROW = re.compile(r"^\|\s*(K[1-7])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 _TICKED = re.compile(r"`([a-z0-9_']+)`")
 
 
@@ -300,7 +300,10 @@ def test_k0_2_generators_either_build_or_refuse(tmp_path):
 #: A re-export does not appear here: the walk records a class only under the module
 #: whose `__module__` it answers to, so `kernel.py` re-exporting SaqqaraKernel is
 #: invisible to this gate, and compatibility shims cost nothing.
-DECLARED_KERNELS = ["ragix_kernels.saqqara.kernels.saqqara_run.SaqqaraKernel"]
+DECLARED_KERNELS = [
+    "ragix_kernels.saqqara.kernels.saqqara_index.SaqqaraIndexKernel",
+    "ragix_kernels.saqqara.kernels.saqqara_run.SaqqaraKernel",
+]
 
 
 def test_k0_3_package_defines_exactly_the_declared_kernels():
@@ -393,6 +396,7 @@ def test_k0_4_no_committed_binary_fixture():
 # the sentences around it. A reader opens the README first.
 
 README = PACKAGE / "README.md"
+KOAS_DOC = ROOT / "docs" / "KOAS_SAQQARA.md"
 
 #: A count claimed about propositions: "85 falsifiable propositions", "65 propositions".
 _CLAIMED_COUNT = re.compile(r"(\d+)\s+(?:[a-z-]+\s+){0,3}propositions?\b", re.I)
@@ -405,7 +409,14 @@ _GATE_TOKEN = re.compile(r"\bK(\d)\b")
 
 
 def _prose_files() -> list[Path]:
-    return [README, SPEC]
+    """Every file whose prose describes the specification and can contradict it.
+
+    KOAS_SAQQARA.md joined this list the day it was written, not later: it states
+    the gate table and the proposition count, which is exactly what had already
+    gone stale twice in README.md and once in SPEC.md. A third unwatched copy of a
+    number is a third chance to publish the wrong one.
+    """
+    return [p for p in (README, SPEC, KOAS_DOC) if p.is_file()]
 
 
 def test_k0_5_prose_proposition_counts_match_the_frozen_total():

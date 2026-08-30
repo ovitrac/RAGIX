@@ -10,7 +10,7 @@ from typing import List, Tuple, Optional, Dict, Any, Protocol
 from pathlib import Path
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 try:
     import numpy as np
@@ -28,13 +28,20 @@ class SearchResult:
     """Result from similarity search."""
 
     chunk_id: str
-    file_path: str
-    start_line: int
-    end_line: int
-    chunk_type: str
-    name: str
     score: float  # Similarity score (higher = more similar)
-    metadata: Dict[str, Any]
+
+    # Code-chunk fields. Defaulted rather than required: this index is generic —
+    # it stores vectors and hands back whatever metadata it was given — but the
+    # result type described only code, so a caller whose chunks are documents had
+    # no line numbers to supply and got a KeyError. The defaults are EMPTY on
+    # purpose: "" and 0 say "this caller has no such field", where a fabricated
+    # path or line number would read as a fact to everything downstream.
+    file_path: str = ""
+    start_line: int = 0
+    end_line: int = 0
+    chunk_type: str = ""
+    name: str = ""
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __repr__(self) -> str:
         return f"<SearchResult {self.file_path}:{self.name} score={self.score:.3f}>"
@@ -160,12 +167,12 @@ class NumpyVectorIndex:
             meta = self.metadata[idx]
             result = SearchResult(
                 chunk_id=meta["chunk_id"],
-                file_path=meta["file_path"],
-                start_line=meta["start_line"],
-                end_line=meta["end_line"],
-                chunk_type=meta["chunk_type"],
-                name=meta["name"],
                 score=float(similarities[idx]),
+                file_path=meta.get("file_path", ""),
+                start_line=meta.get("start_line", 0),
+                end_line=meta.get("end_line", 0),
+                chunk_type=meta.get("chunk_type", ""),
+                name=meta.get("name", ""),
                 metadata=meta.get("metadata", {}),
             )
             results.append(result)
@@ -309,11 +316,11 @@ class FAISSVectorIndex:
             meta = self.metadata[idx]
             result = SearchResult(
                 chunk_id=meta["chunk_id"],
-                file_path=meta["file_path"],
-                start_line=meta["start_line"],
-                end_line=meta["end_line"],
-                chunk_type=meta["chunk_type"],
-                name=meta["name"],
+                file_path=meta.get("file_path", ""),
+                start_line=meta.get("start_line", 0),
+                end_line=meta.get("end_line", 0),
+                chunk_type=meta.get("chunk_type", ""),
+                name=meta.get("name", ""),
                 score=float(score),
                 metadata=meta.get("metadata", {}),
             )

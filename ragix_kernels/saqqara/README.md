@@ -14,7 +14,7 @@ repository and none of them is a dependency here.
 
 ## Status
 
-Complete and gated. `SPEC.md` holds 126 falsifiable propositions and every one is carried by a test.
+Complete and gated. `SPEC.md` holds 143 falsifiable propositions and every one is carried by a test.
 
 | layer | what it does | gate |
 |---|---|---|
@@ -25,6 +25,7 @@ Complete and gated. `SPEC.md` holds 126 falsifiable propositions and every one i
 | `services.py` | title cascade, page policy, lookup | K3.g |
 | `assets.py`, `render/`, object analyzers | figures, captions and drawn regions — what a document shows rather than says | K6 |
 | `kernel.py` | the envelope, the roots, the MCP surface | K4 |
+| `store/`, `kernels/saqqara_index.py` | one SQLite file: trees, chunks, objects, edges and their vectors | K7 |
 
 ## Using it
 
@@ -82,7 +83,7 @@ These are not style preferences. Each is carried by a proposition in `SPEC.md` a
 
 ```
 saqqara/
-├── SPEC.md        the specification: 126 propositions, gates K1-K4 and K6
+├── SPEC.md        the specification: 143 propositions, gates K1-K4, K6 and K7
 ├── kernel.py      the single KOAS kernel facade  <- only Kernel subclass here
 ├── model.py       Node, KindRegistry, Locator, Provenance, Tree
 ├── adapters/      one reader per format; each emits Mastaba raw facts

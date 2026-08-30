@@ -206,7 +206,13 @@ def test_k4_the_opt_in_outline_pass_is_off_by_default(run, tmp_path):
 # ------------------------------------------------------------ the MCP surface
 
 #: The tools this family exposes, in the order it registers them.
-DECLARED_TOOLS = ["koas_saqqara_run", "koas_saqqara_status"]
+#:
+#: Pinned, and extended deliberately each time the surface grows: registering a
+#: tool is one decorator, which is exactly the kind of change that should not
+#: arrive unnoticed. The store added the last two (plan §1), and this line is the
+#: edit that says so.
+DECLARED_TOOLS = ["koas_saqqara_run", "koas_saqqara_status",
+                  "koas_saqqara_index", "koas_saqqara_search"]
 
 
 class _StubServer:

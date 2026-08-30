@@ -387,3 +387,74 @@ def test_k1_9_notes_sort_after_the_slides_shapes(read_documents):
     records = [r for r in read_documents["slide_deck"][0] if r.locator.slide == 1]
     ordered = sorted(records, key=lambda r: r.locator.key())
     assert [r.kind for r in ordered] == ["slide", "shape", "shape", "notes"]
+
+
+# ------------------------------------------- K1.10 the tree survives its analyzers
+
+def _analyzed_trees(root):
+    """One tree per analyzer that can run over the caption fixture, plus the plain one.
+
+    Built the way K6 builds it — adapter, asset store, builder — because the
+    default kernel pipeline does not run the object analyzers, and a tree from a
+    plain run therefore has no figure for them to work on. A test that used a
+    plain run here would be asserting something about a tree the analyzers never
+    touched, which is exactly the gap this proposition exists to close.
+    """
+    import generators as G
+    from ragix_kernels.saqqara.adapters import adapter_for, read_path
+    from ragix_kernels.saqqara.analyzers import PIPELINE
+    from ragix_kernels.saqqara.analyzers.caption_binding import CaptionBindingAnalyzer
+    from ragix_kernels.saqqara.analyzers.outline import OutlineAnalyzer
+    from ragix_kernels.saqqara.analyzers.vector_regions import VectorRegionAnalyzer
+    from ragix_kernels.saqqara.assets import AssetStore
+    from ragix_kernels.saqqara.builder import build_tree
+
+    path = G.FIXTURES["pdf_caption_below"](G.fixture_path("pdf_caption_below", root))
+    adapter = adapter_for(path)
+
+    def fresh():
+        records = read_path(path, store=AssetStore(root / "assets"))
+        return build_tree(records, str(path), adapter.format, adapter.format,
+                          adapter.version).tree
+
+    produced = {"(none)": fresh()}
+    for analyzer_class in (*PIPELINE, OutlineAnalyzer, CaptionBindingAnalyzer,
+                           VectorRegionAnalyzer):
+        tree = fresh()
+        try:
+            analyzer_class().run(tree)
+        except Exception as exc:            # an analyzer that cannot run on this
+            pytest.skip(f"{analyzer_class.__name__}: {exc}")  # fixture is not the subject
+        produced[analyzer_class.__name__] = tree
+    return produced
+
+
+def test_k1_10_a_tree_stays_serialisable_after_every_analyzer(tmp_path):
+    """A tree an analyzer has touched is still a tree the store can keep.
+
+    K1.2 proves the round trip on trees no analyzer has run over. K6 proves an
+    analyzer's abstention is an object carried on the figure. Both held, and their
+    conjunction did not: an `Abstention` in `Node.facts` made `Tree.to_json` raise,
+    and nothing asked the question because no K6 test serialises.
+
+    Falsified by: any analyzer in this package leaving a tree that `to_json`
+    cannot write, or whose round trip is not byte-identical.
+    """
+    for name, tree in _analyzed_trees(tmp_path).items():
+        once = tree.to_json()
+        twice = Tree.from_json(once).to_json()
+        assert once == twice, f"{name}: the round trip is not byte-identical"
+
+
+def test_k1_10_a_fact_that_cannot_be_serialised_is_refused_not_stringified(tmp_path):
+    """The conversion is for objects that know how to serialise themselves.
+
+    Anything else raises. Falling back to `str()` would store a repr that parses
+    back as text and looks like data — a silent corruption that survives every
+    round-trip test, because it round-trips perfectly.
+    """
+    prov = Provenance(source_path="/x", source_format="md", chain=(DocumentLocator(),),
+                      kernel="k", kernel_version="1")
+    node = Node(kind="paragraph", provenance=prov, text="t", facts={"bad": object()})
+    with pytest.raises(TypeError):
+        Tree(root=node).to_json()

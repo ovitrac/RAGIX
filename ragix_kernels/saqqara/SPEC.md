@@ -15,7 +15,7 @@ repository, so every fixture's text is known to come from the generator. That po
 replaces any list of strings a fixture must avoid: there is nothing to enumerate when the origin
 of every character is provable.
 
-Gates are numbered K1–K4 and K6 by layer, and the tests that carry them live in `tests/saqqara/` as
+Gates are numbered K1–K4, K6 and K7 by layer, and the tests that carry them live in `tests/saqqara/` as
 `test_k<N>_<subject>.py`. The numbering is this family's own; it does not follow any other
 convention in this repository.
 
@@ -81,6 +81,7 @@ added in the same edit so the property is now asserted rather than assumed.
 | K1.7 | The same content read from two different paths yields the same core signature. | `trees_per_format` | a signature that varies with the file path |
 | K1.8 | The signature separates structured mass from flat mass, and stays meaningful for both a spreadsheet and a flat word-processing tree. | `trees_per_format` | a flat tree and a structured tree scoring alike |
 | K1.9 | Within one document and one format, a locator chain is a unique address for a node: no two nodes of the tree **the builder produces** serialise to the same coordinate. Analyzers add derived nodes later, and a derived node legitimately cites the position it was derived from — it is told apart by naming its own producer, not by holding a different address. Several observations may share a position — a cell and its own border — but only where they become one node. | `slide_deck`, `mixed_workbook`, `docx_two_tier`, `markdown_document` | two nodes of one document sharing a coordinate |
+| K1.10 | A tree remains serialisable after any analyzer in this package has run over it: `to_json` writes it and the round trip is byte-identical. A fact that is neither JSON-native nor `to_dict`-aware is refused at serialisation, never stringified. | `pdf_caption_below` | an analyzer leaving a tree `to_json` cannot write, a round trip that is not byte-identical, or a fact stored as its repr |
 
 ## K2 — adapters: raw facts, one reader per format
 
@@ -396,6 +397,46 @@ a reference is a string like any other.
 | K6.19 | A page of ink with **no text layer** names the skip and carries what it declined to interpret — its pages and its objects. Reporting such a page as read and empty is the failure this exists to prevent: a scan with no characters and a page that genuinely holds none are indistinguishable in a count, and only one of them is a document nobody has read. | `pdf_ink_no_text` | a page without characters passing for one that was read, or a skip absent from the counts |
 
 ---
+
+
+## K7 — the store: what was read survives the process that read it
+
+Phase P7. A tree that exists only inside one run cannot be cited later, so the
+store keeps documents, the objects and edges read from them, the chunks cut from
+them, and the vectors computed over those chunks — in one SQLite file.
+
+One file, deliberately. A vector store beside a document store is two things that
+can disagree about what exists, and the disagreement is discovered at query time,
+by a user.
+
+Two identity rules carry the layer, and both say the same thing: a thing is what
+it contains, never where it was found or when. `doc_id` is the source sha256;
+`chunk_id` digests `(doc_id, level, node_ids, text)`. Neither holds a float, a
+timestamp or a path.
+
+| id | proposition | fixture | falsified by |
+|---|---|---|---|
+| K7.1 | A document is its bytes: `doc_id` is the source sha256, the same bytes at two paths are one document with two recorded paths, and an id built from anything else is refused at construction. | `trees_per_format` | one document becoming two because it moved, or an id accepted that is not a digest |
+| K7.2 | A stored tree returns identical: the canonical JSON of a document read back equals the canonical JSON stored, for every format. Node addresses derived for the store resolve back to their nodes and are unique. | `trees_per_format` | a round trip that changes one byte, an address that does not resolve, or two nodes sharing one |
+| K7.3 | No text a reader found is lost: every node carrying text is chunked or absorbed by a node that was, and every node that is neither is refused with a reason from a closed vocabulary. A chunk with no node cannot be constructed. | `slide_deck`, `mixed_workbook`, `docx_two_tier` | a read document producing no chunk, text reaching no chunk, or a node neither chunked nor refused |
+| K7.4 | A level-1 roll-up covers exactly the union of its level-0 children's node ids, in order, and carries no parent of its own. Roll-ups can be switched off without affecting level 0. | `docx_two_tier` | a roll-up naming a node no child names, missing one a child does, or holding a parent |
+| K7.5 | A chunk is its content: chunking an unchanged tree twice yields identical ids and the store writes nothing the second time. Every component of the id is load-bearing, node order included. | `trees_per_format` | an insert or a delete on re-chunking, or two different chunks sharing an id |
+| K7.6 | Embeddings are keyed `(chunk_id, model)`: two models coexist, embedding again computes only what is missing, and a partial or empty answer from a backend is refused rather than stored. | `docx_two_tier` | an embedder asked twice for the same chunk, a model overwriting another, or a stored vector shorter than its declared dimension |
+| K7.7 | `embedder.provider: none` writes nothing at all — not a zero vector — and the store still answers on its lexical lane, with `dense: disabled (no embedder)` stated rather than inferred. | `docx_two_tier` | any row in `embeddings` after indexing with no embedder |
+| K7.8 | The dense lane reads its vectors from the database and the index is a rebuildable cache: dropping it and reopening reproduces identical hits, and changing a document's chunks discards it. | `docx_two_tier` | a hit list that changes when only the cache does, or a cache that outlives the rows it describes |
+| K7.9 | A hit keeps its lane ranks beside the fused rank, never replaced by it: a hit found by one lane carries `None` for the other, and fusion is over ranks, never over lane scores. | `docx_two_tier` | a lane rank replaced by a fused one, or an absent lane reported as a worst-case number |
+| K7.10 | Every hit resolves to provenance: the nodes a chunk names are reachable in the stored tree and each carries a non-empty citation chain naming its source and format. | `docx_two_tier` | a hit whose nodes do not resolve, or one resolving to a node citing nothing |
+| K7.11 | Objects and edges read from a tree are stored and returned with the hits that cite their nodes. Edges are copied from what an analyzer decided and recorded; a binding whose target cannot be resolved is refused and counted, never guessed. | `pdf_caption_below` | an edge no analyzer decided, a caption bound to the line it was made from, or an unresolved binding dropped in silence |
+| K7.12 | Delete is trash: the document is marked and its vectors parked, restore returns those same vectors component-wise, and purge is opt-in and counted in the store's drop trace. | `mixed_workbook` | a restore that recomputes rather than returns, a purge that reports nothing, or a trashed document still answering a query |
+| K7.13 | The lexical lane is written with the chunk: a search after an upsert finds the new text, an empty query returns nothing rather than everything, and a trashed document leaves the lane. | `docx_two_tier` | a chunk searchable before it is stored, or a deleted document still returned |
+| K7.14 | The packaged defaults are the shape: an unknown key is refused with its path, a value where a mapping belongs is refused, a missing file is refused rather than ignored, and an overlay changes what a real run does. | `docx_two_tier` | a typo accepted and the default used silently, or an overlay a run ignores |
+| K7.15 | `saqqara_index` declares `requires=["document_tree"]` and `provides=["document_store"]`, the envelope enforces that declaration, and a store provider resolves without anyone having imported its module first. | `docx_two_tier`, `markdown_document` | a run proceeding with no document tree, or a provider that resolves only by import order |
+| K7.16 | The CLI and the MCP surface return the same hits for the same query on the same store, each carrying both lane ranks and its provenance. | `docx_two_tier`, `markdown_document` | one surface answering differently from the other, or a hit from either lacking its citation |
+
+**Not in this phase, and declared rather than left open:** authority, freshness and
+quality boosts (the `boosts` field exists and is empty — they need policies this
+package does not own); store providers other than sqlite; OCR.
+
 
 ## Known holes — where an invariant stops holding
 

@@ -4,6 +4,8 @@ saqqaractl — CLI for the saqqara document-substrate kernel.
 Commands:
     run     Read documents into typed trees and recognise their structure
     status  Read back what a previous run found, without re-reading the corpus
+    index   Chunk what was read into a store and embed what is missing
+    search  Query that store, showing both lane ranks and every hit's citation
 
 Usage:
     python -m ragix_kernels.saqqara.cli.saqqaractl run ./documents -w ./work
@@ -26,6 +28,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from ragix_kernels.base import KernelInput
+from ragix_kernels.saqqara.kernels.saqqara_index import SaqqaraIndexKernel
 from ragix_kernels.saqqara.kernels.saqqara_run import SaqqaraKernel
 
 # ANSI colour helpers — silent when the output is not a terminal.
@@ -193,6 +196,100 @@ def cmd_status(args) -> int:
     return 0
 
 
+def cmd_index(args) -> int:
+    workspace = Path(args.workspace)
+    workspace.mkdir(parents=True, exist_ok=True)
+    config: Dict[str, Any] = {}
+    if args.config:
+        config["config"] = args.config
+
+    read = workspace / "stage1" / "saqqara.json"
+    if not read.is_file():
+        print(_red(f"nothing has been read into {workspace}; run `run` first"),
+              file=sys.stderr)
+        return 2
+    output = SaqqaraIndexKernel().run(KernelInput(
+        workspace=workspace, config=config, dependencies={"document_tree": read}))
+
+    if args.json:
+        print(json.dumps(output.data, indent=2, sort_keys=True, ensure_ascii=False))
+        return 0 if output.success else 1
+    if not output.success:
+        print(_red(output.summary), file=sys.stderr)
+        for error in output.errors or []:
+            print(_red(f"error: {error}"), file=sys.stderr)
+        return 1
+
+    print(_green(output.summary))
+    status = (output.data or {}).get("status", {})
+    for key in ("documents", "chunks", "objects", "edges", "embeddings", "embeddings_parked"):
+        print(f"  {key:18s} {status.get(key, 0)}")
+    print(f"  {'dense':18s} {status.get('dense', 'unknown')}")
+    for drop in status.get("drops", []):
+        print(_yellow(f"  dropped: {drop}"))
+    return 0
+
+
+def _hit_payload(hit, tree) -> Dict[str, Any]:
+    """One hit as data — the same shape the MCP tool returns (K7.16)."""
+    from ragix_kernels.saqqara.store.retrieve import provenance_of
+
+    payload = hit.to_dict()
+    payload["provenance"] = provenance_of(tree, hit.chunk) if tree else []
+    return payload
+
+
+def cmd_search(args) -> int:
+    from ragix_kernels.saqqara.store.config import load_config
+    from ragix_kernels.saqqara.store.embed import build_embedder
+    from ragix_kernels.saqqara.store.ports import build_store
+    from ragix_kernels.saqqara.store.retrieve import Retriever
+
+    config = load_config(args.config or None)
+    store_section = config.section("store")
+    path = Path(store_section.get("path", ".ragix/saqqara.db"))
+    if not path.is_absolute():
+        path = Path(args.workspace) / path
+    if not path.is_file():
+        print(_red(f"no store at {path}; run `index` first"), file=sys.stderr)
+        return 2
+    store = build_store({**store_section, "path": str(path)})
+
+    embedder_section = config.section("embedder")
+    provider = embedder_section.get("provider", "none")
+    model = embedder_section.get("model", "") or provider
+    embedder = build_embedder(provider, model=embedder_section.get("model", ""))
+    vector = embedder.embed_batch([args.query])[0] if embedder else None
+
+    retrieval = config.section("retrieval")
+    hits = Retriever(store, model=model if embedder else "",
+                     backend=config.get("index.backend", "numpy"),
+                     rrf_k=retrieval.get("rrf_k", 60)).search(
+        query=args.query, vector=vector,
+        top_k=args.top_k or retrieval.get("top_k", 10),
+        dense_k=retrieval.get("dense_k", 40), lexical_k=retrieval.get("lexical_k", 40))
+
+    trees = {d.doc_id: d.tree for d in store.list_documents()}
+    payload = [_hit_payload(h, trees.get(h.chunk.doc_id)) for h in hits]
+
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False))
+        return 0
+
+    if embedder is None:
+        print(_yellow("dense: disabled (no embedder) — lexical lane only"))
+    if not hits:
+        print("no hit")
+        return 0
+    for hit in hits:
+        ranks = f"dense={hit.dense_rank} lexical={hit.lexical_rank} final={hit.final_rank}"
+        print(f"\n{_bold(ranks)}")
+        print(f"  {hit.chunk.text[:160]}")
+        for entry in _hit_payload(hit, trees.get(hit.chunk.doc_id))["provenance"]:
+            print(f"    {entry['kind']:10s} {entry['source_path']} {entry['chain']}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="saqqaractl",
@@ -218,6 +315,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_status.add_argument("--json", action="store_true", help="emit the raw result as JSON")
     p_status.add_argument("-v", "--verbose", action="store_true", help="list every abstention")
     p_status.set_defaults(func=cmd_status)
+
+    p_index = sub.add_parser("index", help="chunk what was read into a store")
+    p_index.add_argument("workspace", help="the workspace a previous run wrote to")
+    p_index.add_argument("-c", "--config", default=None, help="path to a saqqara.yaml")
+    p_index.add_argument("--json", action="store_true", help="emit the raw result as JSON")
+    p_index.add_argument("-v", "--verbose", action="store_true")
+    p_index.set_defaults(func=cmd_index)
+
+    p_search = sub.add_parser("search", help="query the store")
+    p_search.add_argument("workspace", help="the workspace holding the store")
+    p_search.add_argument("query", help="what to look for")
+    p_search.add_argument("-c", "--config", default=None, help="path to a saqqara.yaml")
+    p_search.add_argument("-k", "--top-k", type=int, default=0, help="how many hits")
+    p_search.add_argument("--json", action="store_true", help="emit hits as JSON")
+    p_search.add_argument("-v", "--verbose", action="store_true")
+    p_search.set_defaults(func=cmd_search)
 
     return parser
 

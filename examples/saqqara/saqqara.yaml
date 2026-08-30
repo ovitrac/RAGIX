@@ -1,0 +1,19 @@
+# The demo configuration: a partial overlay on the packaged defaults.
+#
+# It names only what it changes. Every key here must exist in
+# ragix_kernels/saqqara/store/defaults.yaml, or loading refuses with the path —
+# which is the point of 04_lexical_only.py.
+#
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+
+store:
+  path: saqqara.db
+  corpus: demo
+
+embedder:
+  # Lexical-only by default so the demo runs with no model server and no
+  # download. 03_search_with_trace.py switches this on if it can.
+  provider: none
+
+retrieval:
+  top_k: 5

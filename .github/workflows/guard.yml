@@ -76,3 +76,9 @@ jobs:
 
       - name: Gates
         run: python3 -m pytest tests/saqqara -q
+
+      # The demo is what a reader runs first, so it is checked like anything else.
+      # It found two defects the gates could not: registration by import side
+      # effect is invisible to a suite where some other test did the importing.
+      - name: The demo, on this install and nothing more
+        run: bash examples/saqqara/run_demo.sh
