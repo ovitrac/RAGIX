@@ -54,6 +54,12 @@ from generators import FIXTURES, FIXTURE_SUFFIX  # noqa: E402
 #:                blocks and bands, the readers speak of observations, and the
 #:                step between them was unspecified: unwritten, each analyzer
 #:                would have re-invented it.
+#:   K3 71 -> 72  K3.72, the address a chain rung was read from. The analyzer
+#:                already resolved the covering cell to find the rung and then
+#:                discarded where it was: a chain could be quoted but not
+#:                followed, and a citation that cannot be followed back to a
+#:                position is a claim about a document rather than a reading of
+#:                one;
 #:   K1 8  -> 9   K1.9, added with the one deliberate reopening of the P1
 #:                interface: a slide and its speaker notes shared a coordinate,
 #:                so a locator was not a unique address inside its own format;
@@ -161,7 +167,7 @@ from generators import FIXTURES, FIXTURE_SUFFIX  # noqa: E402
 #:                proposition is about the SHARED vocabulary: one set held in the
 #:                contract, four readers pointing at it, and the addressing that
 #:                differs per format kept in the typed locator where it belongs.
-FROZEN_COUNTS = {"K1": 10, "K2": 25, "K3": 71, "K4": 2, "K6": 19, "K7": 16}
+FROZEN_COUNTS = {"K1": 10, "K2": 25, "K3": 72, "K4": 2, "K6": 19, "K7": 16}
 
 _ROW = re.compile(r"^\|\s*(K[1-7])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 _TICKED = re.compile(r"`([a-z0-9_']+)`")

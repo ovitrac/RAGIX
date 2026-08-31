@@ -33,6 +33,8 @@ from ragix_kernels.saqqara.analyzers import (  # noqa: E402
     anchors,
     pipeline,
 )
+from ragix_kernels.saqqara.analyzers.geometry import coord, parse_range  # noqa: E402
+from ragix_kernels.saqqara.analyzers.grid import grid_cells  # noqa: E402
 from ragix_kernels.saqqara.builder import build_tree  # noqa: E402
 
 GRID_FIXTURES = sorted(G.EXPECTED_GRID)
@@ -195,6 +197,90 @@ def test_k3_10_the_deepest_rung_is_exposed_and_is_never_the_reference(grids):
     got = anchors(block, "B4")
     assert got["col_header"] == got["col_chain"][-1] == "Humains"
     assert got["col_header"] != "B4"
+
+
+# --------------------------------------------- K3.72 a rung carries its address
+
+def _cell_at(block, ref):
+    """The grid cell an A1 reference names, by the top-left of its rectangle."""
+    rect = parse_range(ref)
+    for cell in grid_cells(block)[0]:
+        if (cell.row, cell.col) == (rect.top, rect.left):
+            return cell
+    return None
+
+
+@pytest.mark.parametrize("name", ["two_tier_header", "label_tiling"])
+def test_k3_72_every_rung_names_the_cell_it_was_read_from(grids, name):
+    """A citation that cannot be followed back to a position is not a reading.
+
+    The address is checked by USING it: resolve each rung's reference and read
+    the cell there. A reference that merely looks well formed would satisfy a
+    test that only parsed it.
+    """
+    tree, _ = grids[name]
+    block = _tables(tree)[0]
+    for sample in G.EXPECTED_GRID[name]["samples"]:
+        got = anchors(block, sample["cell"])
+        for key, chain_key in (("col_rungs", "col_chain"), ("row_rungs", "row_chain")):
+            rungs = got[key]
+            assert [step["text"] for step in rungs] == got[chain_key], sample["cell"]
+            for step in rungs:
+                assert step["ref"], f"{sample['cell']}: a rung with no address"
+                cell = _cell_at(block, step["ref"])
+                assert cell is not None, f"{step['ref']} names no cell"
+                expected = cell.text if cell.text is not None else BLANK_RUNG
+                assert step["text"] == expected, step["ref"]
+
+
+def _spans(rect):
+    """More than one position. Every address is written `top:bottom`, so the
+    separator says nothing about whether the tile is merged."""
+    return rect.bottom > rect.top or rect.right > rect.left
+
+
+def test_k3_72_a_merged_tile_reports_its_whole_extent(grids):
+    """The rung is the tile, not a corner of it: a merge spanning two tiers
+    contributes one rung, and its address is the range the merge covers."""
+    tree, _ = grids["two_tier_header"]
+    block = _tables(tree)[0]
+    rungs = anchors(block, "B4")["col_rungs"]
+    spanning = [step for step in rungs if _spans(parse_range(step["ref"]))]
+    assert len(spanning) == 1, rungs        # one rung, not one per column covered
+    rect = parse_range(spanning[0]["ref"])
+    assert rect.right > rect.left           # the tier above covers both columns
+    assert rect.contains(rect.top, coord("B1")[1])
+    assert rect.contains(rect.top, coord("C1")[1])
+
+
+def test_k3_72_a_blank_rung_still_carries_an_address(grids):
+    """Where the label is missing is exactly the fact a reviewer needs, and it
+    is unaddressable without a reference."""
+    tree, _ = grids["label_tiling"]
+    rungs = anchors(_tables(tree)[0], "D10")["row_rungs"]
+    blanks = [step for step in rungs if step["text"] == BLANK_RUNG]
+    assert blanks, [step["text"] for step in rungs]
+    for step in blanks:
+        assert step["ref"] and _cell_at(_tables(tree)[0], step["ref"]) is not None
+
+
+def test_k3_72_an_abstention_invents_no_addresses(grids):
+    """The fallback returns no rungs rather than rungs pointing nowhere."""
+    tree, _ = grids["overlapping_merges"]
+    got = anchors(_tables(tree)[0], "C3")
+    assert got["uncertain"] is True
+    assert got["col_rungs"] == [] and got["row_rungs"] == []
+
+
+@pytest.mark.parametrize("name", ["two_tier_header", "label_tiling"])
+def test_k3_72_the_result_is_json_native(grids, name):
+    """Everything `anchors` returns is storable beside the answer it explains.
+    A rung as an object would be the one value in the result that will not
+    serialise, met by whoever stored a chain rather than by whoever wrote it."""
+    tree, _ = grids[name]
+    block = _tables(tree)[0]
+    for sample in G.EXPECTED_GRID[name]["samples"]:
+        json.dumps(anchors(block, sample["cell"]))
 
 
 @pytest.mark.parametrize("name", GRID_FIXTURES)
