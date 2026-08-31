@@ -210,7 +210,7 @@ Each is carried by a proposition in `SPEC.md` and by a test, not by convention:
 
 ## 7. Gates and Specification
 
-`ragix_kernels/saqqara/SPEC.md` holds **144 falsifiable propositions**, each with the fixture
+`ragix_kernels/saqqara/SPEC.md` holds **147 falsifiable propositions**, each with the fixture
 that exercises it and what would falsify it.
 
 | gate | layer | propositions |
@@ -220,8 +220,8 @@ that exercises it and what would falsify it.
 | K3 | `analyzers/` + `builder.py` + `services.py` | 72 |
 | K4 | `kernels/` — the envelope and the roots | 2 |
 | K6 | objects — figures, captions, drawn regions | 19 |
-| K7 | the store — one SQLite file, embeddings beside the chunks | 16 |
-| | **total** | **144** |
+| K7 | the store — one SQLite file, embeddings beside the chunks | 19 |
+| | **total** | **147** |
 
 K0 is the gate that lets the others mean something. It proves the specification parses and is
 self-consistent, that specification and fixtures agree **in both directions**, that the package

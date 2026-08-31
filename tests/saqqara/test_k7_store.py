@@ -1148,7 +1148,15 @@ def test_k7_14_an_override_is_validated_like_a_file():
         load_config(None, **{"retrieval.topk": 5})
 
 
-def test_k7_14_no_secret_is_resolved_during_load(monkeypatch, tmp_path):
+# ------------------------------- K7.19 a secret is a reference, resolved at use
+#
+# These five carried the `k7_14` name until the specification caught up with
+# them: they were exercised under the proposition about the shape of the
+# packaged defaults, which says nothing about secrets. The behaviour was never
+# untested — its claim was unwritten, and a test whose proposition does not
+# state its claim is a test nobody can falsify on purpose.
+
+def test_k7_19_no_secret_is_resolved_during_load(monkeypatch, tmp_path):
     """A config object is always safe to write down, which is why nothing resolves.
 
     Falsified by: a loaded configuration whose serialisation contains the value.
@@ -1164,12 +1172,12 @@ def test_k7_14_no_secret_is_resolved_during_load(monkeypatch, tmp_path):
     assert config.api_key() == "the-actual-secret", "it must still resolve at use"
 
 
-def test_k7_14_a_secret_reference_resolves_from_the_environment(monkeypatch):
+def test_k7_19_a_secret_reference_resolves_from_the_environment(monkeypatch):
     monkeypatch.setenv("SAQQARA_TEST_KEY", "v")
     assert resolve_secret("env:SAQQARA_TEST_KEY") == "v"
 
 
-def test_k7_14_an_unresolvable_secret_fails_closed(monkeypatch):
+def test_k7_19_an_unresolvable_secret_fails_closed(monkeypatch):
     """Returning the reference would send the string "env:TOKEN" as a credential."""
     monkeypatch.delenv("SAQQARA_ABSENT", raising=False)
     with pytest.raises(ValueError, match="unset or empty"):
@@ -1180,15 +1188,16 @@ def test_k7_14_an_unresolvable_secret_fails_closed(monkeypatch):
         resolve_secret("vault:something")
 
 
-def test_k7_14_a_labelled_secret_file_selects_its_line(tmp_path):
-    path = tmp_path / "keys.txt"
-    path.write_text("Other abc\nEmbedKey s3cret\n", encoding="utf-8")
+def test_k7_19_a_labelled_secret_file_selects_its_line(tmp_path):
+    """The unwanted line is first in the generated file, so a reader that
+    ignores the label and returns the first value is wrong rather than lucky."""
+    path = G.FIXTURES["labelled_secret_file"](tmp_path / "labelled_secret_file.txt")
     assert resolve_secret(f"file:{path}#EmbedKey") == "s3cret"
     with pytest.raises(ValueError, match="not found"):
         resolve_secret(f"file:{path}#Missing")
 
 
-def test_k7_14_an_unreadable_secret_file_fails_closed(tmp_path):
+def test_k7_19_an_unreadable_secret_file_fails_closed(tmp_path):
     with pytest.raises(ValueError, match="cannot read secret file"):
         resolve_secret(f"file:{tmp_path / 'nope.txt'}")
 
@@ -1501,3 +1510,91 @@ def test_k7_14_a_configuration_overlay_drives_a_real_index_run(tmp_path):
     assert (workspace / "chosen.db").is_file(), "the overlay's store path was ignored"
     assert output.data["status"]["corpus"] == "overlaid"
     assert output.data["config"]["retrieval"]["rrf_k"] == 60, "an untouched default moved"
+
+
+# ------------------------- K7.17, K7.18 fusion against each lane alone
+
+@pytest.fixture
+def fused_corpus(store, tmp_path):
+    """The generated decoy corpus, loaded into a store.
+
+    The design — which chunk wins which lane, and which one deliberately
+    carries no vector — lives in the generator, where it is reviewable in one
+    place. This fixture only puts it into a store.
+    """
+    manifest = json.loads(
+        G.FIXTURES["fusion_decoys"](tmp_path / "fusion_decoys.json")
+        .read_text(encoding="utf-8"))
+
+    sha = "c" * 64
+    doc = DocumentRecord(doc_id=doc_id_for(sha), corpus="default", doc_class="x",
+                         source_path="fused.json", source_sha256=sha,
+                         kernel="saqqara", kernel_version="1.0")
+    store.upsert_document(doc)
+
+    made, vectors = {}, []
+    for seq, entry in enumerate(manifest["chunks"]):
+        node = f"n-{entry['name']}"
+        cid = chunk_id_for(doc.doc_id, 0, [node], entry["text"])
+        made[entry["name"]] = ChunkRecord(
+            chunk_id=cid, doc_id=doc.doc_id, seq=seq, text=entry["text"],
+            level=0, node_ids=[node])
+        if entry["vector"] is not None:
+            vectors.append(EmbeddingRecord(
+                chunk_id=cid, model="probe", dimensions=len(entry["vector"]),
+                vector=tuple(entry["vector"])))
+    store.replace_chunks(doc.doc_id, list(made.values()))
+    store.upsert_embeddings(vectors)
+    # The chunk the generator leaves unembedded is the point, not an omission.
+    assert len(vectors) == 2, "the lexical decoy must stay out of the dense lane"
+    return (store, {name: rec.chunk_id for name, rec in made.items()},
+            manifest["query"], tuple(manifest["query_vector"]))
+
+
+def _rank_of(hits, chunk_id, attribute):
+    for hit in hits:
+        if hit.chunk.chunk_id == chunk_id:
+            return getattr(hit, attribute)
+    return None
+
+
+def test_k7_17_fusion_beats_the_lexical_lane_alone(fused_corpus):
+    """The baseline is asserted, not assumed: the lexical lane really does put
+    a decoy first, and fusion really does move the answer above it."""
+    store, ids, query, query_vector = fused_corpus
+    retriever = Retriever(store, model="probe")
+
+    lexical = retriever.lexical(query, top_k=10)
+    # the fixture is what it claims — otherwise the comparison below is vacuous
+    assert _rank_of(lexical, ids["decoy_lexical"], "lexical_rank") == 1
+    baseline = _rank_of(lexical, ids["target"], "lexical_rank")
+    assert baseline == 2
+
+    fused = retriever.search(query, vector=query_vector, top_k=10)
+    assert _rank_of(fused, ids["target"], "final_rank") == 1 < baseline
+
+
+def test_k7_18_fusion_beats_the_dense_lane_alone(fused_corpus):
+    """Same claim on the other lane, and the decoy that wins here never uses
+    the query's words: the two lanes are wrong about different documents."""
+    store, ids, query, query_vector = fused_corpus
+    retriever = Retriever(store, model="probe")
+
+    dense = retriever.dense(query_vector, top_k=10)
+    assert _rank_of(dense, ids["decoy_dense"], "dense_rank") == 1
+    baseline = _rank_of(dense, ids["target"], "dense_rank")
+    assert baseline == 2
+
+    fused = retriever.search(query, vector=query_vector, top_k=10)
+    assert _rank_of(fused, ids["target"], "final_rank") == 1 < baseline
+
+
+def test_k7_17_the_fused_hit_still_carries_both_lane_ranks(fused_corpus):
+    """Beating a lane is not replacing it: the ranks that produced the fusion
+    stay readable beside it, or the comparison cannot be audited later."""
+    store, ids, query, query_vector = fused_corpus
+    fused = Retriever(store, model="probe").search(
+        query, vector=query_vector, top_k=10)
+    winner = next(h for h in fused if h.chunk.chunk_id == ids["target"])
+    assert winner.lexical_rank == 2 and winner.dense_rank == 2
+    assert winner.final_rank == 1

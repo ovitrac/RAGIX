@@ -2635,7 +2635,70 @@ def duplicate_pair(path: Path) -> Path:
 
 
 #: Fixture name -> generator. Checked against SPEC.md by the K0 gate.
+# ------------------------------------------------- retrieval baselines, secrets
+
+#: The reciprocal-rank constant the store uses. Repeated here so the arithmetic
+#: below can be checked against the fixture rather than against the code.
+_RRF_K = 60
+
+
+def fusion_decoys(path: Path) -> Path:
+    """A corpus where NEITHER lane alone puts the right answer first.
+
+    One decoy wins the lexical lane by repeating the query term in a short
+    chunk. Another wins the dense lane by sitting exactly on the query vector
+    and never using the word at all. The answer is second in both, and fusion
+    is what recovers it.
+
+    **Why only two of the three carry a vector.** Embedding the lexical decoy as
+    well puts it third in the dense lane, and a document ranked first and third
+    beats one ranked second and second — `1/61 + 1/63` exceeds `2/62`, because
+    the reciprocal is convex. The first version of this fixture did exactly
+    that and ranked the answer second under fusion. The omission is the design,
+    not an oversight, and a vector added here would quietly undo the
+    comparison the propositions rest on.
+
+    The manifest is what `path` returns: the fixture is a corpus of texts and
+    vectors, not a document, and writing it as data keeps the decoy design
+    reviewable in one place instead of spread through a test.
+    """
+    query = "penalites"
+    payload = {
+        "query": query,
+        "query_vector": [1.0, 0.0],
+        "rrf_k": _RRF_K,
+        "chunks": [
+            {"name": "decoy_lexical",
+             "text": f"{query} {query} {query}",
+             "vector": None},
+            {"name": "target",
+             "text": (f"Le bordereau fixe les {query} de retard applicables au "
+                      "titulaire en cas de manquement constate par le maitre "
+                      "d ouvrage pendant la periode de garantie."),
+             "vector": [0.96, 0.28]},
+            {"name": "decoy_dense",
+             "text": ("Un texte sans le mot recherche, place exactement sur le "
+                      "vecteur de la question."),
+             "vector": [1.0, 0.0]},
+        ],
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    return path
+
+
+def labelled_secret_file(path: Path) -> Path:
+    """A secrets file with two labelled lines and one that is not wanted.
+
+    A single-line file would let a reader that ignores the label pass. The
+    unwanted line is first, so returning the file's first value is wrong.
+    """
+    path.write_text("Other abc\nEmbedKey s3cret\n", encoding="utf-8")
+    return path
+
+
 FIXTURES: Dict[str, Callable[[Path], Path]] = {
+    "fusion_decoys": fusion_decoys,
+    "labelled_secret_file": labelled_secret_file,
     "mixed_workbook": mixed_workbook,
     "two_tier_header": two_tier_header,
     "label_tiling": label_tiling,
@@ -2710,6 +2773,8 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
 #: registry where the two halves disagree.
 FIXTURE_SUFFIX: Dict[str, str] = {
     "ambiguous_layout": ".xlsx",
+    "fusion_decoys": ".json",
+    "labelled_secret_file": ".txt",
     "docx_header_stream": ".docx",
     "docx_label_tiling": ".docx",
     "docx_layout_prose": ".docx",

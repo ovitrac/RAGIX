@@ -54,6 +54,12 @@ from generators import FIXTURES, FIXTURE_SUFFIX  # noqa: E402
 #:                blocks and bands, the readers speak of observations, and the
 #:                step between them was unspecified: unwritten, each analyzer
 #:                would have re-invented it.
+#:   K7 16 -> 19  K7.17 and K7.18, the two baseline comparisons: a fusion that
+#:                reproduced a lane would be indistinguishable from one that
+#:                fused nothing, and only a comparison can say otherwise. K7.19,
+#:                the secret discipline — five tests already exercised it under
+#:                K7.14, whose text is about the shape of the packaged defaults
+#:                and says nothing about secrets;
 #:   K3 71 -> 72  K3.72, the address a chain rung was read from. The analyzer
 #:                already resolved the covering cell to find the rung and then
 #:                discarded where it was: a chain could be quoted but not
@@ -167,7 +173,7 @@ from generators import FIXTURES, FIXTURE_SUFFIX  # noqa: E402
 #:                proposition is about the SHARED vocabulary: one set held in the
 #:                contract, four readers pointing at it, and the addressing that
 #:                differs per format kept in the typed locator where it belongs.
-FROZEN_COUNTS = {"K1": 10, "K2": 25, "K3": 72, "K4": 2, "K6": 19, "K7": 16}
+FROZEN_COUNTS = {"K1": 10, "K2": 25, "K3": 72, "K4": 2, "K6": 19, "K7": 19}
 
 _ROW = re.compile(r"^\|\s*(K[1-7])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 _TICKED = re.compile(r"`([a-z0-9_']+)`")
