@@ -2031,48 +2031,68 @@ def test_k7_21_a_lane_with_no_vector_at_all_is_not_a_lane(tmp_path, fake_server)
     assert any("holds no vector" in e for e in output.errors), output.errors
 
 
+def test_k7_21_every_request_refuses_truncation(fake_server):
+    """The server may not cut a text and answer as though it had embedded it.
+
+    Falsified by: a request without `truncate: false`, in any path. A vector of an
+    unknown fraction of a chunk is indistinguishable from a whole one, and two
+    machines with different context windows would not even produce the same one.
+    """
+    class _Recording(_RefusingServer):
+        def __init__(self):
+            super().__init__()
+            self.bodies = []
+
+        def post(self, url, json=None, timeout=None):  # noqa: A002
+            self.bodies.append(json)
+            return super().post(url, json=json, timeout=timeout)
+
+    server = fake_server(_Recording())
+    backend = _backend()
+    backend.embed_batch(["a", "b"])
+    backend.embed_batch_recording_refusals(["c", "d"])
+    backend.embed_text("e")
+
+    assert server.bodies, "nothing was sent"
+    assert all(body.get("truncate") is False for body in server.bodies), server.bodies
+
+
 @pytest.mark.skipif(os.environ.get("OLLAMA_LIVE") != "1",
                     reason="live embedding test; set OLLAMA_LIVE=1 to run")
-def test_k7_21_a_live_lane_completes_whatever_the_server_decides():
-    """The third control: against a real server, the lane completes either way.
+def test_k7_21_a_live_server_records_an_oversized_input_rather_than_cutting_it():
+    """The third control, against a real server, and it is a refusal again.
 
-    The tests above prove the mechanism and the accounting against a fake server,
-    where a bisection and a register can be checked exactly. This one is live, and
-    what it asserts is deliberately not "the server refuses": it asserts that
-    **every text ends as a vector or as a record, and nothing raises**, which is
-    the whole of what this change claims.
+    The first version of this test sent a generated oversized input and asserted a
+    refusal; it skipped, because the server answered 200. That answer was the
+    server **truncating**: measured 2026-09-05 on one model and two machines,
+    ollama 0.19.0, 206 599 characters — `truncate` unset gives 200 with one vector
+    and a `prompt_eval_count` of 4096 on one machine and 8192 on the other, while
+    `truncate: false` gives 400 on both. The lane was not accepting long texts, it
+    was embedding the part that fit and saying nothing.
 
-    It was first written to assert a refusal on an oversized input. Measured
-    2026-09-05: `snowflake-arctic-embed2` accepted 1 377 889 characters on one
-    machine and refused nine ordinary roll-ups on another. Ollama truncates by
-    default, so size does not summon a refusal — the same thing the corpus already
-    said, where 116 280 characters were accepted and 25 911 refused. A live test
-    asserting a refusal would have skipped on most servers and proved nothing on
-    the rest; what stays true everywhere is that the lane completes.
+    With truncation refused the class is reproducible on every server, which is why
+    this asserts a refusal again: one record naming the model and carrying the
+    server's words, every other text embedded, and nothing raised. A server that
+    truncated anyway would fail here, which is the point of asking it live.
 
-    The long input is generated here, varied words, never corpus text: a repository
-    that must carry no document cannot acquire one through a fixture.
+    The oversized text is generated, varied words, never corpus text.
     """
     from ragix_core.embeddings import OllamaEmbeddingBackend
 
     model = os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text")
-    oversized = " ".join(f"mot{i % 997}" for i in range(200_000))
+    oversized = " ".join(f"mot{i % 997}" for i in range(30_000))
     texts = ["une phrase courte", oversized, "another sentence entirely"]
 
     backend = OllamaEmbeddingBackend(model=model, batch_size=len(texts))
     vectors, refusals = backend.embed_batch_recording_refusals(texts)
 
-    assert len(vectors) == len(texts), "the answer stays aligned with its input"
-    refused = {r.index for r in refusals}
-    for position, vector in enumerate(vectors):
-        assert (vector is None) == (position in refused), (
-            f"text {position} is neither embedded nor recorded, or is both"
-        )
-    for refusal in refusals:
-        assert refusal.model == model, "a refusal names the model that refused"
-        assert refusal.message, "the server's own words, kept as a signal"
-        assert refusal.reason == "input-rejected"
-    assert vectors[0] and vectors[2], "the short texts were embedded either way"
+    assert [r.index for r in refusals] == [1], (
+        "the oversized text is a recorded refusal; a server that answered 200 here "
+        "cut it and called that an embedding"
+    )
+    (refusal,) = refusals
+    assert refusal.model == model and refusal.message and refusal.reason == "input-rejected"
+    assert vectors[0] and vectors[2] and vectors[1] is None
 
 
 def test_k7_21_a_404_names_both_of_its_causes(fake_server):

@@ -250,6 +250,25 @@ class EmbeddingRefusal:
         }
 
 
+#: Never let the server cut a text and answer as though it had embedded it.
+#:
+#: Measured 2026-09-05, one model, two machines, ollama 0.19.0, an input of 206 599
+#: characters: with `truncate` unset the server answers 200 with one vector and a
+#: `prompt_eval_count` of 4096 on one machine and 8192 on the other — it embedded
+#: the part that fit and said nothing. With `truncate: false` both answer 400, "the
+#: input length exceeds the context length".
+#:
+#: Silent truncation is the failure this package exists to refuse: a vector that is
+#: the embedding of an unknown fraction of a chunk, indistinguishable from a whole
+#: one, retrieved and cited as the chunk. It also makes two machines disagree — the
+#: same long text becomes 4096 tokens on one and 8192 on the other, so their
+#: vectors are not the same vectors.
+#:
+#: There is deliberately **no setting**. A knob permitting silent truncation is a
+#: knob for a silent repair, and the refusal it prevents is now a recorded object
+#: rather than a lost run.
+TRUNCATE = False
+
 #: The reason a refusal carries. One word, and it stays one word until a second
 #: condition is actually observed: a vocabulary listing conditions nobody has met
 #: reads like knowledge and is a guess.
@@ -323,7 +342,12 @@ class OllamaEmbeddingBackend:
         import requests
 
         for endpoint, payload, key in (
-            ("/api/embed", {"model": self.model, "input": text}, "embeddings"),
+            ("/api/embed",
+             {"model": self.model, "input": text, "truncate": TRUNCATE}, "embeddings"),
+            # The legacy endpoint has no truncate control. A server old enough to
+            # need it may still cut a long text silently, and this code cannot tell:
+            # a known hole, named here rather than left for someone to discover in
+            # a vector that is quietly the embedding of half a document.
             ("/api/embeddings", {"model": self.model, "prompt": text}, "embedding"),
         ):
             try:
@@ -376,7 +400,7 @@ class OllamaEmbeddingBackend:
             try:
                 response = requests.post(
                     f"{self.base_url}/api/embed",
-                    json={"model": self.model, "input": slice_},
+                    json={"model": self.model, "input": slice_, "truncate": TRUNCATE},
                     timeout=self.timeout,
                 )
             except Exception as exc:  # pragma: no cover - network shape
@@ -457,7 +481,7 @@ class OllamaEmbeddingBackend:
         try:
             response = requests.post(
                 f"{self.base_url}/api/embed",
-                json={"model": self.model, "input": slice_},
+                json={"model": self.model, "input": slice_, "truncate": TRUNCATE},
                 timeout=self.timeout,
             )
         except Exception as exc:  # pragma: no cover - network shape
