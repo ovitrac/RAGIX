@@ -39,7 +39,8 @@ from typing import Any, Iterable, Optional
 from .. import analyzers as _analyzers  # noqa: F401  (registers "block")
 from .. import builder as _builder      # noqa: F401  (registers cell, shape, page, …)
 from ..model import CANONICAL_JSON, Tree
-from .records import ChunkRecord, DocumentRecord, EdgeRecord, EmbeddingRecord, Hit, ObjectRecord
+from .records import (ChunkRecord, DocumentRecord, EdgeRecord, EmbeddingRecord,
+                      EmbeddingRefusalRecord, Hit, ObjectRecord)
 from .ports import register_store
 
 __all__ = ["SqliteDocumentStore", "SCHEMA_VERSION"]
@@ -126,6 +127,17 @@ CREATE TABLE IF NOT EXISTS embeddings (
     indexed_at TEXT,
     PRIMARY KEY (chunk_id, model)
 );
+
+CREATE TABLE IF NOT EXISTS embedding_refusals (
+    chunk_id    TEXT NOT NULL,
+    model       TEXT NOT NULL,
+    doc_id      TEXT NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
+    reason      TEXT NOT NULL,
+    signals_json TEXT NOT NULL DEFAULT '{{}}',
+    refused_at  TEXT,
+    PRIMARY KEY (chunk_id, model)
+);
+CREATE INDEX IF NOT EXISTS embedding_refusals_doc ON embedding_refusals(doc_id);
 
 CREATE TABLE IF NOT EXISTS embeddings_trash (
     chunk_id   TEXT NOT NULL,
@@ -434,6 +446,43 @@ class SqliteDocumentStore:
         self._db.commit()
         return written
 
+    def replace_embedding_refusals(
+        self, doc_id: str, records: Iterable[EmbeddingRefusalRecord]
+    ) -> int:
+        """This document's refusals, as of this run. Always called, empty included.
+
+        Replacement rather than accumulation, and unconditional rather than only
+        when there is something to write: a document that stopped refusing must
+        stop being listed, and a register that only ever grows describes every run
+        except the last one.
+        """
+        rows = list(records)
+        self._db.execute("DELETE FROM embedding_refusals WHERE doc_id=?", (doc_id,))
+        for record in rows:
+            self._db.execute(
+                """INSERT INTO embedding_refusals
+                     (chunk_id, model, doc_id, reason, signals_json, refused_at)
+                   VALUES (?,?,?,?,?,?)""",
+                (record.chunk_id, record.model, record.doc_id, record.reason,
+                 json.dumps(record.signals, **CANONICAL_JSON), record.refused_at),
+            )
+        self._db.commit()
+        return len(rows)
+
+    def get_embedding_refusals(
+        self, doc_id: Optional[str] = None
+    ) -> list[EmbeddingRefusalRecord]:
+        """The register the store holds, whole or for one document."""
+        sql = ("SELECT * FROM embedding_refusals"
+               + (" WHERE doc_id=?" if doc_id else "")
+               + " ORDER BY doc_id, chunk_id")
+        rows = self._db.execute(sql, (doc_id,) if doc_id else ())
+        return [EmbeddingRefusalRecord(
+            chunk_id=r["chunk_id"], doc_id=r["doc_id"], model=r["model"],
+            reason=r["reason"], signals=json.loads(r["signals_json"]),
+            refused_at=r["refused_at"],
+        ) for r in rows]
+
     def get_embeddings(self, model: str) -> list[EmbeddingRecord]:
         """Live vectors for one model, excluding anything whose document is trashed."""
         return [EmbeddingRecord(
@@ -465,6 +514,10 @@ class SqliteDocumentStore:
             "chunks": count("SELECT COUNT(*) FROM chunks"),
             "embeddings": count("SELECT COUNT(*) FROM embeddings"),
             "embeddings_parked": count("SELECT COUNT(*) FROM embeddings_trash"),
+            # Holdings and refusals are read together or not at all: a vector count
+            # alone reads as completeness, and this lane is complete only when the
+            # second number is zero.
+            "embedding_refusals": count("SELECT COUNT(*) FROM embedding_refusals"),
             "models": models,
             "drops": list(self.drops),
         }

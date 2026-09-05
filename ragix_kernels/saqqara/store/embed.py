@@ -22,7 +22,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Iterable, Optional
 
-from .records import ChunkRecord, EmbeddingRecord
+from .records import ChunkRecord, EmbeddingRecord, EmbeddingRefusalRecord
 
 __all__ = ["PROVIDERS", "EmbedPlan", "build_embedder", "embed_missing"]
 
@@ -32,18 +32,35 @@ PROVIDERS = ("none", "sentence-transformers", "ollama", "dummy")
 
 
 class EmbedPlan:
-    """What embedding did, in the terms the report needs."""
+    """What embedding did, in the terms the report needs.
+
+    `skipped` and `refusals` are separate fields and must stay separate. `skipped`
+    counts chunks this model had already embedded — a saving. A refusal is a chunk
+    with no vector at all. Both reduce the number of records written, so a report
+    that carries only `embedded` and `skipped` absorbs refusals into the count of
+    work not needed, and reads as a complete lane. That is the failure this
+    separation exists to prevent, and it is what the gate falsifies.
+    """
 
     def __init__(self, model: str, embedded: int = 0, skipped: int = 0,
-                 disabled: bool = False) -> None:
+                 disabled: bool = False,
+                 refusals: Optional[list[dict[str, Any]]] = None) -> None:
         self.model = model
         self.embedded = embedded
         self.skipped = skipped
         self.disabled = disabled
+        #: One dict per refused chunk, the shape `ChunkPlan.refusals` already uses:
+        #: a reason, a locator, and the signals the decision was made on.
+        self.refusals: list[dict[str, Any]] = list(refusals or [])
+
+    @property
+    def refused(self) -> int:
+        return len(self.refusals)
 
     def to_dict(self) -> dict[str, Any]:
         return {"disabled": self.disabled, "embedded": self.embedded,
-                "model": self.model, "skipped": self.skipped}
+                "model": self.model, "refusals": list(self.refusals),
+                "refused": self.refused, "skipped": self.skipped}
 
 
 def build_embedder(provider: str, model: str = "", **options: Any):
@@ -86,21 +103,65 @@ def embed_missing(
     if embedder is None:
         return EmbedPlan(model="", skipped=len(chunks), disabled=True)
 
+    doc_ids = {c.doc_id for c in chunks}
+    if len(doc_ids) > 1:
+        raise ValueError(
+            f"embed_missing works on one document at a time, got {len(doc_ids)}: "
+            "the refusal register is replaced per document, and a mixed call would "
+            "clear one document's refusals while writing another's"
+        )
+    doc_id = doc_ids.pop() if doc_ids else ""
+
+    # A refusal is never consulted here. `existing_embeddings` answers what is
+    # present, and a chunk refused by a previous run is missing, so it is asked
+    # again: another model may accept it, and a permanent mark would turn one
+    # server's answer into a property of the text.
     have = store.existing_embeddings([c.chunk_id for c in chunks], model)
     missing = [c for c in chunks if c.chunk_id not in have]
     if not missing:
+        store.replace_embedding_refusals(doc_id, [])
         return EmbedPlan(model=model, embedded=0, skipped=len(chunks))
 
     stamp = now or datetime.now(timezone.utc).isoformat()
-    vectors = embedder.embed_batch([c.text for c in missing])
+
+    # A backend that can attribute a refusal to one text is asked to; one that
+    # cannot keeps the strict path, where any refusal raises. The capability is
+    # asked for by name rather than by provider, so a second backend that grows it
+    # is used without editing this line.
+    recording = getattr(embedder, "embed_batch_recording_refusals", None)
+    if recording is None:
+        vectors = embedder.embed_batch([c.text for c in missing])
+        refusals = []
+    else:
+        vectors, refusals = recording([c.text for c in missing])
+
     if len(vectors) != len(missing):
         raise RuntimeError(
             f"embedder returned {len(vectors)} vectors for {len(missing)} chunks; "
             "a partial answer cannot be matched to its inputs"
         )
 
-    records = []
-    for chunk, vector in zip(missing, vectors):
+    refused_at = {r.index: r for r in refusals}
+    records, refused_records, refused_report = [], [], []
+    for position, (chunk, vector) in enumerate(zip(missing, vectors)):
+        refusal = refused_at.get(position)
+        if refusal is not None:
+            if vector:
+                raise RuntimeError(
+                    f"chunk {chunk.chunk_id[:12]} is both refused and embedded; "
+                    "a vector for a refused text cannot be trusted to be its own"
+                )
+            signals = {**refusal.to_dict(), "level": chunk.level, "seq": chunk.seq}
+            signals.pop("reason", None)
+            signals.pop("index", None)
+            refused_records.append(EmbeddingRefusalRecord(
+                chunk_id=chunk.chunk_id, doc_id=chunk.doc_id, model=model,
+                reason=refusal.reason, signals=signals, refused_at=stamp,
+            ))
+            refused_report.append({"reason": refusal.reason, "chunk_id": chunk.chunk_id,
+                                   "doc_id": chunk.doc_id, "node_ids": list(chunk.node_ids),
+                                   "signals": signals})
+            continue
         if not vector:
             raise RuntimeError(
                 f"empty vector for chunk {chunk.chunk_id[:12]}: an absent embedding "
@@ -110,4 +171,7 @@ def embed_missing(
                                        dimensions=len(vector), vector=tuple(vector),
                                        indexed_at=stamp))
     store.upsert_embeddings(records)
-    return EmbedPlan(model=model, embedded=len(records), skipped=len(chunks) - len(records))
+    # Written for every document, empty included: see `replace_embedding_refusals`.
+    store.replace_embedding_refusals(doc_id, refused_records)
+    return EmbedPlan(model=model, embedded=len(records),
+                     skipped=len(chunks) - len(missing), refusals=refused_report)

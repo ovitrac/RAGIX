@@ -14,7 +14,8 @@ from __future__ import annotations
 
 from typing import Any, Callable, Iterable, Optional, Protocol, runtime_checkable
 
-from .records import ChunkRecord, DocumentRecord, EdgeRecord, EmbeddingRecord, Hit, ObjectRecord
+from .records import (ChunkRecord, DocumentRecord, EdgeRecord, EmbeddingRecord,
+                      EmbeddingRefusalRecord, Hit, ObjectRecord)
 
 __all__ = ["DocumentStore", "build_store", "register_store"]
 
@@ -51,6 +52,17 @@ class DocumentStore(Protocol):
     def existing_embeddings(self, chunk_ids: Iterable[str], model: str) -> set[str]: ...
 
     def upsert_embeddings(self, records: Iterable[EmbeddingRecord]) -> int: ...
+
+    # A store that holds vectors also holds what it could not embed. The pair is
+    # the contract: a lane reporting only its holdings cannot be asked what is
+    # missing from it, and the answer would then live in a log nobody diffs.
+    def replace_embedding_refusals(
+        self, doc_id: str, records: Iterable["EmbeddingRefusalRecord"]
+    ) -> int: ...
+
+    def get_embedding_refusals(
+        self, doc_id: Optional[str] = None
+    ) -> list["EmbeddingRefusalRecord"]: ...
 
     # -------------------------------------------------------------- retrieval
     def search(self, vector: Iterable[float], top_k: int, model: str) -> list[Hit]: ...
