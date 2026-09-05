@@ -41,6 +41,7 @@ __all__ = [
     "DocumentRecord",
     "EdgeRecord",
     "EmbeddingRecord",
+    "EmbeddingRefusalRecord",
     "Hit",
     "ObjectRecord",
     "chunk_id_for",
@@ -302,6 +303,49 @@ class EmbeddingRecord:
         return cls(chunk_id=data["chunk_id"], model=data["model"],
                    dimensions=data["dimensions"], vector=tuple(data["vector"]),
                    indexed_at=data.get("indexed_at"))
+
+
+@dataclass
+class EmbeddingRefusalRecord:
+    """One chunk one model would not embed, kept where the vectors are kept.
+
+    A refusal lives in the store rather than only in the run's report because the
+    question it answers — "what does this lane hold, and what is missing from it" —
+    is asked of the store long after the run has exited, by a reader, a replay on
+    another machine, or the CLI. A count that exists only in a log is a count
+    nobody can check.
+
+    It is **not** a mark on the chunk. `existing_embeddings` never consults these
+    rows, so the next run asks again: a model change may accept what this one
+    refused, and a permanent mark would quietly turn one server's answer into a
+    property of the text.
+
+    `signals` carries what the rules read — the model, the batch size, the length,
+    the server's own words — on the same principle as the abstention register:
+    a record naming a reason and nothing it saw says which test failed and nothing
+    about why.
+    """
+
+    chunk_id: str
+    doc_id: str
+    model: str
+    reason: str
+    signals: dict[str, Any] = field(default_factory=dict)
+    refused_at: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if not self.reason:
+            raise ValueError(
+                "a refusal without a reason is a defect, not a refusal: "
+                f"chunk {self.chunk_id[:12]} under model {self.model!r}"
+            )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "chunk_id": self.chunk_id, "doc_id": self.doc_id, "model": self.model,
+            "reason": self.reason, "refused_at": self.refused_at,
+            "signals": dict(self.signals),
+        }
 
 
 @dataclass

@@ -83,6 +83,7 @@ class SaqqaraIndexKernel(Kernel):
         )
 
         documents, embedded, skipped = [], 0, 0
+        refusals: list[Dict[str, Any]] = []
         for one in fed:
             store.upsert_document(one.document, objects=one.objects, edges=one.edges)
             written = store.replace_chunks(one.document.doc_id, one.chunks)
@@ -90,29 +91,52 @@ class SaqqaraIndexKernel(Kernel):
                                  model=model_name if embedder else "")
             embedded += plan.embedded
             skipped += plan.skipped
+            refusals.extend({**r, "path": one.document.source_path} for r in plan.refusals)
             documents.append({
                 "doc_id": one.document.doc_id,
                 "path": one.document.source_path,
                 "format": one.document.doc_class,
                 "chunks": written,
+                "refused": plan.refused,
                 **one.counts(),
             })
 
         status = store.status()
         status["dense"] = ("disabled (no embedder)" if embedder is None
-                           else f"{model_name} ({status['embeddings']} vectors)")
+                           else f"{model_name} ({status['embeddings']} vectors, "
+                                f"{status['embedding_refusals']} refused)")
+
+        # The boundary between a lane with gaps and no lane at all. Refusals above
+        # zero are a result and the stage completes with them listed; a lane that
+        # ended with no vector is not a strict lane, it is an absent one, and the
+        # condition is almost always the configuration rather than the corpus — a
+        # model that is not there, or one that rejects everything it is sent. Zero
+        # is the only line here nobody has to choose.
+        if refusals and status["embeddings"] == 0:
+            raise RuntimeError(
+                f"the dense lane holds no vector and refused {len(refusals)} chunk(s) "
+                f"under model {model_name!r}: a lane with nothing in it is not a lane "
+                "with gaps. Check the model and the server before reading this as a "
+                "fact about the corpus."
+            )
         return {
             "documents": documents,
             "status": status,
             "embedded": embedded,
             "skipped": skipped,
+            "refused": len(refusals),
+            "embedder_refusals": refusals,
             "config": config.to_dict(),
         }
 
     def summarize(self, data: Dict[str, Any]) -> str:
+        """Three numbers, always. `refused` is not omitted when it is zero: a line
+        that appears only on bad days teaches a reader that its absence means the
+        question was not asked."""
         status = data.get("status", {})
         return (
             f"{len(data.get('documents', []))} document(s), {status.get('chunks', 0)} chunk(s). "
-            f"Embedded {data.get('embedded', 0)}, already present {data.get('skipped', 0)}. "
+            f"Embedded {data.get('embedded', 0)}, already present {data.get('skipped', 0)}, "
+            f"refused {data.get('refused', 0)}. "
             f"Dense: {status.get('dense', 'unknown')}."
         )

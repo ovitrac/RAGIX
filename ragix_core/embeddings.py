@@ -207,6 +207,74 @@ class DummyEmbeddingBackend:
         return "dummy"
 
 
+def _server_message(response: Any) -> str:
+    """The server's own words for a rejection, kept short and never parsed."""
+    try:
+        body = response.json()
+    except Exception:
+        body = None
+    text = body.get("error") if isinstance(body, dict) else None
+    if not text:
+        text = (getattr(response, "text", "") or "").strip()
+    return str(text)[:500]
+
+
+@dataclass(frozen=True)
+class EmbeddingRefusal:
+    """One text the embedder would not embed, and everything needed to judge it.
+
+    A refusal is a fact about a **model and a text together**, not about the text:
+    the same span may embed under another model, and the run that reports it must
+    say which one refused. `batch_size` is here for the same reason — a reader
+    asking "refused by what" is asking about the request that was actually sent.
+
+    `message` is the server's own words, kept verbatim as a signal. Nothing in
+    this module decides anything by reading it: what attributes a refusal to a
+    text is that the text refuses **alone** (see `embed_batch_recording_refusals`),
+    which is a measurement rather than a guess about someone else's wording.
+    """
+
+    index: int
+    reason: str
+    status: int
+    message: str
+    model: str
+    batch_size: int
+    chars: int
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "index": self.index, "reason": self.reason, "status": self.status,
+            "message": self.message, "model": self.model,
+            "batch_size": self.batch_size, "chars": self.chars,
+        }
+
+
+#: Never let the server cut a text and answer as though it had embedded it.
+#:
+#: Measured 2026-09-05, one model, two machines, ollama 0.19.0, an input of 206 599
+#: characters: with `truncate` unset the server answers 200 with one vector and a
+#: `prompt_eval_count` of 4096 on one machine and 8192 on the other — it embedded
+#: the part that fit and said nothing. With `truncate: false` both answer 400, "the
+#: input length exceeds the context length".
+#:
+#: Silent truncation is the failure this package exists to refuse: a vector that is
+#: the embedding of an unknown fraction of a chunk, indistinguishable from a whole
+#: one, retrieved and cited as the chunk. It also makes two machines disagree — the
+#: same long text becomes 4096 tokens on one and 8192 on the other, so their
+#: vectors are not the same vectors.
+#:
+#: There is deliberately **no setting**. A knob permitting silent truncation is a
+#: knob for a silent repair, and the refusal it prevents is now a recorded object
+#: rather than a lost run.
+TRUNCATE = False
+
+#: The reason a refusal carries. One word, and it stays one word until a second
+#: condition is actually observed: a vocabulary listing conditions nobody has met
+#: reads like knowledge and is a guess.
+REFUSED_INPUT_REJECTED = "input-rejected"
+
+
 class OllamaEmbeddingBackend:
     """Embeddings from a local Ollama server.
 
@@ -274,7 +342,12 @@ class OllamaEmbeddingBackend:
         import requests
 
         for endpoint, payload, key in (
-            ("/api/embed", {"model": self.model, "input": text}, "embeddings"),
+            ("/api/embed",
+             {"model": self.model, "input": text, "truncate": TRUNCATE}, "embeddings"),
+            # The legacy endpoint has no truncate control. A server old enough to
+            # need it may still cut a long text silently, and this code cannot tell:
+            # a known hole, named here rather than left for someone to discover in
+            # a vector that is quietly the embedding of half a document.
             ("/api/embeddings", {"model": self.model, "prompt": text}, "embedding"),
         ):
             try:
@@ -327,7 +400,7 @@ class OllamaEmbeddingBackend:
             try:
                 response = requests.post(
                     f"{self.base_url}/api/embed",
-                    json={"model": self.model, "input": slice_},
+                    json={"model": self.model, "input": slice_, "truncate": TRUNCATE},
                     timeout=self.timeout,
                 )
             except Exception as exc:  # pragma: no cover - network shape
@@ -335,8 +408,10 @@ class OllamaEmbeddingBackend:
 
             if response.status_code == 404:
                 raise RuntimeError(
-                    f"no /api/embed on {self.base_url}: this server predates batched "
-                    "embedding. Set batch_size=1 to send one text per request."
+                    f"no /api/embed on {self.base_url} for model {self.model!r}: either "
+                    "this server predates batched embedding — set batch_size=1 to send "
+                    "one text per request — or the model is not pulled. The server said: "
+                    f"{_server_message(response)!r}"
                 )
             response.raise_for_status()
             answer = response.json().get("embeddings")
@@ -356,6 +431,108 @@ class OllamaEmbeddingBackend:
                     )
                 vectors.append([float(v) for v in vector])
         return vectors
+
+    def embed_batch_recording_refusals(
+        self, texts: List[str]
+    ) -> "tuple[List[Optional[List[float]]], List[EmbeddingRefusal]]":
+        """Vectors aligned with `texts`, and the texts the server would not embed.
+
+        `embed_batch` raises on a refusal and is unchanged: every caller that wants
+        all-or-nothing keeps it. This is the other contract, for a lane that must
+        report what it holds and what it refused rather than die on the first one —
+        a stage that stops at the first refusal has no lane, not a strict one.
+
+        **A refusal is attributed by isolation, not by reading the error.** One
+        request carries up to `batch_size` texts and a rejection names the request,
+        not the text. The slice is halved and retried until a single text refuses
+        on its own; that text is the refusal, and the server's message rides along
+        as a signal. Matching on the message instead would make this code depend on
+        another project's wording, and would call a whole slice refused on the word
+        of one sentence. The cost is bounded: k refusals in a slice of n cost about
+        k·log2(n) extra requests — measured, 9 refusals in 51 598 chunks cost 63.
+
+        Only a rejection of the request as sent (HTTP 4xx other than 404) is a
+        refusal. A missing endpoint, a server error, a connection failure and an
+        answer whose vector count does not match its inputs all raise: they say
+        nothing about any particular text, and recording them per text would
+        attribute a broken server to the corpus.
+
+        The returned list has one entry per input, `None` where the text was
+        refused, so a caller cannot lose track of which vector belongs to which
+        text. Vectors are never silently dropped.
+        """
+        if not texts:
+            return [], []
+
+        vectors: List[Optional[List[float]]] = []
+        refusals: List[EmbeddingRefusal] = []
+        for start in range(0, len(texts), self.batch_size):
+            got, refused = self._embed_slice(texts[start:start + self.batch_size], start)
+            vectors.extend(got)
+            refusals.extend(refused)
+        return vectors, refusals
+
+    def _embed_slice(
+        self, slice_: List[str], offset: int
+    ) -> "tuple[List[Optional[List[float]]], List[EmbeddingRefusal]]":
+        """One request, halved and retried while the server rejects it."""
+        import requests
+
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/embed",
+                json={"model": self.model, "input": slice_, "truncate": TRUNCATE},
+                timeout=self.timeout,
+            )
+        except Exception as exc:  # pragma: no cover - network shape
+            raise RuntimeError(f"ollama embedding request failed: {exc}") from exc
+
+        if response.status_code == 404:
+            # Ollama answers 404 for a missing endpoint AND for a model it does not
+            # have. The first message named only the endpoint, and a live run on a
+            # server that had /api/embed but not the model was told its ollama was
+            # too old. A diagnostic that names one of two causes is a wrong answer
+            # most of the time it fires.
+            raise RuntimeError(
+                f"no /api/embed on {self.base_url} for model {self.model!r}: either "
+                "this server predates batched embedding — set batch_size=1 to send "
+                "one text per request — or the model is not pulled. The server said: "
+                f"{_server_message(response)!r}"
+            )
+
+        if 400 <= response.status_code < 500:
+            message = _server_message(response)
+            if len(slice_) == 1:
+                return [None], [EmbeddingRefusal(
+                    index=offset, reason=REFUSED_INPUT_REJECTED,
+                    status=response.status_code, message=message,
+                    model=self.model, batch_size=self.batch_size,
+                    chars=len(slice_[0]),
+                )]
+            middle = len(slice_) // 2
+            left_v, left_r = self._embed_slice(slice_[:middle], offset)
+            right_v, right_r = self._embed_slice(slice_[middle:], offset + middle)
+            return left_v + right_v, left_r + right_r
+
+        response.raise_for_status()
+        answer = response.json().get("embeddings")
+        if not isinstance(answer, list) or len(answer) != len(slice_):
+            raise RuntimeError(
+                f"ollama answered {len(slice_)} input(s) with "
+                f"{len(answer) if isinstance(answer, list) else type(answer).__name__}: "
+                "a batch that cannot be matched to its inputs is not a partial "
+                "success, and pairing them by position would embed the wrong text"
+            )
+        vectors: List[Optional[List[float]]] = []
+        for vector in answer:
+            if not vector:
+                raise RuntimeError(
+                    f"ollama returned an empty vector for model {self.model!r}; "
+                    "an empty embedding is not a zero vector, and storing one "
+                    "would make an unembedded chunk look embedded"
+                )
+            vectors.append([float(v) for v in vector])
+        return vectors, []
 
 
 def create_embedding_backend(

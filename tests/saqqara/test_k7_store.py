@@ -1753,3 +1753,377 @@ def test_k7_20_batched_and_per_text_vectors_agree_live():
     assert len(single) == len(batched) == len(texts)
     worst = max(abs(a - b) for u, v in zip(single, batched) for a, b in zip(u, v))
     assert worst <= BATCH_TOLERANCE, f"batched vectors differ by {worst}"
+
+
+# ============================================ K7.21 — a refusal is an object, not a stop
+
+# The fake is the *server*, not the backend. A backend that reported refusals per
+# text would be a fake of the answer this gate exists to measure: ollama rejects
+# the request, one status for up to `batch_size` texts, and everything interesting
+# is in how the refused text is found inside that. So `requests.post` is replaced
+# and the real `OllamaEmbeddingBackend` runs, bisection included.
+
+
+class _Reply:
+    """The two parts of an HTTP answer this code reads, and nothing else."""
+
+    def __init__(self, status: int, payload=None, text: str = ""):
+        self.status_code = status
+        self._payload = payload
+        self.text = text
+
+    def json(self):
+        if self._payload is None:
+            raise ValueError("not json")
+        return self._payload
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+
+class _RefusingServer:
+    """Refuses any request carrying a refused text, by identity and never by size.
+
+    Length is not the predictor — measured on a real corpus, 116 280 characters
+    were accepted and 25 911 refused — so a fixture that refused long texts would
+    encode a relationship the evidence denies.
+    """
+
+    def __init__(self, refuse=(), dimension: int = 4, status: int = 400,
+                 message: str = "the input length exceeds the context length"):
+        self.refuse = set(refuse)
+        self.dimension = dimension
+        self.status = status
+        self.message = message
+        self.requests: list[list[str]] = []
+
+    def post(self, url, json=None, timeout=None):  # noqa: A002 - the requests signature
+        texts = list(json["input"]) if isinstance(json.get("input"), list) else [json["input"]]
+        self.requests.append(texts)
+        if self.refuse & set(texts):
+            return _Reply(self.status, {"error": self.message})
+        return _Reply(200, {"embeddings": [[float(len(t))] * self.dimension for t in texts]})
+
+
+@pytest.fixture
+def fake_server(monkeypatch):
+    """Installs a server; the test decides what it refuses."""
+    import types
+
+    def install(server: _RefusingServer) -> _RefusingServer:
+        module = types.ModuleType("requests")
+        module.post = server.post
+        monkeypatch.setitem(sys.modules, "requests", module)
+        return server
+
+    return install
+
+
+def _backend(model="m", batch_size=8):
+    from ragix_core.embeddings import OllamaEmbeddingBackend
+
+    return OllamaEmbeddingBackend(model=model, batch_size=batch_size)
+
+
+def test_k7_21_a_refusal_is_attributed_to_the_text_that_refuses_alone(fake_server):
+    """Isolation, not the error message, says which text was refused.
+
+    Falsified by: a whole slice recorded as refused, or a refusal pinned to the
+    wrong text because the server's wording was read instead of measured.
+    """
+    texts = [f"chunk {i}" for i in range(8)]
+    server = fake_server(_RefusingServer(refuse={texts[5]}))
+
+    vectors, refusals = _backend(batch_size=8).embed_batch_recording_refusals(texts)
+
+    assert len(vectors) == len(texts), "the answer must stay aligned with its input"
+    assert [i for i, v in enumerate(vectors) if v is None] == [5]
+    assert [r.index for r in refusals] == [5]
+    # The refused text was asked on its own before being recorded — that question,
+    # and not the server's wording, is what attributes the refusal. It is not the
+    # last request: bisection descends left, then asks the right-hand sibling, which
+    # answers normally.
+    assert [texts[5]] in server.requests
+    assert len(server.requests) < len(texts), "bisection, not one request per text"
+
+
+def test_k7_21_the_refusal_names_the_model_the_batch_and_the_server_words(fake_server):
+    """A refusal is a fact about a model and a text together.
+
+    Falsified by: a record without the model id — it would say a span is
+    unembeddable when what happened is that one model would not take it.
+    """
+    fake_server(_RefusingServer(refuse={"bad"}))
+    _vectors, refusals = _backend(model="arctic", batch_size=4) \
+        .embed_batch_recording_refusals(["a", "bad", "c"])
+
+    (refusal,) = refusals
+    assert refusal.model == "arctic"
+    assert refusal.batch_size == 4
+    assert refusal.status == 400
+    assert "context length" in refusal.message, "the server's own words, kept"
+    assert refusal.reason == "input-rejected"
+    assert refusal.chars == len("bad")
+
+
+def test_k7_21_the_strict_path_is_unchanged(fake_server):
+    """Every existing caller keeps all-or-nothing; the recording lane is the new one."""
+    fake_server(_RefusingServer(refuse={"bad"}))
+    with pytest.raises(RuntimeError):
+        _backend().embed_batch(["a", "bad"])
+
+
+def test_k7_21_a_broken_server_is_not_a_refusal(fake_server):
+    """A 5xx says nothing about any text, and recording it per text would blame
+    the corpus for the server.
+
+    Falsified by: a server error arriving as a refusal record.
+    """
+    fake_server(_RefusingServer(refuse={"x"}, status=503))
+    with pytest.raises(RuntimeError):
+        _backend().embed_batch_recording_refusals(["x", "y"])
+
+
+def test_k7_21_a_missing_endpoint_still_raises(fake_server):
+    fake_server(_RefusingServer(refuse={"x"}, status=404))
+    with pytest.raises(RuntimeError, match="predates batched embedding"):
+        _backend().embed_batch_recording_refusals(["x", "y"])
+
+
+def _fed_chunks(store, tree, sha):
+    fed = feed_tree(tree, source_path="/a.docx", source_sha256=sha)
+    store.upsert_document(fed.document)
+    store.replace_chunks(sha, fed.chunks)
+    return fed
+
+
+def test_k7_21_a_refusal_is_not_absorbed_into_the_already_present_count(store, trees,
+                                                                       fake_server):
+    """`skipped` is a saving, `refused` is a gap; a report that adds them lies.
+
+    Falsified by: a refused chunk counted as already present, which is what the
+    old arithmetic (`chunks - records`) did the moment a refusal existed.
+    """
+    fed = _fed_chunks(store, trees["docx"], "a" * 64)
+    refused_text = fed.chunks[0].text
+    fake_server(_RefusingServer(refuse={refused_text}))
+
+    plan = embed_missing(store, fed.chunks, _backend(batch_size=4), model="m")
+
+    assert plan.refused == 1
+    assert plan.skipped == 0, "nothing was already present on a first pass"
+    assert plan.embedded == len(fed.chunks) - 1
+    assert plan.refusals[0]["chunk_id"] == fed.chunks[0].chunk_id
+    assert plan.refusals[0]["node_ids"], "a refusal without a locator cannot be found"
+    signals = plan.refusals[0]["signals"]
+    assert signals["model"] == "m" and signals["batch_size"] == 4
+    assert signals["chars"] == len(refused_text) and signals["level"] >= 0
+
+
+def test_k7_21_the_register_outlives_the_process(store, trees, fake_server, tmp_path):
+    """The question "what is missing from this lane" is asked of the store, later.
+
+    Falsified by: a status after reopening that shows vectors and no refusals.
+    """
+    path = str(tmp_path / "persist.db")
+    with SqliteDocumentStore(path=path) as first:
+        fed = _fed_chunks(first, trees["docx"], "b" * 64)
+        fake_server(_RefusingServer(refuse={fed.chunks[0].text}))
+        embed_missing(first, fed.chunks, _backend(batch_size=4), model="m")
+
+    with SqliteDocumentStore(path=path) as again:
+        status = again.status()
+        assert status["embedding_refusals"] == 1
+        assert status["embeddings"] >= 1
+        (record,) = again.get_embedding_refusals()
+        assert record.model == "m" and record.reason == "input-rejected"
+        assert record.signals.get("message"), "the signals the decision was read from"
+        assert record.refused_at, "a refusal is dated like everything else"
+
+
+def test_k7_21_a_refused_chunk_is_asked_again_on_the_next_run(store, trees, fake_server):
+    """A refusal is one server's answer, not a property of the text.
+
+    Falsified by: a chunk refused once and never attempted again, which would make
+    a model change unable to repair a lane.
+    """
+    fed = _fed_chunks(store, trees["docx"], "c" * 64)
+    fake_server(_RefusingServer(refuse={fed.chunks[0].text}))
+    first = embed_missing(store, fed.chunks, _backend(batch_size=4), model="m")
+    assert first.refused == 1
+
+    fake_server(_RefusingServer(refuse=set()))  # a model that accepts it
+    second = embed_missing(store, fed.chunks, _backend(batch_size=4), model="m")
+
+    assert second.embedded == 1, "the refused chunk was asked again"
+    assert second.refused == 0
+    assert store.status()["embedding_refusals"] == 0, "and the register no longer lists it"
+
+
+#: The index kernel takes its configuration as dotted overrides. A dict shaped
+#: like the YAML is accepted and silently ignored — the trap that made the first
+#: version of these tests pass with no embedder at all — so the helper builds the
+#: dotted form and every test asserts that embedding actually happened.
+def _indexed(workspace, batch_size=8, model="m"):
+    """A real reader run then a real index run, so the envelope is exercised."""
+    workspace.mkdir(parents=True, exist_ok=True)
+    source = workspace / "corpus"
+    source.mkdir()
+    for name, fixture in (("a.docx", "docx_two_tier"), ("b.md", "markdown_document")):
+        G.FIXTURES[fixture](source / name)
+    SaqqaraKernel().run(KernelInput(workspace=workspace,
+                                    config={"source": {"path": str(source)}}))
+    return SaqqaraIndexKernel().run(KernelInput(
+        workspace=workspace,
+        config={"overrides": {"embedder.provider": "ollama", "embedder.model": model,
+                              "embedder.batch_size": batch_size}},
+        dependencies={"document_tree": workspace / "stage1" / "saqqara.json"}))
+
+
+def test_k7_21_the_stage_completes_with_refusals_and_reports_three_numbers(tmp_path,
+                                                                          fake_server):
+    """A stage that dies on the first refusal has no lane, not a strict one.
+
+    Falsified by: success false with refusals above zero, or a summary that omits
+    the third number.
+    """
+    probe_server = fake_server(_RefusingServer())
+    probe = _indexed(tmp_path / "probe")
+    assert probe.success is True
+    assert probe.data["embedded"] > 0, "the probe embedded nothing — the fake never ran"
+
+    # A text that occurs exactly once, so "one refusal" is exact. Chosen by
+    # identity and never by size: length does not predict a refusal, and a fixture
+    # that refused the longest chunk would encode a relationship the corpus denies.
+    from collections import Counter
+    seen = Counter(t for call in probe_server.requests for t in call)
+    refused_text = next(t for t, n in seen.items() if n == 1)
+
+    fake_server(_RefusingServer(refuse={refused_text}))
+    output = _indexed(tmp_path / "run")
+
+    assert output.success is True, "a refusal is a result, not a failed run"
+    assert output.data["refused"] == 1
+    assert output.data["embedded"] > 0
+    register = output.data["embedder_refusals"]
+    assert len(register) == 1
+    assert register[0]["path"] and register[0]["node_ids"] and register[0]["signals"]
+    assert "refused 1" in SaqqaraIndexKernel().summarize(output.data)
+    assert "refused" in output.data["status"]["dense"]
+
+
+def test_k7_21_a_lane_with_no_vector_at_all_is_not_a_lane(tmp_path, fake_server):
+    """The boundary is zero, the one line nobody has to choose.
+
+    Falsified by: a run that reports thousands of refusals, no vectors, and
+    success — a configuration failure rendered as a fact about the corpus.
+    """
+    class _RefuseEverything(_RefusingServer):
+        def post(self, url, json=None, timeout=None):  # noqa: A002
+            texts = list(json["input"])
+            self.requests.append(texts)
+            return _Reply(400, {"error": "model not found"})
+
+    fake_server(_RefuseEverything())
+    output = _indexed(tmp_path / "empty")
+    assert output.success is False, "no vector at all is not a lane with gaps"
+    assert any("holds no vector" in e for e in output.errors), output.errors
+
+
+def test_k7_21_every_request_refuses_truncation(fake_server):
+    """The server may not cut a text and answer as though it had embedded it.
+
+    Falsified by: a request without `truncate: false`, in any path. A vector of an
+    unknown fraction of a chunk is indistinguishable from a whole one, and two
+    machines with different context windows would not even produce the same one.
+    """
+    class _Recording(_RefusingServer):
+        def __init__(self):
+            super().__init__()
+            self.bodies = []
+
+        def post(self, url, json=None, timeout=None):  # noqa: A002
+            self.bodies.append(json)
+            return super().post(url, json=json, timeout=timeout)
+
+    server = fake_server(_Recording())
+    backend = _backend()
+    backend.embed_batch(["a", "b"])
+    backend.embed_batch_recording_refusals(["c", "d"])
+    backend.embed_text("e")
+
+    assert server.bodies, "nothing was sent"
+    assert all(body.get("truncate") is False for body in server.bodies), server.bodies
+
+
+@pytest.mark.skipif(os.environ.get("OLLAMA_LIVE") != "1",
+                    reason="live embedding test; set OLLAMA_LIVE=1 to run")
+def test_k7_21_a_live_server_records_an_oversized_input_rather_than_cutting_it():
+    """The third control, against a real server, and it is a refusal again.
+
+    The first version of this test sent a generated oversized input and asserted a
+    refusal; it skipped, because the server answered 200. That answer was the
+    server **truncating**: measured 2026-09-05 on one model and two machines,
+    ollama 0.19.0, 206 599 characters — `truncate` unset gives 200 with one vector
+    and a `prompt_eval_count` of 4096 on one machine and 8192 on the other, while
+    `truncate: false` gives 400 on both. The lane was not accepting long texts, it
+    was embedding the part that fit and saying nothing.
+
+    With truncation refused the class is reproducible on every server, which is why
+    this asserts a refusal again: one record naming the model and carrying the
+    server's words, every other text embedded, and nothing raised. A server that
+    truncated anyway would fail here, which is the point of asking it live.
+
+    The oversized text is generated, varied words, never corpus text.
+
+    Run it with **both** variables, naming an embedding model the server actually
+    serves::
+
+        OLLAMA_LIVE=1 OLLAMA_EMBED_MODEL=<a pulled embedding model> pytest tests/saqqara
+
+    `OLLAMA_LIVE=1` alone uses the default model name, and a server that does not
+    serve it **fails here rather than skipping** — deliberately. A live test that
+    skipped whenever the model was absent would be silent in exactly the case where
+    someone believes they measured something. The failure says which of the two
+    causes it is, in the server's own words.
+    """
+    from ragix_core.embeddings import OllamaEmbeddingBackend
+
+    model = os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text")
+    oversized = " ".join(f"mot{i % 997}" for i in range(30_000))
+    texts = ["une phrase courte", oversized, "another sentence entirely"]
+
+    backend = OllamaEmbeddingBackend(model=model, batch_size=len(texts))
+    vectors, refusals = backend.embed_batch_recording_refusals(texts)
+
+    assert [r.index for r in refusals] == [1], (
+        "the oversized text is a recorded refusal; a server that answered 200 here "
+        "cut it and called that an embedding"
+    )
+    (refusal,) = refusals
+    assert refusal.model == model and refusal.message and refusal.reason == "input-rejected"
+    assert vectors[0] and vectors[2] and vectors[1] is None
+
+
+def test_k7_21_a_404_names_both_of_its_causes(fake_server):
+    """Ollama answers 404 for a missing endpoint and for a model it does not have.
+
+    Found by running the live test below on a server that had `/api/embed` and not
+    the model: it was told its ollama predated batched embedding, which was false
+    and sends a reader to the wrong fix.
+
+    Falsified by: a message naming only one cause, or dropping what the server said.
+    """
+    class _NotFound(_RefusingServer):
+        def post(self, url, json=None, timeout=None):  # noqa: A002
+            self.requests.append(list(json["input"]))
+            return _Reply(404, {"error": 'model "absent" not found, try pulling it first'})
+
+    fake_server(_NotFound())
+    with pytest.raises(RuntimeError) as raised:
+        _backend(model="absent").embed_batch_recording_refusals(["a"])
+
+    said = str(raised.value)
+    assert "predates batched embedding" in said and "not pulled" in said
+    assert "try pulling it first" in said, "the server's own words reach the reader"
