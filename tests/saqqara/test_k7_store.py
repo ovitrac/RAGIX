@@ -2076,6 +2076,17 @@ def test_k7_21_a_live_server_records_an_oversized_input_rather_than_cutting_it()
     truncated anyway would fail here, which is the point of asking it live.
 
     The oversized text is generated, varied words, never corpus text.
+
+    Run it with **both** variables, naming an embedding model the server actually
+    serves::
+
+        OLLAMA_LIVE=1 OLLAMA_EMBED_MODEL=<a pulled embedding model> pytest tests/saqqara
+
+    `OLLAMA_LIVE=1` alone uses the default model name, and a server that does not
+    serve it **fails here rather than skipping** — deliberately. A live test that
+    skipped whenever the model was absent would be silent in exactly the case where
+    someone believes they measured something. The failure says which of the two
+    causes it is, in the server's own words.
     """
     from ragix_core.embeddings import OllamaEmbeddingBackend
 
