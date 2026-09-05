@@ -173,7 +173,16 @@ from generators import FIXTURES, FIXTURE_SUFFIX  # noqa: E402
 #:                proposition is about the SHARED vocabulary: one set held in the
 #:                contract, four readers pointing at it, and the addressing that
 #:                differs per format kept in the typed locator where it belongs.
-FROZEN_COUNTS = {"K1": 10, "K2": 25, "K3": 72, "K4": 2, "K6": 19, "K7": 19}
+#:   K4 2  -> 3   K4.3, after the demo corpus met the envelope. `summarize` cast
+#:                every trace's `abstained` with `int(...)`; the analyzers publish
+#:                it in four shapes, and `grid_tables` publishes a list. An empty
+#:                list is falsy, so `or 0` hid the mismatch until a document
+#:                actually abstained -- three files of 600 did, and the kernel
+#:                lost 570 successfully read documents to a TypeError raised while
+#:                writing one line of prose about them. The proposition is about
+#:                the counting, not about the error handling: `Kernel.run`
+#:                catching and reporting is fail-closed and stays.
+FROZEN_COUNTS = {"K1": 10, "K2": 25, "K3": 72, "K4": 3, "K6": 19, "K7": 19}
 
 _ROW = re.compile(r"^\|\s*(K[1-7])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 _TICKED = re.compile(r"`([a-z0-9_']+)`")
