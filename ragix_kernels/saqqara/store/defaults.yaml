@@ -26,6 +26,13 @@ embedder:
   # A reference, never a value: env:VAR or file:/path#Label. Resolved at use and
   # never serialised, so a config object is always safe to log or POST.
   api_key_ref: ""
+  # Texts per request. Measured on the executor over 300 chunks of a real corpus
+  # (2026-09-05): one by one 4.3/s, 32 at a time 75.5/s, 128 at a time 93.7/s for
+  # snowflake-arctic-embed2 — same vectors, 0.0 maximum absolute difference. The
+  # shared EmbeddingConfig default is 32 and means a GPU batch for a local
+  # library, which is a different quantity; this one is texts per HTTP request,
+  # so the store states its own. `1` sends one text per request, deliberately.
+  batch_size: 128
 
 index:
   backend: numpy      # numpy | faiss

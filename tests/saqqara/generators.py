@@ -995,6 +995,28 @@ def undecidable_block(path: Path) -> Path:
     return path
 
 
+def deep_header_band(path: Path) -> Path:
+    """A block whose bold band runs deeper than the reader's cap.
+
+    `MAX_HEADER_ROWS` is 3, and this one is bold for five rows before the body
+    starts. The rule is a cap rather than a judgement: a band that deep is more
+    likely a styled document than a header, and reading five tiers of ancestry
+    out of it would invent structure. So the analyzer abstains — and until this
+    fixture existed, `band-too-deep` was the most frequent abstention on a real
+    corpus (811 of 910) with no generated document that reached it.
+    """
+    wb, ws = _grid_sheet("Bande profonde")
+    for row in range(1, 6):                      # five bold rows: one past the cap
+        for col in "ABC":
+            ws[f"{col}{row}"] = f"Tier {row} {col}"
+            _bold(ws, f"{col}{row}")
+    for row in range(6, 9):                      # a body that is not bold
+        for col_index, col in enumerate("ABC", start=1):
+            ws[f"{col}{row}"] = row * col_index
+    wb.save(path)
+    return path
+
+
 def totals_row_and_column(path: Path) -> Path:
     """A bottom total row and a right total column: both are data, not structure."""
     wb, ws = _grid_sheet("Totaux")
@@ -2708,6 +2730,7 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "numeric_bold_header": numeric_bold_header,
     "headerless_list": headerless_list,
     "undecidable_block": undecidable_block,
+    "deep_header_band": deep_header_band,
     "totals_row_and_column": totals_row_and_column,
     "two_islands": two_islands,
     "overlapping_merges": overlapping_merges,
@@ -2833,6 +2856,7 @@ FIXTURE_SUFFIX: Dict[str, str] = {
     "two_islands": ".xlsx",
     "two_tier_header": ".xlsx",
     "undecidable_block": ".xlsx",
+    "deep_header_band": ".xlsx",
     "unsupported_format": ".tmp",
 }
 

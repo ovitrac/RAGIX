@@ -32,7 +32,13 @@ __all__ = [
     "Abstention",
     "Analyzer",
     "AnalyzerResult",
+    "ABSTENTION_KEYS",
+    "ABSTENTION_SOURCES",
+    "AbstentionSource",
     "TYPING_REASONS",
+    "abstention_records",
+    "reports_abstention",
+    "count_reported",
 ]
 
 #: Why a header band could not be read. Closed: a reason outside this list is a bug,
@@ -102,3 +108,194 @@ class Analyzer:
 
     def __repr__(self) -> str:
         return f"<Analyzer {self.name}@{self.version}>"
+
+
+# --------------------------------------------------------------- counting them
+
+#: The shapes an analyzer may report a count in. Closed, and the reason it is a
+#: list rather than a convention is measured: `saqqara_run.summarize` cast every
+#: one of them with `int(...)`, which is right for two of the four and raises for
+#: a third — silently, until a document actually abstains.
+REPORT_SHAPES = "None, an int, a list of records, a histogram of reason -> count, or one record"
+
+
+def count_reported(value: Any) -> int:
+    """How many things a trace field reports, whatever shape its producer chose.
+
+    An analyzer reports what did not decide in the shape that suits what it saw,
+    and four shapes are in use across this package — all of them legitimate, none
+    of them interchangeable with the others:
+
+    ================  ==========================================  ==============
+    shape             producer                                    counts as
+    ================  ==========================================  ==============
+    ``None``          `format_headings`, nothing to report        0
+    ``int``           `header_bands`, a running tally             itself
+    ``list``          `grid_tables`, one record per table         its length
+    ``dict[str,int]`` `caption_binding`, reason -> how many       the sum
+    ``{}``            `caption_binding` with nothing to report    0
+    ``dict``          `format_headings`, one abstention record    1
+    ================  ==========================================  ==============
+
+    A histogram and a single record are both mappings, so they are told apart by
+    what they hold rather than by who wrote them: every value an int means the
+    mapping counts things; anything else means the mapping *is* the thing.
+
+    Two of those producers are in `PIPELINE` and two are run apart from it, so a
+    run's traces carry the int and the list today. The counter takes all four
+    because which analyzers the pipeline runs is a decision that has changed
+    before, and a counter that only handles the current membership fails on the
+    edit that changes it rather than in the gate.
+
+    **Anything else raises**, with the type named. A fifth shape is a decision
+    about how abstention is reported, and it is registered here in the same edit
+    as the producer that introduces it — the alternative is a count that quietly
+    means something else, which is the failure this function exists to end rather
+    than to move somewhere quieter.
+    """
+    if value is None:
+        return 0
+    if isinstance(value, bool):
+        # bool is an int in Python and would count as 1. Nothing reports a count
+        # as a flag today, and a flag is not a count, so refuse rather than agree.
+        raise TypeError(f"a report is a count, not a flag: got {value!r}")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, (list, tuple)):
+        return len(value)
+    if isinstance(value, dict):
+        if not value:
+            # `caption_binding` starts its histogram empty and a document that
+            # binds every caption leaves it that way. An empty mapping reports
+            # nothing; counting it as one record would put an abstention into
+            # every document that had none.
+            return 0
+        values = list(value.values())
+        if all(isinstance(v, int) and not isinstance(v, bool) for v in values):
+            return sum(values)
+        return 1
+    raise TypeError(
+        f"a trace reported a count as {type(value).__name__}; the declared shapes "
+        f"are {REPORT_SHAPES}"
+    )
+
+
+# ------------------------------------------------------- the abstention register
+
+
+@dataclass(frozen=True)
+class AbstentionSource:
+    """Where one analyzer keeps its abstentions, and how one of its records reads.
+
+    Declared per analyzer, in one place. The alternative — a register that
+    searches traces for likely key names — loses an analyzer silently the day it
+    renames one, which is the failure mode this whole register exists to end.
+    """
+
+    #: trace key holding the records (or, for `caption_binding`, the histogram)
+    records: str
+    #: record key naming the reason; None where the shape carries reasons as keys
+    reason: str | None = None
+    #: record keys that address the thing abstained on; empty = document-level
+    locator: tuple[str, ...] = ()
+    #: trace key holding the count when the producer keeps it apart from its records
+    tally: str | None = None
+    #: record key holding the signals, where the producer nests them under one;
+    #: None means everything the record holds beside reason and locator IS the signals
+    signals: str | None = None
+
+
+#: One entry per analyzer that reports an abstention. Measured 2026-09-05, not
+#: assumed: `header_bands` keeps a tally in `abstained` and its records in
+#: `abstentions`; `grid_tables` puts the records in `abstained` itself;
+#: `format_headings` reports one record or None; `caption_binding` keeps a
+#: histogram and no records, so its rows address nothing and say so.
+#: The trace keys an analyzer says "I abstained" with. Two names, because two are
+#: in use: a producer that keeps a tally writes `abstained` and its records under
+#: `abstentions`, and one that keeps only records writes them under `abstained`.
+#: A trace carrying neither is not abstaining — `builder` and `tables` report only
+#: what they DROPPED, which is a different fact with its own count.
+ABSTENTION_KEYS = ("abstained", "abstentions")
+
+
+def reports_abstention(trace: dict[str, Any]) -> bool:
+    """Whether this trace says anything about having abstained."""
+    return any(key in trace for key in ABSTENTION_KEYS)
+
+
+ABSTENTION_SOURCES = {
+    "grid_tables": AbstentionSource(
+        records="abstained", reason="rule", locator=("flow", "table_index")),
+    "header_bands": AbstentionSource(
+        records="abstentions", reason="reason", locator=("range",), tally="abstained",
+        signals="signals"),
+    "format_headings": AbstentionSource(
+        records="abstained", reason="reason", signals="signals"),
+    "saqqara.caption_binding": AbstentionSource(records="abstained"),
+}
+
+
+def abstention_records(analyzer: str, trace: dict[str, Any]) -> list[dict[str, Any]]:
+    """One register record per abstention this trace reports.
+
+    Every record answers the three questions of the abstention contract: **who**
+    abstained (the analyzer), **on what** (`locator`, `None` where the producer
+    kept only a count — never invented), and **why** (`reason`, from the
+    producer's own closed vocabulary), with the `signals` it saw.
+
+    `count` is 1 for a record that stands for one abstention, and N for a
+    histogram row that stands for N of them. Nothing in `PIPELINE` reports a
+    histogram today, so a run's register has count 1 throughout and its length is
+    its total; the field exists so that stays true if that changes.
+
+    An analyzer with no entry in `ABSTENTION_SOURCES` raises. A register is a
+    claim to list everything, and an analyzer this function does not know would
+    make that claim false in silence.
+    """
+    if analyzer not in ABSTENTION_SOURCES:
+        raise KeyError(
+            f"analyzer {analyzer!r} reports an abstention and declares no source; "
+            f"register it in ABSTENTION_SOURCES beside the producer that emits it"
+        )
+    source = ABSTENTION_SOURCES[analyzer]
+    value = trace.get(source.records)
+
+    def one(record: dict[str, Any], count: int = 1) -> dict[str, Any]:
+        locator = {key: record[key] for key in source.locator if key in record}
+        reason = record.get(source.reason) if source.reason else None
+        if source.signals is not None:
+            signals = dict(record.get(source.signals) or {})
+        else:
+            signals = {k: v for k, v in record.items()
+                       if k != source.reason and k not in source.locator}
+        return {"analyzer": analyzer, "locator": locator or None,
+                "reason": reason, "signals": signals, "count": count}
+
+    if value is None:
+        return []
+    if isinstance(value, list):
+        records = [one(r) for r in value if isinstance(r, dict)]
+    elif isinstance(value, dict) and not value:
+        records = []
+    elif isinstance(value, dict) and all(
+            isinstance(v, int) and not isinstance(v, bool) for v in value.values()):
+        # a histogram: the reasons are the keys, and each row stands for its count
+        records = [{"analyzer": analyzer, "locator": None, "reason": reason,
+                    "signals": {}, "count": count} for reason, count in value.items()]
+    elif isinstance(value, dict):
+        records = [one(value)]
+    else:
+        raise TypeError(
+            f"{analyzer} reported abstentions as {type(value).__name__}; the "
+            f"declared shapes are {REPORT_SHAPES}"
+        )
+
+    if source.tally is not None:
+        tally = count_reported(trace.get(source.tally))
+        if tally != sum(r["count"] for r in records):
+            raise ValueError(
+                f"{analyzer} counts {tally} abstention(s) in {source.tally!r} and "
+                f"keeps {len(records)} in {source.records!r}: the tally and the "
+                f"records disagree, and a register cannot choose between them"
+            )
+    return records

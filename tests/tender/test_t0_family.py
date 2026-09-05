@@ -286,4 +286,4 @@ def test_t0_7_saqqara_pinned_lists_are_untouched_by_this_family():
     # whatever it holds. It moves only when saqqara's own surface moves, in that
     # change's commit — never to make this test green.
     assert saqqara_spec.FROZEN_COUNTS == {
-        "K1": 10, "K2": 25, "K3": 72, "K4": 2, "K6": 19, "K7": 19}
+        "K1": 10, "K2": 25, "K3": 72, "K4": 3, "K6": 19, "K7": 20}

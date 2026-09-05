@@ -78,6 +78,8 @@ class SaqqaraIndexKernel(Kernel):
             provider, model=embedder_section.get("model", ""),
             **({"base_url": embedder_section["base_url"]}
                if embedder_section.get("base_url") else {}),
+            **({"batch_size": embedder_section["batch_size"]}
+               if embedder_section.get("batch_size") else {}),
         )
 
         documents, embedded, skipped = [], 0, 0

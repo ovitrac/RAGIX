@@ -61,23 +61,27 @@ def _abstentions(data: Dict[str, Any]) -> list[tuple[str, str, str]]:
     Abstention is an object here, not a missing value, so it is reported rather
     than counted: a run that decided nothing about forty documents and a run that
     decided everything both have the same number of documents.
+
+    **Read from `report.abstentions`, never re-derived (K4.3).** This function
+    used to search each trace for a key named `abstentions`, which only
+    `header_bands` writes — so it listed that analyzer's abstentions and showed
+    none of `grid_tables`', while the summary line counted them all. Two surfaces
+    deriving the same fact by two rules is two surfaces that disagree; the
+    register is the one place both now read.
     """
-    found = []
-    for document in data.get("documents", []) or []:
-        for name, trace in (document.get("traces") or {}).items():
-            if not isinstance(trace, dict):
-                continue
-            for entry in trace.get("abstentions", []) or []:
-                reason = entry.get("reason", "unstated") if isinstance(entry, dict) else str(entry)
-                found.append((document.get("path", "?"), name, reason))
-    return found
+    register = (data.get("report") or {}).get("abstentions")
+    if register is None:
+        return []
+    return [(entry.get("path", "?"), entry.get("analyzer", "?"),
+             entry.get("reason") or "unstated")
+            for entry in register]
 
 
 #: Report keys this reporter knows how to render. Anything else is printed raw
 #: rather than ignored: a reporter that quietly skips a key it does not recognise
 #: is how a new count becomes invisible, and the first version of this function
 #: guessed "refused"/"dropped" and silently printed nothing for either.
-_KNOWN_REPORT_KEYS = ("counts", "refusals", "duplicates")
+_KNOWN_REPORT_KEYS = ("counts", "refusals", "duplicates", "abstentions")
 
 
 def _drops(data: Dict[str, Any]) -> list[tuple[str, str, int]]:

@@ -43,6 +43,8 @@ from ragix_kernels.merkle import compute_inputs_merkle_root
 
 from ..adapters import adapter_for, read_corpus
 from ..analyzers import PIPELINE, OutlineAnalyzer
+from ..analyzers.contract import (abstention_records, count_reported,
+                                  reports_abstention)
 from ..builder import build_tree
 from ..model import CANONICAL_JSON
 
@@ -157,8 +159,33 @@ class SaqqaraKernel(Kernel):
                     for r in report.refusals
                 ],
                 "duplicates": report.duplicates,
+                "abstentions": self._abstentions(documents),
             },
         }
+
+    # ------------------------------------------------------ abstention register
+
+    @staticmethod
+    def _abstentions(documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Every abstention the run produced, listed rather than counted (K4.3).
+
+        A refusal has always been reported with its path and its reason. An
+        abstention was reported as a number in one line of prose, so a document
+        that abstained could not be found from the output — only by re-running.
+        The two are the same kind of fact and are now listed the same way.
+
+        Each record carries the document it is about beside what the analyzer
+        kept: who abstained, where (or `None` where the producer kept only a
+        count), why, and the signals it saw.
+        """
+        register: List[Dict[str, Any]] = []
+        for document in documents:
+            for name, trace in (document.get("traces") or {}).items():
+                if not isinstance(trace, dict) or not reports_abstention(trace):
+                    continue
+                for record in abstention_records(name, trace):
+                    register.append({"path": document["path"], **record})
+        return register
 
     # ------------------------------------------------------------------ roots
 
@@ -203,13 +230,24 @@ class SaqqaraKernel(Kernel):
         report = (data.get("report") or {}).get("counts") or {}
 
         nodes = sum(self._count(d["tree"]["root"]) for d in documents)
-        abstentions = 0
+
+        # Derived from the register, never counted a second way: a number and a
+        # list that are computed apart are a number and a list that disagree.
+        # A payload from before K4.3 carries no register, so one is built from
+        # its traces by the same function rather than by a second rule.
+        register = (data.get("report") or {}).get("abstentions")
+        if register is None:
+            register = self._abstentions(documents)
+        abstentions = sum(record.get("count", 1) for record in register)
+
         drops = 0
         for document in documents:
             for trace in (document.get("traces") or {}).values():
                 if isinstance(trace, dict):
-                    abstentions += int(trace.get("abstained") or 0)
-                    drops += int(trace.get("dropped") or 0)
+                    # Not `int(...)`: an analyzer reports what it let go in the
+                    # shape that suits what it saw, and four are in use. The cast
+                    # was right for two of them and raised for a third (K4.3).
+                    drops += count_reported(trace.get("dropped"))
 
         return (
             f"{len(documents)} document(s), {nodes} nodes. "

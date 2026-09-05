@@ -325,3 +325,267 @@ def test_k4_office_writers_stamp_a_time_so_two_builds_differ(tmp_path):
     copied = (tmp_path / "c.docx")
     copied.write_bytes(first)
     assert copied.read_bytes() == first, "copying, unlike rebuilding, preserves the bytes"
+
+
+# ------------------------------------------- K4.3 — an abstention is listed, not counted
+
+ABSTAINING = {"prose.docx": "docx_layout_prose", "block.xlsx": "undecidable_block"}
+
+
+def _abstaining_corpus(root: Path) -> Path:
+    """Two documents that abstain, through two analyzers, in two native shapes.
+
+    `docx_layout_prose` is prose in a grid: `grid_tables` types both tables as
+    layout and keeps a LIST of two records. `undecidable_block` is a uniform
+    block: `header_bands` keeps a TALLY in `abstained` and its record apart in
+    `abstentions`. One fixture would exercise one shape and prove half the claim.
+    """
+    root.mkdir(parents=True, exist_ok=True)
+    for name, fixture in ABSTAINING.items():
+        G.FIXTURES[fixture](root / name)
+    return root
+
+
+def test_k4_3_the_counter_accepts_each_declared_shape_and_refuses_the_rest():
+    """One assertion per shape, and the two that are easy to get wrong.
+
+    A histogram and a single abstention record are both mappings. Telling them
+    apart by what they hold rather than by who wrote them is the whole rule, and
+    an empty histogram is the case that would otherwise put an abstention into
+    every document that had none.
+    """
+    from ragix_kernels.saqqara.analyzers.contract import count_reported
+
+    assert count_reported(None) == 0                                    # nothing to report
+    assert count_reported(0) == 0                                       # a tally at rest
+    assert count_reported(7) == 7                                       # a tally
+    assert count_reported([]) == 0                                      # a list, empty
+    assert count_reported([{"rule": "a"}, {"rule": "b"}]) == 2          # a list of records
+    assert count_reported({}) == 0                                      # a histogram, empty
+    assert count_reported({"no-candidate": 3, "already-bound": 2}) == 5  # a histogram
+    assert count_reported({"reason": "no-size-contrast",
+                           "signals": {"lines": 0}}) == 1               # ONE record
+
+    for refused in ("2", 2.0, True, False, object()):
+        with pytest.raises(TypeError):
+            count_reported(refused)
+
+
+def test_k4_3_each_shape_normalises_into_the_register_without_loss():
+    """The four native shapes, each through the source declared for its producer.
+
+    The locator claim is asserted in both directions: kept where the producer
+    kept one, `None` where it did not — never invented to make the record look
+    complete.
+    """
+    from ragix_kernels.saqqara.analyzers.contract import abstention_records
+
+    listed = abstention_records("grid_tables", {"abstained": [
+        {"flow": "body", "table_index": 0, "type": "layout", "rule": "D4-unstyled-single-row"}]})
+    assert listed == [{"analyzer": "grid_tables", "locator": {"flow": "body", "table_index": 0},
+                       "reason": "D4-unstyled-single-row", "signals": {"type": "layout"},
+                       "count": 1}]
+
+    tallied = abstention_records("header_bands", {
+        "abstained": 1, "abstentions": [{"range": "A1:C3", "reason": "no-body-rows"}]})
+    assert tallied[0]["locator"] == {"range": "A1:C3"}
+    assert tallied[0]["reason"] == "no-body-rows"
+
+    single = abstention_records("format_headings", {
+        "abstained": {"reason": "declared-outline", "signals": {"declared_headings": 4}}})
+    assert len(single) == 1
+    assert single[0]["locator"] is None, "a document-level abstention addresses nothing"
+    assert single[0]["signals"] == {"declared_headings": 4}
+
+    histogram = abstention_records("saqqara.caption_binding",
+                                   {"abstained": {"no-candidate-within-gap": 3}})
+    assert histogram[0]["count"] == 3 and histogram[0]["reason"] == "no-candidate-within-gap"
+
+    assert abstention_records("format_headings", {"abstained": None}) == []
+    assert abstention_records("saqqara.caption_binding", {"abstained": {}}) == []
+
+    with pytest.raises(KeyError):
+        abstention_records("an_analyzer_nobody_registered", {"abstained": [{}]})
+
+
+def test_k4_3_a_tally_that_disagrees_with_its_records_is_refused():
+    """`header_bands` keeps both. If they ever part, the register cannot choose."""
+    from ragix_kernels.saqqara.analyzers.contract import abstention_records
+
+    with pytest.raises(ValueError):
+        abstention_records("header_bands", {
+            "abstained": 4, "abstentions": [{"range": "A1:B2", "reason": "uniform-block"}]})
+
+
+def test_k4_3_every_producer_that_abstains_is_registered(tmp_path):
+    """The preventive half: an unregistered producer fails here, not in a run.
+
+    A register claims to list everything. An analyzer whose abstentions it does
+    not know would make that claim false in silence, so the walk asserts the
+    declaration exists for every producer the real pipeline meets.
+    """
+    from ragix_kernels.saqqara.analyzers.contract import (
+        ABSTENTION_KEYS, ABSTENTION_SOURCES, abstention_records, reports_abstention)
+
+    for name, source in ABSTENTION_SOURCES.items():
+        assert source.records in ABSTENTION_KEYS, (
+            f"{name} declares its records under {source.records!r}, outside the "
+            f"convention {ABSTENTION_KEYS} the register searches by")
+        assert source.tally is None or source.tally in ABSTENTION_KEYS
+
+    corpus = _abstaining_corpus(tmp_path / "corpus")
+    for name, fixture in CORPUS.items():                      # and one per format
+        G.FIXTURES[fixture](corpus / name)
+    data = SaqqaraKernel().compute(
+        KernelInput(workspace=tmp_path / "ws", config={"source": {"path": str(corpus)}}))
+
+    seen = set()
+    for document in data["documents"]:
+        for name, trace in (document.get("traces") or {}).items():
+            if isinstance(trace, dict) and reports_abstention(trace):
+                seen.add(name)
+                abstention_records(name, trace)      # raises if it is not registered
+    assert seen, "no analyzer reported an abstention — the walk found nothing to check"
+
+
+def test_k4_3_the_register_lists_who_where_and_why(tmp_path):
+    """The claim itself, on two analyzers abstaining in two different shapes."""
+    corpus = _abstaining_corpus(tmp_path / "corpus")
+    kernel = SaqqaraKernel()
+    data = kernel.compute(
+        KernelInput(workspace=tmp_path / "ws", config={"source": {"path": str(corpus)}}))
+
+    register = data["report"]["abstentions"]
+    assert len(register) == 3, register              # two from grid_tables, one from header_bands
+
+    by_analyzer = {}
+    for record in register:
+        by_analyzer.setdefault(record["analyzer"], []).append(record)
+    assert set(by_analyzer) == {"grid_tables", "header_bands"}, (
+        "the fixture no longer exercises two producers — the test would prove half its claim")
+
+    for record in register:
+        assert record["reason"], f"an abstention without a reason is a defect: {record}"
+        assert record["path"].endswith((".docx", ".xlsx"))
+        assert record["locator"], "both producers here keep a locator"
+
+    assert {r["reason"] for r in by_analyzer["grid_tables"]} == {"D4-unstyled-single-row"}
+    assert by_analyzer["header_bands"][0]["reason"] == "uniform-block"
+
+    counted = sum(record["count"] for record in register)
+    assert counted == len(register), "every record here stands for one abstention"
+    assert f"{counted} abstention(s)" in kernel.summarize(data)
+
+
+def test_k4_3_the_summary_reads_the_register_rather_than_counting_again(tmp_path):
+    """Two rules for one fact are two rules that disagree. Falsified by editing one."""
+    corpus = _abstaining_corpus(tmp_path / "corpus")
+    kernel = SaqqaraKernel()
+    data = kernel.compute(
+        KernelInput(workspace=tmp_path / "ws", config={"source": {"path": str(corpus)}}))
+
+    data["report"]["abstentions"] = data["report"]["abstentions"][:1]
+    assert "1 abstention(s)" in kernel.summarize(data), (
+        "the summary counted the traces again instead of reading the register")
+
+
+def test_k4_3_the_cli_and_the_summary_cannot_disagree(tmp_path):
+    """The CLI listed only the producer that writes `abstentions`; the summary counted all."""
+    from ragix_kernels.saqqara.cli.saqqaractl import _abstentions
+
+    corpus = _abstaining_corpus(tmp_path / "corpus")
+    kernel = SaqqaraKernel()
+    data = kernel.compute(
+        KernelInput(workspace=tmp_path / "ws", config={"source": {"path": str(corpus)}}))
+
+    listed = _abstentions(data)
+    assert len(listed) == len(data["report"]["abstentions"])
+    assert {analyzer for _, analyzer, _ in listed} == {"grid_tables", "header_bands"}
+
+    # the control: the rule the CLI used until K4.3, applied to the same result
+    old_rule = [
+        (document["path"], name, entry.get("reason"))
+        for document in data["documents"]
+        for name, trace in (document.get("traces") or {}).items()
+        if isinstance(trace, dict)
+        for entry in (trace.get("abstentions") or [])
+    ]
+    assert len(old_rule) == 1, (
+        "the old rule found only the analyzer that writes `abstentions`; if it now "
+        "finds them all, this control has stopped controlling anything")
+
+
+def test_k4_3_a_document_that_abstains_is_summarised_rather_than_lost(tmp_path):
+    """The end-to-end claim, through the envelope that used to lose the run.
+
+    Before K4.3 `summarize` cast `grid_tables`' list with `int(...)`, the envelope
+    caught the TypeError and wrote an output holding only the error — a run that
+    read the documents, built their trees and then lost them.
+    """
+    corpus = _abstaining_corpus(tmp_path / "corpus")
+    workspace = tmp_path / "ws"
+    workspace.mkdir()                       # `run` validates it; `compute` does not
+
+    kernel = SaqqaraKernel()
+    output = kernel.run(
+        KernelInput(workspace=workspace, config={"source": {"path": str(corpus)}}))
+
+    assert output.success, "a document that abstains must not fail the run"
+    data = json.loads(Path(output.output_file).read_text())["data"]
+    assert len(data.get("documents") or []) == 2, "the run kept no documents"
+    assert len(data["report"]["abstentions"]) == 3
+    assert "3 abstention(s)" in kernel.summarize(data)
+
+
+def test_k4_3_the_cast_this_replaces_fails_on_the_same_document(tmp_path):
+    """The control. Without it, the tests above pass on a fixture that never abstained.
+
+    This is the line `summarize` carried until K4.3, applied to the same trace.
+    """
+    corpus = _abstaining_corpus(tmp_path / "corpus")
+    data = SaqqaraKernel().compute(
+        KernelInput(workspace=tmp_path / "ws", config={"source": {"path": str(corpus)}}))
+
+    prose = next(d for d in data["documents"] if d["path"].endswith("prose.docx"))
+    abstained = prose["traces"]["grid_tables"]["abstained"]
+    assert isinstance(abstained, list) and len(abstained) == 2
+
+    with pytest.raises(TypeError):
+        int(abstained or 0)
+
+
+def test_k4_3_a_record_carries_what_the_rules_read_not_only_which_rule_fired(tmp_path):
+    """`header_bands` holds its signals; until K4.3 the trace record dropped them.
+
+    Measured on a real corpus before this assertion existed: 903 of 910 records
+    named a rule and carried `signals: {}`. A reader could see that R4 fired and
+    not one number it fired on.
+
+    Three reasons, three fixtures, because `band-too-deep` — the most frequent
+    abstention on that corpus, 811 of 910 — was reachable by no generated
+    document at all until `deep_header_band` was written for this gate.
+    """
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    for name, fixture in (("deep.xlsx", "deep_header_band"),
+                          ("uniform.xlsx", "undecidable_block"),
+                          ("merges.xlsx", "overlapping_merges")):
+        G.FIXTURES[fixture](corpus / name)
+
+    data = SaqqaraKernel().compute(
+        KernelInput(workspace=tmp_path / "ws", config={"source": {"path": str(corpus)}}))
+    bands = [r for r in data["report"]["abstentions"] if r["analyzer"] == "header_bands"]
+
+    assert {r["reason"] for r in bands} == {
+        "band-too-deep", "uniform-block", "non-laminar-band-merges"}, (
+        "the fixtures no longer reach all three reasons this gate is about")
+
+    for record in bands:
+        assert record["signals"], f"{record['reason']} carries no signals: {record}"
+        assert record["signals"].get("rules"), (
+            f"{record['reason']} does not say which rule fired: {record['signals']}")
+        assert record["locator"] and record["locator"].get("range")
+
+    deep = next(r for r in bands if r["reason"] == "band-too-deep")
+    assert "R4-band-depth" in deep["signals"]["rules"]
+    assert deep["signals"]["dtypes"], "the block's types are part of what the rule read"
