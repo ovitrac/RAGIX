@@ -76,6 +76,16 @@ FORBIDDEN_TOKEN_HASHES: dict[str, str] = {
     "f6f9d150ceae03aae95477223a9d0df395cb27755fef43971d0998977db4c298": "origin-identifier-1",
     "785757cb86310e56afe087c0bb461abcf865dcff8150a1999a64c8471df31be0": "origin-identifier-2",
     "fdd00fc797ddde5964c08550170de1fb1561cc525c01e063c9f5f82b39afdf4e": "origin-revision",
+    # The three rows below name an engagement whose material is processed elsewhere
+    # and never reaches this repository: the reference it is known by, the archive
+    # it arrived as, and the label of a corpus that is not public. They were added
+    # after all three passed the guard inside commit messages of this repository —
+    # the history job read those messages and found nothing, because the table did
+    # not hold them. A table is only as good as the classes someone thought to put
+    # in it, and the class that leaks is the one nobody anticipated.
+    "14f63bedabb240ef1822019f6e552ec097f8693eca604fb28f794b6073556bbf": "engagement-reference",
+    "41857d30178bd00704253e36d16d9e3df130eb03eff9e1bdec81aa334238a551": "engagement-archive-id",
+    "302869a9b3c448b95fddb41fb28e5ea3953ab2b3aead7073a9828bc7026d5f15": "engagement-corpus-label",
 }
 
 _TOKEN_SPLIT = re.compile(r"[^a-z0-9]+")
