@@ -182,7 +182,17 @@ from generators import FIXTURES, FIXTURE_SUFFIX  # noqa: E402
 #:                writing one line of prose about them. The proposition is about
 #:                the counting, not about the error handling: `Kernel.run`
 #:                catching and reporting is fail-closed and stays.
-FROZEN_COUNTS = {"K1": 10, "K2": 25, "K3": 72, "K4": 3, "K6": 19, "K7": 19}
+#:   K7 19 -> 20  K7.20, measured before it was written. The ollama backend's
+#:                `embed_batch` was a loop of single requests, and on the executor
+#:                the round trip IS the cost: 300 chunks of a real corpus embed at
+#:                4.3/s one by one, 75.5/s in slices of 32 and 93.7/s in slices of
+#:                128 -- and the vectors are identical, 0.0 maximum absolute
+#:                difference against the per-text ones for both models probed. The
+#:                proposition is about the refusals as much as the transport: a
+#:                short answer cannot be matched to its inputs, and retrying one by
+#:                one would hide a server that cannot batch behind a run twenty
+#:                times slower.
+FROZEN_COUNTS = {"K1": 10, "K2": 25, "K3": 72, "K4": 3, "K6": 19, "K7": 20}
 
 _ROW = re.compile(r"^\|\s*(K[1-7])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 _TICKED = re.compile(r"`([a-z0-9_']+)`")

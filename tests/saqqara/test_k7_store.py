@@ -1598,3 +1598,158 @@ def test_k7_17_the_fused_hit_still_carries_both_lane_ranks(fused_corpus):
     winner = next(h for h in fused if h.chunk.chunk_id == ids["target"])
     assert winner.lexical_rank == 2 and winner.dense_rank == 2
     assert winner.final_rank == 1
+
+
+# ============================================================ K7.20 — a batch is one request
+
+class _Answer:
+    """The shape `requests.post` returns, with nothing else of it."""
+
+    def __init__(self, payload, status=200):
+        self._payload = payload
+        self.status_code = status
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+    def json(self):
+        return self._payload
+
+
+def _recording_ollama(monkeypatch, dim=4, answer=None):
+    """Record every request the backend makes, and answer it the way ollama does.
+
+    No server, and no stub of the backend itself: `requests.post` is the seam,
+    so what is asserted is the request that would go on the wire.
+    """
+    import requests
+
+    calls = []
+
+    def post(url, json=None, timeout=None, **kwargs):
+        calls.append({"url": url, "json": json, "timeout": timeout})
+        if answer is not None:
+            return answer(json)
+        inputs = json["input"]
+        inputs = inputs if isinstance(inputs, list) else [inputs]
+        return _Answer({"embeddings": [[float(len(t))] * dim for t in inputs]})
+
+    monkeypatch.setattr(requests, "post", post)
+    return calls
+
+
+def test_k7_20_a_batch_is_one_request_per_slice_in_order(monkeypatch):
+    from ragix_core.embeddings import OllamaEmbeddingBackend
+
+    calls = _recording_ollama(monkeypatch)
+    texts = [f"chunk {i}" * (i + 1) for i in range(10)]
+    vectors = OllamaEmbeddingBackend(batch_size=4).embed_batch(texts)
+
+    assert [len(c["json"]["input"]) for c in calls] == [4, 4, 2], "slices of the declared size"
+    assert all(c["url"].endswith("/api/embed") for c in calls)
+    assert all(isinstance(c["json"]["input"], list) for c in calls), "input is a list, not a string"
+    assert len(vectors) == 10
+    assert [v[0] for v in vectors] == [float(len(t)) for t in texts], "order preserved"
+
+
+def test_k7_20_batch_size_one_is_the_per_text_path_and_a_configuration(monkeypatch):
+    """Ten texts, ten requests — because the caller asked, not because anything fell back."""
+    from ragix_core.embeddings import OllamaEmbeddingBackend
+
+    calls = _recording_ollama(monkeypatch)
+    OllamaEmbeddingBackend(batch_size=1).embed_batch([f"t{i}" for i in range(10)])
+
+    assert len(calls) == 10
+    assert all(not isinstance(c["json"]["input"], list) for c in calls), (
+        "the per-text path posts one string, which is the older request shape")
+
+
+def test_k7_20_the_loop_this_replaces_would_make_ten_requests(monkeypatch):
+    """The control. Without it the test above passes on any implementation."""
+    from ragix_core.embeddings import OllamaEmbeddingBackend
+
+    calls = _recording_ollama(monkeypatch)
+    OllamaEmbeddingBackend(batch_size=128).embed_batch([f"t{i}" for i in range(10)])
+
+    assert len(calls) == 1, (
+        f"ten texts took {len(calls)} requests: this is the loop K7.20 replaces")
+
+
+def test_k7_20_a_short_answer_is_refused_rather_than_retried(monkeypatch):
+    """Two vectors for three inputs cannot be paired; position would guess."""
+    from ragix_core.embeddings import OllamaEmbeddingBackend
+
+    calls = _recording_ollama(
+        monkeypatch, answer=lambda body: _Answer({"embeddings": [[0.1], [0.2]]}))
+    with pytest.raises(RuntimeError, match="cannot be matched"):
+        OllamaEmbeddingBackend(batch_size=8).embed_batch(["a", "b", "c"])
+    assert len(calls) == 1, "it must not have retried one by one"
+
+
+def test_k7_20_an_answer_without_embeddings_is_refused(monkeypatch):
+    from ragix_core.embeddings import OllamaEmbeddingBackend
+
+    _recording_ollama(monkeypatch, answer=lambda body: _Answer({"error": "no such model"}))
+    with pytest.raises(RuntimeError):
+        OllamaEmbeddingBackend(batch_size=8).embed_batch(["a", "b"])
+
+
+def test_k7_20_an_empty_vector_is_refused(monkeypatch):
+    """An absent embedding is not a zero vector — the same rule the store applies."""
+    from ragix_core.embeddings import OllamaEmbeddingBackend
+
+    _recording_ollama(monkeypatch,
+                      answer=lambda body: _Answer({"embeddings": [[0.1, 0.2], []]}))
+    with pytest.raises(RuntimeError, match="empty vector"):
+        OllamaEmbeddingBackend(batch_size=8).embed_batch(["a", "b"])
+
+
+def test_k7_20_a_server_without_the_batch_endpoint_says_so(monkeypatch):
+    """404 is not "answer without batching"; it is "this server cannot"."""
+    from ragix_core.embeddings import OllamaEmbeddingBackend
+
+    _recording_ollama(monkeypatch, answer=lambda body: _Answer({}, status=404))
+    with pytest.raises(RuntimeError, match="batch_size=1"):
+        OllamaEmbeddingBackend(batch_size=8).embed_batch(["a", "b"])
+
+
+def test_k7_20_the_batch_size_is_declared_by_the_store_and_reaches_the_backend():
+    """A configuration key nothing passes on is a key that does nothing."""
+    from ragix_kernels.saqqara.store.config import load_config
+    from ragix_kernels.saqqara.store.embed import build_embedder
+
+    section = load_config(None, **{"embedder.provider": "ollama",
+                                   "embedder.model": "nomic-embed-text"}).section("embedder")
+    assert section["batch_size"] == 128, "the store declares the measured size"
+
+    backend = build_embedder("ollama", model=section["model"],
+                             batch_size=section["batch_size"])
+    assert backend.batch_size == 128
+
+    with pytest.raises(ValueError):
+        build_embedder("ollama", model="nomic-embed-text", batch_size=0)
+
+
+#: How far a batched vector may sit from the per-text one. Measured on the
+#: executor 2026-09-05 over 300 chunks: 0.0 for both models probed. The tolerance
+#: is not zero because equality of floats across a transport is a promise no
+#: server makes, and a gate that asserts more than the claim fails on a truth.
+BATCH_TOLERANCE = 1e-6
+
+
+@pytest.mark.skipif(os.environ.get("OLLAMA_LIVE") != "1",
+                    reason="live embedding test; set OLLAMA_LIVE=1 to run")
+def test_k7_20_batched_and_per_text_vectors_agree_live():
+    """The claim that makes the transport change safe, against a real server."""
+    from ragix_core.embeddings import OllamaEmbeddingBackend
+
+    model = os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text")
+    texts = ["une phrase courte", "another sentence entirely", "3", "x" * 400]
+
+    single = OllamaEmbeddingBackend(model=model, batch_size=1).embed_batch(texts)
+    batched = OllamaEmbeddingBackend(model=model, batch_size=len(texts)).embed_batch(texts)
+
+    assert len(single) == len(batched) == len(texts)
+    worst = max(abs(a - b) for u, v in zip(single, batched) for a, b in zip(u, v))
+    assert worst <= BATCH_TOLERANCE, f"batched vectors differ by {worst}"

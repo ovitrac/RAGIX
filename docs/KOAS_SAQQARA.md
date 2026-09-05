@@ -210,7 +210,7 @@ Each is carried by a proposition in `SPEC.md` and by a test, not by convention:
 
 ## 7. Gates and Specification
 
-`ragix_kernels/saqqara/SPEC.md` holds **148 falsifiable propositions**, each with the fixture
+`ragix_kernels/saqqara/SPEC.md` holds **149 falsifiable propositions**, each with the fixture
 that exercises it and what would falsify it.
 
 | gate | layer | propositions |
