@@ -17,7 +17,9 @@ about the package before any of it computes anything:
      by accident and every deliberate addition amends a reviewed list;
   4. nothing in the package or its tests trips the repository guard, and the
      guard is observed to fire on a planted violation — a guard that never
-     fires proves nothing about the files it passed.
+     fires proves nothing about the files it passed — including through the
+     history mode, which reads what no other mode does: a commit message, and a
+     blob that only an intermediate commit ever held.
 
 The counts below are frozen deliberately. Adding a proposition without deciding
 which gate carries it should fail here, loudly.
@@ -25,9 +27,13 @@ which gate carries it should fail here, loudly.
 
 from __future__ import annotations
 
+import hashlib
+import importlib.util
+import os
 import re
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 
 import pytest
@@ -417,6 +423,165 @@ def test_k0_4_no_committed_binary_fixture():
         if p.is_file() and "__pycache__" not in p.parts and b"\x00" in p.read_bytes()
     ]
     assert not offenders, offenders
+
+
+# ------------------------------------- 4b. the history mode, which reads what no other does
+
+# The working-tree scan reads the tip and the hook reads what is staged. Neither
+# reads a commit message at all, and neither sees a blob that existed only in an
+# intermediate commit — yet publishing a branch publishes both. `scan_history`
+# exists for that, CI runs it on every pull request, and until these tests it was
+# the one part of the guard nothing exercised: a table that held the wrong tokens
+# and a mechanism that had quietly stopped working looked identical from outside.
+#
+# The planted token is generated per test and injected into the table at run time. The
+# real rows are not spelled anywhere — not in clear, not reconstructed from
+# character codes — because writing them would be the leak the table exists to
+# prevent; that each real row matches the token it means is proved by a control
+# run against real history, recorded outside this repository.
+
+_GIT_ENV = {
+    "GIT_AUTHOR_NAME": "Gate", "GIT_AUTHOR_EMAIL": "gate@example.invalid",
+    "GIT_COMMITTER_NAME": "Gate", "GIT_COMMITTER_EMAIL": "gate@example.invalid",
+    "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
+}
+
+
+def _git(root: Path, *args: str) -> str:
+    done = subprocess.run(
+        ["git", *args], cwd=root, capture_output=True, text=True,
+        env={**os.environ, **_GIT_ENV},
+    )
+    assert done.returncode == 0, f"git {' '.join(args)}: {done.stderr}"
+    return done.stdout.strip()
+
+
+def _commit(root: Path, message: str) -> str:
+    _git(root, "add", "-A")
+    _git(root, "-c", "commit.gpgsign=false", "commit", "-q", "-m", message)
+    return _git(root, "rev-parse", "HEAD")
+
+
+def _repo(root: Path) -> Path:
+    root.mkdir(parents=True, exist_ok=True)
+    _git(root, "init", "-q")
+    (root / "kept.py").write_text("value = 1\n", encoding="utf-8")
+    return root
+
+
+def _guard_module():
+    """The guard imported, so the table can be extended for one test only."""
+    spec = importlib.util.spec_from_file_location("check_forbidden_under_test", GUARD)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _plant_token(guard, monkeypatch) -> str:
+    """A row that exists for one test, made the way a real row is made.
+
+    The token is generated, never chosen: a word picked as a placeholder is a word
+    that can turn out to be somebody's identifier, and it would then sit in a public
+    test file forever. Thirty-two lowercase hex characters are one token under the
+    split rule, and the digest goes in through the same hashing path the real rows
+    use, so what the test exercises is the row format rather than a shortcut around it.
+    """
+    token = uuid.uuid4().hex
+    digest = hashlib.sha256(token.lower().encode()).hexdigest()
+    monkeypatch.setitem(guard.FORBIDDEN_TOKEN_HASHES, digest, "planted-token")
+    return token
+
+
+def test_k0_4_history_reads_a_commit_message_no_other_mode_reads(tmp_path, monkeypatch):
+    """A name in a message was never in a file, and is published all the same."""
+    guard = _guard_module()
+    planted = _plant_token(guard, monkeypatch)
+
+    repo = _repo(tmp_path / "messages")
+    base = _commit(repo, "base")
+    (repo / "kept.py").write_text("value = 2\n", encoding="utf-8")
+    tip = _commit(repo, f"a change measured on {planted}")
+
+    assert guard.scan(["kept.py"], repo) == [], "the tree is clean — that is the point"
+
+    findings, blobs, messages = guard.scan_history(f"{base}..{tip}", repo)
+    assert messages == 1, messages
+    assert [f for f in findings if ":message:" in f and "planted-token" in f], findings
+
+
+def test_k0_4_history_reads_a_blob_only_an_intermediate_commit_held(tmp_path, monkeypatch):
+    """Removing the line in a later commit does not remove it from what a push publishes."""
+    guard = _guard_module()
+    planted = _plant_token(guard, monkeypatch)
+
+    repo = _repo(tmp_path / "blobs")
+    base = _commit(repo, "base")
+    (repo / "notes.md").write_text(f"read from {planted}\n", encoding="utf-8")
+    _commit(repo, "a note")
+    (repo / "notes.md").write_text("read from the corpus\n", encoding="utf-8")
+    tip = _commit(repo, "the note, without the name")
+
+    assert guard.scan(["notes.md"], repo) == [], "the tip no longer carries it"
+
+    findings, blobs, messages = guard.scan_history(f"{base}..{tip}", repo)
+    assert [f for f in findings if "notes.md" in f and ":message:" not in f], findings
+
+
+def test_k0_4_history_mode_exits_clean_on_a_clean_range_and_reports_what_it_read(tmp_path):
+    """The count line is read before anything else, so it is part of the contract."""
+    repo = _repo(tmp_path / "clean")
+    base = _commit(repo, "base")
+    (repo / "kept.py").write_text("value = 2\n", encoding="utf-8")
+    tip = _commit(repo, "a change")
+
+    done = subprocess.run(
+        [sys.executable, str(GUARD), "--history", f"{base}..{tip}"],
+        cwd=repo, capture_output=True, text=True, env={**os.environ, **_GIT_ENV},
+    )
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "blob revisions" in done.stdout and "commit messages" in done.stdout, done.stdout
+
+
+def test_k0_4_history_mode_refuses_through_the_command_line(tmp_path):
+    """The whole path, exit code included — scoped rule, so no token is needed at all."""
+    repo = _repo(tmp_path / "refused")
+    base = _commit(repo, "base")
+    scoped = repo / "ragix_kernels" / "saqqara" / "endpoint.py"
+    scoped.parent.mkdir(parents=True)
+    # Assembled, not written: this file lives under a scoped prefix, so the literal
+    # would trip the very rule the test plants — and `test_k0_4_package_and_tests_are_clean`
+    # is what would report it. Shared address space (RFC 6598) belongs to no one.
+    address = ".".join(("100", "64", "0", "1"))
+    scoped.write_text(f"endpoint = 'http://{address}:8080'\n", encoding="utf-8")
+    _commit(repo, "an address under scope")
+    scoped.write_text("endpoint = 'http://127.0.0.1:11434'\n", encoding="utf-8")
+    tip = _commit(repo, "the address, made local")
+
+    done = subprocess.run(
+        [sys.executable, str(GUARD), "--history", f"{base}..{tip}"],
+        cwd=repo, capture_output=True, text=True, env={**os.environ, **_GIT_ENV},
+    )
+    assert done.returncode == 1, done.stdout + done.stderr
+    assert "routable-address" in done.stderr, done.stderr
+
+
+#: Rows on the tier-1 table. Frozen: a row is added with a control that observed it
+#: fire against real history, and a row nobody has seen fire is a row nobody has
+#: tested. Changing this number is the amendment; the control is the evidence.
+FROZEN_TIER1_ROWS = 6
+
+
+def test_k0_4_the_forbidden_table_is_frozen_and_well_formed():
+    guard = _guard_module()
+    table = guard.FORBIDDEN_TOKEN_HASHES
+    assert len(table) == FROZEN_TIER1_ROWS, (
+        f"the table carries {len(table)} rows, frozen at {FROZEN_TIER1_ROWS}: "
+        "a row is added deliberately, with the control that saw it fire"
+    )
+    malformed = [k for k in table if not re.fullmatch(r"[0-9a-f]{64}", k)]
+    assert not malformed, f"not SHA-256 digests of a lowercased token: {malformed}"
+    assert len(set(table.values())) == len(table), "two rows share a name; a finding names one rule"
+
 
 
 # --------------------------------------------------------------------------- k0.5
