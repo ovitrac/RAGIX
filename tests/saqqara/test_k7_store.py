@@ -2029,3 +2029,70 @@ def test_k7_21_a_lane_with_no_vector_at_all_is_not_a_lane(tmp_path, fake_server)
     output = _indexed(tmp_path / "empty")
     assert output.success is False, "no vector at all is not a lane with gaps"
     assert any("holds no vector" in e for e in output.errors), output.errors
+
+
+@pytest.mark.skipif(os.environ.get("OLLAMA_LIVE") != "1",
+                    reason="live embedding test; set OLLAMA_LIVE=1 to run")
+def test_k7_21_a_live_lane_completes_whatever_the_server_decides():
+    """The third control: against a real server, the lane completes either way.
+
+    The tests above prove the mechanism and the accounting against a fake server,
+    where a bisection and a register can be checked exactly. This one is live, and
+    what it asserts is deliberately not "the server refuses": it asserts that
+    **every text ends as a vector or as a record, and nothing raises**, which is
+    the whole of what this change claims.
+
+    It was first written to assert a refusal on an oversized input. Measured
+    2026-09-05: `snowflake-arctic-embed2` accepted 1 377 889 characters on one
+    machine and refused nine ordinary roll-ups on another. Ollama truncates by
+    default, so size does not summon a refusal — the same thing the corpus already
+    said, where 116 280 characters were accepted and 25 911 refused. A live test
+    asserting a refusal would have skipped on most servers and proved nothing on
+    the rest; what stays true everywhere is that the lane completes.
+
+    The long input is generated here, varied words, never corpus text: a repository
+    that must carry no document cannot acquire one through a fixture.
+    """
+    from ragix_core.embeddings import OllamaEmbeddingBackend
+
+    model = os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text")
+    oversized = " ".join(f"mot{i % 997}" for i in range(200_000))
+    texts = ["une phrase courte", oversized, "another sentence entirely"]
+
+    backend = OllamaEmbeddingBackend(model=model, batch_size=len(texts))
+    vectors, refusals = backend.embed_batch_recording_refusals(texts)
+
+    assert len(vectors) == len(texts), "the answer stays aligned with its input"
+    refused = {r.index for r in refusals}
+    for position, vector in enumerate(vectors):
+        assert (vector is None) == (position in refused), (
+            f"text {position} is neither embedded nor recorded, or is both"
+        )
+    for refusal in refusals:
+        assert refusal.model == model, "a refusal names the model that refused"
+        assert refusal.message, "the server's own words, kept as a signal"
+        assert refusal.reason == "input-rejected"
+    assert vectors[0] and vectors[2], "the short texts were embedded either way"
+
+
+def test_k7_21_a_404_names_both_of_its_causes(fake_server):
+    """Ollama answers 404 for a missing endpoint and for a model it does not have.
+
+    Found by running the live test below on a server that had `/api/embed` and not
+    the model: it was told its ollama predated batched embedding, which was false
+    and sends a reader to the wrong fix.
+
+    Falsified by: a message naming only one cause, or dropping what the server said.
+    """
+    class _NotFound(_RefusingServer):
+        def post(self, url, json=None, timeout=None):  # noqa: A002
+            self.requests.append(list(json["input"]))
+            return _Reply(404, {"error": 'model "absent" not found, try pulling it first'})
+
+    fake_server(_NotFound())
+    with pytest.raises(RuntimeError) as raised:
+        _backend(model="absent").embed_batch_recording_refusals(["a"])
+
+    said = str(raised.value)
+    assert "predates batched embedding" in said and "not pulled" in said
+    assert "try pulling it first" in said, "the server's own words reach the reader"

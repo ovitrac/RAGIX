@@ -384,8 +384,10 @@ class OllamaEmbeddingBackend:
 
             if response.status_code == 404:
                 raise RuntimeError(
-                    f"no /api/embed on {self.base_url}: this server predates batched "
-                    "embedding. Set batch_size=1 to send one text per request."
+                    f"no /api/embed on {self.base_url} for model {self.model!r}: either "
+                    "this server predates batched embedding — set batch_size=1 to send "
+                    "one text per request — or the model is not pulled. The server said: "
+                    f"{_server_message(response)!r}"
                 )
             response.raise_for_status()
             answer = response.json().get("embeddings")
@@ -462,9 +464,16 @@ class OllamaEmbeddingBackend:
             raise RuntimeError(f"ollama embedding request failed: {exc}") from exc
 
         if response.status_code == 404:
+            # Ollama answers 404 for a missing endpoint AND for a model it does not
+            # have. The first message named only the endpoint, and a live run on a
+            # server that had /api/embed but not the model was told its ollama was
+            # too old. A diagnostic that names one of two causes is a wrong answer
+            # most of the time it fires.
             raise RuntimeError(
-                f"no /api/embed on {self.base_url}: this server predates batched "
-                "embedding. Set batch_size=1 to send one text per request."
+                f"no /api/embed on {self.base_url} for model {self.model!r}: either "
+                "this server predates batched embedding — set batch_size=1 to send "
+                "one text per request — or the model is not pulled. The server said: "
+                f"{_server_message(response)!r}"
             )
 
         if 400 <= response.status_code < 500:
