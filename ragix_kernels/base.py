@@ -62,6 +62,7 @@ class KernelOutput:
         execution_time_ms: Execution time in milliseconds
         input_hash: SHA256 hash of inputs for reproducibility
         dependencies_used: List of dependency names used
+        dependencies_resolved: Each requirement, the kernel it resolved to, and how
 
     Diagnostics:
         warnings: Non-fatal issues encountered
@@ -79,6 +80,10 @@ class KernelOutput:
     input_hash: str
     dependencies_used: List[str]
 
+    #: One entry per declared requirement: {"requires", "kernel", "how"}. Empty for
+    #: a kernel run outside the orchestrator, which resolves nothing.
+    dependencies_resolved: List[Dict[str, str]] = field(default_factory=list)
+
     # Diagnostics
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
@@ -94,6 +99,7 @@ class KernelOutput:
             "execution_time_ms": self.execution_time_ms,
             "input_hash": self.input_hash,
             "dependencies_used": self.dependencies_used,
+            "dependencies_resolved": self.dependencies_resolved,
             "warnings": self.warnings,
             "errors": self.errors,
         }

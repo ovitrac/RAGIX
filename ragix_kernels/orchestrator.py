@@ -333,15 +333,21 @@ class ExecutionContext:
         kernel_class = KernelRegistry.get(kernel_name)
         dependencies = {}
 
-        for dep_name in kernel_class.requires:
-            if dep_name in self.outputs:
-                dependencies[dep_name] = self.outputs[dep_name].output_file
+        # Keyed by the entry AS DECLARED, valued by the resolved kernel's output.
+        # A kernel asks for what it declared — `saqqara_index` reads
+        # `dependencies["document_tree"]` — while the file comes from whichever
+        # kernel provides it. Re-keying by the producer would make every consumer
+        # name its producer, which is the coupling `provides` exists to avoid.
+        for entry in kernel_class.requires:
+            producer, _how = KernelRegistry.resolve_requirement(entry)
+            if producer in self.outputs:
+                dependencies[entry] = self.outputs[producer].output_file
             else:
                 # Try to find existing output file
-                dep_class = KernelRegistry.get(dep_name)
-                dep_path = self.workspace / f"stage{dep_class.stage}" / f"{dep_name}.json"
+                dep_class = KernelRegistry.get(producer)
+                dep_path = self.workspace / f"stage{dep_class.stage}" / f"{producer}.json"
                 if dep_path.exists():
-                    dependencies[dep_name] = dep_path
+                    dependencies[entry] = dep_path
 
         return dependencies
 
@@ -726,8 +732,10 @@ class Orchestrator:
             manifest=self.manifest,
         )
 
-        # Load existing outputs for dependencies
-        for dep_name in kernel_class.requires:
+        # Load existing outputs for dependencies. `context.outputs` is keyed by
+        # kernel name, so the entry is resolved to its producer first.
+        for entry in kernel_class.requires:
+            dep_name, _how = KernelRegistry.resolve_requirement(entry)
             dep_class = KernelRegistry.get(dep_name)
             dep_path = self.workspace / f"stage{dep_class.stage}" / f"{dep_name}.json"
             if dep_path.exists():
@@ -753,6 +761,12 @@ class Orchestrator:
         kernel_class = KernelRegistry.get(kernel_name)
         kernel = kernel_class()
 
+        # What each declared requirement resolved to, and how. Recorded rather than
+        # inferred: the day a second kernel provides `document_tree`, the record
+        # says which one served this run, and a reader does not have to reconstruct
+        # it from the registry as it stands later.
+        resolution = KernelRegistry.resolution_of(kernel_name)
+
         logger.info(f"[{kernel_name}] Starting (stage={kernel.stage})")
 
         # Activity logging: emit kernel start event
@@ -763,6 +777,7 @@ class Orchestrator:
                 kernel_name=kernel_name,
                 kernel_version=kernel.version,
                 stage=kernel.stage,
+                dependencies=resolution,
             )
 
         # Build input
@@ -821,6 +836,7 @@ class Orchestrator:
                     execution_time_ms=0,
                     input_hash=input_hash,
                     dependencies_used=list(kernel_input.dependencies.keys()),
+                    dependencies_resolved=resolution,
                 )
 
             # Cache miss in read_only mode
@@ -830,6 +846,11 @@ class Orchestrator:
 
         # Execute the kernel
         output = kernel.run(kernel_input)
+
+        # The kernel receives dependencies already resolved and does not know how
+        # they were found, so the record is attached here, where the resolution
+        # happened. The cache-hit path above sets the same field at construction.
+        output.dependencies_resolved = resolution
 
         # Cache the output if successful and not OFF mode
         if output.success and kernel_cache_mode != CacheMode.OFF:

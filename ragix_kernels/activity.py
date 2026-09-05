@@ -250,6 +250,7 @@ class ActivityWriter:
         kernel_version: str,
         stage: int,
         input_hash: str = "",
+        dependencies: Optional[List[Dict[str, str]]] = None,
     ) -> str:
         """
         Emit a kernel start event.
@@ -259,6 +260,9 @@ class ActivityWriter:
             kernel_version: Version of the kernel
             stage: Pipeline stage
             input_hash: Hash of kernel input
+            dependencies: Each declared requirement with the kernel it resolved to
+                and how ("name" or "capability"), recorded in `refs` so the record
+                says which producer served this run
 
         Returns:
             Event ID for correlation
@@ -269,6 +273,8 @@ class ActivityWriter:
             phase="start",
             kernel=KernelInfo(name=kernel_name, version=kernel_version, stage=stage),
             io={"input_hash": input_hash} if input_hash else {},
+            refs={f"requires:{d['requires']}": f"{d['kernel']} ({d['how']})"
+                  for d in (dependencies or [])},
         )
         self.emit(event)
         return event.event_id
