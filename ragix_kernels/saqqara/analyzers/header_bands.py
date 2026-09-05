@@ -284,6 +284,11 @@ class HeaderBandsAnalyzer(Analyzer):
                         {
                             "range": block.facts["block_range"],
                             "reason": analysis["abstention"]["reason"],
+                            # The signals the rules read, carried rather than left
+                            # on the node: a reason names a rule, and a register
+                            # record that gives the rule without what it saw tells
+                            # a reader which test failed and nothing about why.
+                            "signals": analysis["abstention"]["signals"],
                         }
                     )
 

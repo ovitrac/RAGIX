@@ -552,3 +552,40 @@ def test_k4_3_the_cast_this_replaces_fails_on_the_same_document(tmp_path):
 
     with pytest.raises(TypeError):
         int(abstained or 0)
+
+
+def test_k4_3_a_record_carries_what_the_rules_read_not_only_which_rule_fired(tmp_path):
+    """`header_bands` holds its signals; until K4.3 the trace record dropped them.
+
+    Measured on a real corpus before this assertion existed: 903 of 910 records
+    named a rule and carried `signals: {}`. A reader could see that R4 fired and
+    not one number it fired on.
+
+    Three reasons, three fixtures, because `band-too-deep` — the most frequent
+    abstention on that corpus, 811 of 910 — was reachable by no generated
+    document at all until `deep_header_band` was written for this gate.
+    """
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    for name, fixture in (("deep.xlsx", "deep_header_band"),
+                          ("uniform.xlsx", "undecidable_block"),
+                          ("merges.xlsx", "overlapping_merges")):
+        G.FIXTURES[fixture](corpus / name)
+
+    data = SaqqaraKernel().compute(
+        KernelInput(workspace=tmp_path / "ws", config={"source": {"path": str(corpus)}}))
+    bands = [r for r in data["report"]["abstentions"] if r["analyzer"] == "header_bands"]
+
+    assert {r["reason"] for r in bands} == {
+        "band-too-deep", "uniform-block", "non-laminar-band-merges"}, (
+        "the fixtures no longer reach all three reasons this gate is about")
+
+    for record in bands:
+        assert record["signals"], f"{record['reason']} carries no signals: {record}"
+        assert record["signals"].get("rules"), (
+            f"{record['reason']} does not say which rule fired: {record['signals']}")
+        assert record["locator"] and record["locator"].get("range")
+
+    deep = next(r for r in bands if r["reason"] == "band-too-deep")
+    assert "R4-band-depth" in deep["signals"]["rules"]
+    assert deep["signals"]["dtypes"], "the block's types are part of what the rule read"

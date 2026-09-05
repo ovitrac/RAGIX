@@ -227,7 +227,8 @@ ABSTENTION_SOURCES = {
     "grid_tables": AbstentionSource(
         records="abstained", reason="rule", locator=("flow", "table_index")),
     "header_bands": AbstentionSource(
-        records="abstentions", reason="reason", locator=("range",), tally="abstained"),
+        records="abstentions", reason="reason", locator=("range",), tally="abstained",
+        signals="signals"),
     "format_headings": AbstentionSource(
         records="abstained", reason="reason", signals="signals"),
     "saqqara.caption_binding": AbstentionSource(records="abstained"),
