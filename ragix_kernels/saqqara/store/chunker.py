@@ -34,7 +34,7 @@ from typing import Any, Iterator, Optional
 from ..model import Node, Tree
 from .records import ChunkRecord, chunk_id_for, node_ids_of
 
-__all__ = ["CHUNKABLE_KINDS", "ChunkPlan", "chunk_tree"]
+__all__ = ["CHUNKABLE_KINDS", "NON_CHUNKABLE_KINDS", "ChunkPlan", "chunk_tree"]
 
 #: Kinds that carry text a reader would retrieve.
 #:
@@ -43,10 +43,28 @@ __all__ = ["CHUNKABLE_KINDS", "ChunkPlan", "chunk_tree"]
 #: grids, none of which were here. A whole format contributed zero chunks and the
 #: gates did not notice, because they assert on trees the generators built rather
 #: than on trees a reader produced. The demo found it in one run.
+#: `marker` joined the list on the same evidence, from the demo corpus rather than
+#: from a fixture: three Word forms (Annexes 5, 6 and 7) carried **6 330 characters**
+#: in 22, 70 and 7 marker nodes that reached no chunk: the field labels a form is
+#: answered on — the place-and-date line above a signature, and a lot name followed
+#: by its yes and no boxes. A form whose labels are not retrievable cannot be
+#: matched to the question it answers, which is the whole task here.
 CHUNKABLE_KINDS = (
     "paragraph", "heading", "list", "list_item", "table", "caption", "block",
-    "slide", "shape", "note", "cell",
+    "slide", "shape", "note", "cell", "marker",
 )
+
+#: Kinds a builder can produce that are deliberately NOT chunked, each with the
+#: reason. Declared as a table rather than left as an absence: twice now a
+#: text-carrying kind was missing from the list above and nothing noticed, because
+#: "not chunkable" and "nobody thought about it" look identical in a tuple. The
+#: gate pairs this with what the format plans actually emit, so a new kind must be
+#: put in one list or the other before it can reach a tree.
+NON_CHUNKABLE_KINDS = {
+    "section": "a section names a roll-up and is the context of its chunks, never a chunk",
+    "page": "a container; the paragraphs and figures on the page carry its text",
+    "figure": "an object placement; what it shows is text only through its caption",
+}
 
 #: Kinds that AGGREGATE their descendants' text into their own chunk. A cell
 #: inside a table is already in the table's chunk; chunking it again would return
