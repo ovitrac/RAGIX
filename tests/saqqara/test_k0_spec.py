@@ -198,7 +198,7 @@ from generators import FIXTURES, FIXTURE_SUFFIX  # noqa: E402
 #:                short answer cannot be matched to its inputs, and retrying one by
 #:                one would hide a server that cannot batch behind a run twenty
 #:                times slower.
-FROZEN_COUNTS = {"K1": 10, "K2": 25, "K3": 72, "K4": 3, "K6": 20, "K7": 22}
+FROZEN_COUNTS = {"K1": 10, "K2": 25, "K3": 73, "K4": 3, "K6": 20, "K7": 22}
 
 _ROW = re.compile(r"^\|\s*(K[1-7])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 _TICKED = re.compile(r"`([a-z0-9_']+)`")
