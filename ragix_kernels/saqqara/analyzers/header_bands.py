@@ -47,13 +47,21 @@ from .grid import GridCell, grid_cells
 __all__ = ["MAX_HEADER_ROWS", "MAX_LABEL_COLS", "HeaderBandsAnalyzer", "analyze_block"]
 
 #: A band deeper than this is not a band. Reported, not silently truncated.
+#:
+#: The **default**, not the value: a run declares its own through the analyzer's
+#: options and the trace records what it used (K3.73). It stays at 3 on the
+#: evidence rather than by inertia — measured over 811 abstaining blocks of a real
+#: corpus, 742 hold exactly one dense row under sparse context rows and only 4
+#: hold two or more, so a larger cap would admit context rows as header tiers and
+#: give every column in those blocks a confident, wrong ancestry.
 MAX_HEADER_ROWS = 3
 
 #: Likewise for the label zone.
 MAX_LABEL_COLS = 3
 
 
-def analyze_block(block: Node) -> dict[str, Any]:
+def analyze_block(block: Node, *, max_header_rows: int = MAX_HEADER_ROWS,
+                  max_label_cols: int = MAX_LABEL_COLS) -> dict[str, Any]:
     """Split one block into title, band, labels, sections and core — or abstain.
 
     The block's own format is read once, here, to choose a mapping; below this
@@ -61,14 +69,21 @@ def analyze_block(block: Node) -> dict[str, Any]:
     """
     cells_list, mapping = grid_cells(block)
     return analyze_grid(
-        parse_range(block.facts["block_range"]), cells_list, mapping=mapping
+        parse_range(block.facts["block_range"]), cells_list, mapping=mapping,
+        max_header_rows=max_header_rows, max_label_cols=max_label_cols,
     )
 
 
 def analyze_grid(
-    rect: Rect, cells_list: list[GridCell], mapping: tuple[str, ...] = ()
+    rect: Rect, cells_list: list[GridCell], mapping: tuple[str, ...] = (),
+    *, max_header_rows: int = MAX_HEADER_ROWS, max_label_cols: int = MAX_LABEL_COLS,
 ) -> dict[str, Any]:
-    """The rules. Format-neutral: they see grid cells and nothing else."""
+    """The rules. Format-neutral: they see grid cells and nothing else.
+
+    The two limits are keyword-only with the module defaults, so every existing
+    caller — the tests call this directly — is unaffected, and a run that declares
+    its own reaches them through the analyzer's options (K3.73).
+    """
     cells = {(c.row, c.col): c for c in cells_list}
     merges = sorted(
         (c.extent for c in cells_list if c.merged), key=lambda r: (r.top, r.left)
@@ -123,9 +138,17 @@ def analyze_grid(
             break                      # bold everywhere is not a contrast
         header_rows.append(row)
         row += 1
-        if len(header_rows) > MAX_HEADER_ROWS:
-            signals["rules"].append("R4-band-depth")
-            return _abstain("band-too-deep", signals)
+    if len(header_rows) > max_header_rows:
+        # The band is counted to its end BEFORE abstaining, and the depth is
+        # recorded. Returning at the cap left the record saying only "deeper than
+        # the cap", so the one number needed to judge the cap had to be re-derived
+        # from the cells by re-implementing this rule elsewhere — which is how the
+        # depths behind this default were obtained at all. A rule that abstains
+        # without saying how far over it went cannot be tuned from its own output.
+        signals["rules"].append("R4-band-depth")
+        signals["depth_found"] = len(header_rows)
+        signals["max_header_rows"] = max_header_rows
+        return _abstain("band-too-deep", signals)
     if header_rows:
         signals["rules"].append("R4-style-contrast")
     signals["header_rows"] = list(header_rows)
@@ -144,7 +167,7 @@ def analyze_grid(
 
     # R6 — label columns
     label_cols, label_rule = _label_columns(rect, valued, merges, header_rows, body_top,
-                                            section_rows, cells)
+                                            section_rows, cells, max_label_cols=max_label_cols)
     signals["rules"].append(label_rule)
     signals["label_cols"] = [a1(1, c)[:-1] for c in label_cols]
 
@@ -182,7 +205,8 @@ def analyze_grid(
     }
 
 
-def _label_columns(rect, valued, merges, header_rows, body_top, section_rows, cells=None):
+def _label_columns(rect, valued, merges, header_rows, body_top, section_rows, cells=None,
+                   *, max_label_cols: int = MAX_LABEL_COLS):
     """L1 the band header declares the zone; L2 the slot column; L3 a type
     contrast; L4 none.
 
@@ -202,7 +226,7 @@ def _label_columns(rect, valued, merges, header_rows, body_top, section_rows, ce
     if header_rows:
         for merge in merges:
             if merge.top == header_rows[0] and merge.left == rect.left:
-                width = min(merge.width, MAX_LABEL_COLS)
+                width = min(merge.width, max_label_cols)
                 if merge.right < rect.right:
                     return list(range(rect.left, rect.left + width)), "L1-band-header-span"
 
@@ -215,7 +239,7 @@ def _label_columns(rect, valued, merges, header_rows, body_top, section_rows, ce
             if not present or not all(c.slot and c.text is None for c in present):
                 continue
             left = list(range(rect.left, col))
-            if not left or len(left) > MAX_LABEL_COLS:
+            if not left or len(left) > max_label_cols:
                 break
             texted = all(
                 any(
@@ -230,7 +254,7 @@ def _label_columns(rect, valued, merges, header_rows, body_top, section_rows, ce
 
     # L3 — a text column with non-text values somewhere to its right
     labels: list[int] = []
-    for col in range(rect.left, min(rect.left + MAX_LABEL_COLS, rect.right + 1)):
+    for col in range(rect.left, min(rect.left + max_label_cols, rect.right + 1)):
         column = [cell for (r, c), cell in body.items() if c == col]
         if not column or not all(cell.dtype == "s" for cell in column):
             break
@@ -259,7 +283,11 @@ class HeaderBandsAnalyzer(Analyzer):
     """Split every table block into its header band, labels, sections and core."""
 
     name = "header_bands"
-    version = "0.1.0"
+    version = "0.2.0"
+
+    #: Declared beside the code that reads them, so the number and its use are read
+    #: together. The values are the module defaults; a run may state its own.
+    DEFAULTS = {"max_header_rows": MAX_HEADER_ROWS, "max_label_cols": MAX_LABEL_COLS}
 
     def run(self, tree) -> AnalyzerResult:
         trace: dict[str, Any] = {
@@ -275,7 +303,11 @@ class HeaderBandsAnalyzer(Analyzer):
         # are the same for both.
         for block in tree.walk():
             if block.facts.get("block_type") == "table":
-                analysis = analyze_block(block)
+                analysis = analyze_block(
+                    block,
+                    max_header_rows=self.options["max_header_rows"],
+                    max_label_cols=self.options["max_label_cols"],
+                )
                 block.facts["header"] = analysis
                 trace["blocks"] += 1
                 if analysis["uncertain"]:
@@ -292,4 +324,4 @@ class HeaderBandsAnalyzer(Analyzer):
                         }
                     )
 
-        return AnalyzerResult(tree=tree, trace=trace)
+        return AnalyzerResult(tree=tree, trace=self.traced(trace))
