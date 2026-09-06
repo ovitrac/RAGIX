@@ -483,15 +483,20 @@ class SqliteDocumentStore:
                  json.dumps(chunk.node_ids), json.dumps(chunk.pages), chunk.lang,
                  json.dumps(chunk.object_refs), json.dumps(chunk.meta, **CANONICAL_JSON)),
             )
-            self._db.execute(
-                "INSERT INTO chunks_fts(chunk_id, text, section) VALUES (?,?,?)",
-                (chunk.chunk_id, chunk.text, " / ".join(chunk.section_path)),
-            )
             written += 1
         if written:
             self._retrievers.clear()
         self._db.commit()
         return written
+
+    # NOTE: parts are deliberately NOT written to the lexical index. The text a part
+    # was split from is already there and carries the same words — a window is a
+    # subset of its parent — so indexing both would put one document into the
+    # lexical statistics twice and return a passage as a hit beside the text it came
+    # from. That is rule 7, no duplicate copy counting as independent corroboration,
+    # and it is what the dense lane's collapse exists to prevent on its own side.
+    # Measured: with parts indexed, a fused result held a window and its parent as
+    # two hits of one text.
 
     def delete_embeddings(self, chunk_ids: Iterable[str], model: str) -> int:
         """Remove the vectors of texts that were split, and say so.
