@@ -35,6 +35,8 @@ __all__ = [
     "ABSTENTION_KEYS",
     "ABSTENTION_SOURCES",
     "AbstentionSource",
+    "TREE_ABSTENTION_SOURCES",
+    "tree_abstention_records",
     "TYPING_REASONS",
     "abstention_records",
     "reports_abstention",
@@ -221,6 +223,60 @@ ABSTENTION_KEYS = ("abstained", "abstentions")
 def reports_abstention(trace: dict[str, Any]) -> bool:
     """Whether this trace says anything about having abstained."""
     return any(key in trace for key in ABSTENTION_KEYS)
+
+
+def _text_layer_abstentions(tree: dict[str, Any]) -> list[dict[str, Any]]:
+    """Pages the reader could not read, from the facts the reader already wrote.
+
+    The PDF adapter declares `has_text` and `needs_ocr` per page and counts a
+    `no-text-layer` skip (K6.19) — but the count lives on the adapter, without the
+    page it is about, and the register never saw it: its sources all read analyzer
+    traces, and this producer is a reader. Five documents of the demo corpus are
+    image-only, yield no chunk and no vector, and appeared in no register at all.
+
+    Read from the tree rather than from the adapter's counter because the tree is
+    what the run carries: the page node holds the locator and the signals, so the
+    record can say **which** page, and how much ink was on it.
+    """
+    records: list[dict[str, Any]] = []
+
+    def visit(node: dict[str, Any]) -> None:
+        if node.get("kind") == "page":
+            facts = node.get("facts") or {}
+            if facts.get("has_text") is False:
+                page = (node.get("provenance") or {}).get("chain") or [{}]
+                records.append({
+                    "analyzer": "saqqara.text_layer",
+                    "locator": {"page": page[-1].get("page")},
+                    "reason": "no-text-layer",
+                    "signals": {"image_count": facts.get("image_count"),
+                                "needs_ocr": facts.get("needs_ocr"),
+                                "width": facts.get("width"),
+                                "height": facts.get("height")},
+                    "count": 1,
+                })
+        for child in node.get("children") or ():
+            visit(child)
+
+    visit(tree.get("root") or {})
+    return records
+
+
+#: Producers that leave an abstention in the **tree** rather than in a trace. The
+#: register knows both kinds or it is not a register: a reader that declines a page
+#: abstains exactly as an analyzer that declines a block does, and listing only one
+#: of them makes the claim "everything is listed" false in silence.
+TREE_ABSTENTION_SOURCES = {
+    "saqqara.text_layer": _text_layer_abstentions,
+}
+
+
+def tree_abstention_records(tree: dict[str, Any]) -> list[dict[str, Any]]:
+    """Every tree-borne abstention of one document, from every declared source."""
+    records: list[dict[str, Any]] = []
+    for source in TREE_ABSTENTION_SOURCES.values():
+        records.extend(source(tree))
+    return records
 
 
 ABSTENTION_SOURCES = {
