@@ -2618,3 +2618,112 @@ def test_k7_22_the_fused_result_keeps_the_part_that_matched(store, trees):
     for hit in fused:
         if hit.dense_rank is None:
             assert hit.part is None, "a hit the dense lane never returned carries an argmax"
+
+
+# ========== K7.13 — the lexical lane expresses its query, or refuses it with a reason
+
+def _lexical_store(store, trees):
+    """A document in the store, so the lane has something to search."""
+    fed = feed_tree(trees["docx"], source_path="/l.docx", source_sha256="d" * 64)
+    store.upsert_document(fed.document)
+    store.replace_chunks("d" * 64, fed.chunks)
+    return fed
+
+
+def test_k7_13_a_question_mark_and_an_apostrophe_do_not_raise_through_the_lane(store, trees):
+    """Measured on a real grid of 48 questions: 47 refused, every one an
+    `fts5: syntax error` raised out through the caller. FTS5 reads an apostrophe as
+    a string delimiter and a question mark as syntax; the lane handed it the raw
+    query.
+
+    Falsified by: an exception from the lane on a query a person would type.
+    """
+    fed = _lexical_store(store, trees)
+    word = fed.chunks[0].text.split()[0]
+
+    for query in (f"{word} ?", f"l'{word} ?", f'{word} "quoted" ?', f"{word}, {word}?"):
+        hits = store.lexical_search(query, top_k=5)
+        assert isinstance(hits, list), f"the lane raised on {query!r}"
+
+
+def test_k7_13_a_plain_word_query_is_unchanged(store, trees):
+    """Semantics preserved: quoting a bare word is the same query it was.
+
+    Falsified by: a different hit set or a different order on a plain-word query.
+    """
+    fed = _lexical_store(store, trees)
+    words = [w for w in fed.chunks[0].text.split() if w.isalpha()][:2]
+
+    quoted = store.lexical_search(" ".join(words), top_k=10)
+    raw = store._db.execute(
+        """SELECT c.chunk_id FROM chunks_fts f JOIN chunks c ON c.chunk_id = f.chunk_id
+             JOIN documents d ON d.doc_id = c.doc_id
+            WHERE chunks_fts MATCH ? AND d.trashed = 0
+            ORDER BY bm25(chunks_fts) LIMIT 10""",
+        (" ".join(words),)).fetchall()
+
+    assert [h.chunk.chunk_id for h in quoted] == [r[0] for r in raw], \
+        "the expression changed what a plain-word query returns"
+
+
+def test_k7_13_a_query_with_no_searchable_term_is_a_refusal_with_a_reason(store, trees):
+    """Not an exception, and not an empty result nobody can explain.
+
+    Falsified by: punctuation returning [] with nothing recorded, which reads the
+    same as a query that ran and found nothing.
+    """
+    _lexical_store(store, trees)
+    before = len(store.lexical_refusals)
+
+    assert store.lexical_search("? ! ...", top_k=5) == []
+    assert store.lexical_search("   ", top_k=5) == []
+
+    added = store.lexical_refusals[before:]
+    assert len(added) == 2
+    assert added[0]["reason"] == "no term the index can search"
+    assert added[1]["reason"] == "empty query"
+    assert all(r["tokenizer"] for r in added), "a refusal that cannot say how the index tokenises"
+
+
+def test_k7_13_the_combinator_is_explicit_and_defaults_to_all(store, trees):
+    """`any` exists as a parameter and is never chosen here: which one a lane should
+    use is retrieval semantics and the lead's."""
+    fed = _lexical_store(store, trees)
+    words = [w for w in fed.chunks[0].text.split() if w.isalpha()][:1]
+    absent = "zzunfindablezz"
+
+    assert store.lexical_search(f"{words[0]} {absent}", top_k=5, combinator="all") == []
+    assert store.lexical_search(f"{words[0]} {absent}", top_k=5, combinator="any")
+
+    with pytest.raises(ValueError, match="combinator"):
+        store.fts_expression("x", combinator="either")
+
+
+def test_k7_13_a_double_quote_inside_a_word_is_escaped_not_dropped(store):
+    expression = store.fts_expression('say "hello" now')
+    assert expression == '"say" AND """hello""" AND "now"'
+
+
+def test_k7_13_the_fused_entry_says_which_lane_refused(store, trees):
+    """Rule 5 at the caller's entry point: a fused result that quietly became
+    dense-only is a decomposition missing its reason.
+
+    Falsified by: `search` returning dense hits with nothing saying the lexical lane
+    could not express the query.
+    """
+    from ragix_kernels.saqqara.store.retrieve import Retriever
+
+    fed = _lexical_store(store, trees)
+    embed_missing(store, fed.chunks, build_embedder("dummy"), model="d")
+    retriever = Retriever(store, model="d")
+
+    retriever.search("? ! ...", vector=[0.1] * 384, top_k=5)
+    lanes = retriever.last_lanes
+    assert lanes["lexical"]["refused"] is True
+    assert lanes["lexical"]["reason"] == "no term the index can search"
+    assert lanes["dense"]["asked"] is True and lanes["dense"]["hits"] >= 1
+
+    word = [w for w in fed.chunks[0].text.split() if w.isalpha()][0]
+    retriever.search(f"{word} ?", vector=[0.1] * 384, top_k=5)
+    assert retriever.last_lanes["lexical"]["refused"] is False, \
+        "a query holding one searchable word is not a refusal"
