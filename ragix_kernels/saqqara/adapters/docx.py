@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from collections import Counter
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Optional
 
 from ..model import DocxLocator
 from .contract import (
@@ -78,6 +78,11 @@ TABLE_FACTS = GRID_TABLE_FACTS
 PARAGRAPH_FACTS = (
     "marker", "in_table", "style", "numbered", "outline_level",
     "bold_frac", "size", "size_frac",
+    # Derived, and declared like everything else: the page this node is on, read
+    # from the document's own break marks (D-0017). One name holding a block, so
+    # that what the reader read and what was worked out from it never sit side by
+    # side under the same kind of name.
+    "derived",
 )
 
 
@@ -99,13 +104,96 @@ def _part_pixels(part) -> tuple[int | None, int | None]:
 
 
 
+#: What a page break looks like in a Word file, and what each one means.
+#:
+#: `w:lastRenderedPageBreak` is **Word's own record of where a page ended when it
+#: last rendered the document**: a read fact, in the file, needing no renderer and
+#: no environment. `w:br w:type="page"` is an author's explicit break. Measured on
+#: the engagement's eight Word documents — every one declares a page count, and
+#: every multi-page one carries rendered marks — so the page is **read** here. A
+#: local render stays the declared, opt-in fallback for documents carrying neither.
+_RENDERED_BREAK = "lastRenderedPageBreak"
+_EXPLICIT_BREAK = "page"
+
+
+def _page_marks(element) -> int:
+    """Page breaks inside one body child, of either kind."""
+    from docx.oxml.ns import qn
+
+    rendered = len(element.findall(".//" + qn("w:" + _RENDERED_BREAK)))
+    explicit = sum(1 for br in element.findall(".//" + qn("w:br"))
+                   if br.get(qn("w:type")) == _EXPLICIT_BREAK)
+    return rendered + explicit
+
+
+def declared_pages(path: Path) -> Optional[int]:
+    """The page count the file declares, or None.
+
+    Written by whatever last saved the document. python-docx writes 1 whatever the
+    content, because it never renders — so this is a signal to record and check
+    against, never the mapping itself.
+    """
+    import re as _re
+    import zipfile
+
+    try:
+        with zipfile.ZipFile(path) as archive:
+            app = archive.read("docProps/app.xml").decode("utf-8", "replace")
+    except (KeyError, OSError):
+        return None
+    found = _re.search(r"<Pages>(\d+)</Pages>", app)
+    return int(found.group(1)) if found else None
+
+
+def page_map(document, declared: Optional[int] = None) -> dict:
+    """The page each body child sits on, read from the document's own marks.
+
+    The walk is over **body children in document order**, not over the records the
+    reader emits: an explicit break lives in a paragraph of its own with no text,
+    which the reader skips, so counting over emitted records alone loses exactly
+    the breaks that matter.
+
+    A document with no mark gets **no page at all** — never page 1 by default —
+    unless it declares a single page, which is a fact and is named as the source.
+    """
+    from docx.oxml.ns import qn
+
+    children = list(document.element.body.iterchildren())
+    countable = [i for i, c in enumerate(children) if c.tag in (qn("w:p"), qn("w:tbl"))]
+    marks_total = sum(_page_marks(children[i]) for i in countable)
+
+    if not marks_total:
+        if declared == 1:
+            return {"pages": {i: [1] for i in countable}, "spans": {},
+                    "source": "declared-single-page", "derived_pages": 1,
+                    "declared_pages": declared, "consistent": True}
+        return {"pages": {}, "spans": {}, "source": None, "derived_pages": 0,
+                "declared_pages": declared, "consistent": None}
+
+    pages, spans, current = {}, {}, 1
+    for index in countable:
+        inside = _page_marks(children[index])
+        pages[index] = list(range(current, current + inside + 1))
+        spans[index] = inside > 0
+        current += inside
+
+    return {
+        "pages": pages, "spans": spans, "source": "rendered-and-explicit-marks",
+        "derived_pages": current, "declared_pages": declared,
+        # Recorded, never asserted: a mark in a header, or a trailing one, makes
+        # the two disagree, and the honest report is both numbers rather than a
+        # page silently clamped to fit.
+        "consistent": None if declared is None else current == declared,
+    }
+
+
 class DocxAdapter(Adapter):
     """Read a document into table, cell, paragraph and marker observations."""
 
     format = "docx"
     # 0.4.0 replaces the paragraph's boolean `bold` with `bold_frac`, and adds
     # `size` / `size_frac`: the facts a rule about dominance is written against.
-    version = "0.6.0"
+    version = "0.7.0"
     skip_reasons = PART_SKIPS
     extensions = (".docx",)
     fact_sets = {
@@ -121,6 +209,11 @@ class DocxAdapter(Adapter):
 
         document = Document(path)
         modal = self._modal_size(document)
+        # Derived provenance, and it lands in the node's facts rather than in the
+        # provenance chain: the chain is what the reader read, and a page in it
+        # would make the tree's own root depend on how the page was worked out.
+        paging = page_map(document, declared_pages(path))
+        body_of = self._body_positions(document)
 
         yield from self._figures(document)
 
@@ -141,6 +234,7 @@ class DocxAdapter(Adapter):
                 locator=DocxLocator(flow="body", paragraph=position),
                 text=text or None,
                 facts={
+                    **self._derived_page(paging, body_of.get(position)),
                     "marker": marker,
                     "in_table": False,
                     "style": self._style(paragraph),
@@ -329,6 +423,42 @@ class DocxAdapter(Adapter):
     @staticmethod
     def _content_control(element) -> str | None:
         return "content-control" if element.find(_q("sdt")) is not None else None
+
+    @staticmethod
+    def _body_positions(document) -> dict:
+        """Where each body paragraph sits among the body's children.
+
+        `document.paragraphs` is one sequence and the page map walks another, in
+        document order. This is the join between them.
+        """
+        from docx.oxml.ns import qn
+
+        positions, seen = {}, 0
+        for index, child in enumerate(document.element.body.iterchildren()):
+            if child.tag == qn("w:p"):
+                positions[seen] = index
+                seen += 1
+        return positions
+
+    @staticmethod
+    def _derived_page(paging: dict, index) -> dict:
+        """The derived block for one record, or nothing at all.
+
+        A document with no page information yields **no page** — never 1 by
+        default. The block names the source, so a page read from the file and a
+        page produced by a renderer are never mistaken for each other.
+        """
+        if index is None or index not in paging["pages"]:
+            return {}
+        pages = paging["pages"][index]
+        return {"derived": {
+            "page": pages[0], "pages": pages,
+            "spans_break": bool(paging["spans"].get(index)),
+            "source": paging["source"],
+            "declared_pages": paging["declared_pages"],
+            "derived_pages": paging["derived_pages"],
+            "consistent": paging["consistent"],
+        }}
 
     def _figures(self, document) -> Iterator[Mastaba]:
         """Pictures the document stores as parts. No rendering is involved."""

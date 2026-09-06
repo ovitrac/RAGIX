@@ -515,3 +515,125 @@ def test_k6_10_the_limit_is_declared_not_buried(nested):
 
     assert isinstance(MAX_FORM_DEPTH, int) and MAX_FORM_DEPTH > 0
     assert {"form-cycle", "form-too-deep"} <= set(OBJECT_SKIPS)
+
+
+# ============== K6.20 — the page a Word node is on, read rather than rendered
+
+def _docx_pages(tmp_path, fixture: str, name: str = "d.docx"):
+    """The derived block of every body record a fixture emits."""
+    path = G.FIXTURES[fixture](tmp_path / name)
+    return [(o.text, o.facts.get("derived"))
+            for o in read_path(path) if o.kind in ("paragraph", "marker")]
+
+
+def test_k6_20_pages_are_read_from_the_documents_own_marks(tmp_path):
+    """Word records where a page ended when it last rendered; a break is a fact.
+
+    Falsified by: a body flow broken across pages whose records all claim one page,
+    or pages that do not follow the marks in document order.
+    """
+    seen = _docx_pages(tmp_path, "docx_paged")
+    pages = [block["page"] for _text, block in seen if block]
+
+    assert pages == [1, 2, 3], f"the marks were not counted in document order: {pages}"
+    assert all(block["source"] == "rendered-and-explicit-marks" for _t, block in seen if block)
+
+
+def test_k6_20_a_break_in_a_paragraph_the_reader_skips_is_still_counted(tmp_path):
+    """The trap: an explicit break lives in a paragraph of its own, with no text.
+
+    The reader skips a paragraph carrying neither text nor a marker, so counting
+    over emitted records instead of over body children loses exactly the breaks
+    that matter — every record would claim page 1.
+
+    Falsified by: a page map built from what the reader emitted.
+    """
+    from docx import Document
+    from ragix_kernels.saqqara.adapters.docx import page_map
+
+    path = G.FIXTURES["docx_paged"](tmp_path / "p.docx")
+    document = Document(path)
+    emitted = [o for o in read_path(path) if o.kind in ("paragraph", "marker")]
+    body_children = list(document.element.body.iterchildren())
+
+    assert len(emitted) < len(body_children), "the fixture no longer skips anything"
+    mapping = page_map(document, declared=None)
+    assert mapping["derived_pages"] == 3
+
+
+def test_k6_20_no_page_information_yields_no_page_at_all(tmp_path):
+    """Never page 1 by default: an unknown page is unknown.
+
+    Falsified by: a document with no marks and no declared count whose records
+    carry a page anyway.
+    """
+    from docx import Document
+    from ragix_kernels.saqqara.adapters.docx import page_map
+
+    path = G.FIXTURES["docx_two_tier"](tmp_path / "t.docx")
+    mapping = page_map(Document(path), declared=None)
+
+    assert mapping["pages"] == {} and mapping["source"] is None
+    assert mapping["derived_pages"] == 0
+
+
+def test_k6_20_a_single_declared_page_is_a_fact_and_names_its_source(tmp_path):
+    """One page declared and no marks is not an absence of information.
+
+    Falsified by: a one-page document whose records carry no page, or one whose
+    page does not say where it came from.
+    """
+    from docx import Document
+    from ragix_kernels.saqqara.adapters.docx import page_map
+
+    path = G.FIXTURES["docx_markers"](tmp_path / "m.docx")
+    mapping = page_map(Document(path), declared=1)
+
+    assert mapping["source"] == "declared-single-page"
+    assert mapping["pages"] and all(v == [1] for v in mapping["pages"].values())
+    assert mapping["consistent"] is True
+
+
+def test_k6_20_the_declared_count_is_recorded_and_checked_never_trusted(tmp_path):
+    """python-docx declares one page whatever the content, because it never renders.
+
+    So a disagreement between the declared count and the marks is a fact to report,
+    not a number to clamp to.
+
+    Falsified by: a mapping that silently follows the declared count, or one that
+    hides the disagreement.
+    """
+    seen = _docx_pages(tmp_path, "docx_paged")
+    blocks = [block for _t, block in seen if block]
+
+    assert blocks and all(b["declared_pages"] == 1 for b in blocks)
+    assert all(b["derived_pages"] == 3 for b in blocks)
+    assert all(b["consistent"] is False for b in blocks), \
+        "the disagreement between the marks and the declared count is not reported"
+
+
+def test_k6_20_the_page_is_derived_provenance_and_stays_out_of_the_chain(tmp_path):
+    """The chain is what the reader read; a page is what was worked out from it.
+
+    A page in the chain would make the tree's own root depend on how the page was
+    obtained — and under the renderer fallback, on which machine ran it.
+
+    Falsified by: a page or its source appearing in a node's provenance chain.
+    """
+    from ragix_kernels.saqqara.adapters.contract import adapter_for
+    from ragix_kernels.saqqara.builder import build_tree
+
+    path = G.FIXTURES["docx_paged"](tmp_path / "c.docx")
+    adapter = adapter_for(path)
+    tree = build_tree(read_path(path), str(path), adapter.format,
+                      adapter.format, adapter.version).tree
+
+    with_page = [n for n in tree.walk() if (n.facts or {}).get("derived")]
+    assert with_page, "no node carries the derived page"
+    for node in tree.walk():
+        # The chain's own keys, not a substring of the serialised record: the
+        # first version of this assertion matched the word "page" inside the
+        # temporary file's path and would have passed on anything.
+        for link in node.provenance.to_dict()["chain"]:
+            assert "page" not in link, f"a page reached the provenance chain: {link}"
+            assert "derived" not in link

@@ -1509,6 +1509,28 @@ def docx_layout_prose(path: Path) -> Path:
     return path
 
 
+def docx_paged(path: Path) -> Path:
+    """A body flow broken across pages, the way a Word file records it.
+
+    Three paragraphs, an explicit page break between the first and the second and
+    another before the third — so the map has something to count that is a fact of
+    the file rather than of a renderer. python-docx writes no
+    `lastRenderedPageBreak` (it never renders) and declares one page whatever the
+    content, which is exactly why the declared count is recorded and checked rather
+    than trusted: here it disagrees with the marks, and the reader says so.
+    """
+    from docx import Document
+
+    doc = Document()
+    doc.add_paragraph("Premiere page, du texte suivi.")
+    doc.add_page_break()
+    doc.add_paragraph("Deuxieme page, du texte suivi.")
+    doc.add_page_break()
+    doc.add_paragraph("Troisieme page, du texte suivi.")
+    doc.save(path)
+    return path
+
+
 def docx_markers(path: Path) -> Path:
     """Markers inside cells, a plain empty slot, and one marker outside any table."""
     from docx import Document
@@ -2739,6 +2761,7 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "docx_label_tiling": docx_label_tiling,
     "docx_layout_prose": docx_layout_prose,
     "docx_markers": docx_markers,
+    "docx_paged": docx_paged,
     "docx_header_stream": docx_header_stream,
     "docx_nested": docx_nested,
     "docx_twin_pair": docx_twin_pair,
@@ -2802,6 +2825,7 @@ FIXTURE_SUFFIX: Dict[str, str] = {
     "docx_label_tiling": ".docx",
     "docx_layout_prose": ".docx",
     "docx_markers": ".docx",
+    "docx_paged": ".docx",
     "docx_nested": ".docx",
     "docx_twin_pair": ".docx",
     "docx_two_tier": ".docx",

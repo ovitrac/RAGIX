@@ -184,15 +184,19 @@ PINNED = {
         "cell": ("dtype", "bold", "number_format", "locked", "formula", "merged"),
         "border": ("left", "right", "top", "bottom"),
     }),
-    "docx": ("0.6.0", {
+    # 0.7.0 adds `derived` to the two body kinds: the page a node is on, read from
+    # the document's own break marks (D-0017). The grid kinds are untouched — their
+    # vocabulary is one shared object across three formats (K2.22), and two of them
+    # have no pages at all.
+    "docx": ("0.7.0", {
         "figure": ("asset", "source", "media_type", "width", "height",
                    "x", "y", "w", "h", "colorspace", "bits", "smask"),
         "table": ("n_rows", "n_grid_cols", "ragged", "style"),
         "cell": ("span", "vmerge", "empty", "fillable", "marker", "bold", "shaded"),
         "paragraph": ("marker", "in_table", "style", "numbered", "outline_level",
-                      "bold_frac", "size", "size_frac"),
+                      "bold_frac", "size", "size_frac", "derived"),
         "marker": ("marker", "in_table", "style", "numbered", "outline_level",
-                   "bold_frac", "size", "size_frac"),
+                   "bold_frac", "size", "size_frac", "derived"),
     }),
     "pptx": ("0.5.0", {
         "figure": ("asset", "source", "media_type", "width", "height",
