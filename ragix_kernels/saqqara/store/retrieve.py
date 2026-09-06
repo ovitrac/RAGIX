@@ -179,7 +179,14 @@ class Retriever:
         score: dict[str, float] = {}
 
         for hit in dense:
-            merged[hit.chunk.chunk_id] = Hit(chunk=hit.chunk, dense_rank=hit.dense_rank)
+            # `part` travels with the hit through the merge. Rebuilding the hit from
+            # its chunk and rank alone dropped it, so every caller of the fused
+            # result — which is every caller that wants both lanes — was told which
+            # text answered and never which passage, while the dense lane knew. The
+            # falsifier K7.22 names was met at the entry point callers use, and the
+            # gate for it stopped one call short of them.
+            merged[hit.chunk.chunk_id] = Hit(chunk=hit.chunk, dense_rank=hit.dense_rank,
+                                             part=hit.part)
             score[hit.chunk.chunk_id] = 1.0 / (self.rrf_k + hit.dense_rank)
 
         for hit in lexical:

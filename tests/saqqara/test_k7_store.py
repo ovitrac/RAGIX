@@ -2576,3 +2576,45 @@ def test_k7_22_a_failure_leaves_the_document_it_stopped_on_untouched(store, tree
     # document's text still holds its own vector. Neither-nor is the failure.
     assert store.existing_embeddings([second_rollup.chunk_id], "m"), \
         "a text left with neither its vector nor embedded parts"
+
+
+def test_k7_22_the_fused_result_keeps_the_part_that_matched(store, trees):
+    """The claim at the entry point callers use, not one call short of it.
+
+    `search()` merges the lanes by rebuilding each hit; the argmax survived in the
+    dense lane and was dropped there, so everything reading fused hits — the demo's
+    analyze step among them — learned which text answered and never which passage.
+    Found by a probe against a real store, not by this file, because every earlier
+    K7.22 gate tested `dense()` and `store.search()` and stopped there.
+
+    Falsified by: a dense-derived hit in the fused result with no part, a window
+    returned as a hit of its own, or a lexical-only hit carrying a part it cannot
+    have.
+    """
+    fed, rollup = _sectioned(store, trees, "9" * 64)
+    children = [c for c in fed.chunks if c.parent_id == rollup.chunk_id]
+    windows = split_into_windows(rollup, children, max(len(c.text) for c in children) + 1,
+                                 pass_number=1)
+    store.add_chunks(windows)
+    embed_missing(store, fed.chunks + windows, build_embedder("dummy"), model="d",
+                  replace_refusals=False)
+
+    from ragix_kernels.saqqara.store.retrieve import Retriever
+
+    retriever = Retriever(store, model="d")
+    vector = build_embedder("dummy").embed_text(fed.chunks[0].text)
+    fused = retriever.search(fed.chunks[0].text, vector=vector, top_k=10)
+    assert fused, "the probe query returned nothing"
+
+    from_dense = [h for h in fused if h.dense_rank is not None]
+    assert from_dense, "no hit came from the dense lane"
+    for hit in from_dense:
+        assert hit.part, "a dense-derived fused hit carries no argmax part"
+        assert hit.part.get("whole_text") or hit.part.get("chunk_id"), \
+            "a part that names neither the whole text nor which part it was"
+
+    assert not [h for h in fused if (h.chunk.meta or {}).get("part")], \
+        "a window was returned as a hit of its own after fusion"
+    for hit in fused:
+        if hit.dense_rank is None:
+            assert hit.part is None, "a hit the dense lane never returned carries an argmax"
