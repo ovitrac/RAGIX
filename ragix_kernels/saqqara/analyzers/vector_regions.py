@@ -211,6 +211,12 @@ class VectorRegionAnalyzer(Analyzer):
 
     def __init__(self, store=None, renderer=None, dpi: int = RENDER_DPI,
                  keep_raster: bool = True) -> None:
+        # This analyzer had a constructor of its own before analyzers had a
+        # declared options surface, and it takes objects as well as values. It is
+        # left as it is here and given the empty declared surface: `dpi` and
+        # `keep_raster` would fit `DEFAULTS` and the store and renderer would not,
+        # so folding it in is its own change rather than a side effect of this one.
+        super().__init__()
         self.store = store
         self.renderer = renderer
         self.dpi = dpi
@@ -291,7 +297,7 @@ class VectorRegionAnalyzer(Analyzer):
                     trace["renderer"] = f"{renderer.name} {renderer.version}"
                 self._promote(page, members, box, ops, renderer, trace)
 
-        return AnalyzerResult(tree=tree, trace=trace)
+        return AnalyzerResult(tree=tree, trace=self.traced(trace))
 
     # ------------------------------------------------------------------ steps
 

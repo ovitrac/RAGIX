@@ -151,7 +151,7 @@ class SectionsAnalyzer(Analyzer):
                 "ours": len(accepted),
             },
         }
-        return AnalyzerResult(tree=tree, trace=trace)
+        return AnalyzerResult(tree=tree, trace=self.traced(trace))
 
     # -------------------------------------------------------------- channels
 

@@ -484,3 +484,126 @@ def test_k3_28_the_fallback_changes_nothing_outside_its_trigger(grids, name):
         assert block.facts["islands"]["count"] == 1
         assert block.facts["islands"]["segmentation_feedback"] is False
 
+
+
+# ============ K3.73 — the cap is declared, and the record says how deep the band was
+
+def _deep_block(tmp_path):
+    """The five-row bold band, as a block the header rules can be run on."""
+    from ragix_kernels.saqqara.adapters.contract import adapter_for, read_path
+    from ragix_kernels.saqqara.builder import build_tree
+
+    path = G.FIXTURES["deep_header_band"](tmp_path / "deep.xlsx")
+    adapter = adapter_for(path)
+    tree = build_tree(read_path(path), str(path), adapter.format,
+                      adapter.format, adapter.version).tree
+    from ragix_kernels.saqqara.analyzers import TablesAnalyzer
+    tree = TablesAnalyzer().run(tree).tree
+    return next(n for n in tree.walk() if n.facts.get("block_type") == "table")
+
+
+def test_k3_73_the_cap_is_load_bearing_not_decorative(tmp_path):
+    """The same block abstains under one cap and is read under another.
+
+    A declared parameter that changes nothing is a comment. This is the assertion
+    that says the value reaches the rule.
+
+    Falsified by: an analysis that does not change when the declared cap does.
+    """
+    from ragix_kernels.saqqara.analyzers.header_bands import analyze_block
+
+    block = _deep_block(tmp_path)
+
+    tight = analyze_block(block, max_header_rows=3)
+    assert tight["uncertain"] is True
+    assert tight["abstention"]["reason"] == "band-too-deep"
+
+    loose = analyze_block(block, max_header_rows=5)
+    assert loose["uncertain"] is False, "the cap was declared and the rule ignored it"
+
+
+def test_k3_73_the_abstention_says_how_deep_the_band_was_and_what_the_cap_was(tmp_path):
+    """A rule that abstains without saying how far over it went cannot be tuned.
+
+    The loop used to return the moment it passed the cap, so the record could say
+    only "deeper than the cap" — and the depths behind the default had to be
+    re-derived from the cells by re-implementing this rule elsewhere. It counts the
+    band to its end first now.
+
+    Falsified by: an abstention whose signals carry no depth, or a depth that is
+    merely the cap plus one.
+    """
+    from ragix_kernels.saqqara.analyzers.header_bands import analyze_block
+
+    signals = analyze_block(_deep_block(tmp_path), max_header_rows=3)["abstention"]["signals"]
+
+    assert signals["max_header_rows"] == 3
+    assert signals["depth_found"] == 5, "the band is five rows deep and the record must say so"
+    assert signals["depth_found"] > 3 + 1, "the depth is counted, not stopped at the cap"
+
+
+def test_k3_73_an_analyzers_trace_says_what_it_ran_with(tmp_path):
+    """Defaults included, never only what a manifest overrode.
+
+    Falsified by: a trace without its options, or one showing only the overrides.
+    """
+    from ragix_kernels.saqqara.analyzers import HeaderBandsAnalyzer, IslandsAnalyzer
+
+    # The trace of a real run, not the attribute on the instance: removing the
+    # options from what an analyzer returns passed every assertion of the first
+    # version of this test, which checked `.options` and never the trace — the
+    # falsifier K3.73 names was not covered by the gate that claimed it.
+    from ragix_kernels.saqqara.adapters.contract import adapter_for, read_path
+    from ragix_kernels.saqqara.analyzers import PIPELINE
+    from ragix_kernels.saqqara.builder import build_tree
+
+    path = G.FIXTURES["deep_header_band"](tmp_path / "traced.xlsx")
+    adapter = adapter_for(path)
+    tree = build_tree(read_path(path), str(path), adapter.format,
+                      adapter.format, adapter.version).tree
+    for analyzer_class in PIPELINE:
+        analyzer = analyzer_class()
+        result = analyzer.run(tree)
+        tree = result.tree
+        assert "options" in result.trace, f"{analyzer.name} does not say what it ran with"
+        assert result.trace["options"] == analyzer.options
+
+    declared_run = HeaderBandsAnalyzer({"max_header_rows": 5}).run(tree)
+    assert declared_run.trace["options"]["max_header_rows"] == 5, \
+        "the trace does not carry the value the run declared"
+
+    default = HeaderBandsAnalyzer()
+    assert default.options == {"max_header_rows": 3, "max_label_cols": 3}
+
+    declared = HeaderBandsAnalyzer({"max_header_rows": 5})
+    assert declared.options == {"max_header_rows": 5, "max_label_cols": 3}, \
+        "an override must not drop the defaults beside it"
+
+    # An analyzer that declares no option still says so, rather than staying silent.
+    assert IslandsAnalyzer().options == {}
+
+
+def test_k3_73_an_option_a_analyzer_does_not_declare_is_refused(tmp_path):
+    """A mistyped key that silently does nothing is the defect met three times today.
+
+    Falsified by: an unknown option accepted and ignored.
+    """
+    from ragix_kernels.saqqara.analyzers import HeaderBandsAnalyzer
+
+    with pytest.raises(ValueError, match="does not take"):
+        HeaderBandsAnalyzer({"max_header_row": 5})       # singular: a plausible typo
+
+
+def test_k3_73_the_default_is_unchanged(tmp_path):
+    """Declared does not mean changed: a run stating nothing behaves as before.
+
+    Falsified by: a default that moved with the mechanism.
+    """
+    from ragix_kernels.saqqara.analyzers.header_bands import (
+        MAX_HEADER_ROWS, MAX_LABEL_COLS, HeaderBandsAnalyzer, analyze_block)
+
+    assert MAX_HEADER_ROWS == 3 and MAX_LABEL_COLS == 3
+    assert HeaderBandsAnalyzer.DEFAULTS == {"max_header_rows": 3, "max_label_cols": 3}
+
+    block = _deep_block(tmp_path)
+    assert analyze_block(block) == analyze_block(block, max_header_rows=MAX_HEADER_ROWS)

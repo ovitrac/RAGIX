@@ -310,7 +310,7 @@ class FormatHeadingsAnalyzer(Analyzer):
         }
         if not lines:
             trace["abstained"] = {"reason": "no-size-contrast", "signals": {"lines": 0}}
-            return AnalyzerResult(tree=tree, trace=trace)
+            return AnalyzerResult(tree=tree, trace=self.traced(trace))
 
         declared = [
             node for node in tree.walk()
@@ -334,12 +334,12 @@ class FormatHeadingsAnalyzer(Analyzer):
                     "would_have_promoted": probe["promoted"],
                 },
             }
-            return AnalyzerResult(tree=tree, trace=trace)
+            return AnalyzerResult(tree=tree, trace=self.traced(trace))
 
         if self._by_size(lines, trace):
-            return AnalyzerResult(tree=tree, trace=trace)
+            return AnalyzerResult(tree=tree, trace=self.traced(trace))
         if self._by_weight(lines, trace):
-            return AnalyzerResult(tree=tree, trace=trace)
+            return AnalyzerResult(tree=tree, trace=self.traced(trace))
 
         # Which signal the document OFFERS, not which one happened to be non-zero:
         # a word-processing document with no bold anywhere has no weight contrast,
@@ -357,7 +357,7 @@ class FormatHeadingsAnalyzer(Analyzer):
                 "bold_lines": sum(1 for line in lines if line.weight >= BOLD_DOMINANT),
             },
         }
-        return AnalyzerResult(tree=tree, trace=trace)
+        return AnalyzerResult(tree=tree, trace=self.traced(trace))
 
     # ---------------------------------------------------------------- by size
 
