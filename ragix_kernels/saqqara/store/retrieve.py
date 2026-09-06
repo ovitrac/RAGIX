@@ -44,6 +44,9 @@ RRF_K = 60
 class Retriever:
     """The two lanes over one store, with the dense index built from the DB."""
 
+    #: What the last dense call had to fetch to fill its top_k, for the trace.
+    last_overfetch: dict[str, int] = {}
+
     def __init__(self, store: Any, model: str = "", backend: str = "numpy",
                  rrf_k: int = RRF_K) -> None:
         self.store = store
@@ -87,24 +90,79 @@ class Retriever:
 
     # -------------------------------------------------------------- the lanes
 
+    #: How far the dense lane may over-fetch before giving up on filling `top_k`.
+    #: A text split into many parts occupies many vectors; asking for `top_k`
+    #: vectors and collapsing them can return a handful of texts. The factor is a
+    #: bound on work, not a target: the loop stops as soon as the lane holds
+    #: `top_k` distinct texts.
+    MAX_OVERFETCH = 16
+
     def dense(self, vector: Iterable[float], top_k: int) -> list[Hit]:
-        """Vectors from the DB, ranked. Empty when nothing has been embedded."""
+        """Texts from the DB, ranked, each at its best part. Empty when nothing is embedded.
+
+        **The unit of retrieval is the text, never a part** (K7.22). A text split
+        into windows has one vector per window; they are collapsed here, the text
+        kept once at its best rank — the max cosine, since the index returns them
+        in cosine order — and the winning part is carried in the hit so a reader is
+        taken to the passage rather than to the section.
+
+        Collapsing after a fixed fetch would narrow the lane: one text with thirty
+        windows could fill thirty of forty slots and leave eleven texts where there
+        used to be forty. So the lane **over-fetches until it holds `top_k` distinct
+        texts** or the index is exhausted, and records the factor it needed.
+        """
         index = self._ensure_index()
         if index is None:
+            self.last_overfetch = {"factor": 0, "vectors": 0, "texts": 0}
             return []
-        results = index.search(list(vector), k=top_k)
 
         by_id = {c.chunk_id: c for c in self.store.get_chunks()}
-        hits: list[Hit] = []
-        for rank, result in enumerate(results, 1):
-            chunk_id = _chunk_id_of(result)
-            chunk = by_id.get(chunk_id)
-            if chunk is None:
-                # A vector whose chunk is gone is not a hit. It is counted by the
-                # store's own accounting, never returned as a result with no text.
-                continue
-            hits.append(Hit(chunk=chunk, dense_rank=rank))
-        return hits
+
+        def text_of(chunk):
+            """The text a vector belongs to: follow **split** links, and only those.
+
+            `parent_id` is two relations in one field. A level-0 unit names the
+            roll-up it belongs to — and a unit is a text in its own right, the
+            semantic unit this package retrieves. A **part** names the text it was
+            split from, and is not a text at all. Only the second is followed, and
+            `meta["part"]` is what tells them apart: collapsing on `parent_id`
+            alone folds every unit into its section and turns a corpus of 51 598
+            texts into one hit per section.
+            """
+            seen = set()
+            current = chunk
+            while (current.meta or {}).get("part") and current.parent_id in by_id \
+                    and current.chunk_id not in seen:
+                seen.add(current.chunk_id)
+                current = by_id[current.parent_id]
+            return current
+
+        factor, wanted, hits = 1, top_k, []
+        while True:
+            results = index.search(list(vector), k=wanted)
+            hits, seen_texts = [], set()
+            for result in results:
+                chunk = by_id.get(_chunk_id_of(result))
+                if chunk is None:
+                    # A vector whose chunk is gone is not a hit. It is counted by
+                    # the store's own accounting, never returned with no text.
+                    continue
+                text = text_of(chunk)
+                if text.chunk_id in seen_texts:
+                    continue          # a lower-scoring part of a text already held
+                seen_texts.add(text.chunk_id)
+                part = ({"whole_text": True} if chunk.chunk_id == text.chunk_id else
+                        {"chunk_id": chunk.chunk_id, "node_ids": list(chunk.node_ids),
+                         **{k: v for k, v in (chunk.meta.get("part") or {}).items()
+                            if k in ("index", "span", "pass", "budget")}})
+                hits.append(Hit(chunk=text, dense_rank=len(hits) + 1, part=part))
+            if len(hits) >= top_k or len(results) < wanted or factor >= self.MAX_OVERFETCH:
+                break
+            factor *= 2
+            wanted = top_k * factor
+
+        self.last_overfetch = {"factor": factor, "vectors": wanted, "texts": len(hits)}
+        return hits[:top_k]
 
     def lexical(self, query: str, top_k: int) -> list[Hit]:
         return self.store.lexical_search(query, top_k)
