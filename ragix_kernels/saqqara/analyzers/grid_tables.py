@@ -125,4 +125,4 @@ class GridTablesAnalyzer(Analyzer):
                     }
                 )
 
-        return AnalyzerResult(tree=tree, trace=trace)
+        return AnalyzerResult(tree=tree, trace=self.traced(trace))

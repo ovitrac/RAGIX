@@ -73,7 +73,7 @@ class TablesAnalyzer(Analyzer):
                 continue
             self._sheet(section, trace)
 
-        return AnalyzerResult(tree=tree, trace=trace)
+        return AnalyzerResult(tree=tree, trace=self.traced(trace))
 
     # ------------------------------------------------------------------ sheet
 

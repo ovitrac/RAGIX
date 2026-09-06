@@ -180,7 +180,7 @@ class CaptionBindingAnalyzer(Analyzer):
         figures = [n for n in tree.walk() if n.kind == "figure"]
         trace["figures"] = len(figures)
         if not figures:
-            return AnalyzerResult(tree=tree, trace=trace)
+            return AnalyzerResult(tree=tree, trace=self.traced(trace))
 
         lines_by_page: dict[Any, list] = {}
         for line in assemble_lines(tree):
@@ -235,7 +235,7 @@ class CaptionBindingAnalyzer(Analyzer):
                               {"candidates": len(group),
                                "nearest": group[0].distance})
 
-        return AnalyzerResult(tree=tree, trace=trace)
+        return AnalyzerResult(tree=tree, trace=self.traced(trace))
 
     # ------------------------------------------------------------- candidates
 

@@ -22,7 +22,7 @@ nothing there".
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 
 from ..model import Tree
 
@@ -100,10 +100,43 @@ class AnalyzerResult:
 
 
 class Analyzer:
-    """One recognition step. Composable, and testable on its own."""
+    """One recognition step. Composable, and testable on its own.
+
+    **Options are declared, given at construction, and recorded.** `run(tree)` is
+    unchanged: an analyzer is still a function of a tree, and what it was
+    configured with is fixed before it runs. Before this, a rule like the header
+    band's depth cap was a module constant with no way for a run to state it and
+    no way for a reader to know what a run used — the number could be found only by
+    reading the source of the version that produced the tree.
+
+    `DEFAULTS` sits beside the analyzer that reads it, so the value and the code
+    that uses it are read together. An option the analyzer does not declare is a
+    **refusal, not a hint**: a mistyped key that silently does nothing is the
+    defect this package has met three times in one day.
+    """
 
     name: str = ""
     version: str = "0.0.0"
+
+    #: Declared options and their defaults. Empty means the analyzer takes none.
+    DEFAULTS: dict[str, Any] = {}
+
+    def __init__(self, options: Optional[dict[str, Any]] = None) -> None:
+        unknown = sorted(set(options or {}) - set(self.DEFAULTS))
+        if unknown:
+            raise ValueError(
+                f"{self.name or type(self).__name__} does not take {unknown}; "
+                f"it declares {sorted(self.DEFAULTS) or 'no options'}"
+            )
+        self.options = {**self.DEFAULTS, **(options or {})}
+
+    def traced(self, trace: dict[str, Any]) -> dict[str, Any]:
+        """The trace with the options this analyzer actually ran with.
+
+        Defaults included, never only what a manifest overrode: a run that does not
+        say what it ran with cannot be compared with another run.
+        """
+        return {**trace, "options": dict(self.options)}
 
     def run(self, tree: Tree) -> AnalyzerResult:
         raise NotImplementedError

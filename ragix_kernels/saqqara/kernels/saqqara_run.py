@@ -111,6 +111,17 @@ class SaqqaraKernel(Kernel):
     # ---------------------------------------------------------------- compute
 
     def compute(self, input: KernelInput) -> Dict[str, Any]:
+
+        # Declared analyzer options, validated before anything is read: an unknown
+        # analyzer name or an unknown option is refused here rather than dropped.
+        analyzer_options = dict(input.config.get("analyzers") or {})
+        known = {a.name for a in PIPELINE} | {OutlineAnalyzer.name}
+        unknown = sorted(set(analyzer_options) - known)
+        if unknown:
+            raise ValueError(
+                f"the manifest configures analyzers this kernel does not run: {unknown}; "
+                f"it runs {sorted(known)}"
+            )
         config = input.config or {}
         paths = self._paths(config)
         by_path, report = read_corpus(paths)
@@ -126,7 +137,13 @@ class SaqqaraKernel(Kernel):
 
             traces = {"builder": built.trace}
             for analyzer_class in PIPELINE:
-                analyzer = analyzer_class()
+                # Built per run, from the options the manifest declared for this
+                # kernel. The section lives inside the kernel's own options —
+                # `stage1.saqqara.options.analyzers` — and not at the manifest's top
+                # level, where the loader ignores what it does not know: a silently
+                # ignored section is the defect this package met three times in one
+                # day, and a third one would be nobody's fault but ours.
+                analyzer = analyzer_class(analyzer_options.get(analyzer_class.name))
                 result = analyzer.run(tree)
                 tree = result.tree
                 traces[analyzer.name] = result.trace

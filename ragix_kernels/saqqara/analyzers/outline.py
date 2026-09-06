@@ -166,7 +166,7 @@ class OutlineAnalyzer(Analyzer):
         for walk in walks:
             self._promote(walk, trace)
 
-        return AnalyzerResult(tree=tree, trace=trace)
+        return AnalyzerResult(tree=tree, trace=self.traced(trace))
 
     @staticmethod
     def _split_walks(candidates):
