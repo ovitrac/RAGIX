@@ -93,8 +93,13 @@ def embed_missing(
     model: str,
     *,
     now: Optional[str] = None,
+    replace_refusals: bool = True,
 ) -> EmbedPlan:
     """Embed only the chunks this model has not seen.
+
+    `replace_refusals=False` is for a refinement pass, which embeds the parts of a
+    text that was refused: replacing the document's register there would erase the
+    refusal that caused the split, which is the record of why the parts exist.
 
     `store.existing_embeddings` answers what is present; the difference is what is
     computed. Nothing is written when there is no embedder — see the module note.
@@ -119,7 +124,8 @@ def embed_missing(
     have = store.existing_embeddings([c.chunk_id for c in chunks], model)
     missing = [c for c in chunks if c.chunk_id not in have]
     if not missing:
-        store.replace_embedding_refusals(doc_id, [])
+        if replace_refusals:
+            store.replace_embedding_refusals(doc_id, [])
         return EmbedPlan(model=model, embedded=0, skipped=len(chunks))
 
     stamp = now or datetime.now(timezone.utc).isoformat()
@@ -171,7 +177,10 @@ def embed_missing(
                                        dimensions=len(vector), vector=tuple(vector),
                                        indexed_at=stamp))
     store.upsert_embeddings(records)
-    # Written for every document, empty included: see `replace_embedding_refusals`.
-    store.replace_embedding_refusals(doc_id, refused_records)
+    if replace_refusals:
+        # Written for every document, empty included: see `replace_embedding_refusals`.
+        store.replace_embedding_refusals(doc_id, refused_records)
+    else:
+        store.add_embedding_refusals(refused_records)
     return EmbedPlan(model=model, embedded=len(records),
                      skipped=len(chunks) - len(missing), refusals=refused_report)
