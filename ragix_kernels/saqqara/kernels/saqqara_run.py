@@ -44,7 +44,7 @@ from ragix_kernels.merkle import compute_inputs_merkle_root
 from ..adapters import adapter_for, read_corpus
 from ..analyzers import PIPELINE, OutlineAnalyzer
 from ..analyzers.contract import (abstention_records, count_reported,
-                                  reports_abstention)
+                                  reports_abstention, tree_abstention_records)
 from ..builder import build_tree
 from ..model import CANONICAL_JSON
 
@@ -185,6 +185,10 @@ class SaqqaraKernel(Kernel):
                     continue
                 for record in abstention_records(name, trace):
                     register.append({"path": document["path"], **record})
+            # A reader that declines a page abstains as an analyzer does; its
+            # record lives in the tree rather than in a trace (K6.19).
+            for record in tree_abstention_records(document.get("tree") or {}):
+                register.append({"path": document["path"], **record})
         return register
 
     # ------------------------------------------------------------------ roots

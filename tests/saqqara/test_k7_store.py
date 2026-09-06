@@ -2146,3 +2146,151 @@ def test_k7_21_a_404_names_both_of_its_causes(fake_server):
     said = str(raised.value)
     assert "predates batched embedding" in said and "not pulled" in said
     assert "try pulling it first" in said, "the server's own words reach the reader"
+
+
+# ========== K7.3 — no text is lost: chunked, absorbed, or excluded by name with a reason
+
+def _tree_of(path):
+    """A real tree from a real file: the reader's kinds, not a generator's."""
+    from ragix_kernels.saqqara.adapters.contract import adapter_for, read_path
+    from ragix_kernels.saqqara.builder import build_tree
+
+    adapter = adapter_for(path)
+    return build_tree(read_path(path), str(path), adapter.format,
+                      adapter.format, adapter.version).tree
+
+
+def test_k7_3_a_marker_reaches_a_chunk(tmp_path):
+    """A form's field labels are the part a question is matched against.
+
+    Measured on the demo corpus before this: three Word forms carried 6 330
+    characters in marker nodes that reached no chunk — the place-and-date line a
+    form is signed on, a lot name followed by its yes and no boxes. The tree had
+    them; retrieval did not.
+
+    Falsified by: marker text present in the tree and absent from every chunk.
+    """
+    from ragix_kernels.saqqara.store.chunker import chunk_tree
+
+    path = G.FIXTURES["docx_markers"](tmp_path / "form.docx")
+    tree = _tree_of(path)
+    markers = [n.text for n in tree.walk() if n.kind == "marker" and (n.text or "").strip()]
+    assert markers, "the fixture no longer carries markers"
+
+    plan = chunk_tree(tree, doc_id="d" * 64)
+    chunked = "\n".join(c.text for c in plan.chunks)
+    for text in markers:
+        assert text.strip() in chunked, f"marker text reaches no chunk: {text!r}"
+
+
+def test_k7_3_every_kind_a_format_plan_emits_is_chunkable_or_excluded_by_name():
+    """The gate for the class of defect, not for its two instances.
+
+    `marker` was missing from CHUNKABLE_KINDS, and before it `slide`, `shape`,
+    `note` and `cell` were: a whole format contributed zero chunks and nothing
+    noticed, because "not chunkable" and "nobody considered it" are the same
+    absence in a tuple. Every kind a builder can produce must now be in one list
+    or the other, and the excluded ones carry their reason.
+
+    Falsified by: a kind a format plan emits that appears in neither list.
+    """
+    from ragix_kernels.saqqara.builder import FORMAT_PLANS
+    from ragix_kernels.saqqara.store.chunker import CHUNKABLE_KINDS, NON_CHUNKABLE_KINDS
+
+    emitted = set()
+    for plan in FORMAT_PLANS.values():
+        emitted |= set(plan.node_kinds.values()) | set(plan.containers.values())
+
+    unclassified = sorted(k for k in emitted
+                          if k not in CHUNKABLE_KINDS and k not in NON_CHUNKABLE_KINDS)
+    assert not unclassified, (
+        f"kinds a builder emits that are neither chunkable nor excluded by name: "
+        f"{unclassified}. Add each to CHUNKABLE_KINDS, or to NON_CHUNKABLE_KINDS "
+        f"with the reason it carries nothing a reader retrieves."
+    )
+    assert not (set(CHUNKABLE_KINDS) & set(NON_CHUNKABLE_KINDS)), "a kind in both lists"
+    assert all(reason.strip() for reason in NON_CHUNKABLE_KINDS.values()), \
+        "an exclusion without a reason is an absence with a name on it"
+
+
+def test_k7_3_an_excluded_kind_loses_no_text(tmp_path):
+    """The exclusions are measured against the chunks, not asserted in a comment.
+
+    Not "an excluded kind carries no text" — the first version of this test claimed
+    that and was wrong: an xlsx `section` **is** a sheet and carries its name, which
+    no descendant repeats. Nothing is lost, because the chunker puts the sheet title
+    in every chunk of the sheet as anchoring context. What the exclusion has to
+    promise is weaker and truer: **the text reaches retrieval by some route**.
+
+    Falsified by: text on an excluded node that appears in no chunk, by any route —
+    which is exactly what `marker` did.
+    """
+    from ragix_kernels.saqqara.store.chunker import NON_CHUNKABLE_KINDS, chunk_tree
+
+    lost = []
+    for name, fixture in (("a.docx", "docx_markers"), ("b.xlsx", "mixed_workbook"),
+                          ("c.pdf", "pdf_caption_below"), ("d.md", "markdown_document")):
+        tree = _tree_of(G.FIXTURES[fixture](tmp_path / name))
+        plan = chunk_tree(tree, doc_id="e" * 64)
+        reachable = "\n".join(
+            [c.text for c in plan.chunks] + [" / ".join(c.section_path) for c in plan.chunks]
+        )
+        for node in tree.walk():
+            text = (node.text or "").strip()
+            if node.kind not in NON_CHUNKABLE_KINDS or not text:
+                continue
+            if text not in reachable:
+                lost.append((name, node.kind, text[:60]))
+    assert not lost, f"text on an excluded kind that reaches no chunk at all: {lost}"
+
+
+# ============ K6.19 — a page with no text layer is a record, not only a count
+
+def test_k6_19_a_page_without_a_text_layer_is_listed_in_the_register(tmp_path):
+    """The reader already declared it; the register did not carry it.
+
+    Five documents of the demo corpus are image-only: no chunk, no vector, and no
+    record anywhere, because every register source read an analyzer trace and this
+    producer is a reader.
+
+    Falsified by: a page with `has_text: false` absent from the register, or a
+    record without the page it is about.
+    """
+    from ragix_kernels.saqqara.analyzers.contract import tree_abstention_records
+
+    tree = _tree_of(G.FIXTURES["pdf_ink_no_text"](tmp_path / "scan.pdf"))
+    blind = [n for n in tree.walk()
+             if n.kind == "page" and (n.facts or {}).get("has_text") is False]
+    assert blind, "the fixture no longer carries a page without a text layer"
+
+    records = tree_abstention_records(tree.to_dict())
+    assert len(records) == len(blind)
+    for record in records:
+        assert record["analyzer"] == "saqqara.text_layer"
+        assert record["reason"] == "no-text-layer"
+        assert record["locator"] and record["locator"]["page"] is not None, \
+            "a record that cannot name its page is a count with extra fields"
+        assert record["signals"]["image_count"] is not None
+        assert record["signals"]["needs_ocr"] is True
+
+
+def test_k6_19_the_run_register_carries_the_page_beside_the_analyzers(tmp_path):
+    """End to end: the kernel's register holds both kinds of producer.
+
+    Falsified by: a run whose register lists analyzer abstentions and not the
+    pages its reader declined.
+    """
+    workspace = tmp_path / "ws"
+    source = workspace / "corpus"
+    source.mkdir(parents=True)
+    G.FIXTURES["pdf_ink_no_text"](source / "scan.pdf")
+
+    output = SaqqaraKernel().run(KernelInput(
+        workspace=workspace, config={"source": {"path": str(source)}}))
+    assert output.success is True, output.errors
+
+    register = output.data["report"]["abstentions"]
+    pages = [r for r in register if r["reason"] == "no-text-layer"]
+    assert pages, "the run's register does not carry the declined page"
+    assert all(r["path"].endswith("scan.pdf") for r in pages)
+    assert all(r["locator"]["page"] is not None for r in pages)
