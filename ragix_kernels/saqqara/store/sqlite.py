@@ -24,6 +24,7 @@ indistinguishable from a purge that did nothing.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 import struct
@@ -351,8 +352,21 @@ class SqliteDocumentStore:
         existing = {r["chunk_id"] for r in self._db.execute(
             "SELECT chunk_id FROM chunks WHERE doc_id=?", (doc_id,))}
 
+        # A part is not an orphan while the text it was split from is still here.
+        # Refinement writes parts (K7.22) the chunker does not produce, so a plain
+        # `existing - incoming` deletes every window and its vectors on the next
+        # index run — silently, since the drop is counted as superseded. A part is
+        # kept while its parent is incoming and goes with its parent when the
+        # parent goes: correctness that does not depend on an operator remembering
+        # to re-run the refinement.
+        derived = {r["chunk_id"]: r["parent_id"] for r in self._db.execute(
+            "SELECT chunk_id, parent_id FROM chunks WHERE doc_id=? AND parent_id IS NOT NULL",
+            (doc_id,))}
+        kept = {cid for cid, parent in derived.items()
+                if cid not in incoming and parent in incoming}
+
         to_insert = [c for cid, c in incoming.items() if cid not in existing]
-        to_delete = sorted(existing - set(incoming))
+        to_delete = sorted(existing - set(incoming) - kept)
 
         if to_insert or to_delete:
             # The cached index describes rows that just changed, so it is dropped
@@ -443,8 +457,101 @@ class SqliteDocumentStore:
                 (rec.chunk_id, rec.model, rec.dimensions, _pack(rec.vector), rec.indexed_at),
             )
             written += 1
+        if written:
+            # The cached index was built from the rows as they were. Adding vectors
+            # without dropping it leaves a lane that has never seen the parts a
+            # refinement pass just embedded — in the same process, silently.
+            self._retrievers.clear()
         self._db.commit()
         return written
+
+    def add_chunks(self, chunks: Iterable[ChunkRecord]) -> int:
+        """Insert chunks beside what a document already has, replacing none.
+
+        `replace_chunks` states a document's whole set; a refinement pass adds parts
+        to it. Conflating the two would make a pass delete the units it split.
+        """
+        written = 0
+        for chunk in chunks:
+            self._db.execute(
+                """INSERT OR IGNORE INTO chunks
+                     (chunk_id, doc_id, seq, text, level, parent_id, section_path_json,
+                      node_ids_json, pages_json, lang, object_refs_json, meta_json)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (chunk.chunk_id, chunk.doc_id, chunk.seq, chunk.text, chunk.level,
+                 chunk.parent_id, json.dumps(chunk.section_path),
+                 json.dumps(chunk.node_ids), json.dumps(chunk.pages), chunk.lang,
+                 json.dumps(chunk.object_refs), json.dumps(chunk.meta, **CANONICAL_JSON)),
+            )
+            self._db.execute(
+                "INSERT INTO chunks_fts(chunk_id, text, section) VALUES (?,?,?)",
+                (chunk.chunk_id, chunk.text, " / ".join(chunk.section_path)),
+            )
+            written += 1
+        if written:
+            self._retrievers.clear()
+        self._db.commit()
+        return written
+
+    def delete_embeddings(self, chunk_ids: Iterable[str], model: str) -> int:
+        """Remove the vectors of texts that were split, and say so.
+
+        A text represented by its parts must not keep a vector of its own: it would
+        answer twice, coarsely and precisely, and a reader could not tell which
+        meaning won. The removal is a counted drop, never silent.
+        """
+        ids = list(chunk_ids)
+        if not ids:
+            return 0
+        marks = ",".join("?" * len(ids))
+        cursor = self._db.execute(
+            f"DELETE FROM embeddings WHERE model=? AND chunk_id IN ({marks})",
+            (model, *ids))
+        removed = cursor.rowcount or 0
+        if removed:
+            self.drops.append({"reason": "vector-superseded-by-parts",
+                               "model": model, "chunks": removed})
+            self._retrievers.clear()
+        self._db.commit()
+        return removed
+
+    def add_embedding_refusals(self, records: Iterable[EmbeddingRefusalRecord]) -> int:
+        """Add refusals without replacing a document's register.
+
+        A pass records what its parts refused; the text they were split from keeps
+        the refusal that caused the split. Replacing here would erase the reason
+        the pass ran.
+        """
+        rows = list(records)
+        for record in rows:
+            self._db.execute(
+                """INSERT INTO embedding_refusals
+                     (chunk_id, model, doc_id, reason, signals_json, refused_at)
+                   VALUES (?,?,?,?,?,?)
+                   ON CONFLICT(chunk_id, model) DO UPDATE SET
+                     reason=excluded.reason, signals_json=excluded.signals_json,
+                     refused_at=excluded.refused_at""",
+                (record.chunk_id, record.model, record.doc_id, record.reason,
+                 json.dumps(record.signals, **CANONICAL_JSON), record.refused_at),
+            )
+        self._db.commit()
+        return len(rows)
+
+    def result_digest(self, doc_id: Optional[str] = None) -> str:
+        """What a refinement pass read: the chunks and their vectors, as they are.
+
+        A pass records the digest of the result it read, so a second pass can be
+        told from a re-run of the first.
+        """
+        rows = self._db.execute(
+            "SELECT c.chunk_id, c.parent_id, length(c.text), "
+            "       (SELECT COUNT(*) FROM embeddings e WHERE e.chunk_id=c.chunk_id) "
+            "FROM chunks c" + (" WHERE c.doc_id=?" if doc_id else "") +
+            " ORDER BY c.chunk_id", (doc_id,) if doc_id else ())
+        digest = hashlib.sha256()
+        for row in rows:
+            digest.update("|".join(str(v) for v in tuple(row)).encode("utf-8"))
+        return digest.hexdigest()[:16]
 
     def replace_embedding_refusals(
         self, doc_id: str, records: Iterable[EmbeddingRefusalRecord]

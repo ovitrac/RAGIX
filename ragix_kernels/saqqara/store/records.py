@@ -363,12 +363,17 @@ class Hit:
     lexical_rank: Optional[int] = None
     final_rank: Optional[int] = None
     boosts: dict[str, float] = field(default_factory=dict)
+    #: Which vector of this text the dense lane matched: `{"whole_text": True}` for
+    #: a text that was never split, or the part's `chunk_id`, index, `node_ids` and
+    #: span. A text scored by the max over its parts and reported without saying
+    #: which part won sends a reader to a section and not to the passage in it.
+    part: Optional[dict[str, Any]] = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "boosts": self.boosts, "chunk": self.chunk.to_dict(),
             "dense_rank": self.dense_rank, "final_rank": self.final_rank,
-            "lexical_rank": self.lexical_rank,
+            "lexical_rank": self.lexical_rank, "part": self.part,
         }
 
     @classmethod

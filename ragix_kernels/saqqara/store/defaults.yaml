@@ -16,6 +16,30 @@ store:
   path: .ragix/saqqara.db
   corpus: default
 
+# Refinement: the vector a refusal costs, restored by splitting the text (K7.22).
+#
+# One pass per budget, in order, each reading the result the last one left. A pass
+# splits every text over its budget or refused into contiguous windows of the text's
+# own children, embeds only the parts, and leaves the text represented by them.
+#
+# Empty by default, so a store is unchanged unless a run asks for a pass. The
+# budgets are declared here and carried in the trace, never a bare constant.
+refine:
+  # Character budgets, one pass each, largest first. The lead's value for the first
+  # pass is 4000 — the same number as the chunker's WINDOW_FALLBACK_CHARS, so one
+  # figure governs both — and it answers the fidelity limit rather than the context
+  # limit: the smallest refusal measured on a real corpus was 18 190 characters at
+  # an 8192-token window, and one vector for a section that long says little about
+  # any part of it.
+  budgets: []
+  # Overlap between consecutive windows, counted in CHILDREN, not characters — the
+  # chunker's WINDOW_OVERLAP_CHARS is a different thing, for cutting one oversized
+  # node. Zero by default: with overlap two windows carry the same child under two
+  # ids, and rule 7 (no duplicate copy counts as independent corroboration) then
+  # rests on the retriever collapsing them, which it does — but a default nobody
+  # asked for should not lean on that.
+  overlap_children: 0
+
 embedder:
   # none | sentence-transformers | ollama | dummy
   # `none` is a choice, not an omission: it yields a lexical-only store and the

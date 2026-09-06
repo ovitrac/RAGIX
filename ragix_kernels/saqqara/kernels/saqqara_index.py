@@ -24,6 +24,7 @@ from ragix_kernels.base import Kernel, KernelInput
 
 from ..store.config import load_config
 from ..store.embed import build_embedder, embed_missing
+from ..store.refine import refine_store
 from ..store.feed import feed_result, feed_tree
 from ..store.ports import build_store
 
@@ -101,6 +102,18 @@ class SaqqaraIndexKernel(Kernel):
                 **one.counts(),
             })
 
+        # The refinement passes, if the run asked for them. After embedding, and on
+        # the store as it stands: a pass reads the previous result by construction.
+        refine_section = config.section("refine")
+        budgets = [int(b) for b in (refine_section.get("budgets") or [])]
+        refinement = None
+        if budgets and embedder is not None:
+            refinement = refine_store(
+                store, embedder, model_name, budgets,
+                overlap_children=int(refine_section.get("overlap_children", 0)),
+            ).to_dict()
+            embedded += sum(p["embedded"] for p in refinement["passes"])
+
         status = store.status()
         status["dense"] = ("disabled (no embedder)" if embedder is None
                            else f"{model_name} ({status['embeddings']} vectors, "
@@ -126,6 +139,7 @@ class SaqqaraIndexKernel(Kernel):
             "skipped": skipped,
             "refused": len(refusals),
             "embedder_refusals": refusals,
+            "refinement": refinement,
             "config": config.to_dict(),
         }
 

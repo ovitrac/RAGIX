@@ -2294,3 +2294,190 @@ def test_k6_19_the_run_register_carries_the_page_beside_the_analyzers(tmp_path):
     assert pages, "the run's register does not carry the declined page"
     assert all(r["path"].endswith("scan.pdf") for r in pages)
     assert all(r["locator"]["page"] is not None for r in pages)
+
+
+# ============ K7.22 — the vector a refusal cost, restored by splitting the text
+
+from ragix_kernels.saqqara.store.refine import (  # noqa: E402
+    refine_store,
+    split_into_windows,
+)
+
+
+def _sectioned(store, trees, sha):
+    """A document in the store, with its roll-up and the units under it."""
+    fed = feed_tree(trees["docx"], source_path="/a.docx", source_sha256=sha)
+    store.upsert_document(fed.document)
+    store.replace_chunks(sha, fed.chunks)
+    rollups = [c for c in fed.chunks if c.level == 1]
+    assert rollups, "the fixture no longer produces a roll-up"
+    return fed, rollups[0]
+
+
+def test_k7_22_windows_partition_the_children_and_join_to_the_parent(store, trees):
+    """A window is a contiguous run of children; the windows are the parent's text.
+
+    Falsified by: a child in no window, a child in two without declared overlap, a
+    window whose node_ids are not a contiguous run, or a text that is not the join.
+    """
+    fed, rollup = _sectioned(store, trees, "1" * 64)
+    children = [c for c in fed.chunks if c.parent_id == rollup.chunk_id]
+    budget = max(len(c.text) for c in children) + 1
+
+    windows = split_into_windows(rollup, children, budget, pass_number=1)
+    assert len(windows) >= 2, "the budget did not force a split"
+
+    covered = [nid for w in windows for nid in w.node_ids]
+    assert covered == rollup.node_ids, "the windows do not partition the roll-up"
+    assert len(covered) == len(set(covered)), "a child in two windows without overlap"
+    assert "\n".join(w.text for w in windows) == rollup.text
+    assert all(w.parent_id == rollup.chunk_id and w.level == rollup.level for w in windows)
+    assert all(len(w.text) <= budget or len(w.node_ids) == 1 for w in windows), \
+        "a window over budget that is not a single unit"
+
+
+def test_k7_22_every_part_carries_its_pass_budget_index_and_span(store, trees):
+    """A part without its span cannot be checked against the parent afterwards.
+
+    Falsified by: a part missing any of kind, pass, budget, index, span, parent_chars.
+    """
+    fed, rollup = _sectioned(store, trees, "2" * 64)
+    children = [c for c in fed.chunks if c.parent_id == rollup.chunk_id]
+    windows = split_into_windows(rollup, children, max(len(c.text) for c in children) + 1,
+                                 pass_number=2)
+
+    for window in windows:
+        part = window.meta["part"]
+        assert set(part) == {"kind", "pass", "budget", "index", "span", "parent_chars"}
+        assert part["pass"] == 2 and part["kind"] == "window"
+        assert part["parent_chars"] == len(rollup.text)
+        start, end = part["span"]
+        assert rollup.text[start:end] == window.text, "the span does not locate the part"
+
+
+def test_k7_22_a_part_survives_a_re_index_of_its_parent(store, trees):
+    """The defect this gate exists for: `existing - incoming` deleted every window.
+
+    Falsified by: a re-index of the same document removing the parts, and their
+    vectors with them, in silence.
+    """
+    fed, rollup = _sectioned(store, trees, "3" * 64)
+    children = [c for c in fed.chunks if c.parent_id == rollup.chunk_id]
+    windows = split_into_windows(rollup, children, max(len(c.text) for c in children) + 1,
+                                 pass_number=1)
+    store.add_chunks(windows)
+    embed_missing(store, windows, build_embedder("dummy"), model="d",
+                  replace_refusals=False)
+    before = store.status()["embeddings"]
+    assert before >= len(windows)
+
+    store.replace_chunks("3" * 64, fed.chunks)          # the chunker's own set, again
+
+    kept = {c.chunk_id for c in store.get_chunks("3" * 64)}
+    assert all(w.chunk_id in kept for w in windows), "a re-index deleted the parts"
+    assert store.status()["embeddings"] == before, "their vectors went with them"
+
+
+def test_k7_22_a_part_goes_when_its_parent_goes(store, trees):
+    """Kept while the parent is there, removed with it — not orphaned either way.
+
+    Falsified by: a part surviving a document whose roll-up it belonged to is gone.
+    """
+    fed, rollup = _sectioned(store, trees, "4" * 64)
+    children = [c for c in fed.chunks if c.parent_id == rollup.chunk_id]
+    windows = split_into_windows(rollup, children, max(len(c.text) for c in children) + 1,
+                                 pass_number=1)
+    store.add_chunks(windows)
+
+    store.replace_chunks("4" * 64, [c for c in fed.chunks if c.level == 0][:1])
+
+    kept = {c.chunk_id for c in store.get_chunks("4" * 64)}
+    assert not (kept & {w.chunk_id for w in windows}), "a part outlived its parent"
+
+
+def test_k7_22_a_split_text_keeps_no_vector_of_its_own(store, trees, fake_server):
+    """A text represented by its parts must not answer twice.
+
+    Falsified by: a vector on a text that was split, or a drop that is not counted.
+    """
+    fed, rollup = _sectioned(store, trees, "5" * 64)
+    fake_server(_RefusingServer())
+    embed_missing(store, fed.chunks, _backend(batch_size=8), model="m")
+    assert store.existing_embeddings([rollup.chunk_id], "m") == {rollup.chunk_id}
+
+    plan = refine_store(store, _backend(batch_size=8), "m",
+                        [max(len(c.text) for c in fed.chunks if c.level == 0) + 1])
+
+    assert store.existing_embeddings([rollup.chunk_id], "m") == set(), \
+        "the split text kept its coarse vector"
+    assert plan.passes[0].dropped_vectors == 1
+    assert any(d["reason"] == "vector-superseded-by-parts" for d in store.drops)
+    assert plan.passes[0].parts >= 2 and plan.passes[0].embedded >= 2
+
+
+def test_k7_22_a_pass_records_the_result_it_read(store, trees, fake_server):
+    """A second pass is told from a re-run of the first by what it read.
+
+    Falsified by: a pass with no digest of the result it read.
+    """
+    fed, rollup = _sectioned(store, trees, "6" * 64)
+    fake_server(_RefusingServer())
+    embed_missing(store, fed.chunks, _backend(batch_size=8), model="m")
+    units = [c for c in fed.chunks if c.level == 0]
+
+    plan = refine_store(store, _backend(batch_size=8), "m",
+                        [max(len(c.text) for c in units) + 1, max(len(c.text) for c in units)])
+
+    assert plan.passes[0].read and plan.passes[1].read
+    assert plan.passes[0].read != plan.passes[1].read, \
+        "the second pass read the same result as the first"
+    assert plan.passes[0].number == 1 and plan.passes[1].number == 2
+    assert plan.passes[-1].parts == 0 or plan.passes[-1].split >= 1
+
+
+def test_k7_22_the_dense_lane_returns_texts_not_windows(store, trees):
+    """The user never feels the split: one hit per text, at its best part.
+
+    Falsified by: a window appearing as a hit beside its text, or a hit without the
+    part that matched.
+    """
+    fed, rollup = _sectioned(store, trees, "7" * 64)
+    children = [c for c in fed.chunks if c.parent_id == rollup.chunk_id]
+    windows = split_into_windows(rollup, children, max(len(c.text) for c in children) + 1,
+                                 pass_number=1)
+    store.add_chunks(windows)
+    embed_missing(store, fed.chunks + windows, build_embedder("dummy"), model="d",
+                  replace_refusals=False)
+
+    hits = store.search([0.1] * 384, top_k=20, model="d")
+    returned = [h.chunk.chunk_id for h in hits]
+    assert not (set(returned) & {w.chunk_id for w in windows}), \
+        "a window was returned as a hit of its own"
+    assert len(returned) == len(set(returned)), "a text returned twice"
+    for hit in hits:
+        assert hit.part is not None, "a dense hit without the part that matched"
+
+
+def test_k7_22_the_lane_still_fills_top_k_when_one_text_has_many_windows(store, trees):
+    """Collapsing without over-fetching narrows the candidate pool in silence.
+
+    Falsified by: fewer than top_k texts returned while more exist, or a lane that
+    does not record what it had to fetch.
+    """
+    from ragix_kernels.saqqara.store.retrieve import Retriever
+
+    fed, rollup = _sectioned(store, trees, "8" * 64)
+    children = [c for c in fed.chunks if c.parent_id == rollup.chunk_id]
+    windows = split_into_windows(rollup, children, 1, pass_number=1)   # one child each
+    store.add_chunks(windows)
+    embed_missing(store, fed.chunks + windows, build_embedder("dummy"), model="d",
+                  replace_refusals=False)
+
+    texts = [c for c in store.get_chunks("8" * 64) if not (c.meta or {}).get("part")]
+    wanted = min(5, len(texts))
+    retriever = Retriever(store, model="d")
+    hits = retriever.dense([0.1] * 384, top_k=wanted)
+
+    assert len(hits) == wanted, f"the lane returned {len(hits)} texts, not {wanted}"
+    assert retriever.last_overfetch["factor"] >= 1
+    assert len({h.chunk.chunk_id for h in hits}) == wanted
