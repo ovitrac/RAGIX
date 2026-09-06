@@ -49,11 +49,17 @@ class RefinePass:
     embedded: int = 0
     refused: int = 0
     dropped_vectors: int = 0  # vectors removed from texts that were split
+    documents_attempted: int = 0
+    documents_completed: int = 0
+    stopped_on: Optional[str] = None   # the document a failure stopped on, if any
 
     def to_dict(self) -> dict[str, Any]:
-        return {"budget": self.budget, "dropped_vectors": self.dropped_vectors,
-                "embedded": self.embedded, "number": self.number, "parts": self.parts,
-                "read": self.read, "refused": self.refused, "split": self.split}
+        return {"budget": self.budget, "documents_attempted": self.documents_attempted,
+                "documents_completed": self.documents_completed,
+                "dropped_vectors": self.dropped_vectors, "embedded": self.embedded,
+                "number": self.number, "parts": self.parts, "read": self.read,
+                "refused": self.refused, "split": self.split,
+                "stopped_on": self.stopped_on}
 
 
 @dataclass
@@ -167,6 +173,81 @@ def _leaves(chunks: list[ChunkRecord]) -> set[str]:
     return {c.chunk_id for c in chunks if c.chunk_id not in parents}
 
 
+@dataclass
+class _Outcome:
+    """What refining one document did, so the pass can add it up."""
+
+    split: int = 0
+    embedded: int = 0
+    refused: int = 0
+    vectors: int = 0
+
+
+def _documents_with_candidates(store: Any, budget: int, doc_id: Optional[str]) -> list[str]:
+    """The documents holding a text over budget or refused, in a stable order."""
+    refused = {r.chunk_id for r in store.get_embedding_refusals(doc_id)}
+    chunks = [c for c in store.get_chunks(doc_id) if c.level >= 1]
+    leaves = _leaves(chunks)
+    return sorted({c.doc_id for c in chunks
+                   if c.chunk_id in leaves
+                   and (len(c.text) > budget or c.chunk_id in refused)})
+
+
+def _refine_one(store: Any, embedder: Any, model: str, document: str, budget: int,
+                pass_number: int, overlap_children: int) -> tuple[list[ChunkRecord], _Outcome]:
+    """Split, store and embed one document's oversized texts, in that order.
+
+    **The order is the atomicity.** The first version of this split every document,
+    dropped every split text's vector, and only then embedded — one call carrying
+    the parts of 145 documents, which `embed_missing` refuses because its refusal
+    register is per document. It raised **after** the drops: 215 texts and 1 027
+    parts, none with a vector, and 165 vectors the lane had were gone. The kernel
+    failed correctly and the store was left worse than it started.
+
+    So: one document at a time, and the vectors of the texts that were split are
+    dropped **only after** their parts are embedded. A failure anywhere leaves that
+    document exactly as it was — its texts with the vectors they had, its parts
+    without any — and the pass says where it stopped.
+    """
+    from .embed import embed_missing
+
+    outcome = _Outcome()
+    chunks = [c for c in store.get_chunks(document) if c.level >= 1]
+    units = [c for c in store.get_chunks(document) if c.level == 0]
+    refused = {r.chunk_id for r in store.get_embedding_refusals(document)}
+    leaves = _leaves(chunks)
+
+    made: list[ChunkRecord] = []
+    split_parents: list[str] = []
+    for parent in sorted((c for c in chunks if c.chunk_id in leaves
+                          and (len(c.text) > budget or c.chunk_id in refused)),
+                         key=lambda c: (c.seq, c.chunk_id)):
+        children = _children_of(chunks, parent) or _children_of(units, parent)
+        if len(children) < 2:
+            # A text of one unit is already the smallest thing this package cites;
+            # it keeps its refusal rather than being cut.
+            continue
+        windows = split_into_windows(parent, children, budget,
+                                     pass_number=pass_number,
+                                     overlap_children=overlap_children)
+        if len(windows) < 2:
+            continue
+        made.extend(windows)
+        split_parents.append(parent.chunk_id)
+        outcome.split += 1
+
+    if not made:
+        return [], outcome
+
+    store.add_chunks(made)
+    embedded = embed_missing(store, made, embedder, model=model, replace_refusals=False)
+    outcome.embedded = embedded.embedded
+    outcome.refused = embedded.refused
+    # Only now, with the parts embedded and stored, does the coarse vector go.
+    outcome.vectors = store.delete_embeddings(split_parents, model)
+    return made, outcome
+
+
 def refine_store(
     store: Any,
     embedder: Any,
@@ -191,41 +272,40 @@ def refine_store(
         return plan
 
     for number, budget in enumerate(budgets, 1):
-        chunks = [c for c in store.get_chunks(doc_id) if c.level >= 1]
-        by_id = {c.chunk_id: c for c in chunks}
-        units = {c.chunk_id: c for c in store.get_chunks(doc_id) if c.level == 0}
-        refused = {r.chunk_id for r in store.get_embedding_refusals(doc_id)}
         this = RefinePass(number=number, budget=budget, read=store.result_digest(doc_id))
+        documents = _documents_with_candidates(store, budget, doc_id)
+        this.documents_attempted = len(documents)
 
-        candidates = [c for c in chunks
-                      if c.chunk_id in _leaves(chunks)
-                      and (len(c.text) > budget or c.chunk_id in refused)]
+        for document in documents:
+            try:
+                made, dropped = _refine_one(store, embedder, model, document, budget,
+                                            number, overlap_children)
+            except Exception as exc:
+                # The store is consistent at this point by construction: this
+                # document's texts still hold the vectors they had, and its parts,
+                # if any were written, simply have none. What is lost is the work,
+                # never the lane. The message says where the pass stopped, because
+                # a run that refined 87 documents of 145 and says only "failed"
+                # leaves the next person to find that out by reading the store.
+                this.stopped_on = document
+                plan.passes.append(this)
+                raise RuntimeError(
+                    f"refinement stopped on document {document[:12]} in pass "
+                    f"{number} (budget {budget}): {this.documents_completed} of "
+                    f"{this.documents_attempted} document(s) were completed, and "
+                    f"every text still holds the vectors it had. Cause: {exc}"
+                ) from exc
+            this.split += dropped.split
+            this.parts += len(made)
+            this.embedded += dropped.embedded
+            this.refused += dropped.refused
+            this.dropped_vectors += dropped.vectors
+            this.documents_completed += 1
 
-        made: list[ChunkRecord] = []
-        for parent in sorted(candidates, key=lambda c: (c.seq, c.chunk_id)):
-            children = _children_of(chunks, parent) or _children_of(list(units.values()), parent)
-            if len(children) < 2:
-                # Nothing to partition: a text of one unit is already the smallest
-                # piece this package will cite. It keeps its refusal, if it has one.
-                continue
-            windows = split_into_windows(parent, children, budget,
-                                         pass_number=number,
-                                         overlap_children=overlap_children)
-            if len(windows) < 2:
-                continue
-            made.extend(windows)
-            this.split += 1
-            this.dropped_vectors += store.delete_embeddings([parent.chunk_id], model)
-
-        if not made:
+        if not this.parts:
             plan.passes.append(this)
             break
 
-        this.parts = len(made)
-        store.add_chunks(made)
-        embed = embed_missing(store, made, embedder, model=model, replace_refusals=False)
-        this.embedded = embed.embedded
-        this.refused = embed.refused
         plan.passes.append(this)
 
     plan.remaining_refusals = [r.to_dict() for r in store.get_embedding_refusals(doc_id)]
