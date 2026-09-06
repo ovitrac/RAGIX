@@ -1215,6 +1215,25 @@ def test_k7_15_the_index_kernel_declares_what_it_needs_and_gives():
     assert SaqqaraKernel.provides == ["document_tree", "traces", "merkle_root"]
 
 
+def test_k7_15_the_indexer_is_reachable_by_the_capability_it_declares():
+    """`requires` names a capability here, and the resolver must find its producer.
+
+    This kernel declared `document_tree` and the orchestrator resolved `requires`
+    as kernel names, so every route through it raised `KeyError: Kernel
+    'document_tree' not found` while a driver building the input by hand worked —
+    which is why the demo had a bypass. The resolution and its gate live in
+    tests/test_kernels.py; this is the family's own stake in it.
+
+    Falsified by: a capability that resolves to nothing, or to a kernel other than
+    the reader.
+    """
+    from ragix_kernels.registry import KernelRegistry
+
+    KernelRegistry.discover()
+    assert KernelRegistry.resolve_requirement("document_tree") == ("saqqara", "capability")
+    assert KernelRegistry.resolve_requirement("document_store") == ("saqqara_index", "capability")
+
+
 def test_k7_15_the_registry_orders_the_reader_before_the_indexer():
     """Falsified by: an order in which the store is built before anything is read."""
     from ragix_kernels.registry import KernelRegistry

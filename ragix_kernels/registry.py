@@ -14,7 +14,7 @@ import importlib
 import pkgutil
 import logging
 from pathlib import Path
-from typing import Dict, List, Type, Optional, Set
+from typing import Dict, List, Tuple, Type, Optional, Set
 from collections import defaultdict
 
 from ragix_kernels.base import Kernel, KernelClass
@@ -230,6 +230,69 @@ class KernelRegistry:
         }
 
     @classmethod
+    def resolve_requirement(cls, entry: str) -> Tuple[str, str]:
+        """The kernel a `requires` entry names, and how it was found.
+
+        A `requires` entry is a **kernel name, or a capability that exactly one
+        kernel provides**. Name wins first, and that order is not a preference: at
+        the time this was written sixteen capability names were also kernel names —
+        `services` is a kernel and is provided by `port_scan` — so a
+        capability-first rule would silently re-point existing pipelines. Name
+        first leaves all of them resolving exactly as they did.
+
+        Capability resolution exists because two kernels declared one and the
+        system did not implement it: `saqqara_index` requires `document_tree` and
+        `tender_probe` requires `document_store`, and both raised `KeyError: Kernel
+        'document_tree' not found` through the orchestrator while working perfectly
+        when called directly. Ports, not vendors: a second reader providing
+        `document_tree` should serve the indexer without the indexer naming it.
+
+        Two providers is **an error the author resolves by naming the kernel**, not
+        an order this code invents. Three capabilities were already ambiguous when
+        this landed — `citation_map`, `report_metadata`, `services` — and none is
+        required by anything today; the rule exists before the day one is.
+
+        Returns:
+            (kernel name, "name" | "capability")
+
+        Raises:
+            KeyError: nothing provides it, with what exists
+            ValueError: more than one kernel provides it
+        """
+        cls._ensure_discovered()
+
+        if entry in cls._kernels:
+            return entry, "name"
+
+        providers = sorted(
+            name for name, kernel in cls._kernels.items()
+            if entry in (getattr(kernel, "provides", None) or [])
+        )
+        if len(providers) == 1:
+            return providers[0], "capability"
+        if len(providers) > 1:
+            raise ValueError(
+                f"'{entry}' is provided by {len(providers)} kernels: "
+                f"{', '.join(providers)}. Name the kernel in `requires` instead: "
+                "picking one here would be this code choosing a producer nobody declared."
+            )
+        available = ", ".join(sorted(cls._kernels.keys()))
+        raise KeyError(
+            f"'{entry}' is neither a kernel name nor a capability any kernel provides. "
+            f"Available kernels: {available}"
+        )
+
+    @classmethod
+    def resolution_of(cls, kernel_name: str) -> List[Dict[str, str]]:
+        """Every `requires` entry of one kernel, with what it resolved to and how."""
+        kernel_class = cls.get(kernel_name)
+        resolved = []
+        for entry in kernel_class.requires:
+            name, how = cls.resolve_requirement(entry)
+            resolved.append({"requires": entry, "kernel": name, "how": how})
+        return resolved
+
+    @classmethod
     def resolve_dependencies(cls, kernel_names: List[str]) -> List[str]:
         """
         Topologically sort kernels by dependencies.
@@ -255,16 +318,20 @@ class KernelRegistry:
         while to_process:
             name = to_process.pop()
             kernel_class = cls.get(name)
-            for dep in kernel_class.requires:
+            for entry in kernel_class.requires:
+                dep, _how = cls.resolve_requirement(entry)
                 if dep not in all_kernels:
                     all_kernels.add(dep)
                     to_process.append(dep)
 
-        # Build dependency graph
+        # Build dependency graph. The graph is over kernel names, so an entry that
+        # named a capability is resolved here too — a graph holding both would sort
+        # a capability as though it were a kernel and never find its producer.
         graph: Dict[str, Set[str]] = {}
         for name in all_kernels:
             kernel_class = cls.get(name)
-            graph[name] = set(kernel_class.requires)
+            graph[name] = {cls.resolve_requirement(entry)[0]
+                           for entry in kernel_class.requires}
 
         # Topological sort (Kahn's algorithm)
         in_degree = {name: len(deps) for name, deps in graph.items()}

@@ -203,7 +203,7 @@ class Kernel:
     version: str        # Semantic version
     stage: int          # Pipeline stage (1, 2, or 3)
     category: str       # Functional category
-    requires: List[str] # Dependencies (other kernel outputs)
+    requires: List[str] # A kernel name, or a capability exactly one kernel provides
     provides: List[str] # Capabilities provided
 
     def compute(input: KernelInput) -> Dict[str, Any]:
@@ -385,7 +385,14 @@ See **[KOAS_MCP_REFERENCE.md](KOAS_MCP_REFERENCE.md)** for MCP tool interfaces.
 
 Kernels declare explicit dependencies. The orchestrator:
 
-1. Builds a dependency graph from `requires` declarations
+1. Builds a dependency graph from `requires` declarations. Each entry is resolved to one
+   kernel: **a kernel name wins first** — sixteen capability names are also kernel names,
+   so resolving capabilities first would silently re-point existing pipelines — and
+   otherwise the entry must be a capability that **exactly one** kernel `provides`. Two
+   providers is an error the author resolves by naming the kernel; the orchestrator does
+   not choose a producer nobody declared. What each entry resolved to, and how, is
+   recorded in the run: `dependencies_resolved` on the kernel output, and `refs` on the
+   activity start event.
 2. Performs topological sort
 3. Identifies independent kernels (same topological level)
 4. Executes in batches respecting dependencies
