@@ -25,6 +25,7 @@ indistinguishable from a purge that did nothing.
 from __future__ import annotations
 
 import hashlib
+import re
 import json
 import sqlite3
 import struct
@@ -185,6 +186,9 @@ class SqliteDocumentStore:
         self._db.commit()
         #: What the store removed, and why. Read by the CLI and the kernel report.
         self.drops: list[dict[str, Any]] = []
+        #: Queries the lexical lane could not express, with the reason. A lane that
+        #: returns nothing and a lane that was never asked are different facts.
+        self.lexical_refusals: list[dict[str, Any]] = []
         #: Dense indexes, one per model, built on demand from the rows above.
         self._retrievers: dict[str, Any] = {}
 
@@ -636,14 +640,77 @@ class SqliteDocumentStore:
 
     # ---------------------------------------------------------- retrieval
 
-    def lexical_search(self, query: str, top_k: int) -> list[Hit]:
+    #: How the terms of a query are combined. `all` is the default and preserves
+    #: today's behaviour for plain-word queries — FTS5's implicit AND. `any` is
+    #: offered as an explicit parameter and never chosen here: which one a lane
+    #: should use is retrieval semantics and belongs to the scientific lead.
+    COMBINATORS = ("all", "any")
+
+    def fts_tokenizer(self) -> str:
+        """The tokenizer the index was actually created with, read from its DDL.
+
+        Reported rather than assumed. The expression built below does not depend on
+        it — see `fts_expression` — but a lane that cannot say how its index
+        tokenises cannot explain a miss, and the constant in this file is what the
+        table was created with **once**, not necessarily what an older store on disk
+        carries.
+        """
+        row = self._db.execute(
+            "SELECT sql FROM sqlite_master WHERE name='chunks_fts'").fetchone()
+        if not row or not row[0]:
+            return ""
+        found = re.search(r"tokenize\s*=\s*'([^']*)'", row[0])
+        return found.group(1) if found else ""
+
+    @staticmethod
+    def fts_expression(query: str, combinator: str = "all") -> Optional[str]:
+        """The query as an FTS5 expression, or None when it holds nothing to search.
+
+        **Every term is quoted, and the raw string never reaches MATCH.** FTS5 reads
+        an apostrophe as a string delimiter and a question mark as syntax, so a
+        French question — most of a real grid — raised `fts5: syntax error` through
+        the lane rather than returning anything. Measured on a grid of 48: 47 refused,
+        the only one accepted being the only one that was neither a question nor
+        carried an apostrophe.
+
+        Quoting delegates tokenisation to the table's own tokenizer: inside quotes
+        FTS5 tokenises the text and matches it as a phrase, so `"d'offres"` finds the
+        same rows whatever the tokenizer is. That is why this does **not** mirror the
+        tokenizer family — mirroring it would be a second implementation of somebody
+        else's rule, wrong the day the table is created with another one.
+
+        A word holding no alphanumeric character is dropped: it contributes no token
+        and an empty phrase would silently match nothing. A query left with no term
+        returns None — the lane then refuses **with a reason** rather than searching
+        for everything or raising.
+        """
+        if combinator not in SqliteDocumentStore.COMBINATORS:
+            raise ValueError(f"combinator must be one of {SqliteDocumentStore.COMBINATORS}")
+        terms = ['"' + word.replace('"', '""') + '"'
+                 for word in query.split() if any(ch.isalnum() for ch in word)]
+        if not terms:
+            return None
+        return (" AND " if combinator == "all" else " OR ").join(terms)
+
+    def lexical_search(self, query: str, top_k: int,
+                       combinator: str = "all") -> list[Hit]:
         """The FTS5 lane. Ranks are 1-based and lane-local, never cross-lane.
 
         A trashed document's chunks are excluded here rather than filtered by the
         caller: a store that returns rows it considers deleted has two answers to
         the question of what it holds.
         """
-        if not query.strip():
+        expression = self.fts_expression(query, combinator) if query.strip() else None
+        if expression is None:
+            # A refusal with a reason, in the result and in the record. The lane used
+            # to raise `fts5: syntax error` out through its caller, which is neither
+            # a result nor a refusal — it is the lane's implementation reaching the
+            # top of a run.
+            self.lexical_refusals.append({
+                "query": query, "reason": ("empty query" if not query.strip()
+                                           else "no term the index can search"),
+                "combinator": combinator, "tokenizer": self.fts_tokenizer(),
+            })
             return []
         rows = self._db.execute(
             """SELECT c.* FROM chunks_fts f
@@ -652,7 +719,7 @@ class SqliteDocumentStore:
                 WHERE chunks_fts MATCH ? AND d.trashed = 0
                 ORDER BY bm25(chunks_fts)
                 LIMIT ?""",
-            (query, int(top_k)),
+            (expression, int(top_k)),
         ).fetchall()
         return [Hit(chunk=self._chunk_from_row(r), lexical_rank=i)
                 for i, r in enumerate(rows, 1)]

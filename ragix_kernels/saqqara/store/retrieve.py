@@ -47,6 +47,10 @@ class Retriever:
     #: What the last dense call had to fetch to fill its top_k, for the trace.
     last_overfetch: dict[str, int] = {}
 
+    #: What each lane did on the last `search`: asked, hits, and — for the lexical
+    #: lane — whether it refused the query and why.
+    last_lanes: dict[str, dict] = {}
+
     def __init__(self, store: Any, model: str = "", backend: str = "numpy",
                  rrf_k: int = RRF_K) -> None:
         self.store = store
@@ -164,16 +168,32 @@ class Retriever:
         self.last_overfetch = {"factor": factor, "vectors": wanted, "texts": len(hits)}
         return hits[:top_k]
 
-    def lexical(self, query: str, top_k: int) -> list[Hit]:
-        return self.store.lexical_search(query, top_k)
+    def lexical(self, query: str, top_k: int, combinator: str = "all") -> list[Hit]:
+        return self.store.lexical_search(query, top_k, combinator)
 
     # --------------------------------------------------------------- fusion
 
     def search(self, query: str, vector: Optional[Iterable[float]] = None,
-               top_k: int = 10, dense_k: int = 40, lexical_k: int = 40) -> list[Hit]:
+               top_k: int = 10, dense_k: int = 40, lexical_k: int = 40,
+               combinator: str = "all") -> list[Hit]:
         """Both lanes, fused over ranks, with the lane ranks preserved."""
         dense = self.dense(vector, dense_k) if vector is not None else []
-        lexical = self.lexical(query, lexical_k)
+        before = len(getattr(self.store, "lexical_refusals", ()) or ())
+        lexical = self.lexical(query, lexical_k, combinator)
+        refusals = list(getattr(self.store, "lexical_refusals", ()) or ())[before:]
+
+        # What each lane did, at the entry point every caller uses. A fused result
+        # that quietly became dense-only is a decomposition missing its reason
+        # (rule 5): "the lexical lane returned nothing" and "the lexical lane could
+        # not express this query" are different facts and a rank cannot say the
+        # second.
+        self.last_lanes = {
+            "dense": {"asked": vector is not None, "hits": len(dense)},
+            "lexical": {"asked": True, "hits": len(lexical),
+                        "refused": bool(refusals),
+                        "reason": refusals[0]["reason"] if refusals else None,
+                        "combinator": combinator},
+        }
 
         merged: dict[str, Hit] = {}
         score: dict[str, float] = {}
