@@ -2481,3 +2481,98 @@ def test_k7_22_the_lane_still_fills_top_k_when_one_text_has_many_windows(store, 
     assert len(hits) == wanted, f"the lane returned {len(hits)} texts, not {wanted}"
     assert retriever.last_overfetch["factor"] >= 1
     assert len({h.chunk.chunk_id for h in hits}) == wanted
+
+
+def _two_documents(store, trees):
+    """Two documents in one store, each with a roll-up over units.
+
+    The class of fixture the first version of this gate did not have: every
+    refinement test used one document, and the pass embedded the parts of all of
+    them in a single call — which `embed_missing` refuses, because its refusal
+    register is per document. A real corpus of 145 documents met that on its first
+    run; one document never can.
+    """
+    # Two DIFFERENT documents on purpose. Built from one fixture twice, their text
+    # is identical, and a fake server that picks a document by its text cannot tell
+    # them apart — the first version of this gate broke on document one while
+    # claiming to break on document two, and passed for the wrong reason.
+    out = []
+    for mark, sha in (("docx", "a" * 64), ("md", "b" * 64)):
+        fed = feed_tree(trees[mark], source_path=f"/{sha[:4]}.{mark}", source_sha256=sha)
+        store.upsert_document(fed.document)
+        store.replace_chunks(sha, fed.chunks)
+        rollup = next(c for c in fed.chunks if c.level == 1)
+        out.append((sha, fed, rollup))
+    return out
+
+
+def test_k7_22_a_pass_refines_document_by_document(store, trees, fake_server):
+    """Two documents, one pass, and the parts of each embedded on their own.
+
+    Falsified by: a pass that embeds the parts of more than one document in one
+    call — the shape that failed on the real corpus after 804 seconds.
+    """
+    pairs = _two_documents(store, trees)
+    fake_server(_RefusingServer())
+    for sha, fed, _rollup in pairs:
+        embed_missing(store, fed.chunks, _backend(batch_size=8), model="m")
+
+    budget = max(len(c.text) for _s, fed, _r in pairs
+                 for c in fed.chunks if c.level == 0) + 1
+    plan = refine_store(store, _backend(batch_size=8), "m", [budget])
+
+    first = plan.passes[0]
+    assert first.documents_attempted == 2 and first.documents_completed == 2
+    assert first.stopped_on is None
+    for sha, _fed, rollup in pairs:
+        parts = [c for c in store.get_chunks(sha) if (c.meta or {}).get("part")]
+        assert parts, f"{sha[:4]} was not refined"
+        assert store.existing_embeddings([rollup.chunk_id], "m") == set()
+
+
+def test_k7_22_a_failure_leaves_the_document_it_stopped_on_untouched(store, trees,
+                                                                    fake_server):
+    """The defect that made a stop worse than a stop: the drops came first.
+
+    On the real corpus the pass dropped 165 vectors and then raised, leaving 215
+    texts and 1 027 parts with no vector at all — a lane emptier than before it
+    ran. The order is the atomicity, and this is its gate.
+
+    Falsified by: a text left with neither its own vector nor embedded parts.
+    """
+    pairs = _two_documents(store, trees)
+    fake_server(_RefusingServer())
+    for sha, fed, _rollup in pairs:
+        embed_missing(store, fed.chunks, _backend(batch_size=8), model="m")
+
+    second_texts = {c.text for c in pairs[1][1].chunks}
+
+    class _BreaksOnTheSecond(_RefusingServer):
+        def post(self, url, json=None, timeout=None):  # noqa: A002
+            texts = list(json["input"])
+            self.requests.append(texts)
+            if any(any(t in whole for whole in second_texts) for t in texts):
+                return _Reply(503, {"error": "server exploded"})
+            return _Reply(200, {"embeddings": [[float(len(t))] * 4 for t in texts]})
+
+    fake_server(_BreaksOnTheSecond())
+    budget = max(len(c.text) for _s, fed, _r in pairs
+                 for c in fed.chunks if c.level == 0) + 1
+
+    with pytest.raises(RuntimeError) as raised:
+        refine_store(store, _backend(batch_size=8), "m", [budget])
+
+    message = str(raised.value)
+    assert "stopped on document" in message and "were completed" in message
+
+    (first_sha, _f, first_rollup), (second_sha, _s, second_rollup) = pairs
+    assert store.existing_embeddings([first_rollup.chunk_id], "m") == set(), \
+        "the completed document was not refined"
+    assert [c for c in store.get_chunks(first_sha) if (c.meta or {}).get("part")]
+
+    assert store.existing_embeddings([second_rollup.chunk_id], "m") == {second_rollup.chunk_id}, \
+        "the document it stopped on lost the vector it had"
+    # The claim in full: whatever parts exist for the document it stopped on, that
+    # document's text still holds its own vector. Neither-nor is the failure.
+    assert store.existing_embeddings([second_rollup.chunk_id], "m"), \
+        "a text left with neither its vector nor embedded parts"
