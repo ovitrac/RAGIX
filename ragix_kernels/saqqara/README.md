@@ -9,8 +9,10 @@ spreadsheet, presentation and markdown files into one typed tree, keeps an exact
 node, and recognises the structures a reader sees — sections, tables, header bands, label tilings —
 using ordered hard rules that abstain rather than guess.
 
-It computes. There is no model inside it, no retrieval, no store: those live elsewhere in this
-repository and none of them is a dependency here.
+It computes: no language model runs anywhere in it. Beside the reader, it keeps one SQLite store
+of trees, chunks, objects, edges and vectors, queried on a lexical lane and, when an embedder is
+configured, on a dense lane, every hit leading back to its nodes. The only model it can call is
+that embedder, from indexing and search.
 
 ## Status
 
@@ -21,11 +23,12 @@ Complete and gated. `SPEC.md` holds 153 falsifiable propositions and every one i
 | `model.py` | nodes, kinds, locators, provenance, stable JSON | K1 |
 | `adapters/` | one reader per format — pdf, docx, xlsx, pptx, md | K2 |
 | `builder.py` | observations into a tree, with the accounting reconciled | K3.j |
-| `analyzers/` | tables, header bands, islands, chains, sections, outline | K3.a–K3.i |
+| `analyzers/` | tables, header bands, islands, chains, sections, outline, headings shown by size or weight | K3.a–K3.k |
 | `services.py` | title cascade, page policy, lookup | K3.g |
 | `assets.py`, `render/`, object analyzers | figures, captions and drawn regions — what a document shows rather than says | K6 |
-| `kernel.py` | the envelope, the roots, the MCP surface | K4 |
+| `kernels/saqqara_run.py` | the reading kernel: the envelope, the roots, the abstention register | K4 |
 | `store/`, `kernels/saqqara_index.py` | one SQLite file: trees, chunks, objects, edges and their vectors | K7 |
+| `cli/`, `mcp/` | `saqqaractl` and the four MCP tools, answering identically | K7.16 |
 
 ## Using it
 
@@ -39,8 +42,11 @@ result = SaqqaraKernel().run(
 print(result.summary)
 ```
 
-Through MCP: `koas_saqqara_run(source, workspace, formats, promote_outline)` and
-`koas_saqqara_status(workspace)`.
+Through MCP: `koas_saqqara_run(source, workspace, formats, promote_outline)`,
+`koas_saqqara_status(workspace)`, `koas_saqqara_index(workspace, config)` and
+`koas_saqqara_search(workspace, query, k, config)`. From the command line:
+`python -m ragix_kernels.saqqara.cli.saqqaractl run|status|index|search`. The user reference is
+`docs/KOAS_SAQQARA.md`, the developer reference `docs/KOAS_SAQQARA_DEV.md`.
 
 Two roots come back, and the difference is the point. `merkle_root` covers the trees and is stable
 across runs, so a claim about a document can name the structure it was read from. `source_root`
@@ -84,19 +90,33 @@ These are not style preferences. Each is carried by a proposition in `SPEC.md` a
 ```
 saqqara/
 ├── SPEC.md        the specification: 153 propositions, gates K1-K4, K6 and K7
-├── kernel.py      the single KOAS kernel facade  <- only Kernel subclass here
+├── README.md      this file
+├── __init__.py    the family's docstring
+├── kernel.py      re-exports SaqqaraKernel for older callers
 ├── model.py       Node, KindRegistry, Locator, Provenance, Tree
+├── builder.py     observations into a tree, one format plan per reader
+├── services.py    title cascade, page policy, lookup
+├── views.py       lazy projections: the structure signature
+├── assets.py      picture bytes beside the tree, addressed by their hash
 ├── adapters/      one reader per format; each emits Mastaba raw facts
-├── analyzers/     tables, header_bands, islands, sections
-└── views.py       lazy projections: blocks, anchors, chains, signature
+├── analyzers/     the pipeline (tables, grid_tables, header_bands, islands, sections), the opt-in
+│                  outline, chains, and the library-only format_headings, caption_binding,
+│                  vector_regions
+├── render/        the renderer port, the default renderer, the opt-in one, the licence guard
+├── kernels/       saqqara_run (stage 1) and saqqara_index (stage 2)  <- the only Kernel subclasses
+├── store/         records, chunker, feed, embeddings, refinement, retrieval, configuration, sqlite
+├── cli/           saqqaractl: run, status, index, search
+└── mcp/           the four MCP tools
 ```
 
-Exactly one module exposes a `Kernel` subclass. The registry discovers kernels by walking this
-package, so a second one would register as an independent kernel.
+Exactly two modules define a `Kernel` subclass, `kernels/saqqara_run.py` and
+`kernels/saqqara_index.py`, and the K0.3 gate pins that list. The registry discovers kernels by
+walking this package, so a third would register as an independent kernel, and adding one amends
+the pin.
 
 ## Tests
 
-Tests live in `tests/saqqara/` and are named `test_k<N>_<subject>.py`, one file per gate. The
+Tests live in `tests/saqqara/` and are named `test_k<N>…_<subject>.py`, one or more files per gate. The
 numbering is this family's own and does not follow any other convention in this repository.
 
 ```bash
