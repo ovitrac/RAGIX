@@ -795,9 +795,12 @@ These are raised, and a kernel run reports them as `success: false` with the mes
   (§11).
 - **Activity events.** RAGIX writes `koas.event/1.0` activity events, each carrying a sovereignty
   attestation, only when an activity writer has been initialised for the process. At this version
-  the document-summary runner initialises one; no saqqara surface does. A saqqara run therefore
-  leaves no activity event and no per-event attestation. Its evidence is its own output: the two
-  roots, the envelope's input hash, and the registers of §9.
+  the document-summary runner initialises one; no saqqara surface does. `saqqaractl`, the MCP tools
+  and a direct `Kernel.run` therefore leave no activity event. Run through the KOAS orchestrator in
+  a process whose caller has called `ragix_kernels.activity.init_activity_writer(workspace)`, each
+  kernel leaves a start and an end event under scope `docs.kernel`, each with
+  `sovereignty.local_only: true`, in `WORKSPACE/.KOAS/activity/events.jsonl`. Either way, a run's
+  own evidence is its output: the two roots, the envelope's input hash, and the registers of §9.
 - **The licence quarantine** of §14 keeps the AGPL renderer off every default path.
 
 ---
