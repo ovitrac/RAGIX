@@ -16,7 +16,7 @@ that embedder, from indexing and search.
 
 ## Status
 
-Complete and gated. `SPEC.md` holds 153 falsifiable propositions and every one is carried by a test.
+Gated. `SPEC.md` holds 153 falsifiable propositions and every one is carried by a test.
 
 | layer | what it does | gate |
 |---|---|---|
