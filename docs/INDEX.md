@@ -4,7 +4,7 @@
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 **Version:** 0.74.0
-**Updated:** 2026-06-24
+**Updated:** 2026-09-10
 
 ---
 
@@ -51,6 +51,7 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
     │  KOAS_ACTIVITY   (centralized activity logging)    │
     │  KOAS_MEMORY_MCP (17 tools — episodic memory)      │
     │  KOAS_MEMORY_ARCHITECTURE (core memory design)     │
+    │  KOAS_SAQQARA    (2 kernels — document substrate)   │
     │  + audit (27), security (11), translate (6) in KOAS.md         │
     └────────────────────────────────────────────────────┘
 ```
@@ -156,6 +157,13 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
 - **[KOAS_TRANSLATE.md](KOAS_TRANSLATE.md)** — Local-first scientific translation (6 kernels, EN→FR)
   - extract → segment → draft → qa → harmonize → rebuild over a SQLite TM
   - Protected spans (⟦P####⟧), glossary, generative-kernel reproducibility
+
+- **[KOAS_SAQQARA.md](KOAS_SAQQARA.md)** — Document substrate (2 kernels): typed trees with provenance
+  - pdf, docx, xlsx, pptx, md read into one tree each; the abstention register; two roots
+  - One SQLite store: FTS5 and dense lanes fused by rank, every hit citing its nodes
+
+- **[KOAS_SAQQARA_DEV.md](KOAS_SAQQARA_DEV.md)** — saqqara developer reference
+  - Every module, the SQLite schema field by field, the records, every refusal and its code path
 
 - **[KOAS_ACTIVITY.md](KOAS_ACTIVITY.md)** — Centralized activity logging
   - Event schema (koas.event/1.0), actor model, hash chain
@@ -296,6 +304,11 @@ User Goal
 2. [KOAS_DOCS.md](KOAS_DOCS.md) → Upstream document analysis
 3. [KOAS.md](KOAS.md) → Three-stage architecture
 
+**"I want to read documents into citable structure and search them"**
+1. [KOAS_SAQQARA.md](KOAS_SAQQARA.md) → Install, saqqaractl, the store, querying, refusals
+2. [KOAS_SAQQARA_DEV.md](KOAS_SAQQARA_DEV.md) → Schema, records, seams, extension points, gates
+3. [KOAS.md](KOAS.md) → Kernel orchestration
+
 **"I need to ensure data sovereignty/compliance"**
 1. [SOVEREIGN_LLM_OPERATIONS.md](SOVEREIGN_LLM_OPERATIONS.md) → Complete guide
 2. [KOAS_ACTIVITY.md](KOAS_ACTIVITY.md) → Sovereignty attestation per event
@@ -365,6 +378,7 @@ Documentation follows these principles:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.74.0 | 2026-09-10 | Added KOAS_SAQQARA (user) and KOAS_SAQQARA_DEV (developer) for the saqqara document substrate |
 | 0.74.0 | 2026-06-24 | Added security/pentest nav (SECURITY_KERNELS_GUIDE, PENTEST_CONTAINER_GUIDE); kernel counts refreshed to 88 (registry-authoritative) |
 | 0.73.0 | 2026-06-20 | Added RAGIX_SEALED.md (confidential-document subsystem, 9 sealed kernels) |
 | 0.72.0 | 2026-03-05 | KOAS_PRESENTER v2.2 (accent directives, lightbox, image centering) |
@@ -377,6 +391,6 @@ Documentation follows these principles:
 
 ---
 
-**Document Version:** 3.1.0
-**Last Updated:** 2026-06-24
+**Document Version:** 3.2.0
+**Last Updated:** 2026-09-10
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio

@@ -44,7 +44,8 @@ def register_saqqara_tools(mcp_server) -> None:
         source : str
             File or directory to read.
         workspace : str
-            Where to write the result (default: a temporary workspace).
+            Where to write the result (default: the parent directory of the
+            source). The workspace must already exist.
         formats : str
             Comma-separated extensions to narrow the scan, e.g. ".docx,.xlsx".
             Left empty, every file found is offered to the readers and whatever
@@ -57,7 +58,8 @@ def register_saqqara_tools(mcp_server) -> None:
         Returns
         -------
         dict
-            {"success", "summary", "documents", "merkle_root", "source_root", "report"}
+            {"success", "summary", "output_file", "documents", "merkle_root",
+             "source_root", "report", "errors"}
             `merkle_root` is stable across runs of the same input; `source_root`
             follows the bytes read and not where they sit.
         """
@@ -229,8 +231,9 @@ def register_saqqara_tools(mcp_server) -> None:
         Returns
         -------
         dict
-            {"hits": [...], "dense": str} — `hits` is exactly what `saqqaractl
-            search --json` prints, so the two surfaces cannot drift apart.
+            {"hits": [...]} — exactly what `saqqaractl search --json` prints, so
+            the two surfaces cannot drift apart; {"error": ...} when the search
+            exits non-zero.
         """
         try:
             import argparse
