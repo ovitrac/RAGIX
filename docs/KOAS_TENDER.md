@@ -109,3 +109,35 @@ the copy that drifts is whichever nobody is watching.
 
 The fixture is a real store, built at test time from the same generators the
 saqqara gates use. No document is committed to this repository.
+
+## 7. The domain library
+
+`ragix_kernels/tender/domain/` holds the lab's tender domain objects and lanes,
+ported as they are (logic, rules and schema versions unchanged). It is a library,
+not a kernel family: nothing in it is a `Kernel`, and it is imported by module.
+
+| module | what it holds |
+|---|---|
+| `records` | `QuestionRecord`, `AnswerRecord` (1.0-draft), `Applicability` 1.1, `DocumentFacts` |
+| `claims` | `ClaimRecord` 1.1 — value, provenance, source spans, identity |
+| `contract` | the producer payload (rule 8), citation verification (rule 9), the five verdicts |
+| `authority` | the deadline's authority records, the discovery and blocking gates, the resolution |
+| `routing` | the routing class of an analyzed saqqara tree |
+| `requirements` | `RequirementRecord` (0-draft), coarse and fine, under the verbatim span guard |
+| `retrieval` | lane weights, boosts, filters, expansion and budget over the saqqara retriever |
+| `pipeline` | the corpus lifecycle over a saqqara store: index, update, sync, rechunk, trash, restore |
+| `tagger` | the deterministic coarse-axis tagger |
+| `vocabulary` | the closed coarse-axis vocabulary; the packaged v0-draft is `data/axes_coarse_v0-draft.json` |
+| `deadline_slice` | the deadline claims read from chunk text — needs `ragix_kernels.harvest.fr.dates` |
+| `pyramid` | aggregation, the deterministic summary, zoom and rollup over claims |
+| `agreement` | Cohen's kappa and the disagreement table |
+| `substrate` | one way to obtain an analyzed saqqara tree |
+
+```python
+from ragix_kernels.tender.domain.claims import ClaimRecord
+from ragix_kernels.tender.domain.retrieval import Filters, retrieve
+```
+
+Tests: `tests/tender/test_domain_*.py`. Those of `deadline_slice` and `authority`
+skip when the harvest family's French readers are absent, and the derived-store
+tests in `test_domain_pyramid.py` skip when `ragix_kernels.harvest.derived` is.
