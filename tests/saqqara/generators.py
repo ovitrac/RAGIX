@@ -1654,6 +1654,29 @@ def markdown_document(path: Path) -> Path:
     return path
 
 
+#: How many generated sentences make the long unit: 180 of about fifty characters,
+#: a paragraph past twice the chunker's 4000-character fallback window, so it is
+#: cut into three windows and its roll-up holds two seams (K7.4).
+LONG_UNIT_SENTENCES = 180
+
+
+def long_unit_markdown(path: Path) -> Path:
+    """One heading, one paragraph longer than the fallback window, one short one.
+
+    The long paragraph is a single semantic unit the chunker must window; its
+    sentences are numbered so every window, and every seam between two, is a
+    distinct string a test can find.
+    """
+    sentences = " ".join(
+        f"Phrase de controle {i:03d}, ecrite pour ce test." for i in range(LONG_UNIT_SENTENCES)
+    )
+    path.write_text(
+        "# Chapitre unique\n\n" + sentences + "\n\nUn paragraphe court pour finir.\n",
+        encoding="utf-8",
+    )
+    return path
+
+
 
 # ------------------------------------------------- headings shown, not declared
 
@@ -2805,6 +2828,7 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "no_format_contrast": no_format_contrast,
     "unsupported_format": unsupported_format,
     "duplicate_pair": duplicate_pair,
+    "long_unit_markdown": long_unit_markdown,
 }
 
 
@@ -2882,6 +2906,7 @@ FIXTURE_SUFFIX: Dict[str, str] = {
     "undecidable_block": ".xlsx",
     "deep_header_band": ".xlsx",
     "unsupported_format": ".tmp",
+    "long_unit_markdown": ".md",
 }
 
 
