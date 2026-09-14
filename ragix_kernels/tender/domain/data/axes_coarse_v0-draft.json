@@ -1,0 +1,966 @@
+{
+ "vocabulary": "coarse-axes",
+ "version": "0-draft",
+ "status": "FREEZE CANDIDATE — RED gate GR3-0a; the freeze is the scientific lead's signature, not this file",
+ "unknown_is_valid": true,
+ "mined_from": {
+  "instrument": "scripts/section_collect.py + scripts/axis_vocabulary.py",
+  "n_section_records": 3238,
+  "n_distinct_names": 1280,
+  "neardup_sim": 0.9,
+  "mass_cut_layer_B": 0
+ },
+ "layers": {
+  "A": "cross-buyer core (>=2 buyers) — the only layer that may carry a cross-buyer recurrence claim (GR3-3)",
+  "B": "single-buyer coverage (above the mass cut) — coverage material, never recurrence evidence"
+ },
+ "axes": [
+  {
+   "axis_id": "AX-introduction",
+   "canonical": "introduction",
+   "aliases": [],
+   "buyers": [
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 15,
+   "layer": "A",
+   "class": "furniture"
+  },
+  {
+   "axis_id": "AX-generalites",
+   "canonical": "généralités",
+   "aliases": [
+    "generalites",
+    "généralité"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D",
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 12,
+   "layer": "A",
+   "class": "furniture"
+  },
+  {
+   "axis_id": "AX-conditions-financieres",
+   "canonical": "conditions financières",
+   "aliases": [
+    "(conditions financières)",
+    "conditions financieres"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 10,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-duree",
+   "canonical": "durée",
+   "aliases": [
+    "duree"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D"
+   ],
+   "mass_records": 10,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-lieu-d-execution-des-prestations",
+   "canonical": "lieu d’execution des prestations",
+   "aliases": [
+    "lieu d’exécution de la prestation",
+    "lieux d’exécution des prestations"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 10,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-preambule",
+   "canonical": "preambule",
+   "aliases": [
+    "préambule"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 10,
+   "layer": "A",
+   "class": "furniture"
+  },
+  {
+   "axis_id": "AX-prestations-attendues",
+   "canonical": "prestations attendues",
+   "aliases": [
+    "les prestations attendues"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 10,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-propriete-intellectuelle",
+   "canonical": "propriété intellectuelle",
+   "aliases": [
+    "droits de propriete intellectuelle",
+    "droits de propriété intellectuelle",
+    "propriete intellectuelle"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 10,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-responsabilite",
+   "canonical": "responsabilité",
+   "aliases": [
+    "responsabilite",
+    "responsabilites",
+    "responsabilités"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 10,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-l-acheteur",
+   "canonical": "l’acheteur",
+   "aliases": [
+    "acheteur"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D"
+   ],
+   "mass_records": 9,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-objet",
+   "canonical": "objet",
+   "aliases": [],
+   "buyers": [
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 9,
+   "layer": "A",
+   "class": "furniture"
+  },
+  {
+   "axis_id": "AX-sous-traitance",
+   "canonical": "sous-traitance",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 9,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-objet-du-document",
+   "canonical": "objet du document",
+   "aliases": [],
+   "buyers": [
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 8,
+   "layer": "A",
+   "class": "furniture"
+  },
+  {
+   "axis_id": "AX-annexes",
+   "canonical": "annexes",
+   "aliases": [
+    "ses annexes"
+   ],
+   "buyers": [
+    "buyer-D",
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 7,
+   "layer": "A",
+   "class": "furniture"
+  },
+  {
+   "axis_id": "AX-assurance",
+   "canonical": "assurance",
+   "aliases": [
+    "assurances"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 7,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-audits",
+   "canonical": "audits",
+   "aliases": [],
+   "buyers": [
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 7,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-dqe",
+   "canonical": "dqe",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-D"
+   ],
+   "mass_records": 7,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-definitions",
+   "canonical": "définitions",
+   "aliases": [
+    "definitions"
+   ],
+   "buyers": [
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 7,
+   "layer": "A",
+   "class": "furniture"
+  },
+  {
+   "axis_id": "AX-force-majeure",
+   "canonical": "force majeure",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 7,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-mesures-de-securite",
+   "canonical": "mesures de sécurité",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-D",
+    "buyer-B"
+   ],
+   "mass_records": 7,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-penalites",
+   "canonical": "penalites",
+   "aliases": [
+    "pénalités"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 7,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-presentation-de-la-dsi",
+   "canonical": "présentation de la dsi",
+   "aliases": [
+    "presentation de la dsi",
+    "présentation générale de la dsi"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 7,
+   "layer": "A",
+   "class": "furniture"
+  },
+  {
+   "axis_id": "AX-resiliation",
+   "canonical": "résiliation",
+   "aliases": [
+    "resiliation"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 7,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-attribution",
+   "canonical": "attribution",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-D"
+   ],
+   "mass_records": 6,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-devoir-de-conseil",
+   "canonical": "devoir de conseil",
+   "aliases": [
+    "notre devoir de conseil"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-A"
+   ],
+   "mass_records": 6,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-documents-de-reference",
+   "canonical": "documents de référence",
+   "aliases": [],
+   "buyers": [
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 6,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-lieu-d-execution",
+   "canonical": "lieu d’exécution",
+   "aliases": [
+    "lieu d’execution"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D"
+   ],
+   "mass_records": 6,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-negociation",
+   "canonical": "négociation",
+   "aliases": [
+    "negociations",
+    "négociations"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D"
+   ],
+   "mass_records": 6,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-sommaire",
+   "canonical": "sommaire",
+   "aliases": [],
+   "buyers": [
+    "buyer-D",
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 6,
+   "layer": "A",
+   "class": "furniture"
+  },
+  {
+   "axis_id": "AX-base-de-donnees",
+   "canonical": "base de données",
+   "aliases": [
+    "bases de données"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 5,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-delais-d-execution-des-prestations",
+   "canonical": "délais d’exécution des prestations",
+   "aliases": [
+    "délais d’exécution"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-A"
+   ],
+   "mass_records": 5,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-facturation",
+   "canonical": "facturation",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-A"
+   ],
+   "mass_records": 5,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-glossaire",
+   "canonical": "glossaire",
+   "aliases": [],
+   "buyers": [
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 5,
+   "layer": "A",
+   "class": "furniture"
+  },
+  {
+   "axis_id": "AX-interets-moratoires",
+   "canonical": "intérêts moratoires",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-B"
+   ],
+   "mass_records": 5,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-localisation-de-la-prestation",
+   "canonical": "localisation de la prestation",
+   "aliases": [
+    "localisation des prestations"
+   ],
+   "buyers": [
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 5,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-middleware",
+   "canonical": "middleware",
+   "aliases": [
+    "middlewares"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-A"
+   ],
+   "mass_records": 5,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-modalites-de-revision-des-prix",
+   "canonical": "modalités de révision des prix",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-D"
+   ],
+   "mass_records": 5,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-obligation-de-confidentialite",
+   "canonical": "obligation de confidentialité",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-D"
+   ],
+   "mass_records": 5,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-obligation-generale",
+   "canonical": "obligation générale",
+   "aliases": [
+    "obligations générales"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D"
+   ],
+   "mass_records": 5,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-obligations-du-titulaire",
+   "canonical": "obligations du titulaire",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-D"
+   ],
+   "mass_records": 5,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-presentation-generale",
+   "canonical": "présentation générale",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-A"
+   ],
+   "mass_records": 5,
+   "layer": "A",
+   "class": "furniture"
+  },
+  {
+   "axis_id": "AX-redressement-liquidation-judiciaire",
+   "canonical": "redressement - liquidation judiciaire",
+   "aliases": [
+    "redressement ou liquidation judiciaire"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D"
+   ],
+   "mass_records": 5,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-responsabilite-assurances",
+   "canonical": "responsabilite - assurances",
+   "aliases": [
+    "responsabilité et assurance"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-A"
+   ],
+   "mass_records": 5,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-authentification",
+   "canonical": "authentification",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-B"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-cotraitance",
+   "canonical": "cotraitance",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-A"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-documents-contractuels",
+   "canonical": "documents contractuels",
+   "aliases": [],
+   "buyers": [
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-droit-d-information-des-personnes-concernees",
+   "canonical": "droit d'information des personnes concernées",
+   "aliases": [
+    "droit d’information des personnes concernées"
+   ],
+   "buyers": [
+    "buyer-D",
+    "buyer-B"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-formations-des-intervenants",
+   "canonical": "formations des intervenants",
+   "aliases": [
+    "formation des intervenants"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-D"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-garantie-d-eviction",
+   "canonical": "garantie d’éviction",
+   "aliases": [],
+   "buyers": [
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-les-titulaires",
+   "canonical": "les titulaires",
+   "aliases": [
+    "le titulaire"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-B"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-modalites-relatives-aux-variantes",
+   "canonical": "modalités relatives aux variantes",
+   "aliases": [
+    "dispositions relatives aux variantes"
+   ],
+   "buyers": [
+    "buyer-C",
+    "buyer-B"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-memoire-technique-du-titulaire",
+   "canonical": "mémoire technique du titulaire",
+   "aliases": [],
+   "buyers": [
+    "buyer-D",
+    "buyer-B"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-notifications",
+   "canonical": "notifications",
+   "aliases": [
+    "notification"
+   ],
+   "buyers": [
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-obligation-de-protection-du-systeme-d-informatio",
+   "canonical": "obligation de protection du système d’information et de sécurité de l’information",
+   "aliases": [
+    "obligation de sécurité de l’information"
+   ],
+   "buyers": [
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-prix",
+   "canonical": "prix",
+   "aliases": [],
+   "buyers": [
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-reporting",
+   "canonical": "reporting",
+   "aliases": [],
+   "buyers": [
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-sort-des-donnees",
+   "canonical": "sort des données",
+   "aliases": [],
+   "buyers": [
+    "buyer-D",
+    "buyer-B"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-supervision",
+   "canonical": "supervision",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-A"
+   ],
+   "mass_records": 4,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-competence",
+   "canonical": "compétence",
+   "aliases": [
+    "compétences"
+   ],
+   "buyers": [
+    "buyer-D",
+    "buyer-B"
+   ],
+   "mass_records": 3,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-confidentialite",
+   "canonical": "confidentialité",
+   "aliases": [],
+   "buyers": [
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 3,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-contexte",
+   "canonical": "contexte",
+   "aliases": [],
+   "buyers": [
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 3,
+   "layer": "A",
+   "class": "furniture"
+  },
+  {
+   "axis_id": "AX-delegue-a-la-protection-des-donnees",
+   "canonical": "délégué à la protection des données",
+   "aliases": [],
+   "buyers": [
+    "buyer-D",
+    "buyer-B"
+   ],
+   "mass_records": 3,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-gestion-des-changements",
+   "canonical": "gestion des changements",
+   "aliases": [],
+   "buyers": [
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 3,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-gestion-des-donnees",
+   "canonical": "gestion des données",
+   "aliases": [],
+   "buyers": [
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 3,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-notification-des-violations-de-donnees-a-caracte",
+   "canonical": "notification des violations de données à caractère personnel",
+   "aliases": [],
+   "buyers": [
+    "buyer-D",
+    "buyer-B"
+   ],
+   "mass_records": 3,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-poste-de-travail",
+   "canonical": "poste de travail",
+   "aliases": [],
+   "buyers": [
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 3,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-registre-des-categories-d-activites-de-traitemen",
+   "canonical": "registre des catégories d’activités de traitement",
+   "aliases": [],
+   "buyers": [
+    "buyer-D",
+    "buyer-B"
+   ],
+   "mass_records": 3,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-rgpd",
+   "canonical": "rgpd",
+   "aliases": [],
+   "buyers": [
+    "buyer-A",
+    "buyer-B"
+   ],
+   "mass_records": 3,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-reversibilite",
+   "canonical": "réversibilité",
+   "aliases": [
+    "reversibilite"
+   ],
+   "buyers": [
+    "buyer-D",
+    "buyer-B"
+   ],
+   "mass_records": 3,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-securite",
+   "canonical": "sécurité",
+   "aliases": [
+    "securite"
+   ],
+   "buyers": [
+    "buyer-D",
+    "buyer-A"
+   ],
+   "mass_records": 3,
+   "layer": "A",
+   "class": "requirement"
+  },
+  {
+   "axis_id": "AX-planning",
+   "canonical": "planning",
+   "aliases": [],
+   "buyers": [
+    "buyer-C",
+    "buyer-A"
+   ],
+   "mass_records": 2,
+   "layer": "A",
+   "class": "requirement"
+  }
+ ]
+}
