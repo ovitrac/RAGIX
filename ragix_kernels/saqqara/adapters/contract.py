@@ -229,19 +229,30 @@ def registered_adapters() -> dict[str, Adapter]:
     return dict(_ADAPTERS)
 
 
-def adapter_for(path: Path) -> Adapter | None:
-    return _ADAPTERS.get(path.suffix.lower())
+def adapter_for(path: Path,
+                readers: Mapping[str, Adapter] | None = None) -> Adapter | None:
+    """The reader that claims `path` — or, where `readers` holds a configured
+    reader for that format, that one instead. `readers` maps a format to a reader
+    built by the registered one (`PdfAdapter.configured`); absent, the registered
+    reader is the answer, as it always was."""
+    held = _ADAPTERS.get(path.suffix.lower())
+    if held is not None and readers:
+        return readers.get(held.format, held)
+    return held
 
 
-def read_path(path: Path, store=None) -> list[Mastaba]:
+def read_path(path: Path, store=None,
+              readers: Mapping[str, Adapter] | None = None) -> list[Mastaba]:
     """Read one file. Raises rather than returning an empty result.
 
     `store` is where extracted bytes go. A reader given none reads no objects:
     it has nowhere to put them, and putting them in the tree is exactly what
     K6.2 forbids. So the objects layer is opt-in at the call site, and a caller
     that wants only structure pays nothing for pictures it will not read.
+
+    `readers` substitutes configured readers by format (see `adapter_for`).
     """
-    adapter = adapter_for(path)
+    adapter = adapter_for(path, readers)
     if adapter is None:
         raise UnsupportedFormat(f"no reader claims {path.suffix!r}: {path.name}")
     if not path.is_file():
@@ -256,13 +267,17 @@ def read_path(path: Path, store=None) -> list[Mastaba]:
         raise UnreadableFile(f"{adapter.format} reader failed on {path.name}: {exc}") from exc
 
 
-def read_corpus(paths: Iterable[Path]) -> tuple[dict[str, list[Mastaba]], ReadReport]:
+def read_corpus(paths: Iterable[Path],
+                readers: Mapping[str, Adapter] | None = None,
+                ) -> tuple[dict[str, list[Mastaba]], ReadReport]:
     """Read a set of files, keeping each observation with the file it came from.
 
     A Mastaba carries a position inside a document, not the identity of the
     document — that belongs to the tree built from it. So reading many files at
     once has to keep the association here, or the caller is left holding a pile
     of observations with no way to tell whose they are.
+
+    `readers` substitutes configured readers by format (see `adapter_for`).
     """
     report = ReadReport()
     seen: dict[str, str] = {}
@@ -281,7 +296,7 @@ def read_corpus(paths: Iterable[Path]) -> tuple[dict[str, list[Mastaba]], ReadRe
             continue
 
         try:
-            found = read_path(path)
+            found = read_path(path, readers=readers)
         except UnsupportedFormat as exc:
             report.refusals.append(Refusal(str(path), "unsupported-format", str(exc)))
             continue

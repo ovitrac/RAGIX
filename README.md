@@ -801,9 +801,10 @@ system to AGPL obligations that are **incompatible with distributing this packag
 
 - it is never installed by default, never pulled in by the `all` extra, and never required by any
   test;
-- the document kernel's default renderer is `pypdfium2` (Apache-2.0), which imposes nothing;
-- the kernel refuses to import `pymupdf` from anywhere but its single named adapter, and a gate
-  enforces that.
+- the document kernel's default renderer is `pypdfium2` (Apache-2.0) and its default text reader
+  `pypdf` (BSD-3-Clause), which impose nothing;
+- the kernel refuses to import `pymupdf` from anywhere but its two named adapters — the opt-in
+  renderer and the opt-in text reader — and a gate enforces that.
 
 Install it only if you already hold a commercial licence from the vendor, or if you are not
 distributing the result and accept the AGPL terms. That choice is yours to make explicitly.

@@ -929,7 +929,17 @@ under Apache-2.0, and nothing under a copyleft licence.
 `ragix_kernels/saqqara/render/guard.py`:
 
 - `scan_sources()` refuses an import of `pymupdf`, `fitz` or `pymupdf4llm` anywhere in the package
-  except `render/mupdf.py`, the one module that exists to hold it;
+  except `render/mupdf.py` and `adapters/pdf_mupdf.py`, the two modules that exist to hold it;
 - `loaded_agpl_modules()` proves at run time that a default route never loaded it.
 
-Both are asserted in `tests/saqqara/test_k6_regions.py`.
+Both are asserted in `tests/saqqara/test_k6_regions.py`, the second also in a fresh process.
+
+**The pdf text reader is a port too.** Stage 1 takes a `pdf` section, declared with its defaults
+in the store's `defaults.yaml`: `text_reader: pypdf | pymupdf` (default `pypdf`) and
+`line_join: true | false` (default `false`). At the defaults the registered reader reads and the
+output is byte-identical to a run without the section. `pymupdf` reads the page text only — the
+outline, pages, pictures and ink are read by `pypdf` either way — and a tree it produced carries
+`+pymupdf-<version>` in the reader version of every node's provenance. `line_join` joins the
+fragments of one visual line, keeps the raw fragments in `facts.fragments`, and marks a join where
+a digit meets a digit `facts.review: {reason: digit-run-joined}`: a value to verify against the
+page, never a repair.

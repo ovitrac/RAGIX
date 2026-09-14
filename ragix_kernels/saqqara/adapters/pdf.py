@@ -24,6 +24,15 @@ Positions: each text observation records the point the text matrix placed it at,
 carries the page. It does not carry a bounding box. A true box needs glyph metrics this reader
 does not have, and a box invented from a font size would be a measurement nobody made — the kind
 of plausible number that survives precisely because it looks like the others.
+
+**The text is read through a port** (2026-09-14). `pypdf` is the default and its reading is the
+one every tree was built with; `configured({"text_reader": "pymupdf"})` returns a reader whose page
+text comes from `pymupdf` instead — AGPL-3.0, confined to `pdf_mupdf.py`, never loaded unless chosen
+(K6.16). A second option, `line_join`, joins the fragments of one visual line (`pdf_lines.py`),
+keeping the raw fragments on the joined node and marking every join where a digit meets a digit
+for review. Both are off by default, and a reader configured with the defaults *is* the registered
+reader: the default route is today's code, not an equivalent of it. A non-default reader says so in
+the provenance of everything it read, through its version (`0.8.0+pymupdf-<version>.line-join`).
 """
 
 from __future__ import annotations
@@ -40,6 +49,7 @@ from .contract import (
     Mastaba,
     register_adapter,
 )
+from .pdf_lines import JOIN_PAGE_FACTS, JOIN_TEXT_FACTS, join_lines
 
 #: The declared vocabularies, one per record kind this reader emits (K2.19).
 TEXT_FACTS = ("x", "y", "font_size", "font", "width")
@@ -257,6 +267,43 @@ def _y_scale(matrix) -> float:
 PAGE_FACTS = ("has_text", "image_count", "needs_ocr", "width", "height")
 OUTLINE_FACTS = ("level",)
 
+#: The libraries that can read a page's text. The first is the default; the second
+#: is AGPL-3.0 and reachable only through `pdf_mupdf.py` (K6.16).
+TEXT_READERS = ("pypdf", "pymupdf")
+
+#: What this reader can be asked to do differently, each at the value that
+#: reproduces every tree read before the option existed. Declared again, as the
+#: shape of a configuration, in the store's packaged defaults (`pdf:`); a test
+#: holds the two equal.
+OPTIONS: dict[str, object] = {"text_reader": "pypdf", "line_join": False}
+
+
+def _origin(raw: str, tm, cm, shown=None):
+    """Where a run of type starts on the page, for the line join only.
+
+    The text matrix then the transformation in force, as K2.24 composes them for
+    size: the operand places the run in text space and only their product places
+    it on the page. Returns (x, y, upright, starts with white space, ends with it),
+    or None where the start cannot be known — the join then leaves the run as read.
+
+    `shown` is the pair (cm, tm) in force when the run's first string was shown,
+    and it is preferred: the matrices handed to the text visitor are those of the
+    visitor's last flush, and where the library inserted a space it does not
+    refresh them — the run is then reported where its text object began, the
+    origin of the page on the fixtures that exposed it. Without `shown`, a run the
+    library prefixed with a space has no known start.
+    """
+    if shown:
+        cm, tm = shown
+    elif raw[:1].isspace():
+        return None
+    try:
+        m = _concat(tuple(float(v) for v in tm), tuple(float(v) for v in cm))
+    except (TypeError, ValueError, IndexError):
+        return None
+    upright = abs(m[1]) < 1e-9 and abs(m[2]) < 1e-9 and m[0] > 0 and m[3] > 0
+    return (m[4], m[5], upright, raw[:1].isspace(), raw[-1:].isspace())
+
 
 class PdfAdapter(Adapter):
     """Read a laid-out document into outline, page and text observations."""
@@ -274,16 +321,68 @@ class PdfAdapter(Adapter):
     }
     skip_reasons = OBJECT_SKIPS
 
+    #: The text port's opt-in implementation; None is the default reading (pypdf).
+    _text_port = None
+    #: Whether the fragments of one visual line are joined (`pdf_lines.py`).
+    line_join = False
+
+    def configured(self, options) -> "PdfAdapter":
+        """This reader with `options` applied — this very reader when they are the defaults.
+
+        Returning the registered reader itself, rather than an equivalent one, is
+        what makes the default route today's code and not a copy of it. Any other
+        choice builds a new reader, never registered, whose version names what was
+        chosen, so the provenance of everything it reads says how it was read. An
+        unknown option or value is refused: an option ignored in silence is the
+        instruction discarded without a word (K7.14).
+        """
+        options = dict(options or {})
+        unknown = sorted(set(options) - set(OPTIONS))
+        if unknown:
+            raise ValueError(f"pdf: unknown reader option(s) {unknown}; "
+                             f"known: {sorted(OPTIONS)}")
+        chosen = {**OPTIONS, **options}
+        if chosen["text_reader"] not in TEXT_READERS:
+            raise ValueError(f"pdf.text_reader must be one of {TEXT_READERS}, "
+                             f"not {chosen['text_reader']!r}")
+        if not isinstance(chosen["line_join"], bool):
+            raise ValueError(f"pdf.line_join is true or false, "
+                             f"not {chosen['line_join']!r}")
+        if chosen == OPTIONS:
+            return self
+
+        reader = PdfAdapter()
+        tags = []
+        if chosen["text_reader"] == "pymupdf":
+            from .pdf_mupdf import MuPdfTextReader  # the opt-in, AGPL-3.0
+
+            reader._text_port = MuPdfTextReader()
+            tags.append(f"pymupdf-{reader._text_port.version}")
+        if chosen["line_join"]:
+            reader.line_join = True
+            reader.fact_sets = {**self.fact_sets,
+                                "text": TEXT_FACTS + JOIN_TEXT_FACTS,
+                                "page": PAGE_FACTS + JOIN_PAGE_FACTS}
+            tags.append("line-join")
+        reader.version = f"{self.version}+{'.'.join(tags)}"
+        return reader
+
     def read(self, path: Path) -> Iterator[Mastaba]:
         from pypdf import PdfReader
 
         reader = PdfReader(str(path))
         pages = {id(page.indirect_reference): n for n, page in enumerate(reader.pages, start=1)}
 
-        yield from self._outline(reader, pages)
+        if self._text_port is not None:
+            self._text_port.open(path)
+        try:
+            yield from self._outline(reader, pages)
 
-        for number, page in enumerate(reader.pages, start=1):
-            yield from self._page(page, number)
+            for number, page in enumerate(reader.pages, start=1):
+                yield from self._page(page, number)
+        finally:
+            if self._text_port is not None:
+                self._text_port.close()
 
     # ---------------------------------------------------------------- outline
 
@@ -506,7 +605,13 @@ class PdfAdapter(Adapter):
 
     # ------------------------------------------------------------------- page
 
-    def _page(self, page, number: int) -> Iterator[Mastaba]:
+    def _pypdf_placements(self, page, geometry: list | None = None) -> list[tuple]:
+        """The default text reader: pypdf's visitor, one placement per text run.
+
+        `geometry`, when a list, receives per placement what the line join needs
+        (`_origin`). It is None on the default route, which is this reader exactly
+        as it was before the port existed.
+        """
         placements: list[tuple[str, float, float, float, str]] = []
 
         def visitor(text, cm, tm, font_dict, font_size):
@@ -521,11 +626,45 @@ class PdfAdapter(Adapter):
                                    font_size or 0, tm, cm)
                 placements.append((text.strip(), float(tm[4]), float(tm[5]),
                                    size, name, width))
+                if geometry is not None:
+                    geometry.append(_origin(text, tm, cm, shown[0] if shown else None))
+            if geometry is not None:
+                shown.clear()                     # the next run starts afresh
+
+        # The line join only: the matrices in force at the first string each run shows.
+        shown: list[tuple[list, list]] = []
+
+        def before(operator, operands, cm, tm):
+            if operator in (b"Tj", b"TJ") and not shown:
+                shown.append((list(cm), list(tm)))
 
         try:
-            page.extract_text(visitor_text=visitor)
+            if geometry is None:
+                page.extract_text(visitor_text=visitor)
+            else:
+                page.extract_text(visitor_text=visitor, visitor_operand_before=before)
         except Exception:
             placements = []
+            if geometry is not None:
+                del geometry[:]
+        return placements
+
+    def _text(self, page, number: int):
+        """The page's text through the port: (placements, join facts, join counts).
+
+        The last two are None unless the line join is on.
+        """
+        geometry = [] if self.line_join else None
+        if self._text_port is None:
+            placements = self._pypdf_placements(page, geometry)
+        else:
+            placements = self._text_port.placements(number, geometry)
+        if not self.line_join:
+            return placements, None, None
+        return join_lines(placements, geometry)
+
+    def _page(self, page, number: int) -> Iterator[Mastaba]:
+        placements, joined, join_counts = self._text(page, number)
 
         try:
             image_count = len(page.images)
@@ -533,22 +672,26 @@ class PdfAdapter(Adapter):
             image_count = 0
 
         has_text = bool(placements)
+        page_facts = {
+            "has_text": has_text,
+            "image_count": image_count,
+            # The page's own dimensions. Anything measured as a fraction of
+            # "the page" against an assumed A4 is measuring the assumption:
+            # this corpus holds pages of 720 x 405 among others (K6.17).
+            "width": _page_side(page, 0),
+            "height": _page_side(page, 1),
+            # Declared, not inferred later: a page with ink and no characters
+            # is pending, and saying so here is what keeps it from passing for
+            # a page that was read and found empty.
+            "needs_ocr": not has_text,
+        }
+        if join_counts is not None:
+            # What the join did on this page, and what it could not decide.
+            page_facts["line_join"] = join_counts
         yield Mastaba(
             kind="page",
             locator=PdfLocator(page=number),
-            facts={
-                "has_text": has_text,
-                "image_count": image_count,
-                # The page's own dimensions. Anything measured as a fraction of
-                # "the page" against an assumed A4 is measuring the assumption:
-                # this corpus holds pages of 720 x 405 among others (K6.17).
-                "width": _page_side(page, 0),
-                "height": _page_side(page, 1),
-                # Declared, not inferred later: a page with ink and no characters
-                # is pending, and saying so here is what keeps it from passing for
-                # a page that was read and found empty.
-                "needs_ocr": not has_text,
-            },
+            facts=page_facts,
         )
 
         found, drawings = self._content(page)
@@ -575,14 +718,18 @@ class PdfAdapter(Adapter):
                 },
             )
 
-        for text, x, y, size, font, width in placements:
+        for index, (text, x, y, size, font, width) in enumerate(placements):
+            facts = {"x": round(x, 2), "y": round(y, 2),
+                     "font_size": round(size, 2), "font": font,
+                     "width": None if width is None else round(width, 2)}
+            if joined is not None:
+                # The raw fragments and the review mark, when the join is on.
+                facts.update(joined[index])
             yield Mastaba(
                 kind="text",
                 locator=PdfLocator(page=number),
                 text=text,
-                facts={"x": round(x, 2), "y": round(y, 2),
-                       "font_size": round(size, 2), "font": font,
-                       "width": None if width is None else round(width, 2)},
+                facts=facts,
             )
 
 

@@ -222,7 +222,13 @@ Two separations carry the design.
 - **`render/mupdf.py`** — `MuPdfRenderer`, on `pymupdf` (AGPL-3.0): the only file allowed to import
   it, never imported by the package, installed only by the `saqqara-mupdf` extra.
 - **`render/guard.py`** — `scan_sources` refuses an import of `AGPL_MODULES` (`pymupdf`, `fitz`,
-  `pymupdf4llm`) outside `EXEMPT`; `loaded_agpl_modules` reports which are in `sys.modules`.
+  `pymupdf4llm`) outside `EXEMPT` (`render/mupdf.py`, `adapters/pdf_mupdf.py`);
+  `loaded_agpl_modules` reports which are in `sys.modules`.
+- **`adapters/pdf_mupdf.py`** — `MuPdfTextReader`, the opt-in text reader on `pymupdf` (AGPL-3.0),
+  constructed only by `PdfAdapter.configured({"text_reader": "pymupdf"})`.
+- **`adapters/pdf_lines.py`** — `join_lines`, the opt-in line join (`pdf.line_join`): raw fragments
+  kept in `facts.fragments`, digit–digit joins marked in `facts.review`, per-page counts in the page's
+  `facts.line_join`.
   Carries K6.16.
 
 ### 2.5 `kernels/`

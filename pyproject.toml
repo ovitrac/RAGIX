@@ -52,13 +52,14 @@ translate = ["pymupdf4llm>=0.0.17", "pymupdf>=1.24.0"]
 # and compared. It is the DEFAULT renderer precisely because its licence imposes
 # nothing on a deployment of this MIT package.
 saqqara = ["ragix[docs]", "pypdf>=4.0.0", "pypdfium2>=4.0.0", "numpy>=1.24.0"]
-# saqqara-mupdf: an ALTERNATIVE renderer, opt-in and never installed by default.
+# saqqara-mupdf: an ALTERNATIVE renderer and text reader, opt-in and never
+# installed by default.
 #
 #   LICENCE WARNING -- pymupdf is AGPL-3.0 (or a paid commercial licence).
 #   Installing this extra subjects the deploying system to AGPL obligations that
 #   are incompatible with distributing this package under MIT. It is never
 #   required by any default path, by any test, or by the `all` extra, and the
-#   kernel refuses to import it outside its single named adapter.
+#   kernel refuses to import it outside its two named adapters.
 #
 # Offered because a caller who already holds a commercial licence, or who is not
 # distributing, may prefer its output. That choice is theirs to make explicitly.
