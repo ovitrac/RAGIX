@@ -8,12 +8,14 @@ exercises the real pymupdf4llm path when the [translate] extra is installed.
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-06-27
 """
 
+import sys
 from pathlib import Path
 
 import pytest
 
 from ragix_kernels.base import KernelInput
-from ragix_kernels.translate.extract import TranslateExtractKernel
+from ragix_kernels.translate import extract as extract_module
+from ragix_kernels.translate.extract import PERMISSIVE_MARK, TranslateExtractKernel
 
 
 def _stub(pdf, max_pages, out_dir):
@@ -69,3 +71,61 @@ def test_real_pymupdf4llm_extraction(tmp_path):
         KernelInput(workspace=tmp_path, config={}, dependencies={}))
     assert out.success, out.errors
     assert "Hello World" in Path(out.data["source_md"]).read_text(encoding="utf-8")
+
+
+# -- the permissive fallback (2026-09-14): used only where PyMuPDF is not installed ------
+
+def _text_pdf(path: Path, sentence: str) -> Path:
+    """One synthetic page, written byte by byte — no PDF library needed to make it."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent / "saqqara"))
+    from generators import _pdf_assemble, _pdf_escape, _pdf_stream
+
+    payload = b"BT /F1 12 Tf 72 700 Td (" + _pdf_escape(sentence) + b") Tj ET\n"
+    path.write_bytes(_pdf_assemble([
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [4 0 R] /Count 1 >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        (b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+         b"/Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>"),
+        _pdf_stream(payload),
+    ]))
+    return path
+
+
+def _absent(monkeypatch):
+    """PyMuPDF made unimportable for the duration of one test, installed or not."""
+    monkeypatch.setitem(sys.modules, "pymupdf", None)
+    monkeypatch.setitem(sys.modules, "pymupdf4llm", None)
+
+
+def test_absence_is_detected_without_importing(monkeypatch):
+    _absent(monkeypatch)
+    assert extract_module._pymupdf_installed() is False
+
+
+def test_permissive_fallback_when_pymupdf_is_absent(tmp_path, monkeypatch):
+    pytest.importorskip("pypdf")
+    _absent(monkeypatch)
+    src = tmp_path / "src"
+    src.mkdir()
+    _text_pdf(src / "x.pdf", "Rapport synthetique de test")
+    out = TranslateExtractKernel().run(
+        KernelInput(workspace=tmp_path, config={}, dependencies={}))
+    assert out.success, out.errors
+    text = Path(out.data["source_md"]).read_text(encoding="utf-8")
+    assert PERMISSIVE_MARK in text, "the reader that produced it is on the page"
+    assert "Rapport synthetique de test" in text
+
+
+def test_the_installed_route_is_the_one_it_always_was(tmp_path, monkeypatch):
+    """With PyMuPDF installed the fallback is never consulted."""
+    calls = []
+    monkeypatch.setattr(extract_module, "_pymupdf_installed", lambda: True)
+    monkeypatch.setattr(extract_module, "_has_text_layer",
+                        lambda p, max_pages=None: calls.append("layer") or True)
+    monkeypatch.setattr(extract_module, "_extract_pymupdf",
+                        lambda p, max_pages=None: calls.append("pymupdf") or "md")
+    monkeypatch.setattr(extract_module, "_extract_permissive",
+                        lambda *a: calls.append("permissive") or "fallback")
+    assert extract_module.extract_pdf(tmp_path / "x.pdf", None, tmp_path) == "md"
+    assert calls == ["layer", "pymupdf"]

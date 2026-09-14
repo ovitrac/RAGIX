@@ -16,6 +16,28 @@ store:
   path: .ragix/saqqara.db
   corpus: default
 
+# ---------------------------------------------------------------------------
+# PDF reading — opt-in choices (2026-09-14). Read by the reader, stage 1
+# (`saqqara_run`, config section `pdf`); declared here because this file is the
+# single source of truth for the shape of a configuration. Every default below
+# reproduces, byte for byte, the trees and the store built before the keys
+# existed: at the defaults the registered reader reads, not a copy of it.
+pdf:
+  # Which library reads a page's text: pypdf | pymupdf.
+  # pypdf (BSD-3-Clause) is the default. pymupdf is AGPL-3.0, installed only by
+  # the `saqqara-mupdf` extra, confined to adapters/pdf_mupdf.py and never
+  # loaded unless chosen here (K6.16). A document it read says so in its
+  # provenance: kernel_version `0.8.0+pymupdf-<version>`. Outline, pages,
+  # pictures and ink are read by pypdf whichever reader is chosen.
+  text_reader: pypdf
+  # Join the fragments of one visual line into one text node. A joined node
+  # keeps its raw fragments in `facts.fragments`; a join where a digit meets a
+  # digit is marked `facts.review: {reason: digit-run-joined}` — a value to be
+  # verified by a person, never a silent repair. Counts per page in
+  # `facts.line_join`; provenance kernel_version `0.8.0+line-join`.
+  line_join: false
+# ---------------------------------------------------------------------------
+
 # Refinement: the vector a refusal costs, restored by splitting the text (K7.22).
 #
 # One pass per budget, in order, each reading the result the last one left. A pass

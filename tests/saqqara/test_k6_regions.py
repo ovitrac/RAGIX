@@ -212,10 +212,12 @@ def test_k6_16_no_kernel_source_imports_the_agpl_library():
     assert violations == [], violations
 
 
-def test_k6_16_the_exemption_is_one_named_file():
-    assert EXEMPT == ("render/mupdf.py",)
-    exempt = Path(__file__).resolve().parents[2] / "ragix_kernels/saqqara" / EXEMPT[0]
-    assert exempt.is_file(), "the exemption must name a file that exists"
+def test_k6_16_the_exemption_names_the_two_opt_in_files():
+    """The opt-in renderer and the opt-in text reader, one file each, and nothing else."""
+    assert EXEMPT == ("render/mupdf.py", "adapters/pdf_mupdf.py")
+    for name in EXEMPT:
+        exempt = Path(__file__).resolve().parents[2] / "ragix_kernels/saqqara" / name
+        assert exempt.is_file(), "the exemption must name a file that exists"
 
 
 def test_k6_16_the_scan_bites(tmp_path):
@@ -226,6 +228,75 @@ def test_k6_16_the_scan_bites(tmp_path):
     (root / "render" / "mupdf.py").write_text("import pymupdf\n", encoding="utf-8")
     found = scan_sources(root)
     assert found == [("somewhere.py", 1, "fitz")], found
+
+
+def test_k6_16_the_scan_bites_beside_the_text_reader(tmp_path):
+    """The text reader's exemption is its own file, not the reader that calls it."""
+    root = tmp_path / "kernel"
+    (root / "adapters").mkdir(parents=True)
+    (root / "adapters" / "pdf_mupdf.py").write_text("import pymupdf\n", encoding="utf-8")
+    (root / "adapters" / "pdf.py").write_text("from fitz import open\n", encoding="utf-8")
+    found = scan_sources(root)
+    assert found == [("adapters/pdf.py", 1, "fitz")], found
+
+
+#: Run by a fresh interpreter: the default route of both stages over every pdf fixture of
+#: the registry, once with no pdf section and once with the section at its defaults.
+FRESH_DEFAULT_ROUTE = """
+import json, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import generators as G
+from ragix_kernels.base import KernelInput
+from ragix_kernels.saqqara.kernels.saqqara_index import SaqqaraIndexKernel
+from ragix_kernels.saqqara.kernels.saqqara_run import SaqqaraKernel
+from ragix_kernels.saqqara.render.guard import loaded_agpl_modules
+
+root = Path(sys.argv[2])
+source = root / "src"
+for name in sorted(G.FIXTURES):
+    if G.FIXTURE_SUFFIX[name] == ".pdf":
+        home = source / name
+        home.mkdir(parents=True, exist_ok=True)
+        G.FIXTURES[name](G.fixture_path(name, home))
+read = []
+for tag, extra in (("absent", {}),
+                   ("defaults", {"pdf": {"text_reader": "pypdf", "line_join": False}})):
+    workspace = root / tag
+    workspace.mkdir()
+    run = SaqqaraKernel().run(KernelInput(
+        workspace=workspace, config={"source": {"path": str(source)}, **extra}))
+    assert run.success, run.errors
+    index = SaqqaraIndexKernel().run(KernelInput(
+        workspace=workspace, config={},
+        dependencies={"document_tree": workspace / "stage1" / "saqqara.json"}))
+    assert index.success, index.errors
+    read.append(len(run.data["documents"]))
+print(json.dumps({"documents": read, "loaded": loaded_agpl_modules()}))
+"""
+
+
+def test_k6_16_a_fresh_process_reads_by_the_default_route_without_loading_it(tmp_path):
+    """The in-process check can only speak for the tests that happened to run before it.
+
+    A fresh interpreter has loaded nothing, so what it holds after reading every pdf
+    fixture and indexing what it read — with no pdf options, and with the options at
+    their defaults — is what the default route loads, whatever else the suite does.
+    """
+    import os
+    import subprocess
+
+    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1",
+           "PYTHONPATH": os.pathsep.join([str(ROOT), os.environ.get("PYTHONPATH", "")])}
+    done = subprocess.run(
+        [sys.executable, "-c", FRESH_DEFAULT_ROUTE, str(ROOT / "tests" / "saqqara"),
+         str(tmp_path)],
+        capture_output=True, text=True, env=env, timeout=600)
+    assert done.returncode == 0, done.stderr
+    result = json.loads(done.stdout.strip().splitlines()[-1])
+    assert result["documents"][0] > 0
+    assert result["documents"][0] == result["documents"][1]
+    assert result["loaded"] == [], result
 
 
 def test_k6_16_the_default_route_does_not_load_it(rendered):
