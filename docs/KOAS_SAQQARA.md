@@ -878,6 +878,8 @@ the defaults, or loading refuses it with its path. This file configures `index` 
 | `chunker.unit_max_chars` | `1200` | `index` | a level-0 text over this is flagged `oversize` |
 | `chunker.rollup_levels` | `1` | `index` | `0` switches level-1 roll-ups off |
 | `chunker.window_fallback_chars` | `4000` | `index` | a single node over this is cut into windows |
+| `store_options.table_cells` | `false` | `index` | also stores each table's cells in `objects.cells_json` — `node_id`, `row`, `col`, `merged`, `text` per cell, in the grid vocabulary of the header bands (K7.11) |
+| `store_options.rollup_without_window_overlap` | `false` | `index` | a roll-up holds a windowed node's text once instead of repeating the windows' overlap at each seam (K7.4); refused together with `refine.budgets` |
 | `retrieval.fusion` | `rrf` | nothing | declared, not read; fusion is always reciprocal rank |
 | `retrieval.rrf_k` | `60` | `search` | the fusion constant |
 | `retrieval.dense_k` | `40` | `search` | texts asked of the dense lane before fusion |

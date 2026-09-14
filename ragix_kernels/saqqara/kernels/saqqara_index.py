@@ -67,9 +67,26 @@ class SaqqaraIndexKernel(Kernel):
                 )
             source = Path(stored)
 
-        chunker = config.section("chunker")
-        fed = (feed_result(source, **chunker) if not isinstance(source, list)
-               else [feed_tree(t, source_path=p, source_sha256=s, **chunker)
+        # The store options: each switches one behaviour on, and each default is the
+        # store as it was built before the option existed (defaults.yaml).
+        options = config.section("store_options")
+        feed_options = {
+            **config.section("chunker"),
+            "rollup_without_window_overlap": bool(options["rollup_without_window_overlap"]),
+            "table_cells": bool(options["table_cells"]),
+        }
+        if feed_options["rollup_without_window_overlap"] and config.get("refine.budgets"):
+            # A refinement pass locates each window in its parent by joining the
+            # parent's children (K7.22); a roll-up assembled without the windows'
+            # overlap is no longer that join, so every span it recorded would point
+            # at the wrong characters. Refused rather than recorded wrong.
+            raise ValueError(
+                "store_options.rollup_without_window_overlap cannot be combined with "
+                "refine.budgets: a refinement pass locates its windows in a roll-up "
+                "joined from its children, which this option no longer is"
+            )
+        fed = (feed_result(source, **feed_options) if not isinstance(source, list)
+               else [feed_tree(t, source_path=p, source_sha256=s, **feed_options)
                      for t, p, s in source])
 
         embedder_section = config.section("embedder")

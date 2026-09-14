@@ -67,6 +67,26 @@ chunker:
   rollup_levels: 1
   window_fallback_chars: 4000
 
+# ---- Store options (2026-09-14) ---------------------------------------------------
+# Each key below switches ONE behaviour of the store on. Its default reproduces the
+# store exactly as it was built before the key existed — the same rows, byte for
+# byte — so a store is unchanged unless a run asks. Flipping a default is a decision
+# taken after review, one line here; never a side effect of another change.
+store_options:
+  # Persist each table's cells into `objects.cells_json`, for the three readers that
+  # read tables (xlsx, docx, pptx): one row per cell — node_id, row, col, merged,
+  # text — in the grid vocabulary the header-band rules read, so a cell can be joined
+  # to the header rows and label columns recorded beside it (K7.11). Off, the column
+  # stays NULL and the grid lives only in the stored tree.
+  table_cells: false
+  # Assemble a roll-up without repeating the windows' overlap at each seam. A single
+  # node longer than `chunker.window_fallback_chars` is cut into windows that overlap
+  # by the chunker's WINDOW_OVERLAP_CHARS (200); joined as they are, a roll-up repeats
+  # those characters at every seam. On, the windows of one node contribute its text
+  # once, whole (K7.4); the level-0 windows are unchanged. Refused together with
+  # `refine.budgets`, whose spans are measured on the join of the children.
+  rollup_without_window_overlap: false
+
 retrieval:
   fusion: rrf
   rrf_k: 60
