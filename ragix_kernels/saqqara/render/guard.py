@@ -24,8 +24,9 @@ __all__ = ["AGPL_MODULES", "EXEMPT", "loaded_agpl_modules", "scan_sources"]
 #: other was imported on the line below.
 AGPL_MODULES = ("pymupdf", "fitz", "pymupdf4llm")
 
-#: The single file allowed to name them, relative to the kernel root.
-EXEMPT = ("render/mupdf.py",)
+#: The files allowed to name them, relative to the kernel root: the opt-in
+#: renderer and the opt-in text reader, one file each, and nothing else.
+EXEMPT = ("render/mupdf.py", "adapters/pdf_mupdf.py")
 
 _IMPORT = re.compile(
     r"^\s*(?:import\s+(?P<a>[A-Za-z_][\w.]*)|from\s+(?P<b>[A-Za-z_][\w.]*)\s+import)",

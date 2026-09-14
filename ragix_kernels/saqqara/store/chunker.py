@@ -121,17 +121,49 @@ def _windows(text: str, size: int, overlap: int) -> Iterator[str]:
             return
 
 
+def _rollup_text(members: list[ChunkRecord], whole: dict[str, str],
+                 without_window_overlap: bool) -> str:
+    """A roll-up's text: its members joined by a newline.
+
+    The windows of one oversized node overlap by `WINDOW_OVERLAP_CHARS`, so joining
+    them repeats those characters at every seam — a reader of the roll-up meets the
+    same passage twice and a consumer counting what it says counts it twice. With
+    `without_window_overlap`, the windows of one node contribute that node's text
+    once, whole, at the place of its first window: exactly the characters it holds,
+    no seam, no repetition. Off by default, which is the join as it always was.
+    """
+    if not without_window_overlap:
+        return "\n".join(c.text for c in members)
+    parts: list[str] = []
+    placed: set[str] = set()
+    for chunk in members:
+        if chunk.meta.get("fallback") == "window":
+            address = chunk.node_ids[0]
+            if address in placed:
+                continue
+            placed.add(address)
+            parts.append(whole[address])
+        else:
+            parts.append(chunk.text)
+    return "\n".join(parts)
+
+
 def chunk_tree(
     tree: Tree,
     doc_id: str,
     unit_max_chars: int = UNIT_MAX_CHARS,
     rollup_levels: int = 1,
     window_fallback_chars: int = WINDOW_FALLBACK_CHARS,
+    rollup_without_window_overlap: bool = False,
 ) -> ChunkPlan:
     """Cut `tree` into chunks along its own structure.
 
     Returns the plan rather than writing: what to store and what was refused are
     two answers, and a function that stored as it went could only report the first.
+
+    `rollup_without_window_overlap` (default off, `store_options` in the defaults)
+    assembles a roll-up without repeating the windows' overlap at each seam; the
+    level-0 windows themselves are unchanged (`_rollup_text`).
     """
     plan = ChunkPlan()
     addresses = node_ids_of(tree)
@@ -151,6 +183,7 @@ def chunk_tree(
     seq = 0
 
     absorbed: set[str] = set()
+    whole: dict[str, str] = {}      # a windowed node's own text, for `_rollup_text`
 
     for address in addresses:
         node = by_address[address]
@@ -196,6 +229,7 @@ def chunk_tree(
         windowed = len(text) > window_fallback_chars
         if windowed:
             pieces = list(_windows(text, window_fallback_chars, WINDOW_OVERLAP_CHARS))
+            whole[address] = text
 
         for piece in pieces:
             meta: dict[str, Any] = {}
@@ -228,7 +262,7 @@ def chunk_tree(
             for nid in chunk.node_ids:
                 if nid not in node_ids:
                     node_ids.append(nid)
-        text = "\n".join(c.text for c in members)
+        text = _rollup_text(members, whole, rollup_without_window_overlap)
         rollup = ChunkRecord(
             chunk_id=chunk_id_for(doc_id=doc_id, level=1, node_ids=node_ids, text=text),
             doc_id=doc_id, seq=seq, text=text, level=1, node_ids=node_ids,

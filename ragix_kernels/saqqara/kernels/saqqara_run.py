@@ -41,7 +41,7 @@ from typing import Any, Dict, List
 from ragix_kernels.base import Kernel, KernelInput
 from ragix_kernels.merkle import compute_inputs_merkle_root
 
-from ..adapters import adapter_for, read_corpus
+from ..adapters import adapter_for, read_corpus, registered_adapters
 from ..analyzers import PIPELINE, OutlineAnalyzer
 from ..analyzers.contract import (abstention_records, count_reported,
                                   reports_abstention, tree_abstention_records)
@@ -60,6 +60,8 @@ class SaqqaraKernel(Kernel):
         source.path: file or directory to read (required)
         formats: extensions to accept (default: every registered reader)
         promote_outline: also run the opt-in typed-outline pass (default: false)
+        pdf.text_reader: pypdf (default) | pymupdf — the opt-in, AGPL-3.0 (K6.16)
+        pdf.line_join: join the fragments of one visual line (default: false)
 
     Dependencies:
         None — reads source files directly.
@@ -108,6 +110,26 @@ class SaqqaraKernel(Kernel):
             return [p for p in found if p.suffix.lower() in tuple(wanted)]
         return found
 
+    @staticmethod
+    def _readers(config: Dict[str, Any]) -> Dict[str, Any]:
+        """The configured readers this run asked for, by format — empty for the defaults.
+
+        Only the pdf reader takes options: `pdf.text_reader` and `pdf.line_join`,
+        declared with their defaults in the store's packaged defaults. Options equal
+        to the defaults configure nothing, and the registered reader reads, as it
+        did before the options existed. Anything else — an unknown key, a value
+        outside the vocabulary, a library that is not installed — is refused here,
+        before a file is read.
+        """
+        options = config.get("pdf")
+        if options is None:
+            return {}
+        if not isinstance(options, dict):
+            raise ValueError(f"the pdf reader options are a mapping, not {options!r}")
+        registered = registered_adapters()[".pdf"]
+        chosen = registered.configured(options)
+        return {} if chosen is registered else {"pdf": chosen}
+
     # ---------------------------------------------------------------- compute
 
     def compute(self, input: KernelInput) -> Dict[str, Any]:
@@ -123,13 +145,14 @@ class SaqqaraKernel(Kernel):
                 f"it runs {sorted(known)}"
             )
         config = input.config or {}
+        readers = self._readers(config)
         paths = self._paths(config)
-        by_path, report = read_corpus(paths)
+        by_path, report = read_corpus(paths, readers=readers)
 
         documents = []
         for path in report.read:
             observations = by_path.get(path, [])
-            adapter = adapter_for(Path(path))
+            adapter = adapter_for(Path(path), readers)
             built = build_tree(
                 observations, path, adapter.format, adapter.format, adapter.version
             )

@@ -79,8 +79,48 @@ def _extract_marker(pdf_path: Path, max_pages: Optional[int], out_dir: Path) -> 
     return text
 
 
+#: The first line of what the permissive fallback produces, so the reader that
+#: produced a source.md is on the page and not only in the environment it ran in.
+PERMISSIVE_MARK = "<!-- extractor: pypdf (permissive fallback: pymupdf not installed) -->"
+
+
+def _pymupdf_installed() -> bool:
+    """Whether the default engines are installed — asked without importing them."""
+    from importlib.util import find_spec
+
+    return all(find_spec(name) is not None for name in ("pymupdf", "pymupdf4llm"))
+
+
+def _extract_permissive(pdf_path: Path, max_pages: Optional[int], out_dir: Path) -> str:
+    """The fallback where PyMuPDF is not installed: pypdf (BSD-3-Clause).
+
+    Used only where `extract_pdf` failed before it existed. Plain text per page, not
+    pymupdf4llm's Markdown, and marked as such in its first line; a PDF with no text
+    layer goes to marker, as it does on the default route.
+    """
+    try:
+        from pypdf import PdfReader
+    except ImportError as exc:
+        raise ImportError(
+            "PDF extraction needs pymupdf and pymupdf4llm (the [translate] extra, "
+            "AGPL-3.0) or pypdf (the [saqqara] or [sealed] extra); none is installed"
+        ) from exc
+    reader = PdfReader(str(pdf_path))
+    limit = min(len(reader.pages), max_pages) if max_pages else len(reader.pages)
+    texts = [(reader.pages[i].extract_text() or "").strip() for i in range(limit)]
+    if not any(texts):
+        return _extract_marker(pdf_path, max_pages, out_dir)
+    return PERMISSIVE_MARK + "\n\n" + "\n\n".join(texts)
+
+
 def extract_pdf(pdf_path: Path, max_pages: Optional[int], out_dir: Path) -> str:
-    """Convert one PDF to Markdown with the best engine for it."""
+    """Convert one PDF to Markdown with the best engine for it.
+
+    PyMuPDF installed, this is the route it always was. Not installed — where this
+    function used to raise — the permissive fallback reads the text layer instead.
+    """
+    if not _pymupdf_installed():
+        return _extract_permissive(pdf_path, max_pages, out_dir)
     if _has_text_layer(pdf_path, max_pages=max_pages):
         return _extract_pymupdf(pdf_path, max_pages=max_pages)
     return _extract_marker(pdf_path, max_pages, out_dir)

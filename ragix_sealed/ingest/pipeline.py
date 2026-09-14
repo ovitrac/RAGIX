@@ -75,9 +75,12 @@ class CooledDocument:
 class SealedIngestor:
     """Stateful ingestion engine for one or more cases (in-memory MVP store)."""
 
-    def __init__(self, contracts: Any, vault: Any) -> None:
+    def __init__(self, contracts: Any, vault: Any, pdf_reader: Optional[str] = None) -> None:
         self.contracts = contracts
         self.vault = vault
+        #: An opt-in PDF reader (extract.OPT_IN_PDF_READERS), or None for the default
+        #: order. A document read by an opt-in reader records it in its metadata.
+        self.pdf_reader = pdf_reader
         self._flow = contracts.state_machine["document_flow"]
         self._states = self._flow["states"]
         self._entity_classes = contracts.placeholder_schema["entity_classes"]
@@ -137,7 +140,10 @@ class SealedIngestor:
         state = self._advance(state, "ORIGINAL_ENCRYPTED")
 
         # Normalize (extract text). Raw text is INTERNAL (never returned).
-        text = extract_text(raw_bytes, source_kind)
+        if self.pdf_reader is None:
+            text = extract_text(raw_bytes, source_kind)
+        else:
+            text = extract_text(raw_bytes, source_kind, pdf_reader=self.pdf_reader)
         state = self._advance(state, "NORMALIZED_INTERNAL")
 
         # Metadata scrub (MVP: minimal sanitized metadata; no raw filename/path).
@@ -148,6 +154,9 @@ class SealedIngestor:
             "ocr_required": False,
             "language": None,
         }
+        if self.pdf_reader is not None and sanitized_meta["document_kind"] == "pdf":
+            # Two readers may disagree about one file: the one chosen is recorded.
+            sanitized_meta["pdf_reader"] = self.pdf_reader
         state = self._advance(state, "METADATA_SCRUBBED")
 
         # Detect high-confidence entities.

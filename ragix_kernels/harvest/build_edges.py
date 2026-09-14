@@ -19,7 +19,10 @@ source the record already holds, by a rule written below, and carries that rule 
   references       the reference grammar over the 24 contractual roll-ups, resolved to the document a
                    reference names (CCTP n, CCAP, RC, AE). Everything else is counted by reason — a page
                    pointer, a code of law, the CCAG, an annex or an article or a BPU without its piece — and
-                   nothing is dropped: resolved + self + unresolved = every reference read.
+                   nothing is dropped: resolved + self + unresolved = every reference read. An ARTICLE of the
+                   CCTP (« article N du CCTP », « article N du présent CCTP ») is never lot N: read in a
+                   CCTP it is that CCTP's own article, a reference inside the same document (`self`); read
+                   elsewhere it names no lot and is counted unresolved (`resolve_reference`).
 
 Node ids: a chunk is its chunk_id; a document is `doc:<doc_id>`; a claim `claim:<claim_id>`; a span
 `span:<chunk_id>@c<start>-<end>` in characters or `@b<start>-<end>` in bytes, as its source records it;
@@ -81,6 +84,31 @@ def resolve(normalized: str, docs: dict[str, str]) -> tuple[str | None, str]:
         if n.startswith(head):
             return None, f"ambiguous: {why}"
     return None, "unrecognised form"
+
+
+#: « article N du CCTP » normalises to « CCTP N », the same form as the lot pointer « CCTP 05 »,
+#: and `resolve` read it as lot N; the raw text is what tells an article from a lot. « du présent
+#: CCTP » is not part of the grammar's match at all (« article N » is), so it is read from the text
+#: that follows the match.
+_ARTICLE = re.compile(r"articles?\b", re.IGNORECASE)
+_PRESENT_CCTP = re.compile(r"\s+du\s+pr[ée]sent\s+CCTP\b", re.IGNORECASE)
+
+
+def resolve_reference(v, text: str, citing: str, docs: dict[str, str]) -> tuple[str | None, str]:
+    """The document a reference read in `text` points at, or the reason it has none.
+
+    `citing` is the piece of the document the text belongs to (« RC », « CCAP », or a CCTP's two
+    digits). An article of the CCTP — « article N du CCTP », « article N du présent CCTP » — is
+    never a pointer to lot N: in a CCTP it is that CCTP's own article, the citing document itself;
+    anywhere else it names no lot, and is counted unresolved rather than guessed. Every other
+    reference goes to `resolve` unchanged.
+    """
+    if _ARTICLE.match(v.raw or "") and ((v.normalized or "").startswith("CCTP ")
+                                        or _PRESENT_CCTP.match(text, v.end)):
+        if citing.isdigit():
+            return docs.get(citing), ""
+        return None, "ambiguous: an article of a CCTP without its lot"
+    return resolve(v.normalized, docs)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -178,11 +206,12 @@ def main(argv: list[str] | None = None) -> int:
                                              "(parent_id is null or parent_id='') order by chunk_id"):
         if not doc_id.startswith(tuple(CORE)):
             continue
+        citing = next(piece for prefix, piece in CORE.items() if doc_id.startswith(prefix))
         for v in read_values(text):
             if v.kind != "reference":
                 continue
             refs["total"] += 1
-            target, why = resolve(v.normalized, docs)
+            target, why = resolve_reference(v, text, citing, docs)
             if target is None:
                 refs["unresolved"][why] = refs["unresolved"].get(why, 0) + 1
                 examples = refs.setdefault("unresolved_examples", {}).setdefault(why, [])

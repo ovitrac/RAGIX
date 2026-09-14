@@ -878,6 +878,8 @@ the defaults, or loading refuses it with its path. This file configures `index` 
 | `chunker.unit_max_chars` | `1200` | `index` | a level-0 text over this is flagged `oversize` |
 | `chunker.rollup_levels` | `1` | `index` | `0` switches level-1 roll-ups off |
 | `chunker.window_fallback_chars` | `4000` | `index` | a single node over this is cut into windows |
+| `store_options.table_cells` | `false` | `index` | also stores each table's cells in `objects.cells_json` — `node_id`, `row`, `col`, `merged`, `text` per cell, in the grid vocabulary of the header bands (K7.11) |
+| `store_options.rollup_without_window_overlap` | `false` | `index` | a roll-up holds a windowed node's text once instead of repeating the windows' overlap at each seam (K7.4); refused together with `refine.budgets` |
 | `retrieval.fusion` | `rrf` | nothing | declared, not read; fusion is always reciprocal rank |
 | `retrieval.rrf_k` | `60` | `search` | the fusion constant |
 | `retrieval.dense_k` | `40` | `search` | texts asked of the dense lane before fusion |
@@ -929,7 +931,17 @@ under Apache-2.0, and nothing under a copyleft licence.
 `ragix_kernels/saqqara/render/guard.py`:
 
 - `scan_sources()` refuses an import of `pymupdf`, `fitz` or `pymupdf4llm` anywhere in the package
-  except `render/mupdf.py`, the one module that exists to hold it;
+  except `render/mupdf.py` and `adapters/pdf_mupdf.py`, the two modules that exist to hold it;
 - `loaded_agpl_modules()` proves at run time that a default route never loaded it.
 
-Both are asserted in `tests/saqqara/test_k6_regions.py`.
+Both are asserted in `tests/saqqara/test_k6_regions.py`, the second also in a fresh process.
+
+**The pdf text reader is a port too.** Stage 1 takes a `pdf` section, declared with its defaults
+in the store's `defaults.yaml`: `text_reader: pypdf | pymupdf` (default `pypdf`) and
+`line_join: true | false` (default `false`). At the defaults the registered reader reads and the
+output is byte-identical to a run without the section. `pymupdf` reads the page text only — the
+outline, pages, pictures and ink are read by `pypdf` either way — and a tree it produced carries
+`+pymupdf-<version>` in the reader version of every node's provenance. `line_join` joins the
+fragments of one visual line, keeps the raw fragments in `facts.fragments`, and marks a join where
+a digit meets a digit `facts.review: {reason: digit-run-joined}`: a value to verify against the
+page, never a repair.

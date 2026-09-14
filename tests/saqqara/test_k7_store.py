@@ -597,6 +597,93 @@ def test_k7_3_containers_are_never_chunks(trees):
             assert node.kind in CHUNKABLE_KINDS, f"{fmt}: {node.kind} became a chunk"
 
 
+# ------------------------------------------ K7.4 the seams of a windowed unit's roll-up
+
+from ragix_kernels.saqqara.store.chunker import WINDOW_OVERLAP_CHARS  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def long_unit_tree(tmp_path_factory) -> Tree:
+    """A read document whose one long paragraph the chunker must window."""
+    path = G.FIXTURES["long_unit_markdown"](tmp_path_factory.mktemp("k7seam") / "long.md")
+    return _tree_of(path)
+
+
+def _windows_and_rollup(plan):
+    windows = [c for c in plan.chunks if c.meta.get("fallback") == "window"]
+    (rollup,) = [c for c in plan.chunks if c.level == 1 and c.chunk_id == windows[0].parent_id]
+    return windows, rollup
+
+
+def test_k7_4_the_long_unit_is_windowed_with_overlapping_seams(long_unit_tree):
+    """The fixture does what it is for: one unit, three windows, two seams."""
+    windows, _ = _windows_and_rollup(chunk_tree(long_unit_tree, doc_id="8" * 64))
+    assert len(windows) == 3 and len({tuple(w.node_ids) for w in windows}) == 1
+    for a, b in zip(windows, windows[1:]):
+        assert a.text[-WINDOW_OVERLAP_CHARS:] == b.text[:WINDOW_OVERLAP_CHARS]
+
+
+def test_k7_4_by_default_a_rollup_is_the_join_of_its_children_seams_included(long_unit_tree):
+    """The default is the store as it was built before the option existed.
+
+    Falsified by: a default roll-up that is not the join of its children.
+    """
+    plan = chunk_tree(long_unit_tree, doc_id="8" * 64)
+    windows, rollup = _windows_and_rollup(plan)
+    members = [c for c in plan.chunks if c.parent_id == rollup.chunk_id]
+    assert rollup.text == "\n".join(c.text for c in members)
+    for a, b in zip(windows, windows[1:]):
+        assert rollup.text.count(a.text[-WINDOW_OVERLAP_CHARS:]) == 2, "the seam is repeated"
+
+
+def test_k7_4_without_window_overlap_a_rollup_holds_each_unit_once(long_unit_tree):
+    """Falsified by: a seam's overlap repeated, a roll-up that is not its units' own texts
+    joined, a level-0 chunk that changed, or other node ids, pages or section."""
+    default = chunk_tree(long_unit_tree, doc_id="8" * 64)
+    plan = chunk_tree(long_unit_tree, doc_id="8" * 64, rollup_without_window_overlap=True)
+    windows, rollup = _windows_and_rollup(plan)
+    _, before = _windows_and_rollup(default)
+
+    level0 = [(c.chunk_id, c.text, c.node_ids, c.parent_id is None) for c in plan.chunks if c.level == 0]
+    assert level0 == [(c.chunk_id, c.text, c.node_ids, c.parent_id is None)
+                      for c in default.chunks if c.level == 0]
+    assert rollup.text == "\n".join(node_at(long_unit_tree, nid).text.strip()
+                                    for nid in rollup.node_ids)
+    for a, b in zip(windows, windows[1:]):
+        assert rollup.text.count(a.text[-WINDOW_OVERLAP_CHARS:]) == 1
+    assert len(before.text) - len(rollup.text) == (WINDOW_OVERLAP_CHARS + 1) * (len(windows) - 1)
+    assert (rollup.node_ids, rollup.pages, rollup.section_path) == (
+        before.node_ids, before.pages, before.section_path)
+    assert all(c.parent_id == rollup.chunk_id for c in windows)
+
+
+def test_k7_4_the_option_changes_nothing_where_nothing_is_windowed(trees):
+    for fmt, tree in trees.items():
+        on = chunk_tree(tree, doc_id="9" * 64, rollup_without_window_overlap=True)
+        off = chunk_tree(tree, doc_id="9" * 64)
+        assert [(c.chunk_id, c.text, c.parent_id) for c in on.chunks] == [
+            (c.chunk_id, c.text, c.parent_id) for c in off.chunks], fmt
+
+
+def test_k7_4_the_options_are_off_by_default_and_the_seam_one_refuses_a_refinement(
+        indexed_workspace):
+    """Falsified by: an option on by default, or a refinement pass accepted beside it."""
+    from ragix_kernels.saqqara.kernels.saqqara_index import SaqqaraIndexKernel
+    from ragix_kernels.saqqara.store.config import load_config
+
+    assert load_config().section("store_options") == {
+        "table_cells": False, "rollup_without_window_overlap": False}
+    workspace, _ = indexed_workspace
+    output = SaqqaraIndexKernel().run(KernelInput(
+        workspace=workspace,
+        config={"overrides": {"store.path": str(workspace / "refused.db"),
+                              "store_options.rollup_without_window_overlap": True,
+                              "refine.budgets": [4000]}},
+        dependencies={"document_tree": workspace / "stage1" / "saqqara.json"}))
+    assert output.success is False
+    assert "refine.budgets" in " ".join(output.errors or [])
+
+
 # =================================================================== the feed
 
 import tempfile  # noqa: E402
@@ -656,6 +743,93 @@ def test_k7_11_bindings_become_edges_and_nothing_is_inferred(trees):
     tree = trees["docx"]
     before = edges_of(tree, doc_id="4" * 64)
     assert before == [], "an edge appeared with no analyzer having decided one"
+
+
+# ------------------------------------------------ K7.11 a table's cells, when asked
+
+from ragix_kernels.saqqara.store.feed import CELL_COLUMNS  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def grid_trees(tmp_path_factory):
+    """One table read from three formats, and a table nested in a cell, by a real run."""
+    workspace = tmp_path_factory.mktemp("k7cells")
+    source = workspace / "corpus"
+    source.mkdir()
+    for name, fixture in (("a.xlsx", "twin_grid_xlsx"), ("b.docx", "twin_grid_docx"),
+                          ("c.pptx", "twin_grid_pptx"), ("d.docx", "docx_nested")):
+        G.FIXTURES[fixture](source / name)
+    output = SaqqaraKernel().run(KernelInput(workspace=workspace,
+                                             config={"source": {"path": str(source)}}))
+    assert output.success, output.errors
+    return workspace, {Path(d["path"]).name: Tree.from_dict(d["tree"])
+                       for d in output.data["documents"]}
+
+
+def _tables(tree, **options):
+    return [o for o in objects_of(tree, doc_id="a" * 64, **options) if o.kind == "table"]
+
+
+def test_k7_11_a_table_keeps_its_cells_only_when_asked(grid_trees):
+    """Falsified by: cells stored by default, a table without its cells under the option,
+    or a cell whose node_id does not resolve to the cell holding its text."""
+    _, trees = grid_trees
+    for name, tree in trees.items():
+        assert all(o.cells is None for o in objects_of(tree, doc_id="a" * 64)), name
+        tables = _tables(tree, table_cells=True)
+        assert tables and all(o.cells for o in tables), name
+        for table in tables:
+            for row in table.cells:
+                assert len(row) == len(CELL_COLUMNS)
+                node = node_at(tree, row[0])
+                assert node.kind == "cell" and node.text == row[4], (name, row)
+
+
+def test_k7_11_one_table_in_three_formats_stores_the_same_cells(grid_trees):
+    """The positions are the grid core's, so the format does not show in them (K3.34)."""
+    _, trees = grid_trees
+    seen = {}
+    for name in ("a.xlsx", "b.docx", "c.pptx"):
+        (table,) = _tables(trees[name], table_cells=True)
+        seen[name] = [row[1:] for row in table.cells]      # the address is per format
+    assert seen["a.xlsx"] == seen["b.docx"] == seen["c.pptx"]
+    cells = {(row, col): (merged, text) for row, col, merged, text in seen["a.xlsx"]}
+    assert cells[(1, 1)] == ("A1:A2", G.TWIN_LABEL)
+    assert cells[(1, 2)] == ("B1:C1", G.TWIN_HEADER_TIER1)
+    assert cells[(3, 2)] == (None, G.TWIN_ROWS[0][1])
+
+
+def test_k7_11_a_nested_table_s_cells_are_its_own(grid_trees):
+    _, trees = grid_trees
+    texts = [{row[4] for row in table.cells} for table in _tables(trees["d.docx"], table_cells=True)]
+    inner = {"n00", "n01", "n10", "n11"}
+    assert inner in texts, texts
+    assert all(not (found & inner) for found in texts if found != inner), texts
+
+
+def test_k7_11_the_index_kernel_writes_cells_only_under_the_option(grid_trees):
+    import sqlite3
+
+    from ragix_kernels.saqqara.kernels.saqqara_index import SaqqaraIndexKernel
+
+    workspace, _ = grid_trees
+    counts = {}
+    for flag in (False, True):
+        db = workspace / f"cells_{flag}.db"
+        output = SaqqaraIndexKernel().run(KernelInput(
+            workspace=workspace,
+            config={"overrides": {"store.path": str(db), "store_options.table_cells": flag}},
+            dependencies={"document_tree": workspace / "stage1" / "saqqara.json"}))
+        assert output.success, output.errors
+        con = sqlite3.connect(db)
+        counts[flag] = con.execute(
+            "select count(*), count(cells_json) from objects where kind='table'").fetchone()
+        stored = [json.loads(c) for (c,) in con.execute(
+            "select cells_json from objects where cells_json is not null")]
+        con.close()
+        assert all(len(row) == len(CELL_COLUMNS) for cells in stored for row in cells)
+    tables = counts[False][0]
+    assert tables == 5 and counts[False][1] == 0 and counts[True] == (tables, tables)
 
 
 @pytest.fixture(scope="module")
