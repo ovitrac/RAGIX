@@ -1,0 +1,31 @@
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio | 2026-09-14
+# Granite 4.2 with the ChatML chat template the registry ships it without (see ../README.md).
+# Build: ollama create granite4.2:30b-chat -f Modelfile.30b-chat
+FROM granite4.2:30b
+TEMPLATE """
+{{- if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}
+{{- range $i, $_ := .Messages }}
+{{- $last := eq (len (slice $.Messages $i)) 1 -}}
+{{- if eq .Role "user" }}<|im_start|>user
+{{ .Content }}<|im_end|>
+{{ else if eq .Role "assistant" }}<|im_start|>assistant
+{{ if (and $.IsThinkSet .Thinking) -}}
+<think>{{ .Thinking }}</think>
+{{ end -}}
+{{ .Content }}{{ if not $last }}<|im_end|>
+{{ end }}
+{{- end }}
+{{- if and (ne .Role "assistant") $last }}<|im_start|>assistant
+{{ if and $.IsThinkSet (not $.Think) -}}
+<think>
+
+</think>
+
+{{ end -}}
+{{ end }}
+{{- end }}
+"""
+PARAMETER stop "<|im_start|>"
+PARAMETER stop "<|im_end|>"
