@@ -10,7 +10,8 @@ Importing it subjects the running system to AGPL obligations that are **incompat
 distributing this package under MIT**.
 
 Nothing imports this module unless a caller sets the pdf reader option `text_reader: pymupdf`. It is
-not installed by default, not pulled in by the `all` extra, and not required by any default path; the
+not installed by the base requirements, but IS pulled in by `all` through `translate`. It is not
+required by the default Saqqara reader path; the
 default text reader is `pypdf` (BSD-3-Clause). The `saqqara-mupdf` extra installs it, for a caller who
 holds a commercial licence or is not distributing. The guard of K6.16 (`render/guard.py`) names this
 file and `render/mupdf.py` as the only two allowed to import it, and proves at run time that no
@@ -61,6 +62,49 @@ class MuPdfTextReader:
         if self._document is not None:
             self._document.close()
             self._document = None
+
+    def page_geometry(self, number: int, *, source_id: str):
+        """Opt-in glyph observations and drawn vertical rules for derived field views.
+
+        Leaves the existing placement contract unchanged. Coordinates are unrotated
+        top-left page points; source identity is supplied by the caller's manifest.
+        Reader failures propagate rather than becoming an empty page.
+        """
+        from ..field_views import TextSpan, VerticalRule, stable_id
+
+        if self._document is None:
+            raise RuntimeError("reader is not open")
+        if not 1 <= number <= len(self._document):
+            raise ValueError("page number outside document")
+        page = self._document[number - 1]
+        spans, rules = [], []
+        for block in page.get_text("rawdict").get("blocks", []):
+            for line in block.get("lines", []):
+                for span in line.get("spans", []):
+                    chars = span.get("chars", [])
+                    text = "".join(c["c"] for c in chars)
+                    if not text.strip():
+                        continue
+                    boxes = tuple(tuple(c["bbox"]) for c in chars for _ in c["c"])
+                    ident = stable_id("mupdf-glyphs/1.0", self.version, source_id, number, len(spans))
+                    spans.append(TextSpan(source_id, ident, number, text, tuple(span["bbox"]), boxes,
+                                          tuple(span["origin"]), tuple(line["dir"]), span["size"]))
+        for path in page.get_drawings():
+            for item in path["items"]:
+                segments = []
+                if item[0] == "l":
+                    segments.append((item[1], item[2]))
+                elif item[0] == "re":
+                    rect = item[1]
+                    segments.extend(((rect.top_left, rect.bottom_left), (rect.top_right, rect.bottom_right)))
+                for a, b in segments:
+                    if abs(a.x - b.x) <= 0.01 and abs(a.y - b.y) > 1:
+                        rules.append(VerticalRule((a.x + b.x) / 2, min(a.y, b.y), max(a.y, b.y)))
+        return {"spans": spans, "vertical_rules": rules, "width": page.cropbox.width,
+                "height": page.cropbox.height, "rotation": page.rotation,
+                "coordinate_system": "unrotated-top-left-pt", "extractor": self.name,
+                "extractor_version": self.version, "producer": "mupdf-glyphs/1.0",
+                "transformation_matrix": tuple(page.transformation_matrix)}
 
     def placements(self, number: int, geometry: list | None = None) -> list[tuple]:
         """The spans of one page, as the pdf reader holds its text placements.
