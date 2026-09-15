@@ -181,8 +181,8 @@ def test_a_comma_followed_by_a_space_separates_two_quantities():
 
 # ----------------------------------------------- 1.5, the tail of a split decimal
 
-def test_the_version_is_1_5():
-    assert VERSION == "1.5"
+def test_the_version_is_1_6():
+    assert VERSION == "1.6"
 
 
 @pytest.mark.parametrize("text, phantom", [

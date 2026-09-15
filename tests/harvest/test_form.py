@@ -150,7 +150,7 @@ def refused2(raw, reason):
 
 def test_the_model_classifies_the_grammar_s_values_and_never_rewrites_them():
     result = check2(v2())
-    assert result.values[0]["value_id"] == "v1" and result.form_version == "harvest-form/0.8"
+    assert result.values[0]["value_id"] == "v1" and result.form_version == "harvest-form/0.9"
     for key in ("value", "normalized", "raw"):
         refused2(v2(values=[{"value_id": "v1", "relevance": "critical", "type": "condition",
                              key: "2031-10-14"}]),
@@ -240,7 +240,7 @@ def test_real_prose_clears_the_floor():
     result = validate(json.dumps(body), node_id="n1", allowed_children=CHILDREN,
                       allowed_claims=CLAIMS + ["v1", "v2"], value_ids=["v1", "v2"], text=TEXT,
                       min_words=MIN_PROSE_WORDS)
-    assert result.form_version == "harvest-form/0.8"
+    assert result.form_version == "harvest-form/0.9"
 
 
 def test_an_ambiguous_claim_prefix_is_refused_not_resolved_by_luck():
