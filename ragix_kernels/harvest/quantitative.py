@@ -33,7 +33,9 @@ UNITS = {
 }
 NUMBER = r"(?:[+\u2212]|(?<!\+/)-)?\d+(?:[ \u00a0\u202f]\d{3})*(?:[.,]\d+)?"
 UNIT = "(?:" + "|".join(re.escape(u) for u in sorted(UNITS, key=len, reverse=True)) + ")"
-SCALAR = re.compile(rf"(?<![\w.,])(?P<number>{NUMBER})\s*(?P<unit>{UNIT})(?!\w)")
+#: a currency sign after a unit letter is money (« 10 K€ »), never a physical unit
+UNIT_END = r"(?![\w€$£])"
+SCALAR = re.compile(rf"(?<![\w.,])(?P<number>{NUMBER})\s*(?P<unit>{UNIT}){UNIT_END}")
 PREFIX = re.compile(r"(?P<op><=|>=|≤|≥|<|>|=|au moins|au plus|minimum|maximum|"
                     r"(?:allant\s+)?jusqu['’][aà])\s*$", re.I)
 NORMAL_OP = {"≤": "<=", "≥": ">=", "au moins": ">=", "au plus": "<=", "minimum": ">=", "maximum": "<="}
@@ -161,10 +163,11 @@ def harvest(text: str, *, source_id: str, node_id: str, classification: str,
                            comparator_raw=gap, comparator_normalized="bounded" if kind == "interval" else "tolerance",
                            direction_status="resolved" if valid else "unresolved",
                            normalization_status="parsed" if valid else "unparsed", members=members, **values))
-    # An omitted left unit may be inherited only inside an explicit composite.
+    # An omitted left unit may be inherited only inside an explicit composite, and is flagged:
+    # « Test 3 à 37 °C » has the shape of « 8 à 19 °C », so an inherited unit is never ready as read.
     shared = re.compile(rf"(?<![\w.,])(?P<left>{NUMBER})\s*"
                         rf"(?P<op>±|\+/-|à|to|\.\.|…|–|—|\s-\s)\s*"
-                        rf"(?P<right>{NUMBER})\s*(?P<unit>{UNIT})(?!\w)", re.I)
+                        rf"(?P<right>{NUMBER})\s*(?P<unit>{UNIT}){UNIT_END}", re.I)
     for match in shared.finditer(text):
         if any(match.start() < c.end and match.start("right") > c.start for c in scalars_only(found)):
             continue
@@ -181,7 +184,8 @@ def harvest(text: str, *, source_id: str, node_id: str, classification: str,
                           normalization_status="parsed" if number is not None else "unparsed")
             found.append(right)
         value = parse_decimal(match["left"], decimal_separator=decimal_separator)
-        left = _make(source_id, node_id, text, match.start("left"), match.end("left"), "scalar", flags,
+        left = _make(source_id, node_id, text, match.start("left"), match.end("left"), "scalar",
+                     flags + ("UNIT_INHERITED",),
                      number=format(value, "f") if value is not None else None,
                      unit_raw=right.unit_raw, unit_start=right.unit_start, unit_end=right.unit_end,
                      unit=right.unit, dimension=right.dimension,
@@ -196,7 +200,7 @@ def harvest(text: str, *, source_id: str, node_id: str, classification: str,
         if kind == "interval":
             values.update(lower_inclusive=True, upper_inclusive=True)
         found.extend((left, _make(source_id, node_id, text, match.start(), match.end(), kind,
-                      flags + (() if valid else ("COMPOSITE_UNRESOLVED",)),
+                      flags + left.flags + right.flags + (() if valid else ("COMPOSITE_UNRESOLVED",)),
                       unit_raw=right.unit_raw, unit_start=right.unit_start, unit_end=right.unit_end,
                       unit=right.unit, dimension=right.dimension, comparator_raw=match["op"],
                       comparator_normalized="bounded" if kind == "interval" else "tolerance",

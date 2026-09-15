@@ -89,6 +89,25 @@ def test_classification_and_replay():
         a[0].number = "9"
 
 
+@pytest.mark.parametrize("text", ["8 à 19 °C", "8..19 °C", "11 ± 2 °C", "Test 3 à 37 °C"])
+def test_an_inherited_unit_is_flagged_not_asserted(text):
+    candidates = read(text)
+    composite, = roots(candidates)
+    first = next(c for c in candidates if c.candidate_id == composite.members[0].candidate_id)
+    assert first.unit_start >= first.end        # its unit is not inside its own span
+    assert "UNIT_INHERITED" in first.flags and "UNIT_INHERITED" in composite.flags
+
+
+@pytest.mark.parametrize("text", ["8 °C à 19 °C", "11 °C ± 2 °C"])
+def test_a_written_unit_is_not_flagged_inherited(text):
+    assert not any("UNIT_INHERITED" in c.flags for c in read(text))
+
+
+@pytest.mark.parametrize("text", ["10 K€", "2 à 5 K€", "3 m$"])
+def test_money_is_not_a_physical_quantity(text):
+    assert not any(c.quantitative for c in read(text))
+
+
 def test_ambiguous_separator_is_not_normalized():
     candidate, = read("1.234 V")
     assert candidate.number is None and candidate.normalization_status == "unparsed"
