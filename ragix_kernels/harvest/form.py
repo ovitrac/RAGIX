@@ -26,8 +26,8 @@ The extractive floor (`extractive_summary`) produces the same shape with **no mo
 selected from the children, never generated. It is the baseline a bake-off measures against and the
 fallback under every run.
 
-The form's version string (``harvest-form/0.8``) is kept as first published: every record names the form
-that judged it.
+The form version names the validator that judged each record. Version 0.9 extends the
+literal guard to the physical/count/composite candidate reader; replay must not reuse 0.8 verdicts.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ from typing import Any, Iterable, Optional
 #: holds several), on the RENDERED line (the marker-stripped one invents phrases), two content words in
 #: the span, a span that repeats in the window accepted as faithful quotation, and the exact rule beside
 #: it: the same value cited twice.
-FORM_VERSION = "harvest-form/0.8"
+FORM_VERSION = "harvest-form/0.9"
 RELEVANCE = ("critical", "important", "informative", "background")
 TYPES = ("informative", "injunction", "prohibition", "condition", "exception", "definition", "reference",
          "penalty")
@@ -193,6 +193,16 @@ class HarvestRefusal(ValueError):
         self.detail = detail
 
 
+def _critical_literal(text: str) -> str | None:
+    from .quantitative import harvest
+
+    hit = CRITICAL_TEXT.search(text)
+    if hit:
+        return hit.group(0).strip()
+    return next((c.raw for c in harvest(text, source_id="literal-guard", node_id="literal-guard",
+                                        classification="CONTENT") if c.quantitative), None)
+
+
 @dataclass(frozen=True)
 class HarvestResult:
     node_id: str
@@ -300,9 +310,9 @@ def validate(raw: str, *, node_id: str, allowed_children: Iterable[str],
     else:
         raise HarvestRefusal("missing field", "summary is neither text nor a list of sentences")
     stripped = PLACEHOLDER.sub(" ", summary)
-    hit = CRITICAL_TEXT.search(stripped)
+    hit = _critical_literal(stripped)
     if hit:
-        raise HarvestRefusal("critical value written by the model", hit.group(0).strip())
+        raise HarvestRefusal("critical value written by the model", hit)
     if min_words:
         prose = [w for w in re.split(r"[^\w'’-]+", stripped) if len(w) > 2]
         if len(prose) < min_words:
@@ -369,9 +379,9 @@ def validate(raw: str, *, node_id: str, allowed_children: Iterable[str],
         raise HarvestRefusal("missing field", "interpreted")
     _check_vocabulary(interpreted)
     blob = json.dumps(interpreted, ensure_ascii=False)
-    hit = CRITICAL_TEXT.search(PLACEHOLDER.sub(" ", blob))
+    hit = _critical_literal(PLACEHOLDER.sub(" ", blob))
     if hit:
-        raise HarvestRefusal("critical value written by the model", f"interpreted: {hit.group(0).strip()}")
+        raise HarvestRefusal("critical value written by the model", f"interpreted: {hit}")
 
     if not isinstance(references, dict):
         raise HarvestRefusal("missing field", "references is not an object")

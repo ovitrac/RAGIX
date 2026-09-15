@@ -17,8 +17,8 @@ read from; a value that cannot be typed is returned incomplete rather than guess
 `organisation` and `place` are deliberately absent: no grammar finds them, so they arrive as spans the
 model proposes and the harvest verifies byte-exact against the text — the span is the value.
 
-The name and version (``tender.grammars_fr 1.5``) are kept as first published: value ids and records
-carry them, and a version is what says which reading produced a value.
+The historical grammar name is retained. Version 1.6 changes decimal/sign normalization and
+preserves literal precision; old 1.5 candidate ids and cached outputs must not be reused as 1.6.
 """
 
 from __future__ import annotations
@@ -29,9 +29,10 @@ from typing import Optional
 
 from .dates import Reading as DateReading
 from .dates import read as read_dates
+from .numbers import format_decimal, parse_decimal
 
 GRAMMAR = "tender.grammars_fr"
-VERSION = "1.5"
+VERSION = "1.6"
 CHANNEL = f"{GRAMMAR} {VERSION}"
 
 KINDS = ("date", "datetime", "period", "amount", "percentage", "duration", "reference", "quantity")
@@ -56,7 +57,7 @@ FRACTIONS = {"½": 0.5, "¼": 0.25, "¾": 0.75}
 #: own source — found on a recorded answer, not on a fixture. The integer group
 #: keeps its spaces: a thousands separator in French is a space, « 1 000 heures ».
 _WS = r"\s*"
-_NUM = r"\d(?:[\d\s.  ]*\d)?(?:,\d+)?"
+_NUM = r"[+\-\u2212]?\d(?:[\d\s.  ]*\d)?(?:,\d+)?"
 
 
 @dataclass(frozen=True)
@@ -72,16 +73,12 @@ class Value:
     unit: Optional[str] = None
 
 
-def _number(text: str) -> Optional[float]:
-    cleaned = re.sub(r"[\s  .]", "", text).replace(",", ".")
-    try:
-        return float(cleaned)
-    except ValueError:
-        return None
+def _number(text: str):
+    return parse_decimal(text, allow_split_digits=True)
 
 
-def _fmt(value: float) -> str:
-    return f"{value:.2f}".rstrip("0").rstrip(".") if value % 1 else str(int(value))
+def _fmt(value) -> str:
+    return format_decimal(value)
 
 
 _AMOUNT = re.compile(rf"(?<![\w,.])(?P<n>{_NUM})\s*(?P<cur>€|EUR\b|euros?\b)", re.IGNORECASE)
@@ -192,7 +189,7 @@ def read_values(text: str, kinds: tuple[str, ...] = KINDS) -> list[Value]:
             found.append(Value(r.start, r.end, r.raw, r.type, r.normalized, r.reason))
     if "amount" in kinds:
         found += _scan(text, _AMOUNT, "amount", lambda m: (
-            (f"{_number(m['n']):.2f} EUR", None, "EUR") if _number(m["n"]) is not None
+            (format_decimal(_number(m["n"]), minimum_places=2) + " EUR", None, "EUR") if _number(m["n"]) is not None
             else (None, "not a number", "EUR")))
     if "percentage" in kinds:
         found += _scan(text, _PERCENT, "percentage", lambda m: (
