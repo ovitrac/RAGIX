@@ -17,6 +17,30 @@ from .quantitative import harvest
 VERSION = "candidate-binding/1.0"
 
 
+def guard_free_text(value):
+    """Reject numeric literals recursively, including strings in nested maps.
+
+    Digits embedded in scientific names (CO2) are not numeric literals. Evidence
+    ids belong in typed id slots, never in free-text semantic fields.
+    """
+    if value is None or isinstance(value, bool):
+        return
+    if isinstance(value, (int, float)):
+        raise BindingRefusal("semantic_value_smuggling")
+    if isinstance(value, str):
+        if re.search(r"(?<!\w)[+−-]?\d", value):
+            raise BindingRefusal("semantic_value_smuggling")
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            guard_free_text(key)
+            guard_free_text(item)
+    elif isinstance(value, list):
+        for item in value:
+            guard_free_text(item)
+    else:
+        raise BindingRefusal("semantic_field_type")
+
+
 class BindingRefusal(ValueError):
     def __init__(self, rule, detail=""):
         self.rule = rule
@@ -166,6 +190,8 @@ def validate_bindings(raw: str, candidates, *, node_texts: dict[str, str], polic
                 raise BindingRefusal("model_assembled_composite")
         elif "composite_candidate_id" in constraint:
             raise BindingRefusal("unexpected_composite")
+        for key in (required | optional) - {"claim_id", "node_id", "candidate_ids", "constraint"}:
+            guard_free_text(claim.get(key))
         failures = tuple(semantic_validator(claim, tuple(by_id[i] for i in ids)))
         if failures:
             raise BindingRefusal("semantic_policy", ",".join(failures))

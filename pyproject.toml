@@ -65,6 +65,8 @@ saqqara = ["ragix[docs]", "pypdf>=4.0.0", "pypdfium2>=4.0.0", "numpy>=1.24.0"]
 # Offered because a caller who already holds a commercial licence, or who is not
 # distributing, may prefer its output. That choice is theirs to make explicitly.
 saqqara-mupdf = ["pymupdf>=1.24.0"]
+# Reproducible Explorer geometry; other Saqqara routes retain their own policy.
+explorer = ["pymupdf==1.27.2.2"]
 all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports,koas,docs,sealed,translate,saqqara]"]
 
 [project.scripts]

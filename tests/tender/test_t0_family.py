@@ -279,6 +279,10 @@ def test_t0_7_saqqara_pinned_lists_are_untouched_by_this_family():
     import test_k0_spec as saqqara_spec
 
     assert saqqara_spec.DECLARED_KERNELS == [
+        "ragix_kernels.saqqara.kernels.explorer.CensusKernel",
+        "ragix_kernels.saqqara.kernels.explorer.ProfileKernel",
+        "ragix_kernels.saqqara.kernels.explorer.ReadKernel",
+        "ragix_kernels.saqqara.kernels.explorer.ReportKernel",
         "ragix_kernels.saqqara.kernels.saqqara_index.SaqqaraIndexKernel",
         "ragix_kernels.saqqara.kernels.saqqara_run.SaqqaraKernel",
     ]

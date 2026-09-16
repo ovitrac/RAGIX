@@ -73,3 +73,20 @@ python -m pytest tests/harvest tests/saqqara -q
 
 All fixtures in these new public tests are independently synthetic. No external
 corpus, model endpoint, network access or document-specific policy is required.
+
+## Bounded notation safeguards
+
+Shared-unit intervals accept explicit French/English pairs and hyphen connectors.
+Borrowed units carry `UNIT_INHERITED`; a hyphen connector also carries
+`SIGN_RANGE_AMBIGUOUS`. A bare integer after a label word carries
+`LABEL_NUMBER_SUSPECTED`. Trailing unitless tolerances retain their own literal
+span and cite the nominal unit's span. Glued uppercase K is never a thousands
+multiplier and carries `UNIT_AMBIGUOUS_K`. Grouped numbers carry
+`GROUPING_ASSUMED`; an undeclared ambiguous three-digit fractional tail carries
+`GROUPING_AMBIGUOUS`. These flags survive binding as review reasons.
+
+The generic binding envelope rejects numeric literals recursively in semantic
+free text, including nested applicability objects and their keys. Typed candidate
+and node id slots are separate. Scientific tokens such as CO2 remain admissible;
+this structural guard does not replace the caller's mandatory semantic policy.
+Synthetic regressions: `tests/harvest/test_explorer_prerequisites.py`.
