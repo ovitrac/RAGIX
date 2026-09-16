@@ -28,7 +28,7 @@ def guard_free_text(value):
     if isinstance(value, (int, float)):
         raise BindingRefusal("semantic_value_smuggling")
     if isinstance(value, str):
-        if re.search(r"(?<!\w)[+−-]?\d+(?:[.,]\d+)?(?!\w)", value):
+        if re.search(r"(?<!\w)[+−-]?\d", value):
             raise BindingRefusal("semantic_value_smuggling")
     elif isinstance(value, dict):
         for key, item in value.items():

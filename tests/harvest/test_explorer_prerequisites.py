@@ -30,7 +30,7 @@ def test_missing_composites_stay_uncertain(text,kind,a,b,flag):
 def test_ambiguity_is_not_ready(text,flag): assert flag in read(text)[0].flags
 
 
-@pytest.mark.parametrize("value",["above 15",{"scope":[{"limit":"4 V"}]},{"range":12},"1.2e3","at −7",{"level 8":"warm"}])
+@pytest.mark.parametrize("value",["above 15",{"scope":[{"limit":"4 V"}]},{"range":12},"1.2e3","13kg","6e4","at −7",{"level 8":"warm"}])
 def test_numeric_free_text_refused(value):
     with pytest.raises(BindingRefusal): guard_free_text(value)
 
