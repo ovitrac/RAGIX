@@ -493,3 +493,32 @@ padding layouts and one varying-subcell layout. Kernels advance to 0.5.2;
 additive record defaults preserve loading, but fresh PDF intake is mandatory for
 old documents lacking cell-geometry identity. Consumer comparisons and all their
 numbers remain private; independent confirmation is required before merge.
+
+At implementation commit `3194195800a1427c643ac6efcd52615c9cc5d651`:
+
+| Platform | Full detached suite | Observed duration |
+|---|---|---:|
+| x86_64 | **2,377 passed, 38 skipped**, 140 warnings | 52.38 s |
+| aarch64 | **2,377 passed, 38 skipped**, 140 warnings | 36.45 s |
+
+Both runs pin `PYTHONPATH`, print imported package paths and match their declared
+platform locks. All **28 synthetic replay cases**, privacy presentation hashes
+and imported package source hashes match across architectures. The four added
+cases exercise native padding with 3/5/8 columns and varying native subcell
+partitions. The full suite also exercises actual generated-PDF extraction,
+15–30-page continuation and the negative controls described above.
+
+| Record | SHA-256, identical on both architectures |
+|---|---|
+| Imported package source | `aeb210ab3d6e55e62fbdb0c218d9d3e45bc2f2b4c127bed77b191928b55cccf0` |
+| Native three-column padding report | `297ef85c35a0a4fd3d909d7bd8d8db537030bdb759c33a4e4f9da0e1f6639823` |
+| Native five-column padding report | `83cf2b77945ee3069f651fb26aa7c9b8d34a25eba8a64c98a434121c97e476e1` |
+| Native eight-column padding report | `768e1c552298db6f85cde66b37ad0d8f5c8dc9abc3c181211bf0fc14f70c223f` |
+| Varying native-subcell report | `9606f75d1a6f7b828d9a0bf94afdd46f620dcf5ff3123b1d3657a3e321fd4477` |
+
+Reproduce using the unchanged clean-checkout commands above. The source-history
+check for `ac2be3d..3194195` inspects 1,186 blob revisions and two commit messages
+with zero findings; normal commit hooks run. Diagnostic records are additive and
+retain explicit unknown counts before an inference stage. Source-hash parity is
+not a statement of complete consumer recovery: the independent inventory and
+privacy gates remain required before merge, with their evidence kept private.
