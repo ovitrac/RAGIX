@@ -41,6 +41,15 @@ PREFIX = re.compile(r"(?P<op><=|>=|≤|≥|<|>|=|au moins|au plus|minimum|maximu
 NORMAL_OP = {"≤": "<=", "≥": ">=", "au moins": ">=", "au plus": "<=", "minimum": ">=", "maximum": "<="}
 
 
+def notation_flags(raw, decimal_separator=None):
+    flags = []
+    if re.search(r"\d[ \u00a0\u202f]\d{3}", raw):
+        flags.append("GROUPING_ASSUMED")
+    if decimal_separator is None and re.fullmatch(r"[+−-]?[1-9]\d{0,2}[.,]\d{3}", raw):
+        flags.append("GROUPING_AMBIGUOUS")
+    return tuple(flags)
+
+
 @dataclass(frozen=True)
 class Member:
     candidate_id: str
@@ -117,6 +126,9 @@ def harvest(text: str, *, source_id: str, node_id: str, classification: str,
             kind = "inequality"
         extra = flags + (("DIRECTION_UNRESOLVED",) if direction == "unresolved" else ())
         extra += ("NUMBER_UNPARSED",) if value is None else ()
+        extra += notation_flags(match["number"], decimal_separator)
+        if match["unit"] == "K" and match.end("number") == match.start("unit"):
+            extra += ("UNIT_AMBIGUOUS_K",)
         candidate = _make(source_id, node_id, text, start, match.end(), kind, extra,
                           number=format(value, "f") if value is not None else None,
                           unit_raw=match["unit"], unit_start=match.start("unit"), unit_end=match.end("unit"),
@@ -166,9 +178,12 @@ def harvest(text: str, *, source_id: str, node_id: str, classification: str,
     # An omitted left unit may be inherited only inside an explicit composite, and is flagged:
     # « Test 3 à 37 °C » has the shape of « 8 à 19 °C », so an inherited unit is never ready as read.
     shared = re.compile(rf"(?<![\w.,])(?P<left>{NUMBER})\s*"
-                        rf"(?P<op>±|\+/-|à|to|\.\.|…|–|—|\s-\s)\s*"
+                        rf"(?P<op>±|\+/-|à|to|et|and|\.\.|…|–|—|-)\s*"
                         rf"(?P<right>{NUMBER})\s*(?P<unit>{UNIT}){UNIT_END}", re.I)
     for match in shared.finditer(text):
+        intro = re.search(r"\b(?:entre|between|de|from)\s*$", text[:match.start()], re.I)
+        if match["op"].lower() in {"et", "and"} and not intro:
+            continue
         if any(match.start() < c.end and match.start("right") > c.start for c in scalars_only(found)):
             continue
         right = next((c for c in found if c.start == match.start("right") and c.end == match.end()), None)
@@ -184,8 +199,13 @@ def harvest(text: str, *, source_id: str, node_id: str, classification: str,
                           normalization_status="parsed" if number is not None else "unparsed")
             found.append(right)
         value = parse_decimal(match["left"], decimal_separator=decimal_separator)
+        shared_flags = ("UNIT_INHERITED",) + notation_flags(match["left"], decimal_separator)
+        if match["op"] == "-":
+            shared_flags += ("SIGN_RANGE_AMBIGUOUS",)
+        if not intro and re.search(r"[^\W\d_]\s+$", text[:match.start()]) and re.fullmatch(r"\d+", match["left"]):
+            shared_flags += ("LABEL_NUMBER_SUSPECTED",)
         left = _make(source_id, node_id, text, match.start("left"), match.end("left"), "scalar",
-                     flags + ("UNIT_INHERITED",),
+                     flags + shared_flags,
                      number=format(value, "f") if value is not None else None,
                      unit_raw=right.unit_raw, unit_start=right.unit_start, unit_end=right.unit_end,
                      unit=right.unit, dimension=right.dimension,
@@ -199,7 +219,7 @@ def harvest(text: str, *, source_id: str, node_id: str, classification: str,
         values = dict(zip(roles, (left.number, right.number)))
         if kind == "interval":
             values.update(lower_inclusive=True, upper_inclusive=True)
-        found.extend((left, _make(source_id, node_id, text, match.start(), match.end(), kind,
+        found.extend((left, _make(source_id, node_id, text, intro.start() if intro else match.start(), match.end(), kind,
                       flags + left.flags + right.flags + (() if valid else ("COMPOSITE_UNRESOLVED",)),
                       unit_raw=right.unit_raw, unit_start=right.unit_start, unit_end=right.unit_end,
                       unit=right.unit, dimension=right.dimension, comparator_raw=match["op"],
@@ -207,6 +227,31 @@ def harvest(text: str, *, source_id: str, node_id: str, classification: str,
                       direction_status="resolved" if valid else "unresolved",
                       normalization_status="parsed" if valid else "unparsed",
                       members=(Member(left.candidate_id, roles[0]), Member(right.candidate_id, roles[1])), **values)))
+    # A trailing tolerance operand can borrow the nominal unit. Its own exact
+    # span remains unitless and the inheritance flag reaches the composite.
+    for nominal, match in scalars:
+        tail = re.match(rf"\s*(?P<op>±|\+/-)\s*(?P<n>{NUMBER})(?![\w.,])", text[match.end():])
+        if not tail:
+            continue
+        start, end = match.end() + tail.start("n"), match.end() + tail.end("n")
+        if any(c.start <= start < c.end for c in found):
+            continue
+        value = parse_decimal(tail["n"], decimal_separator=decimal_separator)
+        extra = flags + ("UNIT_INHERITED",) + notation_flags(tail["n"], decimal_separator)
+        operand = _make(source_id, node_id, text, start, end, "scalar", extra,
+                        number=format(value, "f") if value is not None else None,
+                        unit=nominal.unit, dimension=nominal.dimension, unit_raw=nominal.unit_raw,
+                        unit_start=nominal.unit_start, unit_end=nominal.unit_end,
+                        normalization_status="parsed" if value is not None else "unparsed")
+        valid = value is not None and value >= 0 and nominal.number is not None
+        found.extend((operand, _make(source_id, node_id, text, nominal.start, end, "tolerance",
+                     extra + nominal.flags + (() if valid else ("COMPOSITE_UNRESOLVED",)),
+                     nominal=nominal.number, tolerance=operand.number, unit=nominal.unit,
+                     unit_raw=nominal.unit_raw, dimension=nominal.dimension,
+                     comparator_raw=tail["op"], comparator_normalized="tolerance",
+                     direction_status="resolved" if valid else "unresolved",
+                     normalization_status="parsed" if valid else "unparsed",
+                     members=(Member(nominal.candidate_id, "nominal"), Member(operand.candidate_id, "tolerance")))))
     occupied = [(c.start, c.end) for c in found]
     symbolic = re.compile(r"(?P<op><=|>=|≤|≥)\s*(?P<symbol>[A-Za-zÀ-ÿ_][\wÀ-ÿ]*(?:[ \t]+[A-Za-zÀ-ÿ_][\wÀ-ÿ]*){0,2})")
     for match in symbolic.finditer(text):

@@ -161,7 +161,17 @@ def line_views(spans, rules=()) -> list[TextView]:
         raise ValueError("line_views accepts one copy/page at a time")
     pieces = [p for s in spans if s.state != "FURNITURE" for p in split_at_rules(s, rules)
               if p.text.strip()]
-    pieces.sort(key=lambda s: (s.origin[1], s.bbox[0], s.span_id, s.source_offset))
+    # Cluster against the first baseline, never the previous fragment: pairwise
+    # proximity would transitively drift into the next row. Then order by x.
+    rows = []
+    for piece in sorted(pieces, key=lambda s: (s.origin[1], s.bbox[0], s.span_id, s.source_offset)):
+        if (rows and piece.font_size > 0 and rows[-1][0].font_size > 0
+                and piece.origin[1] - rows[-1][0].origin[1]
+                <= min(piece.font_size, rows[-1][0].font_size) * 0.1):
+            rows[-1].append(piece)
+        else:
+            rows.append([piece])
+    pieces = [s for row in rows for s in sorted(row, key=lambda s: (s.bbox[0], s.span_id, s.source_offset))]
     groups, separators = [], []
     for span in pieces:
         sep = None
@@ -173,6 +183,9 @@ def line_views(spans, rules=()) -> list[TextView]:
             box = union_box((prev.bbox, span.bbox))
             if (size > 0 and upright and not prev.flags and not span.flags
                     and abs(prev.origin[1] - span.origin[1]) <= size * 0.1
+                    and max(s.origin[1] for s in (*groups[-1], span))
+                        - min(s.origin[1] for s in (*groups[-1], span))
+                        <= min(s.font_size for s in (*groups[-1], span)) * 0.1
                     and -size * 0.1 <= gap <= size
                     and not any(rule.crosses(box) for rule in rules)):
                 sep = " " if (gap > size * 0.1 or prev.text[-1:].isspace()

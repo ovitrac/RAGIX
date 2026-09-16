@@ -458,3 +458,21 @@ closed. Ids are `H`-prefixed so they can never be read as gate propositions.
 | id | where the invariant stops | cost | route to closing it |
 |---|---|---|---|
 | H1 | K6.7 and K6.9 promise that every picture is **read or counted**. That holds above the library boundary only. In the spreadsheet format, `openpyxl` discards an image it cannot decode **during load** — `UserWarning: The image xl/media/....png will be removed because it cannot be read` — so `worksheet._images` never contains it and no reader code runs. Both a corrupt part and an empty one vanish this way; measured, not inferred. | A spreadsheet can hold pictures this kernel neither emits nor counts, and the count cannot see its own blind spot. The two other office formats do not share it: both expose the bytes independently of parsing them. | Compare the drawing anchors declared in the sheet's own XML (`xl/drawings/drawing*.xml` and its relationships) against the images the library kept, and count the difference under the existing `PART_SKIPS` vocabulary. This reads the format directly rather than trusting the library's inventory, which is the same move `_boxes` already makes for the page description format. |
+
+## K8 — boundary-aware field views and line joins
+
+Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+
+- **K8.1** `field_views` retains one source-character reference per observed
+  character; inserted whitespace has no source glyph. Furniture cannot enter a
+  content view. A join never rewrites its observations.
+- **K8.2** Vertical rules split native spans only with sufficient upright glyph
+  geometry. A rule crossing a glyph, missing geometry, rotation or a flagged
+  boundary prevents an unqualified join. Test: `test_field_views.py`.
+- **K8.3** Baseline clustering precedes x-ordering. Its spread is bounded against
+  the first baseline and across the entire joined group; adjacent-pair tolerance
+  cannot drift into the next row. Test: `test_explorer_prerequisites.py`.
+- **K8.4** PDF `line_join` is opt-in, keeps source placements and the join audit,
+  flags digit joins, and refuses unmeasurable boundaries. It is not table-cell
+  assembly and must not be used as evidence of cell membership. Test:
+  `test_k2p_pdf_readers.py` (column gap, exponent, missing width, digit joins).
