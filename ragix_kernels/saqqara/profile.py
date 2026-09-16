@@ -13,7 +13,7 @@ from ..harvest.report import replay_digest
 
 from .value_windows import ContinuationPolicy, DEFAULT_CONTINUATION, policy_from_dict
 
-VERSION = "document-profile/0.4"
+VERSION = "document-profile/0.5"
 FIELDS = (
     "language",
     "identifier_families",
@@ -131,7 +131,7 @@ class DocumentProfile:
                 "continuation",
                 "role_line",
             },
-            "id_row_tables": {"tables"},
+            "id_row_tables": {"tables", "reconstructed", "unresolved", "excluded_furniture"},
             "furniture": {
                 "running_patterns",
                 "mark_literals",
@@ -381,10 +381,27 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
         diagnostics={"reference_counts": stats, "unresolved_occurrences": unresolved},
     )
     tables = by.get("table_header", [])
+    raw_ids = set(census.table_analysis.candidate_ids) | set(census.table_analysis.excluded)
+    declared_tables = [r for r in tables if dict(r.attributes).get("table_id") not in raw_ids]
     if tables:
         put(
             "id_row_tables",
             {
+                "reconstructed": [
+                    {
+                        "table_id": t.table_id,
+                        "headers": list(t.headers),
+                        "roles": list(t.roles),
+                        "continued_on": t.continued_on,
+                        "repetition_count": t.repetition_count,
+                        "fragments": list(t.fragments),
+                        "policy": t.policy,
+                        "flags": t.flags,
+                    }
+                    for t in census.table_analysis.tables
+                ],
+                "unresolved": [asdict(f) for f in census.table_analysis.findings],
+                "excluded_furniture": list(census.table_analysis.excluded),
                 "tables": [
                     {
                         "headers": json.loads(r.literal),
@@ -394,8 +411,8 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
                         "unreadable_counts": json.loads(dict(r.attributes)["unreadable"]),
                         "row_count": int(dict(r.attributes)["rows"]),
                     }
-                    for r in tables
-                ]
+                    for r in declared_tables
+                ],
             },
             tables,
             "tables/observed-topology/1",

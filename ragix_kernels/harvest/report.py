@@ -115,6 +115,8 @@ class ReadingCoverage:
     stage_times: tuple[tuple[str, float], ...] = ()
     construct_failures: int = 0
     unresolved_occurrences: int = 0
+    furniture_tables_excluded: int = 0
+    logical_tables: int = 0
 
     def __post_init__(self):
         if not self.record_id or not self.source_id:
@@ -190,17 +192,24 @@ def build_report(document, census, profile, reading, provenance=None):
         if any(c is None for r in t.rows for c in r)
     )
     recovered = {t["table_id"] for t in reading.tables}
+    physical_recovered = {
+        fragment for t in census.table_analysis.tables for fragment in t.fragments
+    }
+    physical_recovered.update(t["table_id"] for t in reading.tables if "source_tables" not in t)
+    eligible = {t.table_id for t in all_tables} - set(census.table_analysis.excluded)
     coverage = ReadingCoverage(
         stable_id("coverage", document.source_id),
         document.source_id,
         len(document.pages),
         sum(bool(p.spans) for p in document.pages),
-        len(recovered),
-        len(all_tables) - len(recovered),
+        len(physical_recovered),
+        len(eligible - physical_recovered),
         sum(c is None for t in all_tables for r in t.rows for c in r),
         sum(bool(s.flags) for p in document.pages for s in p.spans),
         sum(f.reason == "UNKNOWN_TEMPLATE" for f in reading.findings),
         construct_failures=len(census.construct_findings),
+        furniture_tables_excluded=len(census.table_analysis.excluded),
+        logical_tables=len(recovered),
         unresolved_occurrences=sum(
             f.field == "reference_fields" and f.reason != "UNKNOWN_TEMPLATE"
             for f in reading.findings

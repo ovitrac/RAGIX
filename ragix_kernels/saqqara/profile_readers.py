@@ -344,6 +344,8 @@ def read_document(
                 )
 
         for table in page.tables:
+            if table.cell_rows:
+                continue  # Reconstructed below, after recurrence filtering.
             # Infer id column from all nonempty row cells; header language and
             # column order are never part of the identifier grammar.
             matches = (
@@ -410,6 +412,54 @@ def read_document(
                         "evidence": [asdict(e) for e in table.evidence],
                     }
                 )
+    for table in census.table_analysis.tables:
+        id_cols = [i for i, role in enumerate(table.roles) if role == "id"]
+        for row in table.rows:
+            flags = set(row.flags) | set(table.flags)
+            if len(id_cols) != 1:
+                flags.add("AMBIGUOUS_ID_COLUMN")
+            duplicate_headers = len(set(table.headers)) != len(table.headers)
+            columns = tuple(
+                {
+                    "column_id": stable_id("table-column", table.table_id, i),
+                    "header": h,
+                    "role": table.roles[i],
+                }
+                for i, h in enumerate(table.headers)
+            )
+            tables.append(
+                {
+                    "record_id": row.record_id,
+                    "table_id": table.table_id,
+                    "page": row.page,
+                    "key": row.cells[id_cols[0]] if len(id_cols) == 1 else None,
+                    "cells": {
+                        columns[i]["column_id"] if duplicate_headers else h: row.cells[i]
+                        for i, h in enumerate(table.headers)
+                    },
+                    "columns": columns,
+                    "members": row.members,
+                    "roles": table.roles,
+                    "flags": sorted(flags),
+                    "bbox": row.bbox,
+                    "continued_on": table.continued_on,
+                    "source_tables": table.fragments,
+                    "evidence_ids": tuple(cid for members in row.members for cid in members),
+                }
+            )
+    for failure in census.table_analysis.findings:
+        findings.append(
+            UnknownTemplate(
+                failure.record_id,
+                document.source_id,
+                "id_row_tables",
+                profile.census_id,
+                failure.inspected_count,
+                "TABLE_UNRESOLVED:" + failure.reason,
+                failure.page,
+                failure.table_id,
+            )
+        )
     return ReaderResult(
         document.source_id,
         replay_digest([profile]),

@@ -31,7 +31,7 @@ def attempt(row, stage, operation):
 
 class CensusKernel(Kernel):
     name = "explorer_census"
-    version = "0.4.0"
+    version = "0.5.0"
     stage = 1
     category = "docs"
     requires = []
@@ -46,6 +46,10 @@ class CensusKernel(Kernel):
         options = dict(input.config.get("census_options", {}))
         if "continuation_policy" in options:
             options["continuation_policy"] = policy_from_dict(options["continuation_policy"])
+        if "table_policy" in options:
+            from ..table_views import TablePolicy
+
+            options["table_policy"] = TablePolicy(**options["table_policy"])
         config = CensusConfig(**options)
         results = []
         seen = set()
@@ -67,7 +71,7 @@ class CensusKernel(Kernel):
 
 class ProfileKernel(Kernel):
     name = "explorer_profile"
-    version = "0.4.0"
+    version = "0.5.0"
     stage = 2
     category = "docs"
     requires = ["explorer_census"]
@@ -95,7 +99,7 @@ class ProfileKernel(Kernel):
 
 class ReadKernel(Kernel):
     name = "explorer_read"
-    version = "0.4.0"
+    version = "0.5.0"
     stage = 2
     category = "docs"
     requires = ["explorer_profile"]
@@ -127,7 +131,7 @@ class ReadKernel(Kernel):
 
 class ReportKernel(Kernel):
     name = "explorer_report"
-    version = "0.4.0"
+    version = "0.5.0"
     stage = 3
     category = "docs"
     requires = ["explorer_read"]

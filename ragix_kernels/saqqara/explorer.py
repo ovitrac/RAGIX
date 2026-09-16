@@ -9,6 +9,7 @@ import importlib.metadata
 from pathlib import Path
 import subprocess
 from .census import DocumentDigest, PageDigest, TableObservation, Evidence, CensusConfig, census
+from .table_views import TableCell
 from .profile import ProfileConfig, derive_profile
 from .profile_readers import read_document
 from ..harvest.report import build_report, canonical_json, replay_digest
@@ -129,9 +130,33 @@ def digest_pdf(path: Path, *, expected_pymupdf=None) -> DocumentDigest:
                     for r, row in enumerate(rows)
                     for c, cell in enumerate(row)
                 )
+                cell_rows = tuple(
+                    tuple(
+                        TableCell(
+                            ident + f":{r}:{c}",
+                            cell,
+                            tuple(table.rows[r].cells[c] or table.bbox),
+                            tuple(
+                                s.span_id
+                                for s in geometry["spans"]
+                                if min(s.bbox[2], (table.rows[r].cells[c] or table.bbox)[2])
+                                > max(s.bbox[0], (table.rows[r].cells[c] or table.bbox)[0])
+                                and min(s.bbox[3], (table.rows[r].cells[c] or table.bbox)[3])
+                                > max(s.bbox[1], (table.rows[r].cells[c] or table.bbox)[1])
+                            ),
+                        )
+                        for c, cell in enumerate(row)
+                    )
+                    for r, row in enumerate(rows)
+                )
                 tables.append(
                     TableObservation(
-                        ident, number, headers, tuple(tuple(r) for r in rows[1:]), evidence
+                        ident,
+                        number,
+                        headers,
+                        tuple(tuple(r) for r in rows[1:]),
+                        evidence,
+                        cell_rows=cell_rows,
                     )
                 )
             pages.append(

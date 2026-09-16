@@ -488,7 +488,10 @@ reading configuration, never a document's semantic authority.
 
 - **K9.1 Census separation.** `census` counts every occurrence with exact evidence
   and accounts for every page, including textless pages. Its closed attributes
-  prohibit semantic role fields. Falsifier: inject `role` into a census record.
+  prohibit semantic role fields. Raw physical table cells remain separate from
+  reconstructed columns. Recurring furniture is excluded before raw blocks enter
+  table candidacy; rejected blocks and their original lines remain inspectable.
+  Falsifiers: inject `role` into a census record; X13 running-header blocks.
 - **K9.2 Profile support.** Every non-UNKNOWN field has a named rule, confidence,
   and census candidate ids; unsupported fields stay UNKNOWN. Numeric notation is
   resolved per token; the field records a weak/dominant document prior or no prior,
@@ -533,6 +536,14 @@ reading configuration, never a document's semantic authority.
   the label cell and adjacent right/below cells, not unrelated page rules.
   Defaults report no_body_lines, too_few_gaps or unimodal. E7.9a–f exercise these
   invariants, including minimum-support sensitivity and competing pluralities.
+  For raw table blocks, full-height grid rules define columns; otherwise bands
+  must be supported consistently by following rows. No fixed column count is used.
+  Unaligned cells, unsupported bands and unrepeated headers yield TABLE_UNRESOLVED.
+  Header repetition plus relative geometry and roles can group adjacent-page
+  fragments, retaining every source row once and recording the continuation rule.
+  Cell members and join uncertainty remain explicit. Contaminated headers/rows
+  stay flagged and are never cleaned. X13 exercises reconstruction, refusals,
+  column/furniture mutations and geometry-policy sensitivity.
 - **K9.6 Section expressions.** Lists preserve members and ranges preserve their
   literal operator and endpoints. No reader expands a range or resolves it against
   an inventory. Split/glued observations remain flagged. Revisions do not become

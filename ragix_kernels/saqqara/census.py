@@ -23,7 +23,9 @@ from ..harvest.numeric_locale import physical_numbers
 
 from .failures import ConstructFinding
 
-VERSION = "census/0.5"
+from .table_views import TableCell, TablePolicy, TableAnalysis, recover_tables, analysis_from_dict
+
+VERSION = "census/0.6"
 IDENTIFIER = re.compile(r"(?<!\w)[A-Za-z0-9]+(?:[-/]+[A-Za-z0-9]+)+(?!\w)")
 NUMBERING = re.compile(r"(?<![\w.])\d+(?:\.\s*\d+)+(?![\w.])")
 CATEGORIES = frozenset(
@@ -97,6 +99,7 @@ class TableObservation:
     rows: tuple[tuple[str | None, ...], ...]
     evidence: tuple[Evidence, ...]
     geometry: str = "drawn_grid"
+    cell_rows: tuple[tuple[TableCell, ...], ...] = ()
 
     def __post_init__(self):
         if (
@@ -185,6 +188,7 @@ class CensusRecord:
             "date_capitals",
             "header",
             "geometry",
+            "table_id",
             "empty",
             "unreadable",
             "columns",
@@ -219,6 +223,7 @@ class Census:
     version: str = VERSION
     construct_findings: tuple[ConstructFinding, ...] = ()
     geometry_policy: dict = field(default_factory=dict)
+    table_analysis: TableAnalysis = TableAnalysis()
 
     def __post_init__(self):
         if self.version != VERSION or not self.source_id or not self.digest_id or self.pages < 1:
@@ -234,6 +239,7 @@ class CensusConfig:
     adjacency_chars: int = 32
     rotation_threshold: float = 0.1
     recurrence_fraction: float = 0.5
+    table_policy: TablePolicy = TablePolicy()
     continuation_policy: ContinuationPolicy = DEFAULT_CONTINUATION
 
     def __post_init__(self):
@@ -534,6 +540,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
                 json.dumps(table.headers, ensure_ascii=False),
                 table.evidence[0],
                 geometry=table.geometry,
+                table_id=table.table_id,
                 empty=json.dumps(empty),
                 unreadable=json.dumps(unreadable),
                 columns=len(table.headers),
@@ -575,6 +582,33 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
         records.append(CensusRecord(ident, category, literal, len(evidence), evidence, attrs))
     from ..harvest.report import replay_digest
 
+    # Global recurrence is decided before any raw table block becomes a candidate.
+    furniture_boxes = defaultdict(list)
+    furniture_span_ids = set()
+    for record in records:
+        if (
+            record.category == "recurrence"
+            and dict(record.attributes)["edge"] == "True"
+            and len({e.page for e in record.evidence})
+            >= max(2, len(document.pages) * config.recurrence_fraction)
+        ):
+            for evidence in record.evidence:
+                furniture_boxes[evidence.page].append(evidence.bbox)
+    for page in document.pages:
+        furniture_span_ids.update(
+            s.span_id
+            for s in page.spans
+            if abs(s.direction[1]) > config.rotation_threshold
+            and s.font_size >= config.large_points
+        )
+    tables = recover_tables(
+        document,
+        furniture_boxes=furniture_boxes,
+        furniture_span_ids=frozenset(furniture_span_ids),
+        identifiers=identifiers,
+        numbering=NUMBERING,
+        policy=config.table_policy,
+    )
     return Census(
         document.source_id,
         tuple(records),
@@ -583,6 +617,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
         policy,
         tuple(windows),
         construct_findings=tuple(construct_findings),
+        table_analysis=tables,
         geometry_policy={
             key: getattr(config, key)
             for key in (
@@ -620,6 +655,20 @@ def digest_from_dict(data):
                     "headers": tuple(t["headers"]),
                     "rows": tuple(tuple(r) for r in t["rows"]),
                     "evidence": tuple(Evidence(**e) for e in t["evidence"]),
+                    "cell_rows": tuple(
+                        tuple(
+                            TableCell(
+                                **{
+                                    **c,
+                                    "bbox": tuple(c["bbox"]),
+                                    "source_spans": tuple(c.get("source_spans", ())),
+                                    "flags": tuple(c.get("flags", ())),
+                                }
+                            )
+                            for c in row
+                        )
+                        for row in t.get("cell_rows", ())
+                    ),
                 }
             )
             for t in p.get("tables", ())
@@ -646,6 +695,7 @@ def census_from_dict(data):
         **{
             **data,
             "continuation_policy": policy,
+            "table_analysis": analysis_from_dict(data["table_analysis"]),
             "construct_findings": tuple(
                 ConstructFinding(**f) for f in data.get("construct_findings", ())
             ),

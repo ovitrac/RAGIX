@@ -212,3 +212,44 @@ it, or `explore` can propagate an explicit profile configuration upstream before
 census. A profile built against a differently configured census is refused.
 A zero stamp count means zero detected stamps in the extracted text, not proof
 that an image-only page contains no personal information.
+
+## Slice 3 physical table recovery (E9)
+
+Raw table observations may supply `cell_rows`, containing a header row and following
+physical rows of `TableCell` records (text, box, cell id, source span ids and flags).
+PDF intake now supplies these observations. Existing explicitly declared logical
+header/row inputs without `cell_rows` retain their original reader path; they are
+not treated as word-cell candidates with invented geometry.
+
+Global recurring edge bands and rotated oversized observations are evaluated before
+raw table candidacy. All remaining blocks are considered. Complete vertical rules
+define columns when available; otherwise consistent following-row x bands do. The
+x tolerance is a declared factor of median observed cell width, with an explicit
+fallback and provenance. Every band requires `minimum_rows` supporting rows, and
+inconsistent counts, straddling cells or unsupported header-only bands are refused.
+The header must recur in another block/page and an identifier-like column must be
+observed. Roles are generic id/free_text/short_code/empty/unknown proposals.
+
+Accepted rows retain their original cell-member ids, bounding boxes and flags.
+Repeated header fragments on adjacent pages are grouped only when normalized
+headers, roles and relative geometry agree. `continued_on` and `repetition_count`
+are recorded; header repetitions never become additional data rows. This is an
+explicit structural grouping rule, not a cross-document identity declaration.
+A missing or ambiguous primary id does not erase the row. Duplicate header texts
+use stable column ids in the presentation mapping so no cell overwrites another.
+Lifecycle, unreadable and digit-join flags remain visible; no glyph is cleaned.
+
+`CensusConfig(table_policy=TablePolicy(...))` controls x tolerance and row support.
+The kernel accepts the same structure under `census_options.table_policy`.
+`table_analysis` stores accepted tables, unresolved findings, excluded furniture
+blocks and the actual candidate scope. Coverage distinguishes physical fragments,
+logical continued tables, unresolved blocks and excluded furniture. A zero is
+always relative to observed candidates; it does not certify an arbitrary layout.
+Census/profile schemas now use `0.6`/`0.5`; rebuild earlier records. The separate
+version increments preserve the independently deliverable priority/privacy fixes.
+
+The synthetic gates cover 3/5/8 columns, FR/EN, ruled/unruled layouts, wrapped and
+empty cells, contamination, 40-row mappings and three-page continuation. Sensitivity
+sweeps x factors 0.25/0.5/1.0, row support 2/3/4/5 and recurrence 0.4/0.5/0.6.
+Digit-only document-family discovery and classifier calibration remain outside
+this slice. Consumer confirmation against its sealed inventories remains required.
