@@ -427,3 +427,31 @@ modes (unruled, full strokes, segmented strokes), x factors 0.25/0.5/1.0,
 supporting rows 2/3/4/5 and recurrence shares 0.4/0.5/0.6. The replay driver includes
 six additional continuation cases. Private confirmation remains a separate merge
 gate; open field-reader findings are outside this bounded correction.
+
+At correction commit `ac2be3dfea9a192c5e185719215c1a102c8e8ca1`, full suites
+run in detached checkouts with `PYTHONPATH` pinned and both imported package paths
+printed:
+
+| Platform | Full suite | Observed duration |
+|---|---|---:|
+| x86_64 | **2,316 passed, 38 skipped**, 140 warnings | 47.35 s |
+| aarch64 | **2,316 passed, 38 skipped**, 140 warnings | 32.45 s |
+
+Both declared platform locks match. All **24 replay cases** and masked
+presentation hashes match across architectures. All 18 pre-correction cases have
+unchanged census, profile, reading and report digests (the failure-case ordinal
+keys shift by six because the new cases precede them in the driver). Privacy
+presentation output also remains unchanged.
+
+| Record | SHA-256, identical on both architectures |
+|---|---|
+| Imported package source | `f7d37367f6f1790f31dc2eaca95d01cb786b3d93d9e0a1f4cb6286ce774ada22` |
+| Six one-row fragments, unruled report | `ebcbcfdabb12f5c12bac42f51e3135e581f94aac5f3188303b224c76557a4892` |
+| Six one-row fragments, segmented-grid report | `3e5747bd5d15ca88516f7df8c59618a17a6c3d5e75a0d9eff977d70a3b30dc1a` |
+| Nine mixed-length fragments, segmented-grid report | `7bb1f775fd3648a33b1ba59c0f64099c9c6a932f3267d895d25b7a35fff1d36c` |
+
+The unchanged reproduction commands above run the expanded gate. Source history
+checks for `8181b35..ac2be3d` inspect 1,178 blob revisions and one commit message
+with zero findings; the normal pre-commit hook ran. These synthetic results do
+not close the consumer gate or the separate open field-reader findings. No
+private corpus processing, private source changes, push or merge was performed.
