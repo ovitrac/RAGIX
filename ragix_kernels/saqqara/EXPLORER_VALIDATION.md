@@ -235,3 +235,167 @@ Synthetic success does not close consumer acceptance or establish recall on
 unseen layouts. The adjacent-cell positive control has an observed ruled boundary;
 unproven cross-column associations remain refused. The consumer confirmation is
 a measurement step, not an opportunity to tune these defaults to its documents.
+
+## Slice 3 — priority repairs, privacy, then tables (2026-09-16)
+
+The priority order was revised before delivery: construct failure handling (E7.8),
+occurrence-level references (E7.9), privacy (E10), then table recovery (E9).
+Each implementation was committed separately after a full suite in a detached
+worktree with pinned imports and a printed package path. No public push or merge
+is asserted by this record.
+
+| Commit | Scope | Detached master suite |
+|---|---|---|
+| `5630225` | Empty labels and document-scoped construct failures | 2,096 passed, 38 skipped |
+| `3d310b6` | Plurality, per-occurrence findings, cell windows, fallback reasons | 2,107 passed, 38 skipped |
+| `e3efbef` | Invalidate pre-plurality kernel cache entries | 2,108 passed, 38 skipped |
+| `ea1edaf` | Default-masked presentations and immutable source observations | 2,141 passed, 38 skipped |
+| `5bd77c6` | Recurrence-first physical table reconstruction | 2,200 passed, 38 skipped |
+
+The staged tree and detached validation tree were checked equal before each
+commit. Existing runtimes, ignored local tests and stored evidence were not
+purged. Cache versions changed to invalidate old semantics without deleting
+cache entries. Synthetic E9 gates were green before the declared 17:00 local
+cutoff; E9 was not deferred or compressed to meet it.
+
+### E7.8 and E7.9 adjudication
+
+E7.8's zero-length/whitespace label and terminal-rule controls complete with a
+counted finding. Empty labels never become window candidates. Injected construct
+failures at census, profile, read and report stages produce an explicit failed
+report while the following document is still processed. Exception text is not
+copied into presentations, and an unknown page is not invented.
+
+E7.9's requested synthetic fixture has 21 occurrences: **13 fields and 8 scoped
+findings**, with 12 next-cell values and one same-line value. Empty windows are
+not votes against the label. Its counts are positives 13, non-empty negatives 0,
+empty 8; confidence is 1. The eight findings split equally among WINDOW_BOUND_HIT,
+EMPTY_CELL, RULE_STOP and NO_TEXT. The reference field remains PROBED.
+Minimum support 2, 3, 4 and 5 gives the same result. `reference_fraction` no longer
+exists.
+
+A competing free-text fixture (two identifier-bearing values, six free-text
+values) stays UNKNOWN with confidence 0.25 and its counts. Its two candidates
+remain visible as UNDECIDABLE, rather than disappearing. A tied plurality also
+remains UNKNOWN. A plurality need not be a majority: the 3/2/2 class control is
+PROBED with confidence 3/7.
+
+Both right-hand and below-label grid value cells are recovered using their own
+rules. Unruled text retains horizontal-rule stops. Default derivation records
+no_body_lines, too_few_gaps or unimodal; the diagnostic appears in the profile and
+report. The bimodal control retains its independently derived bound.
+
+Priority replay at `3d310b6` matched in all five cases on x86_64 and aarch64;
+ARM's full suite also measured 2,107 passed / 38 skipped. Imported package hash:
+`cedfe266cb2d72ea35377ade96942658b7cadc15ce80ccbc24c5f583c814b7dc`.
+The subsequent cache correction changes cache identity, not those reading rules.
+
+### E10 adjudication
+
+The source-shape suite covers six date notations, French/English name-like
+sequences, time, email and user-id shapes, and decomposed Unicode. All planted
+positives are flagged with exact sub-spans. All three declared negative controls
+are unflagged: a date in an ordinary body sentence, a capitalized header without
+a date, and a numbered heading. These fixture results are not a population-wide
+PII precision/recall claim.
+
+The six-page privacy fixture reports **six masked lines**. No planted name token
+appears in default report HTML, presentation JSON or any extracted page view.
+CLI default exports pass the same grep control. Unmasking requires a typed policy
+and a nonempty reason; the reason and digest are recorded. A substituted mask
+token cannot bypass this requirement. Extra private policy contents are not
+printed. Profile amendments cannot erase upstream census flags.
+
+Source/census/profile digests remain unchanged when masking is switched. The
+explicit observation export preserves original Unicode and geometry. Original
+PDF rasters are not produced by the extracted-text page view; a consumer rendering
+them must enforce its separate masking gate before showing a report.
+
+At `ea1edaf`, master and ARM both pass **2,141 tests with 38 skips**. Both agree on
+source package hash
+`1ef61c9fda8c8c5b39b93469b417a811b0f16fb505cd4a158e400140e7a5f406`
+and masked presentation-set digest
+`1dc7abb9261ff940ac6d567f1e689e8edc40f5ad0200fc8366e75055ec0cfc8f`.
+
+### E9 adjudication and sensitivity
+
+The 12 base layouts span French/English, ruled/unruled geometry and 3/5/8 logical
+columns, each header supplied as three word-cells per column. Every layout
+recovers the planted **40 rows**, including wrapped text and explicitly empty
+cells. Every planted cell maps to its expected column. Recurring header blocks
+are excluded before candidacy; body tables remain. Repeating a header on three
+adjacent pages produces one continued table, `continued_on = 3`, with no additional
+data row introduced by the repeat.
+
+Straddling cells, inconsistent row-band counts and unsupported header-only bands
+produce TABLE_UNRESOLVED findings. Rows remain in original observations. Header
+and row contamination remain present and flagged, never cleaned. Duplicate header
+literals cannot overwrite cells; such outputs use stable column ids. A column
+changing from observed empty values to codes does not split an otherwise valid
+continuation. Identifier-column positions and relative geometry still constrain
+the grouping.
+
+All **36 sensitivity combinations** pass:
+
+- x-band tolerance factors: **0.25, 0.5, 1.0** times median observed cell width;
+- supporting rows: **2, 3, 4, 5**;
+- recurrence shares: **0.4, 0.5, 0.6**.
+
+Tables and row mappings stay identical; the applied configuration and derived
+width/tolerance remain recorded. Column reordering and furniture mutation controls
+pass. A real generated-PDF intake control recovers a continued table across two
+pages with 12 rows and two masked stamp lines. No column count, name list or
+threshold was selected from consumer documents.
+
+The full integration suite caught an edit error: an extra positional argument
+had entered the existing geometry-census emission, causing affected documents to
+produce failures. The call was corrected; no expected outcome or gate was
+relaxed. This is why the full detached suite remains required after the focused
+new-feature tests.
+
+### Final source, replay and acceptance boundary
+
+At implementation commit `5bd77c60a5d6e92d9a91cf29ddf040eb03bb1a96`:
+
+| Platform | Full committed-tree suite | Observed duration |
+|---|---|---:|
+| x86_64 | **2,200 passed, 38 skipped**, 139 warnings | 40.66 s |
+| aarch64 | **2,200 passed, 38 skipped**, 140 warnings | 29.27 s |
+
+All **18 final replay cases** match across architectures: priority occurrence and
+failure cases, the privacy fixture, and the twelve table layouts. The privacy
+presentation hashes also match, with six masked source lines. Durations are
+single-run observations, not comparative performance claims.
+
+| Final record | SHA-256, identical on both architectures |
+|---|---|
+| Imported package source | `d6e92fcb438296cd82121c8f6b415ec978117a96854af4910d7d37f2df33b32f` |
+| Occurrence-fixture report | `38b62db80268db7c9602ba79a55c9a07c1fc31f8148050718479b06127b2fdbd` |
+| Privacy-fixture report | `3f754529bc29594ea28045121bc1d6f7c7eada633ff4854d3ae89d56c1d43119` |
+| Ruled five-column English report | `775d06bc36494e193de12ef14ba8793107e7e4e2328721d26703d13c70f00d3a` |
+| Unruled five-column French report | `fef9115ed0dbb95e66004bee7ae610dfd0813d74917907ef27a500e10148e38c` |
+| Masked presentation set | `4c98d187a99e3dd0612566f6ddec0768468306cd34bfcedbd7dfed3687ba23c2` |
+
+Reproduce from a clean detached checkout with its platform lock:
+
+```bash
+EXPLORER_CHECKOUT=$(git rev-parse --show-toplevel)
+conda run --no-capture-output -n ragix-env env PYTHONPATH="$EXPLORER_CHECKOUT" \
+  python -m pytest tests/ -q -p no:cacheprovider --disable-warnings
+conda run --no-capture-output -n ragix-env env PYTHONPATH="$EXPLORER_CHECKOUT" \
+  python tools/explorer_slice3_gate.py --output /tmp/explorer-slice3.json
+```
+
+Consumers must rebuild old records for `census/0.6` and `document-profile/0.5`.
+Accepted physical reconstructions are in `census.table_analysis.tables` and the
+flat `reading.tables`; profile metadata is in `id_row_tables.reconstructed`.
+The legacy `id_row_tables.tables` list describes explicitly declared logical
+inputs and is not the new reconstruction result. Unknown/error outputs are not
+acceptance verdicts.
+
+Private confirmation of field/target/member inventories, table rows, and actual
+stamp-name masking remains **pending with the consumer's verification owner**.
+It is required for acceptance. The consumer's original-PDF display gate remains
+separate and mandatory. Digit-only document-family discovery, label ranking and
+classifier calibration/replay are outside this slice as ruled. No live model
+work, source purge, bridge declaration or domain conclusion was performed.
