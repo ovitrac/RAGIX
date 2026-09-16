@@ -138,3 +138,160 @@ accept `census_options` on `explorer_census` and `profile_options` on
 `explorer_profile`; readers cannot override a sealed window. Full acceptance
 runs `tests/` in a detached worktree with `PYTHONPATH` pinned to it, not merely the
 Harvest/Saqqara subsets. Consumer confirmation remains a separate gate.
+
+## Construct-failure boundary (E7.8 / X21)
+
+Empty label observations are retained as counted EMPTY_LABEL findings and never
+instantiated as value windows. A terminal label cut off by a rule is recorded as
+INVALID_LABEL_WINDOW. Reading coverage counts these failures independently from
+unknown-template fields. Census schema `0.3` adds the construct-finding ledger.
+
+The library and each kernel catch expected construct errors (ValueError,
+TypeError, KeyError) at document boundaries. They produce an explicit
+`reading-failure/0.1` report, with source scope, stage, count and error type;
+exception text is not copied into exports. Other documents are still attempted.
+A unique known page is retained; an unknown location is not guessed. Programming
+errors outside that bounded set still propagate. Failed inputs never become
+successful evidence or silently repaired profiles.
+
+## Occurrence-level reference decisions (E7.9)
+
+`reference_fraction` is removed. A label is proposed as a reference field when
+its identifier-bearing occurrences meet `minimum_occurrences` and form a strict
+plurality among non-empty classes. A tied plurality remains UNKNOWN. Empty
+windows never vote against a label. Per-label positives, non-empty negatives,
+empty count, class counts, minimum support and observed confidence are recorded
+in `reference_fields.diagnostics.reference_counts`. Confidence is positives divided
+by positives plus non-empty negatives. This diagnostic confidence is retained
+also for UNKNOWN reference classifications; it is not an acceptance verdict.
+
+`unresolved_occurrences` lists every empty window by page, source span and window
+id, with WINDOW_BOUND_HIT, EMPTY_CELL, RULE_STOP or NO_TEXT. Every occurrence
+produces either a field or a field-level finding. Identifier-bearing occurrences
+of an unselected label remain visible as UNDECIDABLE with REFERENCE_CLASS_UNKNOWN,
+rather than disappearing. Non-identifier values receive their own finding.
+
+A label contained by actual grid rules uses its cell, then the adjacent cell to
+its right and the cell below. These cell boundaries determine membership; a row
+rule crossed into an adjacent value cell does not behave like an unruled-text
+stop. The safety cap remains explicit and reviewable. Default gap policies record
+why derivation was unavailable: no_body_lines, too_few_gaps or unimodal. Histograms
+use body lines, and the diagnostic is retained in profiles and reports.
+
+The revised records use `census/0.4`, `document-profile/0.3` and
+`value-window/0.2`; old stored windows/profiles must be rebuilt. These version
+increments precede the independent privacy/table changes because the added
+priority fixes can be delivered separately.
+## Slice 3 privacy boundary (E10)
+
+Privacy records advance census to `0.5` and profile to `0.4`, after the independently delivered priority fixes. `furniture.stamp_lines` contains exact
+suspected identity sub-spans, source page/coordinates and evidence ids;
+`stamp_count` includes an explicit measured zero rather than UNKNOWN. This is a
+shape detector, not a name recognizer: it combines date/time shapes with
+capitalized sequences, email or user-id shapes. Body lines require a date;
+page-edge or recurring stamp lines can use a time. No name list ships in RAGIX.
+
+`render_report`, `render_page_view` and `render_report_json` mask by default.
+The page view is extracted text with retained coordinates, not a masked PDF
+raster. Original PDF/image viewers remain the consumer's responsibility. The
+CLI now writes masked report JSON, report HTML and extracted-page HTML by default.
+`--observations` additionally writes an explicitly named `.observations.json`
+backend artifact containing original evidence. It is not a presentation export.
+The corresponding CLI/library parity test uses this explicit backend option.
+
+To unmask a presentation, pass `MaskPolicy(unmask=True, reason="...")`. An empty
+reason or a loose dictionary is refused. Policy digests, reason and masked-line
+count appear in presentation provenance. Additional patterns/literals can be
+supplied by the consumer; those private policy contents are not printed. Masking
+is applied to a presentation copy and never changes census/profile observations.
+The guard uses original census flags, so an amended profile cannot silently
+unmask a source line.
+
+Recurrence share is recorded once in census geometry policy. A profile can inherit
+it, or `explore` can propagate an explicit profile configuration upstream before
+census. A profile built against a differently configured census is refused.
+A zero stamp count means zero detected stamps in the extracted text, not proof
+that an image-only page contains no personal information.
+
+## Slice 3 physical table recovery (E9)
+
+Raw table observations may supply `cell_rows`, containing a header row and following
+physical rows of `TableCell` records (text, box, cell id, source span ids and flags).
+PDF intake now supplies these observations. Existing explicitly declared logical
+header/row inputs without `cell_rows` retain their original reader path; they are
+not treated as word-cell candidates with invented geometry.
+
+Global recurring edge bands and rotated oversized observations are evaluated before
+raw table candidacy. All remaining blocks are considered. Complete vertical rules
+(including unions of contiguous collinear strokes) define columns when available; otherwise consistent following-row x bands do. The
+x tolerance is a declared factor of median observed cell width, with an explicit
+fallback and provenance. Every band requires `minimum_rows` supporting rows across
+an unambiguous adjacent-page continuation group, after grouping. A single-row
+fragment supplies provisional geometry and identifier-column position, not final
+acceptance. Inconsistent counts, straddling cells and unsupported header-only bands
+are refused. Positive gaps between rule strokes are never bridged.
+The header must recur in another block/page and an identifier-like column must be
+observed. Roles are generic id/free_text/short_code/empty/unknown proposals.
+
+Accepted rows retain their original cell-member ids, bounding boxes and flags.
+Repeated header fragments on adjacent pages are grouped only when normalized
+headers, identifier-column positions and relative geometry agree, with exactly one
+matching fragment on each neighboring page. Missing pages and ambiguous neighbors
+cannot supply pooled support. Final roles are computed from the pooled cells. `continued_on` and `repetition_count`
+are recorded; header repetitions never become additional data rows. This is an
+explicit structural grouping rule, not a cross-document identity declaration.
+A missing or ambiguous primary id does not erase the row. Duplicate header texts
+use stable column ids in the presentation mapping so no cell overwrites another.
+Lifecycle, unreadable and digit-join flags remain visible; no glyph is cleaned.
+
+`CensusConfig(table_policy=TablePolicy(...))` controls x tolerance and row support.
+The kernel accepts the same structure under `census_options.table_policy`.
+`table_analysis` stores accepted tables, unresolved findings, excluded furniture
+blocks and the actual candidate scope. Coverage distinguishes physical fragments,
+logical continued tables, unresolved blocks and excluded furniture. A zero is
+always relative to observed candidates; it does not certify an arbitrary layout.
+Census/profile schemas now use `0.6`/`0.5`; rebuild earlier records. The separate
+version increments preserve the independently deliverable priority/privacy fixes.
+The short-fragment correction uses kernel version `0.5.1` without changing the
+record schemas; recompute results cached by `0.5.0`.
+
+The synthetic gates cover 3/5/8 columns, FR/EN, ruled/unruled layouts, wrapped and
+empty cells, contamination, 40-row mappings and three-page continuation. Additional
+controls cover one-row fragments across six pages, mixed-length fragments across
+nine pages, segmented grids and native PDF cell-rectangle borders. Sensitivity
+sweeps x factors 0.25/0.5/1.0, row support 2/3/4/5 and recurrence 0.4/0.5/0.6.
+Digit-only document-family discovery and classifier calibration remain outside
+this slice. Consumer confirmation against its sealed inventories remains required.
+
+
+### Native cells, header collapse and refusal diagnostics
+
+Native PDF cell rectangles use `TableCell.geometry_kind = "cell_box"`; word/glyph
+boxes retain the default `text_box`. An extractor slot with no geometry is kept
+in the raw matrix, but never becomes a physical rectangle covering the table.
+A nonempty unlocated value is flagged and the table is refused. A genuine cell
+with unreadable text keeps its geometry, null text and UNREADABLE_CELL flag.
+
+For native cells, the order is explicit: **header collapse, continuation grouping,
+then support checks**. Header and body rows define observed interval partitions.
+Their shared boundaries collapse padding/subcells, with no cut through an
+observed cell and no merger of distinct nonempty header labels. Gaps, overlapping
+rectangles, conflicting labels and unsupported headers remain unresolved. No
+column count is fixed. Raw matrices and cell identities remain unchanged; row
+members record every physical subcell contributing to each logical column.
+
+Native cell geometry survives overlapping lifecycle glyphs: those cells remain
+flagged, never cleaned. Entire blocks whose content is classified as furniture
+are excluded before candidacy. Text-box inputs retain their recurrence filter.
+
+Every table refusal carries `diagnostics`: the exact stage and geometry route,
+raw/retained/nonempty/unreadable cell counts per row, unlocated slot count,
+full-height rule count, observed row-band counts, inferred bands and populated
+band count, mapped support, pooled rows and pages spanned. Unsupported counts are
+null rather than invented. These records are in `census.table_analysis.findings`
+and the profile's `id_row_tables.unresolved` list, including the report profile.
+
+These are additive records; old inputs still load, but must be re-extracted from
+PDF to acquire native-cell geometry. Kernels use version **0.5.2**, invalidating
+older cached outcomes. Re-running old intake JSON cannot recover geometry that
+the previous adapter replaced with a table-sized placeholder.

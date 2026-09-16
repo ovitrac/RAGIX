@@ -3,12 +3,13 @@
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 """
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 import hashlib
 import importlib.metadata
 from pathlib import Path
 import subprocess
 from .census import DocumentDigest, PageDigest, TableObservation, Evidence, CensusConfig, census
+from .table_views import TableCell
 from .profile import ProfileConfig, derive_profile
 from .profile_readers import read_document
 from ..harvest.report import build_report, canonical_json, replay_digest
@@ -30,10 +31,24 @@ def explore(
     census_config=CensusConfig(),
     profile_config=ProfileConfig(),
 ) -> ExplorerResult:
-    observed = census(document, census_config)
-    profile = derive_profile(observed, profile_config)
-    reading = read_document(document, observed, profile)
-    report = build_report(document, observed, profile, reading, provenance)
+    from .failures import CONSTRUCT_ERRORS, stage_failure, failure_report
+
+    if profile_config.recurrence_fraction is not None:
+        census_config = replace(
+            census_config, recurrence_fraction=profile_config.recurrence_fraction
+        )
+    observed = profile = reading = None
+    stage = "census"
+    try:
+        observed = census(document, census_config)
+        stage = "profile"
+        profile = derive_profile(observed, profile_config)
+        stage = "read"
+        reading = read_document(document, observed, profile)
+        stage = "report"
+        report = build_report(document, observed, profile, reading, provenance)
+    except CONSTRUCT_ERRORS as error:
+        report = failure_report(stage_failure(document, stage, error))
     return ExplorerResult(document, observed, profile, reading, report)
 
 
@@ -114,10 +129,42 @@ def digest_pdf(path: Path, *, expected_pymupdf=None) -> DocumentDigest:
                     )
                     for r, row in enumerate(rows)
                     for c, cell in enumerate(row)
+                    if table.rows[r].cells[c] is not None or cell
+                )
+                cell_rows = tuple(
+                    tuple(
+                        TableCell(
+                            ident + f":{r}:{c}",
+                            cell,
+                            tuple(table.rows[r].cells[c] or table.bbox),
+                            tuple(
+                                s.span_id
+                                for s in geometry["spans"]
+                                if min(s.bbox[2], (table.rows[r].cells[c] or table.bbox)[2])
+                                > max(s.bbox[0], (table.rows[r].cells[c] or table.bbox)[0])
+                                and min(s.bbox[3], (table.rows[r].cells[c] or table.bbox)[3])
+                                > max(s.bbox[1], (table.rows[r].cells[c] or table.bbox)[1])
+                            ),
+                            flags=(
+                                ()
+                                if table.rows[r].cells[c] is not None
+                                else ("MISSING_CELL_GEOMETRY",)
+                            ),
+                            geometry_kind="cell_box",
+                        )
+                        for c, cell in enumerate(row)
+                        if table.rows[r].cells[c] is not None or cell
+                    )
+                    for r, row in enumerate(rows)
                 )
                 tables.append(
                     TableObservation(
-                        ident, number, headers, tuple(tuple(r) for r in rows[1:]), evidence
+                        ident,
+                        number,
+                        headers,
+                        tuple(tuple(r) for r in rows[1:]),
+                        evidence,
+                        cell_rows=cell_rows,
                     )
                 )
             pages.append(

@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from ..census import digest_from_dict
 from ..explorer import digest_pdf, explore, imported_provenance
-from ...harvest.report import canonical_json, render_report
+from ...harvest.report import canonical_json, render_report, render_report_json, render_page_view
 
 
 def main(argv=None):
@@ -20,6 +20,11 @@ def main(argv=None):
     parser.add_argument("--extractor-version")
     parser.add_argument("--gate", action="store_true")
     parser.add_argument("--provenance", action="store_true")
+    parser.add_argument(
+        "--observations",
+        action="store_true",
+        help="also write original, unmasked observation data for controlled backend use",
+    )
     args = parser.parse_args(argv)
     provenance = (
         imported_provenance(require_clean=args.gate) if args.provenance or args.gate else None
@@ -44,7 +49,16 @@ def main(argv=None):
         import hashlib
 
         name = hashlib.sha256(document.source_id.encode()).hexdigest()
-        (args.output / (name + ".json")).write_text(canonical_json(asdict(result)) + "\n")
+        (args.output / (name + ".json")).write_text(render_report_json(result.report) + "\n")
+        if args.observations:
+            (args.output / (name + ".observations.json")).write_text(
+                json.dumps(asdict(result), ensure_ascii=False, sort_keys=True, allow_nan=False)
+                + "\n"
+            )
+        for page in document.pages:
+            (args.output / (name + f".page-{page.page}.html")).write_text(
+                render_page_view(result.report, page.page)
+            )
         (args.output / (name + ".html")).write_text(
             render_report(
                 result.report,

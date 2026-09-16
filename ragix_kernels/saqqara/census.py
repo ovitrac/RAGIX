@@ -4,8 +4,9 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 """
 
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 import re
+import json
 from .field_views import TextSpan, VerticalRule, HorizontalRule, line_views, stable_id, union_box
 
 from .value_windows import (
@@ -20,7 +21,11 @@ from .value_windows import (
 
 from ..harvest.numeric_locale import physical_numbers
 
-VERSION = "census/0.2"
+from .failures import ConstructFinding
+
+from .table_views import TableCell, TablePolicy, TableAnalysis, recover_tables, analysis_from_dict
+
+VERSION = "census/0.6"
 IDENTIFIER = re.compile(r"(?<!\w)[A-Za-z0-9]+(?:[-/]+[A-Za-z0-9]+)+(?!\w)")
 NUMBERING = re.compile(r"(?<![\w.])\d+(?:\.\s*\d+)+(?![\w.])")
 CATEGORIES = frozenset(
@@ -36,6 +41,7 @@ CATEGORIES = frozenset(
         "language_token",
         "title",
         "page",
+        "stamp",
     }
 )
 LANGUAGE_WORDS = {
@@ -93,6 +99,7 @@ class TableObservation:
     rows: tuple[tuple[str | None, ...], ...]
     evidence: tuple[Evidence, ...]
     geometry: str = "drawn_grid"
+    cell_rows: tuple[tuple[TableCell, ...], ...] = ()
 
     def __post_init__(self):
         if (
@@ -181,6 +188,7 @@ class CensusRecord:
             "date_capitals",
             "header",
             "geometry",
+            "table_id",
             "empty",
             "unreadable",
             "columns",
@@ -197,6 +205,8 @@ class CensusRecord:
             "value_position",
             "window_line_count",
             "basis",
+            "personal_data_suspected",
+            "matched_spans",
         }
         if any(k not in allowed or not isinstance(v, str) for k, v in self.attributes):
             raise ValueError("census interpretation fields forbidden")
@@ -211,6 +221,9 @@ class Census:
     continuation_policy: ContinuationPolicy = DEFAULT_CONTINUATION
     windows: tuple[ValueWindow, ...] = ()
     version: str = VERSION
+    construct_findings: tuple[ConstructFinding, ...] = ()
+    geometry_policy: dict = field(default_factory=dict)
+    table_analysis: TableAnalysis = TableAnalysis()
 
     def __post_init__(self):
         if self.version != VERSION or not self.source_id or not self.digest_id or self.pages < 1:
@@ -225,6 +238,8 @@ class CensusConfig:
     large_points: float = 20
     adjacency_chars: int = 32
     rotation_threshold: float = 0.1
+    recurrence_fraction: float = 0.5
+    table_policy: TablePolicy = TablePolicy()
     continuation_policy: ContinuationPolicy = DEFAULT_CONTINUATION
 
     def __post_init__(self):
@@ -233,6 +248,7 @@ class CensusConfig:
             or self.large_points <= 0
             or self.adjacency_chars < 0
             or not 0 < self.rotation_threshold <= 1
+            or not 0 < self.recurrence_fraction <= 1
         ):
             raise ValueError("invalid census configuration")
 
@@ -246,8 +262,19 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
     buckets = defaultdict(list)
     windows = []
     physical_evidence = []
+    construct_findings = []
+    observed_lines = []
     policy = derive_continuation(
-        [page_lines(p) for p in document.pages], config.continuation_policy
+        [
+            [
+                v
+                for v in page_lines(p)
+                if v.bbox[1] >= p.height * config.edge_fraction
+                and v.bbox[3] <= p.height * (1 - config.edge_fraction)
+            ]
+            for p in document.pages
+        ],
+        config.continuation_policy,
     )
 
     def emit(category, literal, evidence, **attrs):
@@ -281,6 +308,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
             horizontal_rules=page.horizontal_rules,
             table_headers=tuple(h for t in page.tables for h in (*t.headers, " ".join(t.headers))),
             edge_ids=edge_ids,
+            findings=construct_findings,
         )
         windows.extend(page_windows)
         window_by_label = {w.views[0].view_id: w for w in page_windows}
@@ -302,6 +330,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
             edge = line.bbox[1] < page.height * config.edge_fraction or line.bbox[
                 3
             ] > page.height * (1 - config.edge_fraction)
+            observed_lines.append((ev(), edge))
             emit(
                 "recurrence",
                 re.sub(r"\d+", "#", text.strip()),
@@ -505,19 +534,39 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
                 )
             ]
             # Each table occurrence counts once; all cell provenance stays in the digest.
-            import json
 
             emit(
                 "table_header",
                 json.dumps(table.headers, ensure_ascii=False),
                 table.evidence[0],
                 geometry=table.geometry,
+                table_id=table.table_id,
                 empty=json.dumps(empty),
                 unreadable=json.dumps(unreadable),
                 columns=len(table.headers),
                 rows=len(table.rows),
                 id_columns=json.dumps(id_columns),
                 text_columns=json.dumps(text_columns),
+            )
+    from .privacy import stamp_matches
+
+    recurrence_pages = defaultdict(set)
+    for evidence, _ in observed_lines:
+        recurrence_pages[(re.sub(r"\d+", "#", evidence.literal), round(evidence.bbox[1], 3))].add(
+            evidence.page
+        )
+    for evidence, edge in observed_lines:
+        repeated = len(
+            recurrence_pages[(re.sub(r"\d+", "#", evidence.literal), round(evidence.bbox[1], 3))]
+        ) >= max(2, len(document.pages) * config.recurrence_fraction)
+        matches = stamp_matches(evidence.literal, edge=edge, recurring=repeated)
+        if matches:
+            emit(
+                "stamp",
+                evidence.literal,
+                evidence,
+                personal_data_suspected=True,
+                matched_spans=json.dumps(matches, ensure_ascii=False, sort_keys=True),
             )
     records = []
     for (category, literal, attrs), evidence in sorted(buckets.items()):
@@ -533,6 +582,33 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
         records.append(CensusRecord(ident, category, literal, len(evidence), evidence, attrs))
     from ..harvest.report import replay_digest
 
+    # Global recurrence is decided before any raw table block becomes a candidate.
+    furniture_boxes = defaultdict(list)
+    furniture_span_ids = set()
+    for record in records:
+        if (
+            record.category == "recurrence"
+            and dict(record.attributes)["edge"] == "True"
+            and len({e.page for e in record.evidence})
+            >= max(2, len(document.pages) * config.recurrence_fraction)
+        ):
+            for evidence in record.evidence:
+                furniture_boxes[evidence.page].append(evidence.bbox)
+    for page in document.pages:
+        furniture_span_ids.update(
+            s.span_id
+            for s in page.spans
+            if abs(s.direction[1]) > config.rotation_threshold
+            and s.font_size >= config.large_points
+        )
+    tables = recover_tables(
+        document,
+        furniture_boxes=furniture_boxes,
+        furniture_span_ids=frozenset(furniture_span_ids),
+        identifiers=identifiers,
+        numbering=NUMBERING,
+        policy=config.table_policy,
+    )
     return Census(
         document.source_id,
         tuple(records),
@@ -540,6 +616,17 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
         replay_digest([document]),
         policy,
         tuple(windows),
+        construct_findings=tuple(construct_findings),
+        table_analysis=tables,
+        geometry_policy={
+            key: getattr(config, key)
+            for key in (
+                "edge_fraction",
+                "large_points",
+                "rotation_threshold",
+                "recurrence_fraction",
+            )
+        },
     )
 
 
@@ -568,6 +655,20 @@ def digest_from_dict(data):
                     "headers": tuple(t["headers"]),
                     "rows": tuple(tuple(r) for r in t["rows"]),
                     "evidence": tuple(Evidence(**e) for e in t["evidence"]),
+                    "cell_rows": tuple(
+                        tuple(
+                            TableCell(
+                                **{
+                                    **c,
+                                    "bbox": tuple(c["bbox"]),
+                                    "source_spans": tuple(c.get("source_spans", ())),
+                                    "flags": tuple(c.get("flags", ())),
+                                }
+                            )
+                            for c in row
+                        )
+                        for row in t.get("cell_rows", ())
+                    ),
                 }
             )
             for t in p.get("tables", ())
@@ -594,6 +695,10 @@ def census_from_dict(data):
         **{
             **data,
             "continuation_policy": policy,
+            "table_analysis": analysis_from_dict(data["table_analysis"]),
+            "construct_findings": tuple(
+                ConstructFinding(**f) for f in data.get("construct_findings", ())
+            ),
             "windows": tuple(window_from_dict(w, policy) for w in data["windows"]),
             "records": tuple(
                 CensusRecord(

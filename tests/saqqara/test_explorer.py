@@ -204,7 +204,11 @@ def test_x7_unknown_template_and_textless_page_accounting():
     assert result.reading.findings and not result.reading.fields
     assert result.report.coverage.pages == 1 and result.report.coverage.text_layer_pages == 0
     assert all(f.inspected_count == 1 for f in result.reading.findings)
-    assert all(f.value is None for k, f in result.profile.fields.items() if k != "reading_coverage")
+    assert all(
+        f.value is None
+        for k, f in result.profile.fields.items()
+        if k not in {"reading_coverage", "furniture"}
+    )
 
 
 def test_profile_unknown_evidence_and_append_only_amendments():
@@ -394,12 +398,13 @@ def test_cli_library_parity(tmp_path):
             "-m",
             "ragix_kernels.saqqara.cli.explorer",
             str(path),
+            "--observations",
             "--output",
             str(tmp_path / "output"),
         ],
         check=True,
     )
-    output = next((tmp_path / "output").glob("*.json"))
+    output = next((tmp_path / "output").glob("*.observations.json"))
     assert canonical_json(json.loads(output.read_text())) == canonical_json(explore(doc))
 
 

@@ -488,7 +488,10 @@ reading configuration, never a document's semantic authority.
 
 - **K9.1 Census separation.** `census` counts every occurrence with exact evidence
   and accounts for every page, including textless pages. Its closed attributes
-  prohibit semantic role fields. Falsifier: inject `role` into a census record.
+  prohibit semantic role fields. Raw physical table cells remain separate from
+  reconstructed columns. Recurring furniture is excluded before raw blocks enter
+  table candidacy; rejected blocks and their original lines remain inspectable.
+  Falsifiers: inject `role` into a census record; X13 running-header blocks.
 - **K9.2 Profile support.** Every non-UNKNOWN field has a named rule, confidence,
   and census candidate ids; unsupported fields stay UNKNOWN. Numeric notation is
   resolved per token; the field records a weak/dominant document prior or no prior,
@@ -521,7 +524,39 @@ reading configuration, never a document's semantic authority.
   priors do not stop candidates: token-local facts survive, truly ambiguous
   normalization is withheld, and prior contradictions are flagged individually.
   E7.7/E8.7 sweep declared gap/cap/dominance/count ranges on synthetic fixtures;
-  no private document is used to tune a constant.
+  no private document is used to tune a constant. Empty/whitespace-only label
+  observations produce counted construct findings before window construction.
+  Expected document-construct failures stay scoped to their document at every
+  kernel stage; a failed report is explicit and unaffected documents continue.
+  Source/schema failures are not repaired or promoted. X21 exercises these paths.
+  Reference labels use minimum positive support and a strict plurality among
+  non-empty classes, not a document-level fraction. Empty occurrences are listed
+  separately; each occurrence produces a field or a scoped finding. Unselected
+  labels retain identifier-bearing candidates as UNDECIDABLE. Grid windows follow
+  the label cell and adjacent right/below cells, not unrelated page rules.
+  Defaults report no_body_lines, too_few_gaps or unimodal. E7.9a–f exercise these
+  invariants, including minimum-support sensitivity and competing pluralities.
+  For raw table blocks, full-height grid rules (including contiguous collinear
+  segments, without bridging gaps) define columns; otherwise bands must be
+  supported consistently by following rows. No fixed column count is used.
+  Unaligned cells, unsupported bands and unrepeated headers yield TABLE_UNRESOLVED.
+  Header repetition plus relative geometry and identifier-column positions can
+  group unambiguous adjacent-page fragments, retaining every source row once and
+  recording the continuation rule. Minimum row and identifier support is tested
+  after this grouping; a page break alone cannot discard short fragments. Missing
+  pages and multiple matching neighbors cannot provide pooled support. The short-
+  fragment and segmented-grid controls in `test_explorer_tables.py` falsify this.
+  Native cell partitions are collapsed against the header before continuation
+  and support decisions; distinct header labels cannot be merged to manufacture
+  support. Missing-geometry slots never become physical table-sized cells.
+  Rotated furniture cannot delete native cell topology; contaminated cells stay
+  present and flagged. Whole furniture blocks remain excluded before candidacy.
+  Table refusals carry their stage, bands, populated-band counts, pooled rows and
+  pages (E9.12). E9.5b tests 15–30-page continuations with 1–5 rows per page;
+  E9.11 tests padded headers and variable native subcell partitions.
+  Cell members and join uncertainty remain explicit. Contaminated headers/rows
+  stay flagged and are never cleaned. X13 exercises reconstruction, refusals,
+  column/furniture mutations and geometry-policy sensitivity.
 - **K9.6 Section expressions.** Lists preserve members and ranges preserve their
   literal operator and endpoints. No reader expands a range or resolves it against
   an inventory. Split/glued observations remain flagged. Revisions do not become
@@ -529,7 +564,12 @@ reading configuration, never a document's semantic authority.
 - **K9.7 Negative records and reports.** A NOT_ESTABLISHED record requires a
   question, searched scope, named rule and positive inspected count. All report
   numbers belong to addressable records. Source text is escaped; relation wording
-  comes from a caller map. Falsifiers: X12, injection and missing-label-map tests.
+  comes from a caller map. Stamp-shape observations flag exact suspected identity
+  sub-spans without a name list. Every presentation surface masks those literals
+  by default, including copied fragments, and records masked-line count and policy
+  digest. Only an explicit unmask policy with a reason can reveal them; profile
+  amendments cannot erase the upstream census privacy facts. Observations remain
+  untouched. Falsifiers: X12, X18, injection and missing-label-map tests.
 - **K9.8 Replay.** Semantic rows are sorted, strings NFC-normalized, geometry
   including character boxes rounded to millipoints. Character order stays intact.
   Timestamps, run ids and timing measurements are excluded. Imported-source

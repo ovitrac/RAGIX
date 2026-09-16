@@ -113,6 +113,10 @@ class ReadingCoverage:
     model_calls_cached: int = 0
     model_calls_refused: int = 0
     stage_times: tuple[tuple[str, float], ...] = ()
+    construct_failures: int = 0
+    unresolved_occurrences: int = 0
+    furniture_tables_excluded: int = 0
+    logical_tables: int = 0
 
     def __post_init__(self):
         if not self.record_id or not self.source_id:
@@ -135,6 +139,8 @@ class Report:
     coverage: ReadingCoverage
     provenance: dict
     replay_digest: str
+    presentation_lines: tuple[dict, ...] = ()
+    privacy_stamps: tuple[dict, ...] = ()
 
 
 def build_report(document, census, profile, reading, provenance=None):
@@ -144,8 +150,20 @@ def build_report(document, census, profile, reading, provenance=None):
         InsufficientEvidence(
             f.record_id,
             f.field,
-            (document.source_id,),
-            "profile/required-field/1",
+            tuple(
+                x
+                for x in (
+                    document.source_id,
+                    "page:" + str(f.page) if f.page is not None else None,
+                    f.span_id,
+                )
+                if x is not None
+            ),
+            (
+                "profile/required-field/1"
+                if f.reason == "UNKNOWN_TEMPLATE"
+                else "census/" + f.reason + "/1"
+            ),
             f.inspected_count,
         )
         for f in reading.findings
@@ -174,16 +192,28 @@ def build_report(document, census, profile, reading, provenance=None):
         if any(c is None for r in t.rows for c in r)
     )
     recovered = {t["table_id"] for t in reading.tables}
+    physical_recovered = {
+        fragment for t in census.table_analysis.tables for fragment in t.fragments
+    }
+    physical_recovered.update(t["table_id"] for t in reading.tables if "source_tables" not in t)
+    eligible = {t.table_id for t in all_tables} - set(census.table_analysis.excluded)
     coverage = ReadingCoverage(
         stable_id("coverage", document.source_id),
         document.source_id,
         len(document.pages),
         sum(bool(p.spans) for p in document.pages),
-        len(recovered),
-        len(all_tables) - len(recovered),
+        len(physical_recovered),
+        len(eligible - physical_recovered),
         sum(c is None for t in all_tables for r in t.rows for c in r),
         sum(bool(s.flags) for p in document.pages for s in p.spans),
-        len(reading.findings),
+        sum(f.reason == "UNKNOWN_TEMPLATE" for f in reading.findings),
+        construct_failures=len(census.construct_findings),
+        furniture_tables_excluded=len(census.table_analysis.excluded),
+        logical_tables=len(recovered),
+        unresolved_occurrences=sum(
+            f.field == "reference_fields" and f.reason != "UNKNOWN_TEMPLATE"
+            for f in reading.findings
+        ),
     )
     findings = tuple(
         {"record_id": f.record_id, "kind": "field", "data": asdict(f)} for f in reading.fields
@@ -194,8 +224,25 @@ def build_report(document, census, profile, reading, provenance=None):
     findings += tuple(
         {"record_id": t["record_id"], "kind": "table_row", "data": t} for t in reading.tables
     )
+    from ..saqqara.census import page_lines
+    from ..saqqara.privacy import PresentationMasker, census_stamps
+
+    presentation_lines = tuple(
+        {
+            "line_id": v.view_id,
+            "source_id": v.source_id,
+            "page": v.page,
+            "text": v.text,
+            "bbox": v.bbox,
+        }
+        for p in document.pages
+        for v in page_lines(p)
+    )
+    privacy_stamps = census_stamps(census)
+    privacy = PresentationMasker(privacy_stamps).provenance(presentation_lines)
     provenance = {
         **(provenance or {}),
+        **privacy,
         "source_id": document.source_id,
         "extractor": document.extractor,
         "extractor_version": document.extractor_version,
@@ -206,6 +253,8 @@ def build_report(document, census, profile, reading, provenance=None):
         *[asdict(n) for n in negative],
         asdict(coverage),
         provenance,
+        presentation_lines,
+        privacy_stamps,
     ]
     return Report(
         document.source_id,
@@ -215,15 +264,33 @@ def build_report(document, census, profile, reading, provenance=None):
         coverage,
         provenance,
         replay_digest(payload),
+        presentation_lines,
+        privacy_stamps,
     )
 
 
-def render_report(report: Report, label_map: dict[str, str]) -> str:
+def render_report(report: Report, label_map: dict[str, str], *, policy=None) -> str:
     """All displayed numerical content is inside an element resolving to a record.
 
     Labels for found relation kinds are caller supplied. No inferred relation is
     reworded into proof. Untrusted source text is always HTML escaped.
     """
+    from ..saqqara.failures import FailureReport
+
+    if isinstance(report, FailureReport):
+        from ..saqqara.privacy import PresentationMasker
+
+        masker = PresentationMasker((), policy)
+        data = {**asdict(report), "provenance": masker.provenance(())}
+        return (
+            '<!doctype html><meta charset="utf-8"><h1>Document reading failed</h1><pre>'
+            + escape(canonical_json(masker.data(data)))
+            + "</pre>"
+        )
+    from ..saqqara.privacy import PresentationMasker, profile_stamps
+
+    masker = PresentationMasker(report.privacy_stamps, policy)
+    privacy = masker.provenance(report.presentation_lines or report.privacy_stamps)
     kinds = {r["kind"] for r in report.findings}
     if not kinds <= set(label_map):
         raise ValueError("caller label map incomplete")
@@ -231,25 +298,27 @@ def render_report(report: Report, label_map: dict[str, str]) -> str:
     def record(ident, value):
         return (
             '<pre id="'
-            + escape(ident, quote=True)
+            + escape(masker.text(ident), quote=True)
             + '" data-record-id="'
-            + escape(ident, quote=True)
+            + escape(masker.text(ident), quote=True)
             + '">'
-            + escape(canonical_json(value))
+            + escape(canonical_json(masker.data(value)))
             + "</pre>"
         )
 
     body = [
         '<!doctype html><html lang="en"><meta charset="utf-8"><title>Document reading report</title>',
         "<style>body{font:1rem system-ui;max-width:90rem;margin:2rem auto;padding:1rem}pre{white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid #ccc;padding:1rem}h2{margin-top:2rem}</style>",
-        "<header><h1>Document reading report</h1></header><main><h2>How the document was read</h2>",
+        "<header><h1>Document reading report</h1></header><main>",
+        record("privacy", privacy),
+        "<h2>How the document was read</h2>",
         record("profile", report.profile),
         "<h2>What was found</h2>",
     ]
     for finding in report.findings:
         body.extend(
             (
-                "<h3>" + escape(label_map[finding["kind"]]) + "</h3>",
+                "<h3>" + escape(masker.text(label_map[finding["kind"]])) + "</h3>",
                 record(finding["record_id"], finding),
             )
         )
@@ -261,9 +330,63 @@ def render_report(report: Report, label_map: dict[str, str]) -> str:
             "<h2>Reading coverage</h2>",
             record(report.coverage.record_id, asdict(report.coverage)),
             "<h2>Provenance and replay</h2>",
-            record("provenance", report.provenance),
+            record("provenance", {**report.provenance, **privacy}),
             record("replay", report.replay_digest),
             "</main></html>",
         )
     )
     return "\n".join(body)
+
+
+def render_page_view(report: Report, page: int, *, policy=None) -> str:
+    """Extracted text page view, with source coordinates and mandatory masking.
+
+    This is not a PDF raster. Consumers rendering the original PDF must apply
+    their own pixel/region masking using the retained source coordinates.
+    """
+    from ..saqqara.privacy import PresentationMasker, profile_stamps
+
+    from ..saqqara.failures import FailureReport
+
+    if isinstance(report, FailureReport):
+        return render_report(report, {}, policy=policy)
+    if type(page) is not int or not 1 <= page <= report.coverage.pages:
+        raise ValueError("page outside report")
+    masker = PresentationMasker(report.privacy_stamps, policy)
+    lines = [line for line in report.presentation_lines if line["page"] == page]
+    privacy = masker.provenance(lines)
+    body = [
+        '<!doctype html><html lang="en"><meta charset="utf-8"><title>Extracted page view</title>',
+        "<h1>Extracted page view</h1>",
+        '<pre data-record-id="privacy">' + escape(canonical_json(privacy)) + "</pre>",
+    ]
+    for line in lines:
+        body.append(
+            '<div data-record-id="'
+            + escape(masker.text(line["line_id"]), quote=True)
+            + '" data-bbox="'
+            + escape(canonical_json(line["bbox"]), quote=True)
+            + '">'
+            + escape(masker.text(line["text"]))
+            + "</div>"
+        )
+    return "\n".join((*body, "</html>"))
+
+
+def render_report_json(report: Report, *, policy=None) -> str:
+    """A masked presentation export; raw observation serialization is separate."""
+    from ..saqqara.privacy import PresentationMasker, profile_stamps
+
+    from ..saqqara.failures import FailureReport
+
+    if isinstance(report, FailureReport):
+        masker = PresentationMasker((), policy)
+        return canonical_json(masker.data({**asdict(report), "provenance": masker.provenance(())}))
+    masker = PresentationMasker(report.privacy_stamps, policy)
+    data = asdict(report)
+    data["provenance"] = {
+        **report.provenance,
+        **masker.provenance(report.presentation_lines),
+        "presentation_only": True,
+    }
+    return canonical_json(masker.data(data))
