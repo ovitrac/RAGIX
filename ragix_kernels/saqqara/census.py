@@ -4,8 +4,9 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 """
 
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 import re
+import json
 from .field_views import TextSpan, VerticalRule, HorizontalRule, line_views, stable_id, union_box
 
 from .value_windows import (
@@ -22,7 +23,7 @@ from ..harvest.numeric_locale import physical_numbers
 
 from .failures import ConstructFinding
 
-VERSION = "census/0.4"
+VERSION = "census/0.5"
 IDENTIFIER = re.compile(r"(?<!\w)[A-Za-z0-9]+(?:[-/]+[A-Za-z0-9]+)+(?!\w)")
 NUMBERING = re.compile(r"(?<![\w.])\d+(?:\.\s*\d+)+(?![\w.])")
 CATEGORIES = frozenset(
@@ -38,6 +39,7 @@ CATEGORIES = frozenset(
         "language_token",
         "title",
         "page",
+        "stamp",
     }
 )
 LANGUAGE_WORDS = {
@@ -199,6 +201,8 @@ class CensusRecord:
             "value_position",
             "window_line_count",
             "basis",
+            "personal_data_suspected",
+            "matched_spans",
         }
         if any(k not in allowed or not isinstance(v, str) for k, v in self.attributes):
             raise ValueError("census interpretation fields forbidden")
@@ -214,6 +218,7 @@ class Census:
     windows: tuple[ValueWindow, ...] = ()
     version: str = VERSION
     construct_findings: tuple[ConstructFinding, ...] = ()
+    geometry_policy: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if self.version != VERSION or not self.source_id or not self.digest_id or self.pages < 1:
@@ -228,6 +233,7 @@ class CensusConfig:
     large_points: float = 20
     adjacency_chars: int = 32
     rotation_threshold: float = 0.1
+    recurrence_fraction: float = 0.5
     continuation_policy: ContinuationPolicy = DEFAULT_CONTINUATION
 
     def __post_init__(self):
@@ -236,6 +242,7 @@ class CensusConfig:
             or self.large_points <= 0
             or self.adjacency_chars < 0
             or not 0 < self.rotation_threshold <= 1
+            or not 0 < self.recurrence_fraction <= 1
         ):
             raise ValueError("invalid census configuration")
 
@@ -250,6 +257,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
     windows = []
     physical_evidence = []
     construct_findings = []
+    observed_lines = []
     policy = derive_continuation(
         [
             [
@@ -316,6 +324,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
             edge = line.bbox[1] < page.height * config.edge_fraction or line.bbox[
                 3
             ] > page.height * (1 - config.edge_fraction)
+            observed_lines.append((ev(), edge))
             emit(
                 "recurrence",
                 re.sub(r"\d+", "#", text.strip()),
@@ -519,7 +528,6 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
                 )
             ]
             # Each table occurrence counts once; all cell provenance stays in the digest.
-            import json
 
             emit(
                 "table_header",
@@ -532,6 +540,26 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
                 rows=len(table.rows),
                 id_columns=json.dumps(id_columns),
                 text_columns=json.dumps(text_columns),
+            )
+    from .privacy import stamp_matches
+
+    recurrence_pages = defaultdict(set)
+    for evidence, _ in observed_lines:
+        recurrence_pages[(re.sub(r"\d+", "#", evidence.literal), round(evidence.bbox[1], 3))].add(
+            evidence.page
+        )
+    for evidence, edge in observed_lines:
+        repeated = len(
+            recurrence_pages[(re.sub(r"\d+", "#", evidence.literal), round(evidence.bbox[1], 3))]
+        ) >= max(2, len(document.pages) * config.recurrence_fraction)
+        matches = stamp_matches(evidence.literal, edge=edge, recurring=repeated)
+        if matches:
+            emit(
+                "stamp",
+                evidence.literal,
+                evidence,
+                personal_data_suspected=True,
+                matched_spans=json.dumps(matches, ensure_ascii=False, sort_keys=True),
             )
     records = []
     for (category, literal, attrs), evidence in sorted(buckets.items()):
@@ -555,6 +583,15 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
         policy,
         tuple(windows),
         construct_findings=tuple(construct_findings),
+        geometry_policy={
+            key: getattr(config, key)
+            for key in (
+                "edge_fraction",
+                "large_points",
+                "rotation_threshold",
+                "recurrence_fraction",
+            )
+        },
     )
 
 

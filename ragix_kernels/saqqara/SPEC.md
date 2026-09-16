@@ -540,7 +540,12 @@ reading configuration, never a document's semantic authority.
 - **K9.7 Negative records and reports.** A NOT_ESTABLISHED record requires a
   question, searched scope, named rule and positive inspected count. All report
   numbers belong to addressable records. Source text is escaped; relation wording
-  comes from a caller map. Falsifiers: X12, injection and missing-label-map tests.
+  comes from a caller map. Stamp-shape observations flag exact suspected identity
+  sub-spans without a name list. Every presentation surface masks those literals
+  by default, including copied fragments, and records masked-line count and policy
+  digest. Only an explicit unmask policy with a reason can reveal them; profile
+  amendments cannot erase the upstream census privacy facts. Observations remain
+  untouched. Falsifiers: X12, X18, injection and missing-label-map tests.
 - **K9.8 Replay.** Semantic rows are sorted, strings NFC-normalized, geometry
   including character boxes rounded to millipoints. Character order stays intact.
   Timestamps, run ids and timing measurements are excluded. Imported-source

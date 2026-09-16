@@ -31,7 +31,7 @@ def attempt(row, stage, operation):
 
 class CensusKernel(Kernel):
     name = "explorer_census"
-    version = "0.3.0"
+    version = "0.4.0"
     stage = 1
     category = "docs"
     requires = []
@@ -67,7 +67,7 @@ class CensusKernel(Kernel):
 
 class ProfileKernel(Kernel):
     name = "explorer_profile"
-    version = "0.3.0"
+    version = "0.4.0"
     stage = 2
     category = "docs"
     requires = ["explorer_census"]
@@ -95,7 +95,7 @@ class ProfileKernel(Kernel):
 
 class ReadKernel(Kernel):
     name = "explorer_read"
-    version = "0.3.0"
+    version = "0.4.0"
     stage = 2
     category = "docs"
     requires = ["explorer_profile"]
@@ -127,7 +127,7 @@ class ReadKernel(Kernel):
 
 class ReportKernel(Kernel):
     name = "explorer_report"
-    version = "0.3.0"
+    version = "0.4.0"
     stage = 3
     category = "docs"
     requires = ["explorer_read"]

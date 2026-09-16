@@ -13,7 +13,7 @@ from ..harvest.report import replay_digest
 
 from .value_windows import ContinuationPolicy, DEFAULT_CONTINUATION, policy_from_dict
 
-VERSION = "document-profile/0.3"
+VERSION = "document-profile/0.4"
 FIELDS = (
     "language",
     "identifier_families",
@@ -139,6 +139,9 @@ class DocumentProfile:
                 "edge_fraction",
                 "large_points",
                 "rotation_threshold",
+                "stamp_lines",
+                "stamp_count",
+                "recurrence_fraction",
             },
             "numeric_locale": {
                 "strategy",
@@ -202,7 +205,7 @@ class DocumentProfile:
 
 @dataclass(frozen=True)
 class ProfileConfig:
-    recurrence_fraction: float = 0.5
+    recurrence_fraction: float | None = None
     minimum_occurrences: int = 2
     locale_dominance_ratio: float = 0.9
     locale_minimum_n: int = 2
@@ -210,7 +213,7 @@ class ProfileConfig:
 
     def __post_init__(self):
         if (
-            not 0 < self.recurrence_fraction <= 1
+            (self.recurrence_fraction is not None and not 0 < self.recurrence_fraction <= 1)
             or self.minimum_occurrences < 2
             or not 0.5 < self.locale_dominance_ratio <= 1
             or type(self.locale_minimum_n) is not int
@@ -222,6 +225,9 @@ class ProfileConfig:
 
 
 def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
+    recurrence_fraction = census.geometry_policy["recurrence_fraction"]
+    if config.recurrence_fraction is not None and config.recurrence_fraction != recurrence_fraction:
+        raise ValueError("recurrence policy differs from census; rebuild census")
     fields = {k: ProfileField(None, 0, (), "profile/unknown/1", "UNKNOWN") for k in FIELDS}
 
     def put(name, value, records, rule, confidence=1.0):
@@ -397,7 +403,7 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
     recurring = [
         r
         for r in by.get("recurrence", [])
-        if len({e.page for e in r.evidence}) >= max(2, census.pages * config.recurrence_fraction)
+        if len({e.page for e in r.evidence}) >= max(2, census.pages * recurrence_fraction)
         and dict(r.attributes)["edge"] == "True"
     ]
     geometric = [
@@ -405,21 +411,24 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
         for r in by.get("geometry", [])
         if dict(r.attributes)["rotated"] == "True" and dict(r.attributes)["large"] == "True"
     ]
-    # No lexical lifecycle assertion: a geometric mark is only a mark candidate.
-    if recurring or geometric:
+    stamp_records = by.get("stamp", [])
+    from .privacy import census_stamps
+
+    stamp_lines = list(census_stamps(census))
+    # A binary flag on observed text, including a measured zero, is not UNKNOWN.
+    if by.get("page"):
         put(
             "furniture",
             {
                 "running_patterns": sorted({r.literal for r in recurring}),
                 "mark_literals": sorted({r.literal for r in geometric}),
                 "default": "UNKNOWN",
-                **{
-                    key: float(dict(by["recurrence"][0].attributes)[key])
-                    for key in ("edge_fraction", "large_points", "rotation_threshold")
-                },
+                **census.geometry_policy,
+                "stamp_lines": stamp_lines,
+                "stamp_count": len(stamp_lines),
             },
-            recurring + geometric,
-            "furniture/recurrence-and-geometry/1",
+            recurring + geometric + stamp_records + by.get("page", []),
+            "furniture/recurrence-geometry-and-stamps/1",
         )
     notation = by.get("notation", [])
     from ..harvest.numeric_locale import resolve_number

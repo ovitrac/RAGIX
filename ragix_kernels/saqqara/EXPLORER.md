@@ -182,3 +182,33 @@ The revised records use `census/0.4`, `document-profile/0.3` and
 `value-window/0.2`; old stored windows/profiles must be rebuilt. These version
 increments precede the independent privacy/table changes because the added
 priority fixes can be delivered separately.
+## Slice 3 privacy boundary (E10)
+
+Privacy records advance census to `0.5` and profile to `0.4`, after the independently delivered priority fixes. `furniture.stamp_lines` contains exact
+suspected identity sub-spans, source page/coordinates and evidence ids;
+`stamp_count` includes an explicit measured zero rather than UNKNOWN. This is a
+shape detector, not a name recognizer: it combines date/time shapes with
+capitalized sequences, email or user-id shapes. Body lines require a date;
+page-edge or recurring stamp lines can use a time. No name list ships in RAGIX.
+
+`render_report`, `render_page_view` and `render_report_json` mask by default.
+The page view is extracted text with retained coordinates, not a masked PDF
+raster. Original PDF/image viewers remain the consumer's responsibility. The
+CLI now writes masked report JSON, report HTML and extracted-page HTML by default.
+`--observations` additionally writes an explicitly named `.observations.json`
+backend artifact containing original evidence. It is not a presentation export.
+The corresponding CLI/library parity test uses this explicit backend option.
+
+To unmask a presentation, pass `MaskPolicy(unmask=True, reason="...")`. An empty
+reason or a loose dictionary is refused. Policy digests, reason and masked-line
+count appear in presentation provenance. Additional patterns/literals can be
+supplied by the consumer; those private policy contents are not printed. Masking
+is applied to a presentation copy and never changes census/profile observations.
+The guard uses original census flags, so an amended profile cannot silently
+unmask a source line.
+
+Recurrence share is recorded once in census geometry policy. A profile can inherit
+it, or `explore` can propagate an explicit profile configuration upstream before
+census. A profile built against a differently configured census is refused.
+A zero stamp count means zero detected stamps in the extracted text, not proof
+that an image-only page contains no personal information.

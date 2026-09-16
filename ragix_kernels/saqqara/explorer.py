@@ -3,7 +3,7 @@
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 """
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 import hashlib
 import importlib.metadata
 from pathlib import Path
@@ -32,6 +32,10 @@ def explore(
 ) -> ExplorerResult:
     from .failures import CONSTRUCT_ERRORS, stage_failure, failure_report
 
+    if profile_config.recurrence_fraction is not None:
+        census_config = replace(
+            census_config, recurrence_fraction=profile_config.recurrence_fraction
+        )
     observed = profile = reading = None
     stage = "census"
     try:
