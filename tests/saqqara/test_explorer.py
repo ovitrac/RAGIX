@@ -568,3 +568,19 @@ def test_planted_census_patterns_have_exact_recall_and_precision():
             numbering_seen[r.literal] += r.count
     assert numbering_seen == expected
     assert {r.literal for r in c.records if r.category == "label"} == {"Renvoi", "Value"}
+
+
+def test_replay_volatile_exclusion_never_deletes_source_columns():
+    row = {
+        "record_id": "row",
+        "cells": {
+            "timestamp": "source date",
+            "run_id": "source identifier",
+            "wall_time": "source duration",
+        },
+    }
+    rendered = json.loads(canonical_json(row))
+    assert rendered["cells"] == row["cells"]
+    assert replay_digest([row]) != replay_digest(
+        [{**row, "cells": {**row["cells"], "timestamp": "different source date"}}]
+    )

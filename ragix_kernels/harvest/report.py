@@ -25,7 +25,10 @@ def canonical_data(value, key=""):
         return {
             unicodedata.normalize("NFC", k): canonical_data(v, k)
             for k, v in sorted(value.items())
-            if k not in {"timestamp", "run_id", "wall_time", "latency_ms", "stage_times"}
+            if not (
+                key in {"", "_meta", "coverage", "provenance", "manifest"}
+                and k in {"timestamp", "run_id", "wall_time", "latency_ms", "stage_times"}
+            )
         }
     if isinstance(value, (list, tuple)):
         return [canonical_data(v, key) for v in value]
