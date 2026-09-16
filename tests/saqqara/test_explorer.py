@@ -465,8 +465,15 @@ def test_ambiguous_numeric_locale_does_not_guess():
         for p in d.pages
     )
     result = explore(replace(d, pages=pages))
-    assert result.profile.fields["numeric_locale"].status == "UNKNOWN"
-    assert any(f.field == "numeric_locale" for f in result.reading.findings)
+    locale = result.profile.fields["numeric_locale"]
+    assert locale.status == "PROBED" and locale.value["decimal_separator"] is None
+    ambiguous = [q for q in result.reading.quantities if q["raw"] == "6,250 V"]
+    assert len(ambiguous) == 3
+    assert all(
+        q["number"] is None and q["needs_review"] and "SEPARATOR_AMBIGUOUS" in q["flags"]
+        for q in ambiguous
+    )
+    assert not any(f.field == "numeric_locale" for f in result.reading.findings)
 
 
 def test_profile_evidence_cannot_be_forged():

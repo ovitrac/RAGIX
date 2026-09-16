@@ -6,9 +6,21 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 import re
-from .field_views import TextSpan, VerticalRule, line_views, stable_id
+from .field_views import TextSpan, VerticalRule, HorizontalRule, line_views, stable_id, union_box
 
-VERSION = "census/0.1"
+from .value_windows import (
+    ContinuationPolicy,
+    DEFAULT_CONTINUATION,
+    ValueWindow,
+    build_value_windows,
+    window_from_dict,
+    derive_continuation,
+    policy_from_dict,
+)
+
+from ..harvest.numeric_locale import physical_numbers
+
+VERSION = "census/0.2"
 IDENTIFIER = re.compile(r"(?<!\w)[A-Za-z0-9]+(?:[-/]+[A-Za-z0-9]+)+(?!\w)")
 NUMBERING = re.compile(r"(?<![\w.])\d+(?:\.\s*\d+)+(?![\w.])")
 CATEGORIES = frozenset(
@@ -102,6 +114,7 @@ class PageDigest:
     rules: tuple[VerticalRule, ...] = ()
     tables: tuple[TableObservation, ...] = ()
     drawing_count: int = 0
+    horizontal_rules: tuple[HorizontalRule, ...] = ()
 
     def __post_init__(self):
         if (
@@ -181,6 +194,9 @@ class CensusRecord:
             "edge_fraction",
             "large_points",
             "rotation_threshold",
+            "value_position",
+            "window_line_count",
+            "basis",
         }
         if any(k not in allowed or not isinstance(v, str) for k, v in self.attributes):
             raise ValueError("census interpretation fields forbidden")
@@ -192,6 +208,8 @@ class Census:
     records: tuple[CensusRecord, ...]
     pages: int
     digest_id: str
+    continuation_policy: ContinuationPolicy = DEFAULT_CONTINUATION
+    windows: tuple[ValueWindow, ...] = ()
     version: str = VERSION
 
     def __post_init__(self):
@@ -207,6 +225,7 @@ class CensusConfig:
     large_points: float = 20
     adjacency_chars: int = 32
     rotation_threshold: float = 0.1
+    continuation_policy: ContinuationPolicy = DEFAULT_CONTINUATION
 
     def __post_init__(self):
         if (
@@ -225,6 +244,11 @@ def page_lines(page):
 
 def census(document: DocumentDigest, config=CensusConfig()) -> Census:
     buckets = defaultdict(list)
+    windows = []
+    physical_evidence = []
+    policy = derive_continuation(
+        [page_lines(p) for p in document.pages], config.continuation_policy
+    )
 
     def emit(category, literal, evidence, **attrs):
         buckets[(category, literal, tuple(sorted((k, str(v)) for k, v in attrs.items())))].append(
@@ -243,6 +267,23 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
         )
         emit("page", "page", page_ev, text_layer=bool(page.spans), drawings=page.drawing_count)
         lines = page_lines(page)
+        edge_ids = {
+            v.view_id
+            for v in lines
+            if v.bbox[1] < page.height * config.edge_fraction
+            or v.bbox[3] > page.height * (1 - config.edge_fraction)
+        }
+        page_windows = build_value_windows(
+            lines,
+            identifiers=identifiers,
+            policy=policy,
+            vertical_rules=page.rules,
+            horizontal_rules=page.horizontal_rules,
+            table_headers=tuple(h for t in page.tables for h in (*t.headers, " ".join(t.headers))),
+            edge_ids=edge_ids,
+        )
+        windows.extend(page_windows)
+        window_by_label = {w.views[0].view_id: w for w in page_windows}
         for index, line in enumerate(lines):
             text = line.text
 
@@ -280,7 +321,12 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
                     adjacent=text[max(0, m.start() - config.adjacency_chars) : m.start()].strip(),
                     revision_tail=text[m.end() : m.end() + config.adjacency_chars].strip(),
                 )
-            numbers = list(NUMBERING.finditer(text))
+            physical = physical_numbers(text)
+            numbers = [
+                m
+                for m in NUMBERING.finditer(text)
+                if not any(m.start() < p.end and m.end() > p.start for p in physical)
+            ]
             for m in numbers:
                 prefix = text[: m.start()]
                 marker = (
@@ -299,42 +345,26 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
             for left, right in zip(numbers, numbers[1:]):
                 gap = text[left.end() : right.start()].strip()
                 emit("connector", gap, ev(left.end(), right.start()), pattern="between_numbering")
-            label = re.match(r"([^:\n]{1,100}):\s*", text)
-            following = text[label.end() :] if label else ""
-            if label:
-                literal = label[1].strip()
-                end = label.end(1)
-            elif (
-                index + 1 < len(lines)
-                and not edge
-                and not identifiers(text)
-                and not re.search(r"\d", text)
-                and identifiers(lines[index + 1].text)
-                and 0
-                <= lines[index + 1].bbox[1] - line.bbox[3]
-                <= 2 * (line.bbox[3] - line.bbox[1])
-            ):
-                literal = text.strip()
-                end = len(text)
-                following = lines[index + 1].text
-            else:
-                literal = ""
-            if literal:
+            window = window_by_label.get(line.view_id)
+            if window:
+                following = window.following_text
                 follow = (
                     "identifier-bearing"
                     if identifiers(following)
                     else (
                         "number-bearing"
                         if re.search(r"\d", following)
-                        else "free-text" if following else "empty"
+                        else "free-text" if following.strip() else "empty"
                     )
                 )
                 emit(
                     "label",
-                    literal,
-                    ev(0, end),
+                    window.label,
+                    ev(0, window.label_end),
                     follow=follow,
-                    separator=":" if label else "newline",
+                    separator=window.separator,
+                    value_position=window.value_position,
+                    window_line_count=len(window.views),
                 )
             for m in re.finditer(
                 r"\d+(?:[ \u00a0\u202f]\d{3})*(?:[.,]\d+)?|[±≤≥<>]|\+/-|[^\W\d_]+", text
@@ -357,14 +387,30 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
             # Unit/comparator vocabulary is observation, not a role assignment.
             from ..harvest.quantitative import SCALAR, PREFIX
 
+            for observed in physical:
+                evidence = ev(observed.start, observed.end)
+                evidence = Evidence(
+                    evidence.source_id,
+                    evidence.page,
+                    evidence.span_id,
+                    evidence.start,
+                    evidence.end,
+                    evidence.literal,
+                    union_box(r.bbox for r in line.source_refs(observed.start, observed.end)),
+                )
+                physical_evidence.append(evidence)
+                emit(
+                    "notation",
+                    observed.raw,
+                    evidence,
+                    kind="decimal" if any(c in observed.raw for c in ".,") else "physical_integer",
+                    basis=observed.basis,
+                )
             for m in SCALAR.finditer(text):
-                if re.search(r"\d[.,]\d", m["number"]):
-                    emit(
-                        "notation",
-                        m["number"],
-                        ev(m.start("number"), m.end("number")),
-                        kind="decimal",
-                    )
+                if not any(
+                    m.start("number") == p.start and m.end("number") == p.end for p in physical
+                ):
+                    continue
                 emit("notation", m["unit"], ev(m.start("unit"), m.end("unit")), kind="unit")
                 op = PREFIX.search(text[: m.start()])
                 if op:
@@ -414,6 +460,42 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
                 )
                 and any(row[i] not in (None, "") for row in table.rows)
             ]
+            for row_index, row in enumerate(table.rows):
+                for col, cell in enumerate(row):
+                    if col in id_columns or cell is None:
+                        continue
+                    cell_evidence = table_cell_evidence(document.source_id, table, row_index, col)
+                    for observed in physical_numbers(cell, table_cell=True):
+                        box = cell_evidence.bbox
+                        duplicate = any(
+                            e.page == table.page
+                            and e.literal == observed.raw
+                            and min(e.bbox[2], box[2]) > max(e.bbox[0], box[0])
+                            and min(e.bbox[3], box[3]) > max(e.bbox[1], box[1])
+                            for e in physical_evidence
+                        )
+                        if duplicate:
+                            continue
+                        evidence = Evidence(
+                            document.source_id,
+                            table.page,
+                            cell_evidence.span_id,
+                            observed.start,
+                            observed.end,
+                            observed.raw,
+                            box,
+                        )
+                        emit(
+                            "notation",
+                            observed.raw,
+                            evidence,
+                            kind=(
+                                "decimal"
+                                if any(c in observed.raw for c in ".,")
+                                else "physical_integer"
+                            ),
+                            basis="table_cell",
+                        )
             text_columns = [
                 i
                 for i in range(len(table.headers))
@@ -452,13 +534,20 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
     from ..harvest.report import replay_digest
 
     return Census(
-        document.source_id, tuple(records), len(document.pages), replay_digest([document])
+        document.source_id,
+        tuple(records),
+        len(document.pages),
+        replay_digest([document]),
+        policy,
+        tuple(windows),
     )
 
 
 def digest_from_dict(data):
     pages = []
     for p in data["pages"]:
+        if "horizontal_rules" not in p:
+            raise ValueError("digest lacks horizontal-rule observations; re-extract before Slice 2")
         spans = tuple(
             TextSpan(
                 **{
@@ -490,6 +579,9 @@ def digest_from_dict(data):
                     "spans": spans,
                     "tables": tables,
                     "rules": tuple(VerticalRule(**r) for r in p.get("rules", ())),
+                    "horizontal_rules": tuple(
+                        HorizontalRule(**r) for r in p.get("horizontal_rules", ())
+                    ),
                 }
             )
         )
@@ -497,9 +589,12 @@ def digest_from_dict(data):
 
 
 def census_from_dict(data):
+    policy = policy_from_dict(data["continuation_policy"])
     return Census(
         **{
             **data,
+            "continuation_policy": policy,
+            "windows": tuple(window_from_dict(w, policy) for w in data["windows"]),
             "records": tuple(
                 CensusRecord(
                     **{
@@ -511,4 +606,24 @@ def census_from_dict(data):
                 for r in data["records"]
             ),
         }
+    )
+
+
+def table_cell_evidence(source_id, table, row_index, column):
+    """Reuse exact cell provenance when supplied; otherwise retain table scope."""
+    raw = table.rows[row_index][column]
+    if raw is None:
+        raise ValueError("unreadable cell has no numeric literal")
+    suffix = f":{row_index+1}:{column}"
+    found = [e for e in table.evidence if e.span_id.endswith(suffix) and e.literal == raw]
+    if len(found) == 1:
+        return found[0]
+    return Evidence(
+        source_id,
+        table.page,
+        f"{table.table_id}:cell:{row_index}:{column}",
+        0,
+        len(raw),
+        raw,
+        union_box(e.bbox for e in table.evidence),
     )

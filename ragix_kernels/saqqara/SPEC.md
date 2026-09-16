@@ -490,21 +490,38 @@ reading configuration, never a document's semantic authority.
   and accounts for every page, including textless pages. Its closed attributes
   prohibit semantic role fields. Falsifier: inject `role` into a census record.
 - **K9.2 Profile support.** Every non-UNKNOWN field has a named rule, confidence,
-  and census candidate ids; unsupported or conflicting notation stays UNKNOWN.
-  Falsifiers: absent/forged evidence, conflicting separator observations.
+  and census candidate ids; unsupported fields stay UNKNOWN. Numeric notation is
+  resolved per token; the field records a weak/dominant document prior or no prior,
+  without disabling detection. Prior counts exclude structural numbering, dates,
+  revisions, identifiers and page markers. Falsifiers: absent/forged evidence,
+  contradictory tokens, circular voting by ambiguous tokens, and X17.
 - **K9.3 Mutation locality.** Changing labels, section markers, numeric notation,
   table columns, identifier shapes or furniture changes the corresponding
   profile values only. Provenance ids and the template signature may change.
   Adjacent context stays in the census instead of coupling unrelated profile
-  values. Falsifiers: X1–X6 in `test_explorer.py`.
+  values. X16 moves a value across a line break without changing reference-field
+  value/confidence or recovered targets/members. Window position, gap histogram,
+  policy metadata and evidence may change. Falsifiers: X1–X6 in `test_explorer.py`
+  and X16/X17 in `test_explorer_slice2.py`.
 - **K9.4 Review history.** Reviews are explicit, source-bound, append-only and
   chained per field; they retain prior amendments. Falsifiers: duplicate ids,
   stale census, incorrect predecessor, absent evidence.
 - **K9.5 Reader boundaries.** The profile supplies labels, numbering operators,
-  revision markers, table column selection and numeric separator. Identifier
-  shapes type identifiers, never whitelist them. Continuations retain character
-  mapping; role-introduced continuation lines remain UNDECIDABLE. Missing required
-  support emits UNKNOWN_TEMPLATE with scope, census id and inspected count.
+  revision markers, table column selection and a numeric prior. Identifier shapes
+  type identifiers, never whitelist them. Census and reader consume the same
+  sealed value-window object and its single continuation policy. A separated,
+  repeatedly observed bimodal gap histogram determines the bound; otherwise a
+  recorded default applies. Explicit amendments are recorded as such. Labels,
+  known table headers/captions, numbered headings, horizontal rules, page and
+  column breaks are structural stops. A role phrase ending in a colon is a new
+  label, not a continuation. Unlabelled role-introduced lines remain UNDECIDABLE.
+  Gap/cap guard closures carry WINDOW_BOUND_HIT and needs_review; they cannot
+  masquerade as structural completeness. Missing required support emits
+  UNKNOWN_TEMPLATE with scope, census id and inspected count. Unresolved numeric
+  priors do not stop candidates: token-local facts survive, truly ambiguous
+  normalization is withheld, and prior contradictions are flagged individually.
+  E7.7/E8.7 sweep declared gap/cap/dominance/count ranges on synthetic fixtures;
+  no private document is used to tune a constant.
 - **K9.6 Section expressions.** Lists preserve members and ranges preserve their
   literal operator and endpoints. No reader expands a range or resolves it against
   an inventory. Split/glued observations remain flagged. Revisions do not become

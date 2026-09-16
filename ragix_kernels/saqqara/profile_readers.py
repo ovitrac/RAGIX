@@ -10,6 +10,8 @@ from .field_views import TextView, stable_id, union_box
 from .profile import DocumentProfile, derive_census_id
 from ..harvest.quantitative import harvest
 from ..harvest.report import replay_digest
+from .value_windows import join_window
+from .census import table_cell_evidence
 
 
 @dataclass(frozen=True)
@@ -61,6 +63,7 @@ class FieldReading:
     targets: tuple[Target, ...]
     status: str
     flags: tuple[str, ...] = ()
+    needs_review: bool = False
 
 
 @dataclass(frozen=True)
@@ -149,27 +152,6 @@ def section_expressions(text, style, offset=0):
     return tuple(result)
 
 
-def _join(views):
-    mapping = []
-    text = ""
-    for view in views:
-        if text:
-            text += "\n"
-            mapping.append(None)
-        text += view.text
-        mapping.extend(view.mapping)
-    return TextView(
-        stable_id("field/0.1", [v.view_id for v in views]),
-        views[0].source_id,
-        views[0].page,
-        text,
-        tuple(mapping),
-        "UNKNOWN" if any(v.state == "UNKNOWN" for v in views) else "CONTENT",
-        tuple(sorted({f for v in views for f in v.flags})),
-        union_box(v.bbox for v in views),
-    )
-
-
 def read_document(
     document: DocumentDigest, census: Census, profile: DocumentProfile
 ) -> ReaderResult:
@@ -211,7 +193,7 @@ def read_document(
     numbering = value("numbering_style")
     families = value("identifier_families")
     furniture_rules = value("furniture")
-    locale = value("numeric_locale")
+    locale = profile.fields["numeric_locale"].value
     table_profile = profile.fields["id_row_tables"].value
     for page in document.pages:
         source_by_id = {s.span_id: s for s in page.spans}
@@ -240,27 +222,26 @@ def read_document(
                 continue
             # A body position alone does not establish a content class.
             lines.append(line)
-            if locale:
-                quantities.extend(
-                    asdict(c)
-                    for c in harvest(
-                        line.text,
-                        source_id=document.source_id,
-                        node_id=line.view_id,
-                        classification=line.state,
-                        uncertainty=line.flags,
-                        decimal_separator=locale["decimal_separator"],
-                    )
+            quantities.extend(
+                {**asdict(c), "needs_review": c.needs_review}
+                for c in harvest(
+                    line.text,
+                    source_id=document.source_id,
+                    node_id=line.view_id,
+                    classification=line.state,
+                    uncertainty=line.flags,
+                    token_locale=True,
+                    locale_prior=locale,
                 )
+            )
         if reference:
-            current = []
-            label = None
-            undecidable = False
-
-            def flush():
-                if not current:
-                    return
-                view = _join(current)
+            if profile.continuation_policy != census.continuation_policy:
+                raise ValueError("window policy differs from sealed census; rebuild census")
+            for window in census.windows:
+                if window.views[0].page != page.page or window.label not in reference["labels"]:
+                    continue
+                view = join_window(window)
+                label = window.label
                 matches = identifiers(view.text)
                 targets = []
                 for j, m in enumerate(matches):
@@ -305,7 +286,8 @@ def read_document(
                             revision_end,
                         )
                     )
-                flags = ("ROLE_LINE_UNDECIDABLE",) if undecidable else ()
+                flags = window.flags
+                undecidable = bool(flags)
                 fields.append(
                     FieldReading(
                         stable_id("reading", view.view_id),
@@ -314,41 +296,10 @@ def read_document(
                         tuple(targets),
                         "UNDECIDABLE" if undecidable else "READ",
                         flags,
+                        window.needs_review,
                     )
                 )
 
-            all_labels = sorted(reference["stop_labels"], key=len, reverse=True)
-            for line in lines:
-                matched = next(
-                    (s for s in all_labels if line.text == s or line.text.startswith(s + ":")), None
-                )
-                table_heading = any(
-                    line.text.strip() == header for t in page.tables for header in t.headers
-                )
-                boundary = False
-                if current:
-                    prev = current[-1]
-                    height = max(1, prev.bbox[3] - prev.bbox[1])
-                    boundary = (
-                        line.page != prev.page
-                        or line.bbox[1] - prev.bbox[3] > reference["max_gap_ratio"] * height
-                        or line.bbox[2] < prev.bbox[0]
-                        or line.bbox[0] > prev.bbox[2] + height
-                    )
-                if matched or table_heading or boundary:
-                    flush()
-                    current = []
-                    label = None
-                    undecidable = False
-                if matched in reference["labels"]:
-                    label = matched
-                    current = [line]
-                elif current and not matched and not table_heading:
-                    ids = identifiers(line.text)
-                    if ids and re.search(r"[^\W\d_]", line.text[: ids[0].start()]):
-                        undecidable = True
-                    current.append(line)
-            flush()
         for table in page.tables:
             # Infer id column from all nonempty row cells; header language and
             # column order are never part of the identifier grammar.
@@ -367,6 +318,44 @@ def read_document(
                 continue
             col = id_cols[0]
             for index, row in enumerate(table.rows):
+                for column, cell in enumerate(row):
+                    if column == col or cell is None:
+                        continue
+                    evidence = table_cell_evidence(document.source_id, table, index, column)
+                    # Unitless cell readings are only added when not already read
+                    # from the physical text layer in this exact cell scope.
+                    cell_candidates = harvest(
+                        cell,
+                        source_id=document.source_id,
+                        node_id=evidence.span_id,
+                        classification="UNKNOWN",
+                        token_locale=True,
+                        locale_prior=locale,
+                        table_cell=True,
+                    )
+                    duplicates = []
+                    for c in cell_candidates:
+                        duplicate = False
+                        for q in quantities:
+                            if q["raw"] != c.raw:
+                                continue
+                            matching = next((v for v in lines if v.view_id == q["node_id"]), None)
+                            if (
+                                matching
+                                and min(matching.bbox[2], evidence.bbox[2])
+                                > max(matching.bbox[0], evidence.bbox[0])
+                                and min(matching.bbox[3], evidence.bbox[3])
+                                > max(matching.bbox[1], evidence.bbox[1])
+                            ):
+                                duplicate = True
+                                break
+                        duplicates.append(duplicate)
+                    # Keep a cell batch whole: dropping a duplicate child alone
+                    # would leave a composite referencing an absent candidate.
+                    if cell_candidates and not all(duplicates):
+                        quantities.extend(
+                            {**asdict(c), "needs_review": c.needs_review} for c in cell_candidates
+                        )
                 tables.append(
                     {
                         "record_id": stable_id(table.table_id, index),

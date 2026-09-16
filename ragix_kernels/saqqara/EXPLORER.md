@@ -59,7 +59,7 @@ explicit amendments go through `apply_reviews`.
 ## Reproducible validation
 
 ```bash
-python -m pytest tests/harvest tests/saqqara -q
+python -m pytest tests/ -q -p no:cacheprovider
 python tools/explorer_gate.py --output /tmp/explorer-gate.json
 ```
 
@@ -80,9 +80,61 @@ an explicitly selected local endpoint and uses a generated, sealed packet.
   The continuation gap is an explicit configurable bound, not a learned layout
   guarantee; an unfamiliar layout still needs review.
 - No OCR is attempted. Textless pages remain visible in coverage and findings.
-- A numeric locale is not inferred from a single ambiguous thousands/decimal
-  spelling. A locale declaration does not remove grouping review flags.
+- A numeric prior is not inferred from an ambiguous thousands/decimal spelling.
+  Tokens resolve locally first. A prior never removes grouping or uncertainty
+  flags, and mixed notations never disable the document's quantity reader.
 - Table observations must preserve cells and their source locations. Duplicate
   headers, ambiguous id columns and unreadable cells are surfaced, never repaired.
 - Passing synthetic tests establishes those fixtures' behavior. A consumer still
   owns domain interpretation, reference resolution, review and its own acceptance.
+
+## Slice 2 schema and policy migration
+
+`document-profile/0.2` and `census/0.2` replace the released `0.1` records. The
+original work-plan shorthand called the baseline v0, but reusing its already
+published `0.1` identifier would conceal a schema change. Old serialized profiles
+and censuses must be rebuilt; no silent conversion is performed. Serialized page
+digests without `horizontal_rules` must be re-extracted: missing observations
+must not be interpreted as proof that no horizontal rule exists. Token-first
+quantity candidates use producer `quantitative/1.1`; the legacy harvest mode and
+its producer remain unchanged.
+
+The census now stores `windows` and one `continuation_policy`. The profile carries
+that same policy at its top level; the old `reference_fields.value.max_gap_ratio`
+location is retired. Each window stores its line views and character mapping,
+value position, structural/guard stop, flags and `needs_review`. Readers assemble
+that exact object; they do not rescan with independent geometry constants.
+
+The inter-line gap histogram contains ratios to the preceding line's height,
+rounded to three decimals. A derived valley needs two or more observations in
+each mode and an empty interval wider than either mode's spread. Its midpoint is
+the gap bound. Insufficient or overlapping modes use the fallback. The policy
+records `source` (`derived`, `default`, `amended`) and the histogram. The default
+gap ratio is 2.5 and the cap is eight following nonempty lines. An explicit
+amendment bypasses derivation; changing policy requires a new census. A gap/cap
+closure always sets `WINDOW_BOUND_HIT` and `needs_review`.
+
+Physical locale evidence has an attached unit, comparator or percent sign, or
+comes from a non-identifier table column. Structural numbering, date, revision,
+identifier and page spans are excluded. Numbering does not claim an unmarked
+physical decimal merely because it contains a dot. Only unambiguous token-local
+readings vote for the document prior; repeated ambiguous tokens cannot vote
+themselves into certainty. The field records separator counts, `n`, dominance
+threshold, minimum count, prior strength, confidence and ambiguity diagnostics.
+
+Default prior dominance is 90 percent, with at least two unambiguous
+observations giving a weak prior (confidence at most 0.5); five give a dominant
+prior. Unambiguous tokens retain their own normalization even when they contradict
+the prior, and receive `SEPARATOR_AMBIGUOUS` individually. Ambiguous tokens without
+a usable prior retain exact literals/offsets and withhold normalization. A
+prior-dependent reading remains flagged (`LOCALE_PRIOR_USED`, with
+`LOCALE_PRIOR_WEAK` where applicable) and reviewable. This replaces the old
+whole-document UNKNOWN/zero-candidate behavior.
+
+Use `CensusConfig(continuation_policy=ContinuationPolicy(...))` and
+`ProfileConfig(locale_dominance_ratio=..., locale_minimum_n=...)` through the typed
+stages or `explore(..., census_config=..., profile_config=...)`. Kernel manifests
+accept `census_options` on `explorer_census` and `profile_options` on
+`explorer_profile`; readers cannot override a sealed window. Full acceptance
+runs `tests/` in a detached worktree with `PYTHONPATH` pinned to it, not merely the
+Harvest/Saqqara subsets. Consumer confirmation remains a separate gate.

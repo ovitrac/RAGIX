@@ -70,14 +70,14 @@ class MuPdfTextReader:
         top-left page points; source identity is supplied by the caller's manifest.
         Reader failures propagate rather than becoming an empty page.
         """
-        from ..field_views import TextSpan, VerticalRule, stable_id
+        from ..field_views import TextSpan, VerticalRule, HorizontalRule, stable_id
 
         if self._document is None:
             raise RuntimeError("reader is not open")
         if not 1 <= number <= len(self._document):
             raise ValueError("page number outside document")
         page = self._document[number - 1]
-        spans, rules = [], []
+        spans, rules, horizontal_rules = [], [], []
         for block in page.get_text("rawdict").get("blocks", []):
             for line in block.get("lines", []):
                 for span in line.get("spans", []):
@@ -86,9 +86,22 @@ class MuPdfTextReader:
                     if not text.strip():
                         continue
                     boxes = tuple(tuple(c["bbox"]) for c in chars for _ in c["c"])
-                    ident = stable_id("mupdf-glyphs/1.0", self.version, source_id, number, len(spans))
-                    spans.append(TextSpan(source_id, ident, number, text, tuple(span["bbox"]), boxes,
-                                          tuple(span["origin"]), tuple(line["dir"]), span["size"]))
+                    ident = stable_id(
+                        "mupdf-glyphs/1.0", self.version, source_id, number, len(spans)
+                    )
+                    spans.append(
+                        TextSpan(
+                            source_id,
+                            ident,
+                            number,
+                            text,
+                            tuple(span["bbox"]),
+                            boxes,
+                            tuple(span["origin"]),
+                            tuple(line["dir"]),
+                            span["size"],
+                        )
+                    )
         for path in page.get_drawings():
             for item in path["items"]:
                 segments = []
@@ -96,15 +109,34 @@ class MuPdfTextReader:
                     segments.append((item[1], item[2]))
                 elif item[0] == "re":
                     rect = item[1]
-                    segments.extend(((rect.top_left, rect.bottom_left), (rect.top_right, rect.bottom_right)))
+                    segments.extend(
+                        (
+                            (rect.top_left, rect.bottom_left),
+                            (rect.top_right, rect.bottom_right),
+                            (rect.top_left, rect.top_right),
+                            (rect.bottom_left, rect.bottom_right),
+                        )
+                    )
                 for a, b in segments:
                     if abs(a.x - b.x) <= 0.01 and abs(a.y - b.y) > 1:
                         rules.append(VerticalRule((a.x + b.x) / 2, min(a.y, b.y), max(a.y, b.y)))
-        return {"spans": spans, "vertical_rules": rules, "width": page.cropbox.width,
-                "height": page.cropbox.height, "rotation": page.rotation,
-                "coordinate_system": "unrotated-top-left-pt", "extractor": self.name,
-                "extractor_version": self.version, "producer": "mupdf-glyphs/1.0",
-                "transformation_matrix": tuple(page.transformation_matrix)}
+                    elif abs(a.y - b.y) <= 0.01 and abs(a.x - b.x) > 1:
+                        horizontal_rules.append(
+                            HorizontalRule((a.y + b.y) / 2, min(a.x, b.x), max(a.x, b.x))
+                        )
+        return {
+            "spans": spans,
+            "vertical_rules": rules,
+            "horizontal_rules": horizontal_rules,
+            "width": page.cropbox.width,
+            "height": page.cropbox.height,
+            "rotation": page.rotation,
+            "coordinate_system": "unrotated-top-left-pt",
+            "extractor": self.name,
+            "extractor_version": self.version,
+            "producer": "mupdf-glyphs/1.0",
+            "transformation_matrix": tuple(page.transformation_matrix),
+        }
 
     def placements(self, number: int, geometry: list | None = None) -> list[tuple]:
         """The spans of one page, as the pdf reader holds its text placements.
@@ -134,10 +166,24 @@ class MuPdfTextReader:
                         continue
                     origin = pymupdf.Point(*span["origin"]) * to_pdf
                     left, _top, right, _bottom = span["bbox"]
-                    found.append((raw.strip(), float(origin.x), float(origin.y),
-                                  float(span.get("size") or 0), str(span.get("font", "")),
-                                  float(right - left)))
+                    found.append(
+                        (
+                            raw.strip(),
+                            float(origin.x),
+                            float(origin.y),
+                            float(span.get("size") or 0),
+                            str(span.get("font", "")),
+                            float(right - left),
+                        )
+                    )
                     if geometry is not None:
-                        geometry.append((float(origin.x), float(origin.y), upright,
-                                         raw[:1].isspace(), raw[-1:].isspace()))
+                        geometry.append(
+                            (
+                                float(origin.x),
+                                float(origin.y),
+                                upright,
+                                raw[:1].isspace(),
+                                raw[-1:].isspace(),
+                            )
+                        )
         return found

@@ -8,8 +8,8 @@ import hashlib
 import importlib.metadata
 from pathlib import Path
 import subprocess
-from .census import DocumentDigest, PageDigest, TableObservation, Evidence, census
-from .profile import derive_profile
+from .census import DocumentDigest, PageDigest, TableObservation, Evidence, CensusConfig, census
+from .profile import ProfileConfig, derive_profile
 from .profile_readers import read_document
 from ..harvest.report import build_report, canonical_json, replay_digest
 
@@ -23,9 +23,15 @@ class ExplorerResult:
     report: object
 
 
-def explore(document: DocumentDigest, *, provenance=None) -> ExplorerResult:
-    observed = census(document)
-    profile = derive_profile(observed)
+def explore(
+    document: DocumentDigest,
+    *,
+    provenance=None,
+    census_config=CensusConfig(),
+    profile_config=ProfileConfig(),
+) -> ExplorerResult:
+    observed = census(document, census_config)
+    profile = derive_profile(observed, profile_config)
     reading = read_document(document, observed, profile)
     report = build_report(document, observed, profile, reading, provenance)
     return ExplorerResult(document, observed, profile, reading, report)
@@ -123,6 +129,7 @@ def digest_pdf(path: Path, *, expected_pymupdf=None) -> DocumentDigest:
                     tuple(geometry["vertical_rules"]),
                     tuple(tables),
                     len(page.get_drawings()),
+                    tuple(geometry["horizontal_rules"]),
                 )
             )
     finally:

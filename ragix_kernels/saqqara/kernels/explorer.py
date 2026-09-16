@@ -6,8 +6,8 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 from dataclasses import asdict
 import json
 from ...base import Kernel
-from ..census import census, digest_from_dict, census_from_dict
-from ..profile import derive_profile, profile_from_dict
+from ..census import census, digest_from_dict, census_from_dict, CensusConfig
+from ..profile import derive_profile, profile_from_dict, ProfileConfig
 from ..profile_readers import read_document
 from ...harvest.report import build_report
 
@@ -31,6 +31,12 @@ class CensusKernel(Kernel):
         documents = input.config["documents"]
         if not documents:
             raise ValueError("nonempty document manifest required")
+        from ..value_windows import policy_from_dict
+
+        options = dict(input.config.get("census_options", {}))
+        if "continuation_policy" in options:
+            options["continuation_policy"] = policy_from_dict(options["continuation_policy"])
+        config = CensusConfig(**options)
         results = []
         seen = set()
         for data in documents:
@@ -38,7 +44,9 @@ class CensusKernel(Kernel):
             if document.source_id in seen:
                 raise ValueError("duplicate document identity in manifest")
             seen.add(document.source_id)
-            results.append({"document": asdict(document), "census": asdict(census(document))})
+            results.append(
+                {"document": asdict(document), "census": asdict(census(document, config))}
+            )
         return {"documents": results}
 
     def summarize(self, data):
@@ -57,7 +65,15 @@ class ProfileKernel(Kernel):
         data = dependency(input, "explorer_census")
         return {
             "documents": [
-                {**row, "profile": asdict(derive_profile(census_from_dict(row["census"])))}
+                {
+                    **row,
+                    "profile": asdict(
+                        derive_profile(
+                            census_from_dict(row["census"]),
+                            ProfileConfig(**input.config.get("profile_options", {})),
+                        )
+                    ),
+                }
                 for row in data["documents"]
             ]
         }

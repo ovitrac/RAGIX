@@ -39,7 +39,20 @@ def canonical_data(value, key=""):
             raise ValueError("non-finite replay number")
         return (
             round(value, 3)
-            if key in {"bbox", "glyph_boxes", "origin", "width", "height", "x", "top", "bottom"}
+            if key
+            in {
+                "bbox",
+                "glyph_boxes",
+                "origin",
+                "width",
+                "height",
+                "x",
+                "y",
+                "left",
+                "right",
+                "top",
+                "bottom",
+            }
             else value
         )
     return value
