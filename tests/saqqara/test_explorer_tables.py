@@ -60,12 +60,20 @@ def block(ident, page, rows):
     )
 
 
-def fixture(columns=5, ruled=True, language="en", running=True, order=None, contamination=False):
+def fixture(
+    columns=5,
+    ruled=True,
+    language="en",
+    running=True,
+    order=None,
+    contamination=False,
+    row_counts=(14, 13, 13),
+):
     pages = []
     expected = []
     offset = 0
     order = tuple(range(columns)) if order is None else tuple(order)
-    for page, count in enumerate((14, 13, 13), 1):
+    for page, count in enumerate(row_counts, 1):
         header = []
         rows = []
         spans = []
@@ -466,3 +474,186 @@ def test_continuation_survives_observed_empty_to_code_cells():
     assert recovered.continued_on == 3 and recovered.roles[-1] == "short_code"
     assert sum(r.cells[-1] == "OK" for r in recovered.rows) == 13
     assert sum(r.cells[-1] == "" for r in recovered.rows) == 27
+
+
+def short_fragments(ruled=True, segmented=False, row_counts=(1, 1, 1, 1, 1, 1)):
+    """Independent short-fragment control; no consumer text or geometry."""
+    doc, expected = fixture(3, ruled, row_counts=row_counts)
+    if segmented:
+        pages = []
+        for page in doc.pages:
+            rules = tuple(
+                segment
+                for rule in page.rules
+                for segment in (
+                    replace(rule, bottom=(rule.top + rule.bottom) / 2),
+                    replace(rule, top=(rule.top + rule.bottom) / 2),
+                )
+            )
+            pages.append(replace(page, rules=rules))
+        doc = replace(doc, pages=tuple(pages))
+    return doc, expected
+
+
+@pytest.mark.parametrize("ruled,segmented", [(False, False), (True, False), (True, True)])
+@pytest.mark.parametrize(
+    "factor,minimum,share", list(product((0.25, 0.5, 1), (2, 3, 4, 5), (0.4, 0.5, 0.6)))
+)
+def test_short_fragments_pool_support_after_continuation(ruled, segmented, factor, minimum, share):
+    doc, expected = short_fragments(ruled, segmented)
+    result = explore(
+        doc,
+        census_config=CensusConfig(
+            recurrence_fraction=share, table_policy=TablePolicy(factor, minimum)
+        ),
+        profile_config=ProfileConfig(recurrence_fraction=share),
+    )
+    assert not result.census.table_analysis.findings
+    (table,) = result.census.table_analysis.tables
+    assert tuple(r.cells for r in table.rows) == expected
+    assert table.continued_on == 6 and table.repetition_count == 5
+    assert len(result.reading.tables) == 6
+    assert len({r.record_id for r in table.rows}) == 6
+    assert all(m for r in table.rows for m in r.members)
+
+
+def test_short_fragments_do_not_borrow_support_across_missing_pages():
+    doc, _ = short_fragments()
+    # Each adjacent chain has fewer supporting rows than the configured minimum.
+    doc = replace(
+        doc,
+        pages=tuple(
+            replace(p, tables=(), spans=(), rules=()) if p.page in (3, 6) else p for p in doc.pages
+        ),
+    )
+    result = explore(doc, census_config=CensusConfig(table_policy=TablePolicy(minimum_rows=3)))
+    assert not result.census.table_analysis.tables
+    assert len(result.census.table_analysis.findings) == 4
+    assert {f.reason for f in result.census.table_analysis.findings} == {"TOO_FEW_ROWS"}
+
+
+def test_segmented_grid_recovers_touching_physical_cells():
+    doc, _ = short_fragments(segmented=True, row_counts=(3, 3))
+    pages = []
+    expected = []
+    for page in doc.pages:
+        table = page.tables[-1]
+        rows = []
+        for i, source in enumerate(table.cell_rows):
+            row = []
+            for col in range(3):
+                members = [c for c in source if 20 + col * 120 <= c.bbox[0] < 20 + (col + 1) * 120]
+                text = " ".join(c.text for c in members)
+                y = 190 + i * 20
+                row.append(
+                    TableCell(
+                        f"physical:{page.page}:{i}:{col}",
+                        text,
+                        (20 + col * 120, y, 20 + (col + 1) * 120, y + 20),
+                        tuple(s for c in members for s in c.source_spans),
+                    )
+                )
+            rows.append(tuple(row))
+            if i:
+                expected.append(tuple(c.text for c in row))
+        pages.append(replace(page, tables=(page.tables[0], replace(table, cell_rows=tuple(rows)))))
+    result = explore(replace(doc, pages=tuple(pages)))
+    assert not result.census.table_analysis.findings
+    (table,) = result.census.table_analysis.tables
+    assert table.policy["route"] == "grid"
+    assert tuple(r.cells for r in table.rows) == tuple(expected)
+
+
+def test_short_fragments_do_not_borrow_identifier_support_from_other_columns():
+    doc, _ = short_fragments()
+    pages = []
+    for page in doc.pages:
+        table = page.tables[-1]
+        rows = list(table.cell_rows)
+        if page.page % 2 == 0:
+            row = list(rows[1])
+            value = row[0].text
+            row[0] = replace(row[0], text="words")
+            row[-1] = replace(row[-1], text=value)
+            rows[1] = tuple(row)
+        pages.append(replace(page, tables=(page.tables[0], replace(table, cell_rows=tuple(rows)))))
+    result = explore(replace(doc, pages=tuple(pages)))
+    assert not result.census.table_analysis.tables
+    assert len(result.census.table_analysis.findings) == 6
+
+
+@pytest.mark.parametrize("ruled", [True, False])
+def test_mixed_length_fragments_retain_every_physical_row(ruled):
+    doc, expected = short_fragments(ruled, row_counts=(1, 4, 2, 1, 3, 2, 4, 1, 2))
+    result = explore(doc, census_config=CensusConfig(table_policy=TablePolicy(minimum_rows=5)))
+    (table,) = result.census.table_analysis.tables
+    assert table.continued_on == 9
+    assert tuple(row.cells for row in table.rows) == expected
+    assert len(result.reading.tables) == len(expected)
+
+
+def test_short_fragments_refuse_ambiguous_same_page_continuations():
+    doc, _ = short_fragments(row_counts=(1, 1))
+    page = doc.pages[1]
+    table = page.tables[-1]
+    duplicate = replace(table, table_id="other-body:2")
+    result = explore(
+        replace(doc, pages=(doc.pages[0], replace(page, tables=(*page.tables, duplicate))))
+    )
+    assert not result.census.table_analysis.tables
+    assert len(result.census.table_analysis.findings) == 3
+
+
+def test_collinear_rule_union_does_not_bridge_a_gap():
+    from ragix_kernels.saqqara.table_views import _covering_rule_positions
+
+    assert _covering_rule_positions((VerticalRule(10, 0, 15), VerticalRule(10, 15, 30)), 5, 25) == [
+        10
+    ]
+    assert (
+        _covering_rule_positions((VerticalRule(10, 0, 15), VerticalRule(10, 16, 30)), 5, 25) == []
+    )
+    assert _covering_rule_positions((VerticalRule(10, 0, 17), VerticalRule(10, 15, 30)), 5, 25) == [
+        10
+    ]
+
+
+def test_native_pdf_one_row_fragments_with_cell_rectangle_borders(tmp_path):
+    import importlib.util, json, subprocess, sys
+
+    if importlib.util.find_spec("pymupdf") is None:
+        pytest.skip("optional PDF reader")
+    code = """import json,sys,pymupdf
+from pathlib import Path
+from ragix_kernels.saqqara.explorer import digest_pdf,explore
+from ragix_kernels.saqqara.census import CensusConfig
+from ragix_kernels.saqqara.table_views import TablePolicy
+pdf=pymupdf.open()
+for p in range(6):
+ page=pdf.new_page()
+ for y in (180,210):
+  for left,right in ((20,100),(100,360),(360,440)):
+   page.draw_rect((left,y,right,y+30))
+ for x,t in zip((28,108,368),("Key","Description","Result")): page.insert_text((x,200),t,fontsize=10)
+ page.insert_text((28,230),f"9.{p+1}",fontsize=10)
+ page.insert_text((108,230),"plain text",fontsize=10)
+path=Path(sys.argv[1]);pdf.save(path,no_new_id=True);pdf.close()
+result=explore(digest_pdf(path),census_config=CensusConfig(table_policy=TablePolicy(minimum_rows=5)))
+print(json.dumps({"tables":len(result.census.table_analysis.tables),"rows":len(result.reading.tables),
+ "findings":[f.reason for f in result.census.table_analysis.findings],
+ "cells":[r.cells for t in result.census.table_analysis.tables for r in t.rows],
+ "pages":[t.pages for t in result.census.table_analysis.tables]}))
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", code, str(tmp_path / "fragmented.pdf")],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert json.loads(completed.stdout.splitlines()[-1]) == {
+        "tables": 1,
+        "rows": 6,
+        "findings": [],
+        "pages": [[1, 2, 3, 4, 5, 6]],
+        "cells": [[f"9.{i}", "plain text", ""] for i in range(1, 7)],
+    }

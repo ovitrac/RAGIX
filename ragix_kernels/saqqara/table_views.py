@@ -183,6 +183,40 @@ def _map(cells, bands, tolerance):
     return columns
 
 
+def _covering_rule_positions(rules, top, bottom):
+    """Union observed collinear segments; never bridge a positive gap."""
+    by_x = defaultdict(list)
+    for rule in rules:
+        by_x[round(rule.x, 3)].append((round(rule.top, 3), round(rule.bottom, 3)))
+    positions = []
+    for x, segments in sorted(by_x.items()):
+        covered = top
+        for start, end in sorted(segments):
+            if end <= covered:
+                continue
+            if start > covered:
+                break
+            covered = end
+            if covered >= bottom:
+                positions.append(x)
+                break
+    return positions
+
+
+def _column_role(values, identifiers, numbering, minimum):
+    nonempty = [v for v in values if v]
+    id_count = sum(bool(identifiers(v)) or bool(numbering.fullmatch(v)) for v in nonempty)
+    if id_count >= minimum:
+        return "id"
+    if all(v == "" for v in values):
+        return "empty"
+    if any(v is None for v in values):
+        return "unknown"
+    if nonempty and all(re.fullmatch(r"[A-Z0-9]{1,8}", v) for v in nonempty):
+        return "short_code"
+    return "free_text"
+
+
 def recover_tables(
     document,
     *,
@@ -231,7 +265,7 @@ def recover_tables(
                 excluded.append(table.table_id)
                 continue
             candidates.append(table.table_id)
-            if len(rows) < policy.minimum_rows + 1:
+            if len(rows) < 2:
                 fail(table, "TOO_FEW_ROWS")
                 continue
             header, *body = rows
@@ -239,13 +273,7 @@ def recover_tables(
             width = median(widths) if widths else policy.fallback_cell_width
             tolerance = round(width * policy.x_tolerance_factor, 3)
             box = tuple(round(v, 3) for v in union_box(c.bbox for row in rows for c in row))
-            possible = sorted(
-                {
-                    round(r.x, 3)
-                    for r in page.rules
-                    if round(r.top, 3) <= box[1] and round(r.bottom, 3) >= box[3]
-                }
-            )
+            possible = _covering_rule_positions(page.rules, box[1], box[3])
             left = [x for x in possible if x <= box[0]]
             right = [x for x in possible if x >= box[2]]
             rules = [x for x in possible if left[-1] <= x <= right[0]] if left and right else []
@@ -270,34 +298,17 @@ def recover_tables(
                 continue
             try:
                 mapped = [_map(row, bands, 0 if ruled else tolerance) for row in rows]
-                if any(
-                    sum(bool(row[i]) for row in mapped[1:]) < policy.minimum_rows
-                    for i in range(len(bands))
-                ):
-                    raise ValueError("INSUFFICIENT_BAND_SUPPORT")
                 if any(any(not cells for cells in row) for row in mapped):
                     raise ValueError("BAND_COUNT_VARIES")
                 headers = tuple(_join(cells) for cells in mapped[0])
                 if any(h is None or not h for h in headers):
                     raise ValueError("HEADER_UNREADABLE")
-                roles = []
-                for i in range(len(bands)):
-                    values = [_join(row[i]) for row in mapped[1:]]
-                    nonempty = [v for v in values if v]
-                    id_count = sum(
-                        bool(identifiers(v)) or bool(numbering.fullmatch(v)) for v in nonempty
-                    )
-                    if id_count >= policy.minimum_rows:
-                        role = "id"
-                    elif all(v == "" for v in values):
-                        role = "empty"
-                    elif any(v is None for v in values):
-                        role = "unknown"
-                    elif nonempty and all(re.fullmatch(r"[A-Z0-9]{1,8}", v) for v in nonempty):
-                        role = "short_code"
-                    else:
-                        role = "free_text"
-                    roles.append(role)
+                # One observed identifier locates a provisional column. Acceptance
+                # still requires minimum_rows observations in the continuation group.
+                roles = [
+                    _column_role([_join(row[i]) for row in mapped[1:]], identifiers, numbering, 1)
+                    for i in range(len(bands))
+                ]
                 if "id" not in roles:
                     raise ValueError("NO_ID_LIKE_COLUMN")
                 output_rows = []
@@ -353,6 +364,15 @@ def recover_tables(
             except ValueError as error:
                 fail(table, str(error))
     counts = Counter(p[0] for p in provisional)
+
+    def continuation_key(item):
+        return (
+            item[0],
+            tuple(i for i, role in enumerate(item[3]) if role == "id"),
+            _relative_bands(item[5]),
+        )
+
+    per_page = Counter((continuation_key(item), item[1].page) for item in provisional)
     groups = []
     for item in sorted(provisional, key=lambda p: (p[1].page, p[1].table_id)):
         signature, table, *_ = item
@@ -364,11 +384,10 @@ def recover_tables(
         matches = [
             g
             for g in groups
-            if g[-1][0] == signature
-            and g[-1][1].page == table.page - 1
-            and tuple(i for i, r in enumerate(g[-1][3]) if r == "id")
-            == tuple(i for i, r in enumerate(item[3]) if r == "id")
-            and _relative_bands(g[-1][5]) == _relative_bands(item[5])
+            if g[-1][1].page == table.page - 1
+            and continuation_key(g[-1]) == continuation_key(item)
+            and per_page[(continuation_key(item), table.page)] == 1
+            and per_page[(continuation_key(item), table.page - 1)] == 1
         ]
         if len(matches) == 1:
             matches[0].append(item)
@@ -377,12 +396,27 @@ def recover_tables(
     recovered = []
     for group in groups:
         first = group[0]
+        rows = tuple(r for item in group for r in item[4])
+        # Supporting-row evidence belongs to the continued table, not to an
+        # arbitrary page break. Every mapped row has a physical cell per band.
+        if len(rows) < policy.minimum_rows:
+            for item in group:
+                fail(item[1], "TOO_FEW_ROWS")
+            continue
+        roles = tuple(
+            _column_role([r.cells[i] for r in rows], identifiers, numbering, policy.minimum_rows)
+            for i in range(len(first[3]))
+        )
+        if "id" not in roles:
+            for item in group:
+                fail(item[1], "NO_ID_LIKE_COLUMN")
+            continue
         recovered.append(
             RecoveredTable(
                 stable_id("continued-table", document.source_id, first[1].table_id),
                 first[2],
-                tuple(_combined_role({item[3][i] for item in group}) for i in range(len(first[3]))),
-                tuple(r for item in group for r in item[4]),
+                roles,
+                rows,
                 tuple(item[1].table_id for item in group),
                 tuple(item[1].page for item in group),
                 len(group),
@@ -441,15 +475,3 @@ def _relative_bands(bands):
     left = bands[0][0]
     width = bands[-1][1] - left
     return tuple((round((a - left) / width, 3), round((b - left) / width, 3)) for a, b in bands)
-
-
-def _combined_role(roles):
-    if len(roles) == 1:
-        return next(iter(roles))
-    if "unknown" in roles:
-        return "unknown"
-    if "free_text" in roles:
-        return "free_text"
-    if "short_code" in roles:
-        return "short_code"
-    return "unknown"

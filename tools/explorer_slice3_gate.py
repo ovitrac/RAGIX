@@ -50,6 +50,15 @@ for columns in (3, 5, 8):
                 == expected
             )
             cases[f"table_{columns}_{ruled}_{language}"] = doc
+for ruled, segmented in ((False, False), (True, False), (True, True)):
+    for counts in ((1, 1, 1, 1, 1, 1), (1, 4, 2, 1, 3, 2, 4, 1, 2)):
+        doc, expected = tables.short_fragments(ruled, segmented, counts)
+        r = explore(doc)
+        assert (
+            tuple(row.cells for t in r.census.table_analysis.tables for row in t.rows) == expected
+        )
+        assert len(r.census.table_analysis.tables) == 1
+        cases[f"short_{ruled}_{segmented}_{len(counts)}"] = doc
 for value in (":", "   :", "Link:"):
     cases["failure_" + str(len(cases))] = failure.document(text=value, rule=True)
 output = {"provenance": imported_provenance(require_clean=True), "cases": {}}

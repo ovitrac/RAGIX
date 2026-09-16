@@ -223,16 +223,21 @@ not treated as word-cell candidates with invented geometry.
 
 Global recurring edge bands and rotated oversized observations are evaluated before
 raw table candidacy. All remaining blocks are considered. Complete vertical rules
-define columns when available; otherwise consistent following-row x bands do. The
+(including unions of contiguous collinear strokes) define columns when available; otherwise consistent following-row x bands do. The
 x tolerance is a declared factor of median observed cell width, with an explicit
-fallback and provenance. Every band requires `minimum_rows` supporting rows, and
-inconsistent counts, straddling cells or unsupported header-only bands are refused.
+fallback and provenance. Every band requires `minimum_rows` supporting rows across
+an unambiguous adjacent-page continuation group, after grouping. A single-row
+fragment supplies provisional geometry and identifier-column position, not final
+acceptance. Inconsistent counts, straddling cells and unsupported header-only bands
+are refused. Positive gaps between rule strokes are never bridged.
 The header must recur in another block/page and an identifier-like column must be
 observed. Roles are generic id/free_text/short_code/empty/unknown proposals.
 
 Accepted rows retain their original cell-member ids, bounding boxes and flags.
 Repeated header fragments on adjacent pages are grouped only when normalized
-headers, roles and relative geometry agree. `continued_on` and `repetition_count`
+headers, identifier-column positions and relative geometry agree, with exactly one
+matching fragment on each neighboring page. Missing pages and ambiguous neighbors
+cannot supply pooled support. Final roles are computed from the pooled cells. `continued_on` and `repetition_count`
 are recorded; header repetitions never become additional data rows. This is an
 explicit structural grouping rule, not a cross-document identity declaration.
 A missing or ambiguous primary id does not erase the row. Duplicate header texts
@@ -247,9 +252,13 @@ logical continued tables, unresolved blocks and excluded furniture. A zero is
 always relative to observed candidates; it does not certify an arbitrary layout.
 Census/profile schemas now use `0.6`/`0.5`; rebuild earlier records. The separate
 version increments preserve the independently deliverable priority/privacy fixes.
+The short-fragment correction uses kernel version `0.5.1` without changing the
+record schemas; recompute results cached by `0.5.0`.
 
 The synthetic gates cover 3/5/8 columns, FR/EN, ruled/unruled layouts, wrapped and
-empty cells, contamination, 40-row mappings and three-page continuation. Sensitivity
+empty cells, contamination, 40-row mappings and three-page continuation. Additional
+controls cover one-row fragments across six pages, mixed-length fragments across
+nine pages, segmented grids and native PDF cell-rectangle borders. Sensitivity
 sweeps x factors 0.25/0.5/1.0, row support 2/3/4/5 and recurrence 0.4/0.5/0.6.
 Digit-only document-family discovery and classifier calibration remain outside
 this slice. Consumer confirmation against its sealed inventories remains required.

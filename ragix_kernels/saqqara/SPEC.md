@@ -536,11 +536,16 @@ reading configuration, never a document's semantic authority.
   the label cell and adjacent right/below cells, not unrelated page rules.
   Defaults report no_body_lines, too_few_gaps or unimodal. E7.9a–f exercise these
   invariants, including minimum-support sensitivity and competing pluralities.
-  For raw table blocks, full-height grid rules define columns; otherwise bands
-  must be supported consistently by following rows. No fixed column count is used.
+  For raw table blocks, full-height grid rules (including contiguous collinear
+  segments, without bridging gaps) define columns; otherwise bands must be
+  supported consistently by following rows. No fixed column count is used.
   Unaligned cells, unsupported bands and unrepeated headers yield TABLE_UNRESOLVED.
-  Header repetition plus relative geometry and roles can group adjacent-page
-  fragments, retaining every source row once and recording the continuation rule.
+  Header repetition plus relative geometry and identifier-column positions can
+  group unambiguous adjacent-page fragments, retaining every source row once and
+  recording the continuation rule. Minimum row and identifier support is tested
+  after this grouping; a page break alone cannot discard short fragments. Missing
+  pages and multiple matching neighbors cannot provide pooled support. The short-
+  fragment and segmented-grid controls in `test_explorer_tables.py` falsify this.
   Cell members and join uncertainty remain explicit. Contaminated headers/rows
   stay flagged and are never cleaned. X13 exercises reconstruction, refusals,
   column/furniture mutations and geometry-policy sensitivity.

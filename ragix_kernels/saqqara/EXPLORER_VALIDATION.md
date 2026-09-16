@@ -399,3 +399,31 @@ It is required for acceptance. The consumer's original-PDF display gate remains
 separate and mandatory. Digit-only document-family discovery, label ranking and
 classifier calibration/replay are outside this slice as ruled. No live model
 work, source purge, bridge declaration or domain conclusion was performed.
+
+
+### Slice 3 correction: supporting rows after continuation
+
+The initial 40-row fixture gave every page enough rows for independent acceptance.
+It therefore did not falsify the premature per-fragment supporting-row check.
+Consumer confirmation withheld acceptance after exposing a recall regression;
+the synthetic gates above do not establish consumer acceptance.
+
+The new one-row-per-page control failed with TOO_FEW_ROWS before correction.
+A second control using contiguous segmented borders and touching physical cells
+failed with INSUFFICIENT_BANDS. Both are independently synthetic. Continuation now
+precedes the row-support decision, constrained by repeated normalized headers,
+aligned identifier-column positions, relative geometry and unique neighbors on
+consecutive pages. No acceptance threshold is reduced. Grid recognition unions
+only observed collinear segments, using the existing three-decimal geometry rule;
+it never fills positive gaps. Final roles use pooled observations. Every source
+row and cell member remains traceable. Kernels advance to 0.5.1 to invalidate
+cached results; census/profile schemas remain 0.6/0.5.
+
+Regression controls cover one-row fragments on six pages and mixed-length
+fragments on nine pages, native PDF cell-rectangle borders, missing continuation
+pages, changed identifier columns, ambiguous same-page neighbors and gaps between
+rule strokes. The one-row fixture passes all 108 combinations: three geometry
+modes (unruled, full strokes, segmented strokes), x factors 0.25/0.5/1.0,
+supporting rows 2/3/4/5 and recurrence shares 0.4/0.5/0.6. The replay driver includes
+six additional continuation cases. Private confirmation remains a separate merge
+gate; open field-reader findings are outside this bounded correction.
