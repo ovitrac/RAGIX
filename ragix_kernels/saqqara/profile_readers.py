@@ -10,7 +10,7 @@ from .field_views import TextView, stable_id, union_box
 from .profile import DocumentProfile, derive_census_id
 from ..harvest.quantitative import harvest
 from ..harvest.report import replay_digest
-from .value_windows import join_window
+from .value_windows import join_window, unresolved_reason
 from .census import table_cell_evidence
 
 
@@ -203,7 +203,9 @@ def read_document(
             return None
         return entry.value
 
-    reference = value("reference_fields")
+    reference = profile.fields["reference_fields"].value
+    if not census.windows and not census.construct_findings and reference is None:
+        unknown("reference_fields")
     numbering = value("numbering_style")
     families = value("identifier_families")
     furniture_rules = value("furniture")
@@ -248,11 +250,34 @@ def read_document(
                     locale_prior=locale,
                 )
             )
-        if reference:
+        if census.windows:
             if profile.continuation_policy != census.continuation_policy:
                 raise ValueError("window policy differs from sealed census; rebuild census")
             for window in census.windows:
-                if window.views[0].page != page.page or window.label not in reference["labels"]:
+                if window.views[0].page != page.page:
+                    continue
+                if not identifiers(window.following_text):
+                    # Invalid terminal windows already have a construct finding.
+                    if not any(
+                        f.span_id == window.views[0].view_id for f in census.construct_findings
+                    ):
+                        reason = (
+                            unresolved_reason(window)
+                            if not window.following_text.strip()
+                            else "NON_IDENTIFIER_VALUE"
+                        )
+                        findings.append(
+                            UnknownTemplate(
+                                stable_id("reference-occurrence", window.window_id, reason),
+                                document.source_id,
+                                "reference_fields",
+                                profile.census_id,
+                                1,
+                                reason,
+                                page.page,
+                                window.views[0].view_id,
+                            )
+                        )
                     continue
                 view = join_window(window)
                 label = window.label
@@ -300,7 +325,11 @@ def read_document(
                             revision_end,
                         )
                     )
-                flags = window.flags
+                flags = window.flags + (
+                    ()
+                    if reference and window.label in reference["labels"]
+                    else ("REFERENCE_CLASS_UNKNOWN",)
+                )
                 undecidable = bool(flags)
                 fields.append(
                     FieldReading(
@@ -310,7 +339,7 @@ def read_document(
                         tuple(targets),
                         "UNDECIDABLE" if undecidable else "READ",
                         flags,
-                        window.needs_review,
+                        bool(flags),
                     )
                 )
 
@@ -381,8 +410,6 @@ def read_document(
                         "evidence": [asdict(e) for e in table.evidence],
                     }
                 )
-    if reference and not fields:
-        unknown("reference_fields")
     return ReaderResult(
         document.source_id,
         replay_digest([profile]),

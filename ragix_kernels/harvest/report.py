@@ -114,6 +114,7 @@ class ReadingCoverage:
     model_calls_refused: int = 0
     stage_times: tuple[tuple[str, float], ...] = ()
     construct_failures: int = 0
+    unresolved_occurrences: int = 0
 
     def __post_init__(self):
         if not self.record_id or not self.source_id:
@@ -197,8 +198,9 @@ def build_report(document, census, profile, reading, provenance=None):
         sum(c is None for t in all_tables for r in t.rows for c in r),
         sum(bool(s.flags) for p in document.pages for s in p.spans),
         sum(f.reason == "UNKNOWN_TEMPLATE" for f in reading.findings),
-        construct_failures=sum(
-            f.reason in {"EMPTY_LABEL", "INVALID_LABEL_WINDOW", "INVALID_CONSTRUCT"}
+        construct_failures=len(census.construct_findings),
+        unresolved_occurrences=sum(
+            f.field == "reference_fields" and f.reason != "UNKNOWN_TEMPLATE"
             for f in reading.findings
         ),
     )

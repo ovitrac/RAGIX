@@ -526,6 +526,13 @@ reading configuration, never a document's semantic authority.
   Expected document-construct failures stay scoped to their document at every
   kernel stage; a failed report is explicit and unaffected documents continue.
   Source/schema failures are not repaired or promoted. X21 exercises these paths.
+  Reference labels use minimum positive support and a strict plurality among
+  non-empty classes, not a document-level fraction. Empty occurrences are listed
+  separately; each occurrence produces a field or a scoped finding. Unselected
+  labels retain identifier-bearing candidates as UNDECIDABLE. Grid windows follow
+  the label cell and adjacent right/below cells, not unrelated page rules.
+  Defaults report no_body_lines, too_few_gaps or unimodal. E7.9a–f exercise these
+  invariants, including minimum-support sensitivity and competing pluralities.
 - **K9.6 Section expressions.** Lists preserve members and ranges preserve their
   literal operator and endpoints. No reader expands a range or resolves it against
   an inventory. Split/glued observations remain flagged. Revisions do not become

@@ -13,7 +13,7 @@ from ..harvest.report import replay_digest
 
 from .value_windows import ContinuationPolicy, DEFAULT_CONTINUATION, policy_from_dict
 
-VERSION = "document-profile/0.2"
+VERSION = "document-profile/0.3"
 FIELDS = (
     "language",
     "identifier_families",
@@ -48,7 +48,13 @@ class ProfileField:
             raise ValueError("invalid profile field")
         if (
             not isinstance(self.diagnostics, dict)
-            or set(self.diagnostics) - {"ambiguous_observations", "observed_ratio"}
+            or set(self.diagnostics)
+            - {
+                "ambiguous_observations",
+                "observed_ratio",
+                "reference_counts",
+                "unresolved_occurrences",
+            }
             or (
                 "ambiguous_observations" in self.diagnostics
                 and (
@@ -63,7 +69,9 @@ class ProfileField:
         ):
             raise ValueError("closed profile diagnostics required")
         if self.status == "UNKNOWN":
-            if self.value is not None or self.confidence != 0:
+            if self.value is not None or (
+                self.confidence != 0 and self.rule_id != "labels/identifier-plurality/2"
+            ):
                 raise ValueError("UNKNOWN has no value/confidence")
         elif self.value is None or not self.evidence:
             raise ValueError("supported field needs evidence")
@@ -195,7 +203,6 @@ class DocumentProfile:
 @dataclass(frozen=True)
 class ProfileConfig:
     recurrence_fraction: float = 0.5
-    reference_fraction: float = 0.8
     minimum_occurrences: int = 2
     locale_dominance_ratio: float = 0.9
     locale_minimum_n: int = 2
@@ -204,7 +211,6 @@ class ProfileConfig:
     def __post_init__(self):
         if (
             not 0 < self.recurrence_fraction <= 1
-            or not 0 < self.reference_fraction <= 1
             or self.minimum_occurrences < 2
             or not 0.5 < self.locale_dominance_ratio <= 1
             or type(self.locale_minimum_n) is not int
@@ -293,15 +299,61 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
     labels = by.get("label", [])
     selected = []
     support = []
+    stats = []
     for literal in sorted({r.literal for r in labels}):
         group = [r for r in labels if r.literal == literal]
-        count = sum(r.count for r in group)
-        positive = sum(
-            r.count for r in group if dict(r.attributes)["follow"] == "identifier-bearing"
+        counts = {
+            kind: sum(r.count for r in group if dict(r.attributes)["follow"] == kind)
+            for kind in ("identifier-bearing", "number-bearing", "free-text", "empty")
+        }
+        positive = counts["identifier-bearing"]
+        negative = counts["number-bearing"] + counts["free-text"]
+        competitor = max(counts["number-bearing"], counts["free-text"])
+        accepted = positive >= config.minimum_occurrences and positive > competitor
+        stats.append(
+            {
+                "label": literal,
+                "positives": positive,
+                "non_empty_negatives": negative,
+                "empty": counts["empty"],
+                "classes": counts,
+                "minimum_occurrences": config.minimum_occurrences,
+                "confidence": positive / (positive + negative) if positive + negative else 0,
+                "selected": accepted,
+                "reason": (
+                    None
+                    if accepted
+                    else (
+                        "TOO_FEW_POSITIVES"
+                        if positive < config.minimum_occurrences
+                        else "COMPETING_PLURALITY"
+                    )
+                ),
+            }
         )
-        if count >= config.minimum_occurrences and positive / count >= config.reference_fraction:
+        if accepted:
             selected.append(literal)
             support.extend(group)
+    from .value_windows import unresolved_reason
+
+    unresolved = [
+        {
+            "window_id": w.window_id,
+            "label": w.label,
+            "page": w.views[0].page,
+            "span_id": w.views[0].view_id,
+            "reason": unresolved_reason(w),
+        }
+        for w in census.windows
+        if not w.following_text.strip()
+    ]
+    chosen = [s for s in stats if s["selected"]]
+    confidence = (
+        sum(s["positives"] for s in chosen)
+        / sum(s["positives"] + s["non_empty_negatives"] for s in chosen)
+        if chosen
+        else max((s["confidence"] for s in stats), default=0)
+    )
     if selected:
         put(
             "reference_fields",
@@ -312,8 +364,16 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
                 "role_line": "undecidable",
             },
             support,
-            "labels/identifier-follow/1",
+            "labels/identifier-plurality/2",
+            confidence,
         )
+    fields["reference_fields"] = replace(
+        fields["reference_fields"],
+        confidence=confidence,
+        rule_id="labels/identifier-plurality/2",
+        evidence=tuple(sorted(r.candidate_id for r in labels)),
+        diagnostics={"reference_counts": stats, "unresolved_occurrences": unresolved},
+    )
     tables = by.get("table_header", [])
     if tables:
         put(

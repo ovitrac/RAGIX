@@ -22,7 +22,7 @@ from ..harvest.numeric_locale import physical_numbers
 
 from .failures import ConstructFinding
 
-VERSION = "census/0.3"
+VERSION = "census/0.4"
 IDENTIFIER = re.compile(r"(?<!\w)[A-Za-z0-9]+(?:[-/]+[A-Za-z0-9]+)+(?!\w)")
 NUMBERING = re.compile(r"(?<![\w.])\d+(?:\.\s*\d+)+(?![\w.])")
 CATEGORIES = frozenset(
@@ -251,7 +251,16 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
     physical_evidence = []
     construct_findings = []
     policy = derive_continuation(
-        [page_lines(p) for p in document.pages], config.continuation_policy
+        [
+            [
+                v
+                for v in page_lines(p)
+                if v.bbox[1] >= p.height * config.edge_fraction
+                and v.bbox[3] <= p.height * (1 - config.edge_fraction)
+            ]
+            for p in document.pages
+        ],
+        config.continuation_policy,
     )
 
     def emit(category, literal, evidence, **attrs):

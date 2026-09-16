@@ -153,3 +153,32 @@ exception text is not copied into exports. Other documents are still attempted.
 A unique known page is retained; an unknown location is not guessed. Programming
 errors outside that bounded set still propagate. Failed inputs never become
 successful evidence or silently repaired profiles.
+
+## Occurrence-level reference decisions (E7.9)
+
+`reference_fraction` is removed. A label is proposed as a reference field when
+its identifier-bearing occurrences meet `minimum_occurrences` and form a strict
+plurality among non-empty classes. A tied plurality remains UNKNOWN. Empty
+windows never vote against a label. Per-label positives, non-empty negatives,
+empty count, class counts, minimum support and observed confidence are recorded
+in `reference_fields.diagnostics.reference_counts`. Confidence is positives divided
+by positives plus non-empty negatives. This diagnostic confidence is retained
+also for UNKNOWN reference classifications; it is not an acceptance verdict.
+
+`unresolved_occurrences` lists every empty window by page, source span and window
+id, with WINDOW_BOUND_HIT, EMPTY_CELL, RULE_STOP or NO_TEXT. Every occurrence
+produces either a field or a field-level finding. Identifier-bearing occurrences
+of an unselected label remain visible as UNDECIDABLE with REFERENCE_CLASS_UNKNOWN,
+rather than disappearing. Non-identifier values receive their own finding.
+
+A label contained by actual grid rules uses its cell, then the adjacent cell to
+its right and the cell below. These cell boundaries determine membership; a row
+rule crossed into an adjacent value cell does not behave like an unruled-text
+stop. The safety cap remains explicit and reviewable. Default gap policies record
+why derivation was unavailable: no_body_lines, too_few_gaps or unimodal. Histograms
+use body lines, and the diagnostic is retained in profiles and reports.
+
+The revised records use `census/0.4`, `document-profile/0.3` and
+`value-window/0.2`; old stored windows/profiles must be rebuilt. These version
+increments precede the independent privacy/table changes because the added
+priority fixes can be delivered separately.
