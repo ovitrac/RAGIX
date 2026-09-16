@@ -58,12 +58,25 @@ explicit amendments go through `apply_reviews`.
 
 ## Reproducible validation
 
+Focused development checks may use `tests/harvest tests/saqqara`. Acceptance
+requires the full repository suite, including consumers of Saqqara's declared
+surface:
+
 ```bash
-python -m pytest tests/harvest tests/saqqara -q
-python tools/explorer_gate.py --output /tmp/explorer-gate.json
+python -m pytest tests/ -q -p no:cacheprovider
+python tools/explorer_gate.py --require-clean --output /tmp/explorer-gate.json
 ```
 
-The gate tool uses only generated fixtures. Its output contains per-category
+When the declared kernel surface changes, inspect its consumers with
+`rg -n 'DECLARED_KERNELS|FROZEN_COUNTS|pinned_lists' tests/` and update the
+independent literal in
+`tests/tender/test_t0_family.py::test_t0_7_saqqara_pinned_lists_are_untouched_by_this_family`
+in the same change. Preserve the literal assertion and the frozen counts; do not
+replace the cross-family guard with a comparison of a declaration to itself.
+The independent guard caught the omitted update in PR #25; `f1f9954` corrected it.
+
+The gate tool uses only generated fixtures. It checks synthetic replay and
+imported-source cleanliness; it does not replace the full pytest suite. Its output contains per-category
 census counts, profile and report digests, imported-code provenance and a
 PDF round-trip result. Use the same committed source, Python and extractor
 versions on both architectures. The optional model benchmark runs only against

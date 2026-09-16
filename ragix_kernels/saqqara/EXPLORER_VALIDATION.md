@@ -122,3 +122,38 @@ Continuation distance is an explicit configurable bound. Unknown connectors,
 unsupported language/locale and ambiguous layouts still require review.
 Consumer verification against its own inventories and its own policy remains a
 separate acceptance step. See `EXPLORER.md` for the library and adapter entrypoints.
+
+## Post-merge correction — cross-family acceptance, 2026-09-16
+
+The initial validation above covered Harvest and Saqqara only. It did **not**
+establish repository-wide acceptance: from `206ed46`, the full suite failed at
+`tests/tender/test_t0_family.py::test_t0_7_saqqara_pinned_lists_are_untouched_by_this_family`.
+The Explorer change updated Saqqara's declared kernel list but omitted the
+independent literal held by the tender family. The initial test-scope selection
+missed this cross-family dependency; the existing guard correctly detected it.
+
+Commit `f1f9954015de64670c2c57380a2ea2373903c50a` adds the four Explorer kernel
+classes to that literal. It leaves `FROZEN_COUNTS` unchanged and preserves the
+independent assertion. The fix is included in PR #25's merge,
+`d3200776e316d0fc27cccfe296f49ce5cdea69c0`.
+
+Independent verification of the merged implementation, using `ragix-env` on
+x86_64:
+
+```bash
+conda run --no-capture-output -n ragix-env python -m pytest tests/ -q -p no:cacheprovider
+```
+
+**Result: 1,948 passed, 37 skipped, 140 warnings in 31.35 seconds.** The warnings
+concern a test-class collection warning and deprecated naive UTC timestamp calls;
+none is a test failure. This full-suite result supersedes any interpretation of
+the earlier scoped counts as repository-wide acceptance. The earlier replay and
+model measurements remain scoped as originally recorded; no new ARM full-suite
+result is asserted here.
+
+Prevention: `EXPLORER.md` now requires the full repository suite for acceptance,
+plus inspection of consumers of `DECLARED_KERNELS`, `FROZEN_COUNTS` and pinned
+lists whenever the kernel surface changes. Focused suites remain useful during
+implementation. The synthetic gate tool and a clean source tree do not replace
+repository-wide tests. CI already runs the tender family gates; this correction
+does not weaken or replace that independent check.
