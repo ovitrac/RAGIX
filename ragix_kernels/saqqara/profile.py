@@ -3,7 +3,7 @@
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 """
 
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, replace, field
 import json
 import re
 import math
@@ -11,7 +11,9 @@ from .census import Census
 from .field_views import stable_id
 from ..harvest.report import replay_digest
 
-VERSION = "document-profile/0.1"
+from .value_windows import ContinuationPolicy, DEFAULT_CONTINUATION, policy_from_dict
+
+VERSION = "document-profile/0.2"
 FIELDS = (
     "language",
     "identifier_families",
@@ -32,6 +34,7 @@ class ProfileField:
     evidence: tuple[str, ...]
     rule_id: str
     status: str
+    diagnostics: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if (
@@ -43,6 +46,22 @@ class ProfileField:
             or not self.rule_id
         ):
             raise ValueError("invalid profile field")
+        if (
+            not isinstance(self.diagnostics, dict)
+            or set(self.diagnostics) - {"ambiguous_observations", "observed_ratio"}
+            or (
+                "ambiguous_observations" in self.diagnostics
+                and (
+                    type(self.diagnostics["ambiguous_observations"]) is not int
+                    or self.diagnostics["ambiguous_observations"] < 0
+                )
+            )
+            or (
+                "observed_ratio" in self.diagnostics
+                and not 0 <= self.diagnostics["observed_ratio"] <= 1
+            )
+        ):
+            raise ValueError("closed profile diagnostics required")
         if self.status == "UNKNOWN":
             if self.value is not None or self.confidence != 0:
                 raise ValueError("UNKNOWN has no value/confidence")
@@ -80,6 +99,7 @@ class DocumentProfile:
     template_signature: str
     reviews: tuple[ProfileReview, ...] = ()
     version: str = VERSION
+    continuation_policy: ContinuationPolicy = DEFAULT_CONTINUATION
 
     def __post_init__(self):
         if (
@@ -102,7 +122,6 @@ class DocumentProfile:
                 "stop_labels",
                 "continuation",
                 "role_line",
-                "max_gap_ratio",
             },
             "id_row_tables": {"tables"},
             "furniture": {
@@ -113,7 +132,19 @@ class DocumentProfile:
                 "large_points",
                 "rotation_threshold",
             },
-            "numeric_locale": {"decimal_separator", "grouping", "units", "comparators"},
+            "numeric_locale": {
+                "strategy",
+                "decimal_separator",
+                "prior_strength",
+                "separator_counts",
+                "n",
+                "dominance_ratio",
+                "minimum_n",
+                "dominant_n",
+                "grouping",
+                "units",
+                "comparators",
+            },
             "reading_coverage": {"pages", "text_layer_pages"},
         }
         for name, entry in self.fields.items():
@@ -132,8 +163,26 @@ class DocumentProfile:
                     for f in value
                 ):
                     raise ValueError("family schema")
-            if name == "numeric_locale" and value["decimal_separator"] not in {".", ","}:
+            if name == "numeric_locale" and value["decimal_separator"] not in {None, ".", ","}:
                 raise ValueError("locale schema")
+            if name == "numeric_locale":
+                counts = value["separator_counts"]
+                if (
+                    value["strategy"] != "per_token"
+                    or value["prior_strength"] not in {"none", "weak", "dominant"}
+                    or not isinstance(counts, dict)
+                    or set(counts) != {".", ","}
+                    or any(type(n) is not int or n < 0 for n in counts.values())
+                    or type(value["n"]) is not int
+                    or value["n"] != sum(counts.values())
+                    or type(value["minimum_n"]) is not int
+                    or value["minimum_n"] < 2
+                    or type(value["dominant_n"]) is not int
+                    or value["dominant_n"] < value["minimum_n"]
+                    or not 0.5 < value["dominance_ratio"] <= 1
+                    or (value["decimal_separator"] is None) != (value["prior_strength"] == "none")
+                ):
+                    raise ValueError("locale prior schema")
             if name == "reference_fields" and (
                 value["continuation"] != "same_page_column_until_boundary"
                 or value["role_line"] != "undecidable"
@@ -148,14 +197,20 @@ class ProfileConfig:
     recurrence_fraction: float = 0.5
     reference_fraction: float = 0.8
     minimum_occurrences: int = 2
-    continuation_gap_ratio: float = 2.5
+    locale_dominance_ratio: float = 0.9
+    locale_minimum_n: int = 2
+    locale_dominant_n: int = 5
 
     def __post_init__(self):
         if (
             not 0 < self.recurrence_fraction <= 1
             or not 0 < self.reference_fraction <= 1
             or self.minimum_occurrences < 2
-            or self.continuation_gap_ratio <= 0
+            or not 0.5 < self.locale_dominance_ratio <= 1
+            or type(self.locale_minimum_n) is not int
+            or self.locale_minimum_n < 2
+            or type(self.locale_dominant_n) is not int
+            or self.locale_dominant_n < self.locale_minimum_n
         ):
             raise ValueError("invalid profile thresholds")
 
@@ -255,7 +310,6 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
                 "stop_labels": sorted({r.literal for r in labels}),
                 "continuation": "same_page_column_until_boundary",
                 "role_line": "undecidable",
-                "max_gap_ratio": config.continuation_gap_ratio,
             },
             support,
             "labels/identifier-follow/1",
@@ -308,15 +362,35 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
             "furniture/recurrence-and-geometry/1",
         )
     notation = by.get("notation", [])
-    decimal = [r for r in notation if dict(r.attributes)["kind"] == "decimal"]
-    separators = {s for r in decimal for s in (".", ",") if s in r.literal}
-    if len(separators) == 1 and any(
-        not re.fullmatch(r"[+−-]?[1-9]\d{0,2}[.,]\d{3}", r.literal) for r in decimal
-    ):
+    from ..harvest.numeric_locale import resolve_number
+
+    physical = [
+        r for r in notation if dict(r.attributes)["kind"] in {"decimal", "physical_integer"}
+    ]
+    counts = {".": 0, ",": 0}
+    for record in physical:
+        local = resolve_number(record.literal)
+        if local.value is not None and local.separator is not None:
+            counts[local.separator] += record.count
+    n = sum(counts.values())
+    winner = max(counts, key=counts.get)
+    ratio = counts[winner] / n if n else 0
+    separator = (
+        winner if n >= config.locale_minimum_n and ratio >= config.locale_dominance_ratio else None
+    )
+    strength = ("dominant" if n >= config.locale_dominant_n else "weak") if separator else "none"
+    if physical:
         put(
             "numeric_locale",
             {
-                "decimal_separator": next(iter(separators)),
+                "strategy": "per_token",
+                "decimal_separator": separator,
+                "prior_strength": strength,
+                "separator_counts": counts,
+                "n": n,
+                "dominance_ratio": config.locale_dominance_ratio,
+                "minimum_n": config.locale_minimum_n,
+                "dominant_n": config.locale_dominant_n,
                 "grouping": [
                     r.literal for r in notation if dict(r.attributes)["kind"] == "grouping"
                 ],
@@ -327,8 +401,18 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
                     {r.literal for r in notation if dict(r.attributes)["kind"] == "operator"}
                 ),
             },
-            notation,
-            "locale/consistent-separator/1",
+            physical,
+            "locale/token-first-prior/1",
+            ratio if strength == "dominant" else min(ratio, 0.5),
+        )
+        fields["numeric_locale"] = replace(
+            fields["numeric_locale"],
+            diagnostics={
+                "ambiguous_observations": sum(
+                    r.count for r in physical if resolve_number(r.literal).value is None
+                ),
+                "observed_ratio": ratio,
+            },
         )
     pages = by.get("page", [])
     put(
@@ -349,7 +433,13 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
         fields["numbering_style"].value,
         sorted({dict(r.attributes)["shape"] for r in ids}),
     )
-    return DocumentProfile(census.source_id, derive_census_id(census), fields, signature)
+    return DocumentProfile(
+        census.source_id,
+        derive_census_id(census),
+        fields,
+        signature,
+        continuation_policy=census.continuation_policy,
+    )
 
 
 def apply_reviews(profile, reviews, census):
@@ -382,6 +472,7 @@ def profile_from_dict(data):
     return DocumentProfile(
         **{
             **data,
+            "continuation_policy": policy_from_dict(data["continuation_policy"]),
             "fields": {k: field(v) for k, v in data["fields"].items()},
             "reviews": tuple(
                 ProfileReview(**{**r, "replacement": field(r["replacement"])})

@@ -17,8 +17,9 @@ BBox = tuple[float, float, float, float]
 
 
 def stable_id(*parts) -> str:
-    return hashlib.sha256(json.dumps(parts, ensure_ascii=False, sort_keys=True,
-                                    separators=(",", ":")).encode()).hexdigest()
+    return hashlib.sha256(
+        json.dumps(parts, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,20 @@ class VerticalRule:
 
 
 @dataclass(frozen=True)
+class HorizontalRule:
+    y: float
+    left: float
+    right: float
+
+    def between(self, before: BBox, after: BBox) -> bool:
+        return (
+            before[3] <= self.y <= after[1]
+            and self.left < max(before[2], after[2])
+            and self.right > min(before[0], after[0])
+        )
+
+
+@dataclass(frozen=True)
 class CharacterRef:
     span_id: str
     offset: int
@@ -83,8 +98,12 @@ class TextView:
 
 def union_box(boxes) -> BBox:
     boxes = tuple(boxes)
-    return (min(b[0] for b in boxes), min(b[1] for b in boxes),
-            max(b[2] for b in boxes), max(b[3] for b in boxes))
+    return (
+        min(b[0] for b in boxes),
+        min(b[1] for b in boxes),
+        max(b[2] for b in boxes),
+        max(b[3] for b in boxes),
+    )
 
 
 def classify(spans, classifier: Callable[[TextSpan], str]) -> list[TextSpan]:
@@ -99,8 +118,11 @@ def split_at_rules(span: TextSpan, rules) -> list[TextSpan]:
         return [span]
     if not span.glyph_boxes or abs(span.direction[1]) > 1e-6 or span.direction[0] <= 0:
         return [replace(span, flags=tuple(sorted(set(span.flags) | {"CELL_BOUNDARY_UNRESOLVED"})))]
-    if any(not char.isspace() and rule.crosses(box)
-           for char, box in zip(span.text, span.glyph_boxes) for rule in rules):
+    if any(
+        not char.isspace() and rule.crosses(box)
+        for char, box in zip(span.text, span.glyph_boxes)
+        for rule in rules
+    ):
         return [replace(span, flags=tuple(sorted(set(span.flags) | {"RULE_INTERSECTS_GLYPH"})))]
     groups = []
     start, previous = 0, None
@@ -111,9 +133,17 @@ def split_at_rules(span: TextSpan, rules) -> list[TextSpan]:
             start = i
         previous = cell
     groups.append((start, len(span.text)))
-    return [replace(span, text=span.text[a:b], glyph_boxes=span.glyph_boxes[a:b],
-                    bbox=union_box(span.glyph_boxes[a:b]), source_offset=span.source_offset + a)
-            for a, b in groups if a < b]
+    return [
+        replace(
+            span,
+            text=span.text[a:b],
+            glyph_boxes=span.glyph_boxes[a:b],
+            bbox=union_box(span.glyph_boxes[a:b]),
+            source_offset=span.source_offset + a,
+        )
+        for a, b in groups
+        if a < b
+    ]
 
 
 def assemble(spans, separators=None) -> TextView:
@@ -138,16 +168,28 @@ def assemble(spans, separators=None) -> TextView:
         flags.update(span.flags)
         if not span.glyph_boxes:
             flags.add("MISSING_GLYPH_GEOMETRY")
-        mapping.extend(CharacterRef(span.span_id, span.source_offset + j,
-                                    span.glyph_boxes[j] if span.glyph_boxes else span.bbox)
-                       for j in range(len(span.text)))
+        mapping.extend(
+            CharacterRef(
+                span.span_id,
+                span.source_offset + j,
+                span.glyph_boxes[j] if span.glyph_boxes else span.bbox,
+            )
+            for j in range(len(span.text))
+        )
     state = "CONTENT" if all(s.state == "CONTENT" for s in spans) else "UNKNOWN"
     if state == "UNKNOWN":
         flags.add("CLASSIFICATION_UNKNOWN")
     identity = [(s.span_id, s.source_offset, len(s.text), s.state, s.flags) for s in spans]
-    return TextView(stable_id(VERSION, spans[0].source_id, identity, separators), spans[0].source_id,
-                    spans[0].page, text, tuple(mapping), state, tuple(sorted(flags)),
-                    union_box(s.bbox for s in spans))
+    return TextView(
+        stable_id(VERSION, spans[0].source_id, identity, separators),
+        spans[0].source_id,
+        spans[0].page,
+        text,
+        tuple(mapping),
+        state,
+        tuple(sorted(flags)),
+        union_box(s.bbox for s in spans),
+    )
 
 
 def line_views(spans, rules=()) -> list[TextView]:
@@ -159,19 +201,32 @@ def line_views(spans, rules=()) -> list[TextView]:
     spans, rules = tuple(spans), tuple(rules)
     if len({(s.source_id, s.page) for s in spans}) > 1:
         raise ValueError("line_views accepts one copy/page at a time")
-    pieces = [p for s in spans if s.state != "FURNITURE" for p in split_at_rules(s, rules)
-              if p.text.strip()]
+    pieces = [
+        p
+        for s in spans
+        if s.state != "FURNITURE"
+        for p in split_at_rules(s, rules)
+        if p.text.strip()
+    ]
     # Cluster against the first baseline, never the previous fragment: pairwise
     # proximity would transitively drift into the next row. Then order by x.
     rows = []
     for piece in sorted(pieces, key=lambda s: (s.origin[1], s.bbox[0], s.span_id, s.source_offset)):
-        if (rows and piece.font_size > 0 and rows[-1][0].font_size > 0
-                and piece.origin[1] - rows[-1][0].origin[1]
-                <= min(piece.font_size, rows[-1][0].font_size) * 0.1):
+        if (
+            rows
+            and piece.font_size > 0
+            and rows[-1][0].font_size > 0
+            and piece.origin[1] - rows[-1][0].origin[1]
+            <= min(piece.font_size, rows[-1][0].font_size) * 0.1
+        ):
             rows[-1].append(piece)
         else:
             rows.append([piece])
-    pieces = [s for row in rows for s in sorted(row, key=lambda s: (s.bbox[0], s.span_id, s.source_offset))]
+    pieces = [
+        s
+        for row in rows
+        for s in sorted(row, key=lambda s: (s.bbox[0], s.span_id, s.source_offset))
+    ]
     groups, separators = [], []
     for span in pieces:
         sep = None
@@ -181,15 +236,23 @@ def line_views(spans, rules=()) -> list[TextView]:
             gap = span.bbox[0] - prev.bbox[2]
             upright = all(abs(s.direction[1]) <= 1e-6 and s.direction[0] > 0 for s in (prev, span))
             box = union_box((prev.bbox, span.bbox))
-            if (size > 0 and upright and not prev.flags and not span.flags
-                    and abs(prev.origin[1] - span.origin[1]) <= size * 0.1
-                    and max(s.origin[1] for s in (*groups[-1], span))
-                        - min(s.origin[1] for s in (*groups[-1], span))
-                        <= min(s.font_size for s in (*groups[-1], span)) * 0.1
-                    and -size * 0.1 <= gap <= size
-                    and not any(rule.crosses(box) for rule in rules)):
-                sep = " " if (gap > size * 0.1 or prev.text[-1:].isspace()
-                              or span.text[:1].isspace()) else ""
+            if (
+                size > 0
+                and upright
+                and not prev.flags
+                and not span.flags
+                and abs(prev.origin[1] - span.origin[1]) <= size * 0.1
+                and max(s.origin[1] for s in (*groups[-1], span))
+                - min(s.origin[1] for s in (*groups[-1], span))
+                <= min(s.font_size for s in (*groups[-1], span)) * 0.1
+                and -size * 0.1 <= gap <= size
+                and not any(rule.crosses(box) for rule in rules)
+            ):
+                sep = (
+                    " "
+                    if (gap > size * 0.1 or prev.text[-1:].isspace() or span.text[:1].isspace())
+                    else ""
+                )
         if sep is None:
             groups.append([span])
             separators.append([])
@@ -197,3 +260,18 @@ def line_views(spans, rules=()) -> list[TextView]:
             groups[-1].append(span)
             separators[-1].append(sep)
     return [assemble(group, seps) for group, seps in zip(groups, separators)]
+
+
+def view_from_dict(data):
+    """Decode a sealed text view without discarding per-character provenance."""
+    return TextView(
+        **{
+            **data,
+            "bbox": tuple(data["bbox"]),
+            "flags": tuple(data["flags"]),
+            "mapping": tuple(
+                None if r is None else CharacterRef(**{**r, "bbox": tuple(r["bbox"])})
+                for r in data["mapping"]
+            ),
+        }
+    )

@@ -71,6 +71,40 @@ def main(argv=None):
             "reading_digest": replay_digest([result.reading]),
             "report_digest": result.report.replay_digest,
         }
+    slice_spec = importlib.util.spec_from_file_location(
+        "explorer_slice2_synthetic", ROOT / "tests/saqqara/test_explorer_slice2.py"
+    )
+    slice_module = importlib.util.module_from_spec(slice_spec)
+    slice_spec.loader.exec_module(slice_module)
+    cases = {
+        "window_" + position: slice_module.window_fixture(position)
+        for position in ("same_line", "next_line", "next_cell", "two_lines", "beyond")
+    }
+    cases.update(
+        {
+            "locale_mixed": slice_module.document("2,50 V", "3.75 V"),
+            "locale_weak": slice_module.document("5,25 V", "6,75 V", "1.234 V"),
+            "locale_ambiguous": slice_module.document("1.234 V", "2.345 V", "3.456 V"),
+            "locale_noise": slice_module.document(
+                "Section 9.4",
+                "rev. 8.7",
+                "2032-05-17",
+                "Page 12",
+                *(f"{i},25 V" for i in range(2, 8)),
+            ),
+            "locale_contradiction": slice_module.document(
+                *(f"{i}.25 V" for i in range(2, 12)), "7,50 V"
+            ),
+        }
+    )
+    for name, document in cases.items():
+        result = explore(document)
+        records["slice2_" + name] = {
+            "census_digest": replay_digest([result.census]),
+            "profile_digest": replay_digest([result.profile]),
+            "reading_digest": replay_digest([result.reading]),
+            "report_digest": result.report.replay_digest,
+        }
     import pymupdf
 
     with tempfile.TemporaryDirectory(prefix="explorer-synthetic-") as directory:
