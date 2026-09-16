@@ -59,6 +59,15 @@ for ruled, segmented in ((False, False), (True, False), (True, True)):
         )
         assert len(r.census.table_analysis.tables) == 1
         cases[f"short_{ruled}_{segmented}_{len(counts)}"] = doc
+for columns in (3, 5, 8):
+    doc, expected = tables.cell_box_fixture(columns)
+    r = explore(doc)
+    assert tuple(row.cells for t in r.census.table_analysis.tables for row in t.rows) == expected
+    cases[f"native_padding_{columns}"] = doc
+doc, expected = tables.varying_native_subcells()
+r = explore(doc)
+assert tuple(row.cells for t in r.census.table_analysis.tables for row in t.rows) == expected
+cases["native_varying_subcells"] = doc
 for value in (":", "   :", "Link:"):
     cases["failure_" + str(len(cases))] = failure.document(text=value, rule=True)
 output = {"provenance": imported_provenance(require_clean=True), "cases": {}}

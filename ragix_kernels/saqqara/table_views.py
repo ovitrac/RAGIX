@@ -4,7 +4,7 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 """
 
 from collections import Counter, defaultdict
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, replace
 from statistics import median
 import re
 import math
@@ -18,10 +18,12 @@ class TableCell:
     bbox: tuple[float, float, float, float]
     source_spans: tuple[str, ...] = ()
     flags: tuple[str, ...] = ()
+    geometry_kind: str = "text_box"
 
     def __post_init__(self):
         if (
             not self.cell_id
+            or self.geometry_kind not in {"text_box", "cell_box"}
             or self.text is not None
             and not isinstance(self.text, str)
             or len(self.bbox) != 4
@@ -58,6 +60,72 @@ class TablePolicy:
 
 
 @dataclass(frozen=True)
+class TableDiagnostics:
+    """Literal-free geometry counts at the exact refusal stage."""
+
+    stage: str = "candidate"
+    raw_row_cell_counts: tuple[int, ...] = ()
+    retained_row_cell_counts: tuple[int, ...] = ()
+    nonempty_row_cell_counts: tuple[int, ...] = ()
+    unreadable_row_cell_counts: tuple[int, ...] = ()
+    table_sized_unreadable_cells: int = 0
+    unlocated_slot_count: int = 0
+    route: str = "undetermined"
+    full_height_rule_count: int = 0
+    row_band_counts: tuple[int, ...] = ()
+    inferred_band_count: int | None = None
+    bands: tuple[tuple[float, float], ...] = ()
+    mapped_band_support: tuple[int, ...] = ()
+    mapped_nonempty_support: tuple[int, ...] = ()
+    continuation_fragments: int = 0
+    pooled_rows: int = 0
+    pages_spanned: tuple[int, ...] = ()
+    observed_band_nonempty_counts: tuple[int, ...] = ()
+    populated_band_count: int | None = None
+
+    def __post_init__(self):
+        counts = (
+            self.table_sized_unreadable_cells,
+            self.unlocated_slot_count,
+            self.full_height_rule_count,
+            self.continuation_fragments,
+            self.pooled_rows,
+            *self.raw_row_cell_counts,
+            *self.retained_row_cell_counts,
+            *self.nonempty_row_cell_counts,
+            *self.unreadable_row_cell_counts,
+            *self.row_band_counts,
+            *self.mapped_band_support,
+            *self.mapped_nonempty_support,
+            *self.observed_band_nonempty_counts,
+        )
+        if (
+            self.stage
+            not in {"candidate", "bands", "mapping", "header", "role", "continuation", "support"}
+            or self.route
+            not in {"undetermined", "grid", "row_supported_bands", "native_cell_bounds"}
+            or any(type(n) is not int or n < 0 for n in counts)
+            or any(type(n) is not int or n < 1 for n in self.pages_spanned)
+            or self.inferred_band_count is not None
+            and (
+                type(self.inferred_band_count) is not int
+                or self.inferred_band_count != len(self.bands)
+            )
+            or self.populated_band_count is not None
+            and (
+                type(self.populated_band_count) is not int
+                or self.populated_band_count
+                != sum(n > 0 for n in self.observed_band_nonempty_counts)
+            )
+            or any(
+                len(b) != 2 or not all(math.isfinite(v) for v in b) or b[1] <= b[0]
+                for b in self.bands
+            )
+        ):
+            raise ValueError("invalid table geometry diagnostics")
+
+
+@dataclass(frozen=True)
 class TableFinding:
     record_id: str
     table_id: str
@@ -66,6 +134,7 @@ class TableFinding:
     inspected_count: int
     evidence_ids: tuple[str, ...]
     outcome: str = "TABLE_UNRESOLVED"
+    diagnostics: TableDiagnostics | None = None
 
     def __post_init__(self):
         if (
@@ -203,6 +272,25 @@ def _covering_rule_positions(rules, top, bottom):
     return positions
 
 
+def _native_header_bands(header, body):
+    """Coarsen observed partitions while keeping header labels distinct."""
+    partitions = [
+        tuple(sorted((round(c.bbox[0], 3), round(c.bbox[2], 3)) for c in row))
+        for row in (header, *body)
+    ]
+    for partition in partitions:
+        if any(a[1] != b[0] for a, b in zip(partition, partition[1:])):
+            raise ValueError("STRADDLING_OR_OUTSIDE_BANDS")
+    if len({(p[0][0], p[-1][1]) for p in partitions}) != 1:
+        raise ValueError("STRADDLING_OR_OUTSIDE_BANDS")
+    edges = sorted(set.intersection(*(set(v for pair in p for v in pair) for p in partitions)))
+    bands = tuple(zip(edges, edges[1:]))
+    grouped = _map(header, bands, 0)
+    if any(sum(bool(c.text) for c in group) > 1 for group in grouped):
+        raise ValueError("BAND_COUNT_VARIES")
+    return bands
+
+
 def _column_role(values, identifiers, numbering, minimum):
     nonempty = [v for v in values if v]
     id_count = sum(bool(identifiers(v)) or bool(numbering.fullmatch(v)) for v in nonempty)
@@ -230,6 +318,12 @@ def recover_tables(
     findings = []
     excluded = []
     candidates = []
+    diagnostics = {}
+
+    def trace(table, **values):
+        diagnostics[table.table_id] = replace(
+            diagnostics.get(table.table_id, TableDiagnostics()), **values
+        )
 
     def fail(table, reason):
         cells = tuple(c for row in table.cell_rows for c in row)
@@ -241,6 +335,7 @@ def recover_tables(
                 reason,
                 max(1, len(cells)),
                 tuple(c.cell_id for c in cells),
+                diagnostics=diagnostics.get(table.table_id),
             )
         )
 
@@ -250,21 +345,54 @@ def recover_tables(
                 continue  # Already-declared logical tables keep their original path.
             boxes = furniture_boxes.get(page.page, ())
             all_cells = tuple(c for row in table.cell_rows for c in row)
-            # Filtering precedes even the attempt to call a first row a header.
-            rows = tuple(
-                tuple(
-                    c
-                    for c in row
-                    if not any(_overlap(c.bbox, b) for b in boxes)
-                    and not (c.source_spans and set(c.source_spans) <= furniture_span_ids)
+            # Furniture classification precedes candidacy. A native rectangle is
+            # topology, not a text span: marks crossing an empty cell cannot
+            # delete a column. Entire furniture blocks still leave candidacy.
+            native_cells = all(c.geometry_kind == "cell_box" for c in all_cells)
+
+            def is_furniture(cell):
+                return any(_overlap(cell.bbox, b) for b in boxes) or (
+                    cell.source_spans and set(cell.source_spans) <= furniture_span_ids
                 )
-                for row in table.cell_rows
-            )
+
+            if native_cells:
+                content_cells = [c for c in all_cells if c.text]
+                if content_cells and all(is_furniture(c) for c in content_cells):
+                    excluded.append(table.table_id)
+                    continue
+                rows = table.cell_rows
+            else:
+                rows = tuple(
+                    tuple(c for c in row if not is_furniture(c)) for row in table.cell_rows
+                )
             rows = tuple(row for row in rows if row)
             if not rows:
                 excluded.append(table.table_id)
                 continue
             candidates.append(table.table_id)
+            table_box = union_box(c.bbox for c in all_cells)
+            trace(
+                table,
+                pages_spanned=(table.page,),
+                raw_row_cell_counts=tuple(len(row) for row in table.cell_rows),
+                retained_row_cell_counts=tuple(len(row) for row in rows),
+                nonempty_row_cell_counts=tuple(sum(bool(c.text) for c in row) for row in rows),
+                unreadable_row_cell_counts=tuple(sum(c.text is None for c in row) for row in rows),
+                table_sized_unreadable_cells=sum(
+                    c.text is None and c.bbox == table_box for c in all_cells
+                ),
+            )
+            if any("MISSING_CELL_GEOMETRY" in c.flags for c in all_cells):
+                fail(table, "MISSING_CELL_GEOMETRY")
+                continue
+            if native_cells:
+                trace(
+                    table,
+                    raw_row_cell_counts=(len(table.headers), *(len(r) for r in table.rows)),
+                    unlocated_slot_count=len(table.headers)
+                    + sum(map(len, table.rows))
+                    - len(all_cells),
+                )
             if len(rows) < 2:
                 fail(table, "TOO_FEW_ROWS")
                 continue
@@ -274,14 +402,31 @@ def recover_tables(
             tolerance = round(width * policy.x_tolerance_factor, 3)
             box = tuple(round(v, 3) for v in union_box(c.bbox for row in rows for c in row))
             possible = _covering_rule_positions(page.rules, box[1], box[3])
+            trace(table, stage="bands", full_height_rule_count=len(possible))
             left = [x for x in possible if x <= box[0]]
             right = [x for x in possible if x >= box[2]]
             rules = [x for x in possible if left[-1] <= x <= right[0]] if left and right else []
             ruled = len(rules) >= 2
-            if ruled:
+            if native_cells:
+                # Native rectangles are cell extents, not glyph extents. Touching
+                # rectangles are separate columns; header subcells map to them.
+                row_bands = [
+                    tuple(sorted((round(c.bbox[0], 3), round(c.bbox[2], 3)) for c in row))
+                    for row in body
+                ]
+                trace(table, route="native_cell_bounds", row_band_counts=tuple(map(len, row_bands)))
+                try:
+                    bands = _native_header_bands(header, body)
+                except ValueError as error:
+                    fail(table, str(error))
+                    continue
+            elif ruled:
+                trace(table, route="grid")
                 bands = tuple(zip(rules, rules[1:]))
             else:
+                trace(table, route="row_supported_bands")
                 row_bands = [_bands((row,), tolerance) for row in body]
+                trace(table, row_band_counts=tuple(len(b) for b in row_bands))
                 if len({len(b) for b in row_bands}) != 1:
                     fail(table, "BAND_COUNT_VARIES")
                     continue
@@ -293,13 +438,44 @@ def recover_tables(
                 right = min(box[2], max(supported_right, starts[-1] + pitch))
                 edges = [min(box[0], starts[0]), *starts[1:], right]
                 bands = tuple(zip(edges, edges[1:]))
+            observed_counts = tuple(
+                sum(
+                    any(
+                        c.text and min(round(c.bbox[2], 3), right) > max(round(c.bbox[0], 3), left)
+                        for c in row
+                    )
+                    for row in body
+                )
+                for left, right in bands
+            )
+            trace(
+                table,
+                inferred_band_count=len(bands),
+                bands=bands,
+                observed_band_nonempty_counts=observed_counts,
+                populated_band_count=sum(n > 0 for n in observed_counts),
+            )
             if len(bands) < 2:
                 fail(table, "INSUFFICIENT_BANDS")
                 continue
             try:
-                mapped = [_map(row, bands, 0 if ruled else tolerance) for row in rows]
+                trace(table, stage="mapping")
+                mapped = [
+                    _map(row, bands, 0 if ruled or native_cells else tolerance) for row in rows
+                ]
+                trace(
+                    table,
+                    mapped_band_support=tuple(
+                        sum(bool(row[i]) for row in mapped[1:]) for i in range(len(bands))
+                    ),
+                    mapped_nonempty_support=tuple(
+                        sum(any(c.text for c in row[i]) for row in mapped[1:])
+                        for i in range(len(bands))
+                    ),
+                )
                 if any(any(not cells for cells in row) for row in mapped):
                     raise ValueError("BAND_COUNT_VARIES")
+                trace(table, stage="header")
                 headers = tuple(_join(cells) for cells in mapped[0])
                 if any(h is None or not h for h in headers):
                     raise ValueError("HEADER_UNREADABLE")
@@ -309,6 +485,7 @@ def recover_tables(
                     _column_role([_join(row[i]) for row in mapped[1:]], identifiers, numbering, 1)
                     for i in range(len(bands))
                 ]
+                trace(table, stage="role")
                 if "id" not in roles:
                     raise ValueError("NO_ID_LIKE_COLUMN")
                 output_rows = []
@@ -355,7 +532,11 @@ def recover_tables(
                             "median_cell_width": width,
                             "x_tolerance": tolerance,
                             "source": "derived" if widths else "default",
-                            "route": "grid" if ruled else "row_supported_bands",
+                            "route": (
+                                "native_cell_bounds"
+                                if native_cells
+                                else "grid" if ruled else "row_supported_bands"
+                            ),
                         },
                         tuple(c.cell_id for c in all_cells),
                         tuple(sorted(header_flags)),
@@ -376,6 +557,7 @@ def recover_tables(
     groups = []
     for item in sorted(provisional, key=lambda p: (p[1].page, p[1].table_id)):
         signature, table, *_ = item
+        trace(table, stage="continuation")
         if counts[signature] < 2:
             fail(table, "HEADER_NOT_REPEATED")
             continue
@@ -397,6 +579,14 @@ def recover_tables(
     for group in groups:
         first = group[0]
         rows = tuple(r for item in group for r in item[4])
+        for item in group:
+            trace(
+                item[1],
+                stage="support",
+                continuation_fragments=len(group),
+                pooled_rows=len(rows),
+                pages_spanned=tuple(member[1].page for member in group),
+            )
         # Supporting-row evidence belongs to the continued table, not to an
         # arbitrary page break. Every mapped row has a physical cell per band.
         if len(rows) < policy.minimum_rows:
@@ -462,7 +652,13 @@ def analysis_from_dict(data):
                 for t in data["tables"]
             ),
             "findings": tuple(
-                TableFinding(**{**f, "evidence_ids": tuple(f["evidence_ids"])})
+                TableFinding(
+                    **{
+                        **f,
+                        "evidence_ids": tuple(f["evidence_ids"]),
+                        "diagnostics": _diagnostics_from_dict(f.get("diagnostics")),
+                    }
+                )
                 for f in data["findings"]
             ),
             "excluded": tuple(data["excluded"]),
@@ -475,3 +671,18 @@ def _relative_bands(bands):
     left = bands[0][0]
     width = bands[-1][1] - left
     return tuple((round((a - left) / width, 3), round((b - left) / width, 3)) for a, b in bands)
+
+
+def _diagnostics_from_dict(data):
+    if data is None:
+        return None
+    return TableDiagnostics(
+        **{
+            key: (
+                tuple(tuple(b) for b in value)
+                if key == "bands"
+                else tuple(value) if isinstance(value, list) else value
+            )
+            for key, value in data.items()
+        }
+    )

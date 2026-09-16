@@ -129,6 +129,7 @@ def digest_pdf(path: Path, *, expected_pymupdf=None) -> DocumentDigest:
                     )
                     for r, row in enumerate(rows)
                     for c, cell in enumerate(row)
+                    if table.rows[r].cells[c] is not None or cell
                 )
                 cell_rows = tuple(
                     tuple(
@@ -144,8 +145,15 @@ def digest_pdf(path: Path, *, expected_pymupdf=None) -> DocumentDigest:
                                 and min(s.bbox[3], (table.rows[r].cells[c] or table.bbox)[3])
                                 > max(s.bbox[1], (table.rows[r].cells[c] or table.bbox)[1])
                             ),
+                            flags=(
+                                ()
+                                if table.rows[r].cells[c] is not None
+                                else ("MISSING_CELL_GEOMETRY",)
+                            ),
+                            geometry_kind="cell_box",
                         )
                         for c, cell in enumerate(row)
+                        if table.rows[r].cells[c] is not None or cell
                     )
                     for r, row in enumerate(rows)
                 )

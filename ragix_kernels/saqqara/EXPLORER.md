@@ -262,3 +262,36 @@ nine pages, segmented grids and native PDF cell-rectangle borders. Sensitivity
 sweeps x factors 0.25/0.5/1.0, row support 2/3/4/5 and recurrence 0.4/0.5/0.6.
 Digit-only document-family discovery and classifier calibration remain outside
 this slice. Consumer confirmation against its sealed inventories remains required.
+
+
+### Native cells, header collapse and refusal diagnostics
+
+Native PDF cell rectangles use `TableCell.geometry_kind = "cell_box"`; word/glyph
+boxes retain the default `text_box`. An extractor slot with no geometry is kept
+in the raw matrix, but never becomes a physical rectangle covering the table.
+A nonempty unlocated value is flagged and the table is refused. A genuine cell
+with unreadable text keeps its geometry, null text and UNREADABLE_CELL flag.
+
+For native cells, the order is explicit: **header collapse, continuation grouping,
+then support checks**. Header and body rows define observed interval partitions.
+Their shared boundaries collapse padding/subcells, with no cut through an
+observed cell and no merger of distinct nonempty header labels. Gaps, overlapping
+rectangles, conflicting labels and unsupported headers remain unresolved. No
+column count is fixed. Raw matrices and cell identities remain unchanged; row
+members record every physical subcell contributing to each logical column.
+
+Native cell geometry survives overlapping lifecycle glyphs: those cells remain
+flagged, never cleaned. Entire blocks whose content is classified as furniture
+are excluded before candidacy. Text-box inputs retain their recurrence filter.
+
+Every table refusal carries `diagnostics`: the exact stage and geometry route,
+raw/retained/nonempty/unreadable cell counts per row, unlocated slot count,
+full-height rule count, observed row-band counts, inferred bands and populated
+band count, mapped support, pooled rows and pages spanned. Unsupported counts are
+null rather than invented. These records are in `census.table_analysis.findings`
+and the profile's `id_row_tables.unresolved` list, including the report profile.
+
+These are additive records; old inputs still load, but must be re-extracted from
+PDF to acquire native-cell geometry. Kernels use version **0.5.2**, invalidating
+older cached outcomes. Re-running old intake JSON cannot recover geometry that
+the previous adapter replaced with a table-sized placeholder.

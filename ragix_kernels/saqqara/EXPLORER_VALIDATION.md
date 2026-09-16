@@ -455,3 +455,41 @@ checks for `8181b35..ac2be3d` inspect 1,178 blob revisions and one commit messag
 with zero findings; the normal pre-commit hook ran. These synthetic results do
 not close the consumer gate or the separate open field-reader findings. No
 private corpus processing, private source changes, push or merge was performed.
+
+
+### Slice 3 correction: native geometry and header-first collapse
+
+The preceding correction was insufficient in consumer confirmation. Reason-count
+changes alone do not prove continuation: INSUFFICIENT_BANDS is emitted before
+that stage. Count-only instrumentation preserves the original refusal outcomes
+and locates failures without exposing source literals.
+
+Three independent synthetic falsifiers exposed the remaining mechanisms:
+
+- Native extractor slots lacking geometry were expanded to table-sized boxes.
+  Such placeholders connected columns in text-box clustering. A generated PDF
+  with padded headers reproduces this for 3/5/8 logical columns.
+- Native rectangles that touch are separate physical cells, unlike adjoining
+  glyph boxes. Common header/body partition boundaries collapse header padding
+  and varying subcell partitions before continuation and supporting-row checks.
+  The varying-partition control has 12/18 physical body subcells and five logical
+  headers. Merging distinct header labels remains a refusal.
+- A rotated furniture span overlapping a native empty cell caused its geometry
+  to be deleted. The regression fixture now retains that cell and flags the
+  overlap. A separate native furniture-block fixture confirms whole-block
+  exclusion still precedes candidacy.
+
+E9.5b controls cover 15/23/30 consecutive pages, with either one row per page or
+one through five rows cycling, on both ruled and unruled inputs. Native collapse
+passes the existing 36 sensitivity combinations (x factor 0.25/0.5/1.0,
+support 2/3/4/5, recurrence share 0.4/0.5/0.6). These are declared synthetic
+coordinates and settings; none was chosen from consumer documents.
+
+E9.12 refusals include the exact stage, route, raw and retained cell counts,
+observed and populated bands, mapped support, pooled rows and pages. Null counts
+mean not inferred at that stage. Roundtrip, malformed-count rejection and loading
+old records without diagnostics are tested. The replay driver adds three native
+padding layouts and one varying-subcell layout. Kernels advance to 0.5.2;
+additive record defaults preserve loading, but fresh PDF intake is mandatory for
+old documents lacking cell-geometry identity. Consumer comparisons and all their
+numbers remain private; independent confirmation is required before merge.

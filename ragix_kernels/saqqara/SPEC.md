@@ -546,6 +546,14 @@ reading configuration, never a document's semantic authority.
   after this grouping; a page break alone cannot discard short fragments. Missing
   pages and multiple matching neighbors cannot provide pooled support. The short-
   fragment and segmented-grid controls in `test_explorer_tables.py` falsify this.
+  Native cell partitions are collapsed against the header before continuation
+  and support decisions; distinct header labels cannot be merged to manufacture
+  support. Missing-geometry slots never become physical table-sized cells.
+  Rotated furniture cannot delete native cell topology; contaminated cells stay
+  present and flagged. Whole furniture blocks remain excluded before candidacy.
+  Table refusals carry their stage, bands, populated-band counts, pooled rows and
+  pages (E9.12). E9.5b tests 15–30-page continuations with 1–5 rows per page;
+  E9.11 tests padded headers and variable native subcell partitions.
   Cell members and join uncertainty remain explicit. Contaminated headers/rows
   stay flagged and are never cleaned. X13 exercises reconstruction, refusals,
   column/furniture mutations and geometry-policy sensitivity.
