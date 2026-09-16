@@ -1,4 +1,4 @@
-"""Explicitly registered deterministic explorer adapters; no model or network work.
+"""Explicit deterministic adapters with counted per-document construct failures.
 
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 """
@@ -9,7 +9,8 @@ from ...base import Kernel
 from ..census import census, digest_from_dict, census_from_dict, CensusConfig
 from ..profile import derive_profile, profile_from_dict, ProfileConfig
 from ..profile_readers import read_document
-from ...harvest.report import build_report
+from ..failures import CONSTRUCT_ERRORS, stage_failure, failure_report
+from ...harvest.report import build_report, canonical_json
 
 
 def dependency(input, name):
@@ -19,9 +20,18 @@ def dependency(input, name):
     return data.get("data", data)
 
 
+def attempt(row, stage, operation):
+    if "failure" in row:
+        return row
+    try:
+        return {**row, **operation()}
+    except CONSTRUCT_ERRORS as error:
+        return {**row, "failure": asdict(stage_failure(row.get("document"), stage, error))}
+
+
 class CensusKernel(Kernel):
     name = "explorer_census"
-    version = "0.1.0"
+    version = "0.2.0"
     stage = 1
     category = "docs"
     requires = []
@@ -40,22 +50,24 @@ class CensusKernel(Kernel):
         results = []
         seen = set()
         for data in documents:
-            document = digest_from_dict(data)
-            if document.source_id in seen:
-                raise ValueError("duplicate document identity in manifest")
-            seen.add(document.source_id)
-            results.append(
-                {"document": asdict(document), "census": asdict(census(document, config))}
-            )
+
+            def run():
+                doc = digest_from_dict(data)
+                if doc.source_id in seen:
+                    raise ValueError("duplicate document identity")
+                seen.add(doc.source_id)
+                return {"document": asdict(doc), "census": asdict(census(doc, config))}
+
+            results.append(attempt({"document": data}, "census", run))
         return {"documents": results}
 
     def summarize(self, data):
-        return "Document notation census recorded."
+        return "Document census recorded; construct failures remain explicit."
 
 
 class ProfileKernel(Kernel):
     name = "explorer_profile"
-    version = "0.1.0"
+    version = "0.2.0"
     stage = 2
     category = "docs"
     requires = ["explorer_census"]
@@ -63,86 +75,93 @@ class ProfileKernel(Kernel):
 
     def compute(self, input):
         data = dependency(input, "explorer_census")
+        config = ProfileConfig(**input.config.get("profile_options", {}))
         return {
             "documents": [
-                {
-                    **row,
-                    "profile": asdict(
-                        derive_profile(
-                            census_from_dict(row["census"]),
-                            ProfileConfig(**input.config.get("profile_options", {})),
-                        )
-                    ),
-                }
+                attempt(
+                    row,
+                    "profile",
+                    lambda: {
+                        "profile": asdict(derive_profile(census_from_dict(row["census"]), config))
+                    },
+                )
                 for row in data["documents"]
             ]
         }
 
     def summarize(self, data):
-        return "Evidence-backed document profiles derived."
+        return "Profiles derived for readable documents; failures preserved."
 
 
 class ReadKernel(Kernel):
     name = "explorer_read"
-    version = "0.1.0"
+    version = "0.2.0"
     stage = 2
     category = "docs"
     requires = ["explorer_profile"]
     provides = ["document_readings"]
 
     def compute(self, input):
-        data = dependency(input, "explorer_profile")
         return {
             "documents": [
-                {
-                    **row,
-                    "reading": asdict(
-                        read_document(
-                            digest_from_dict(row["document"]),
-                            census_from_dict(row["census"]),
-                            profile_from_dict(row["profile"]),
+                attempt(
+                    row,
+                    "read",
+                    lambda: {
+                        "reading": asdict(
+                            read_document(
+                                digest_from_dict(row["document"]),
+                                census_from_dict(row["census"]),
+                                profile_from_dict(row["profile"]),
+                            )
                         )
-                    ),
-                }
-                for row in data["documents"]
+                    },
+                )
+                for row in dependency(input, "explorer_profile")["documents"]
             ]
         }
 
     def summarize(self, data):
-        return "Profile-driven readings and unknown-template findings recorded."
+        return "Readings and construct failures recorded independently."
 
 
 class ReportKernel(Kernel):
     name = "explorer_report"
-    version = "0.1.0"
+    version = "0.2.0"
     stage = 3
     category = "docs"
     requires = ["explorer_read"]
     provides = ["document_reading_report"]
 
     def compute(self, input):
-        data = dependency(input, "explorer_read")
         results = []
-        for row in data["documents"]:
-            doc = digest_from_dict(row["document"])
-            observed = census_from_dict(row["census"])
-            profile = profile_from_dict(row["profile"])
-            # Decode by replaying the deterministic reader and checking its sealed
-            # representation, rather than accepting a loose untyped payload.
-            reading = read_document(doc, observed, profile)
-            from ...harvest.report import canonical_json
+        for row in dependency(input, "explorer_read")["documents"]:
 
-            if canonical_json(reading) != canonical_json(row["reading"]):
-                raise ValueError("reading replay mismatch")
+            def run():
+                doc = digest_from_dict(row["document"])
+                observed = census_from_dict(row["census"])
+                profile = profile_from_dict(row["profile"])
+                reading = read_document(doc, observed, profile)
+                if canonical_json(reading) != canonical_json(row["reading"]):
+                    raise ValueError("reading replay mismatch")
+                return {
+                    "report": asdict(
+                        build_report(
+                            doc, observed, profile, reading, input.config.get("provenance")
+                        )
+                    )
+                }
+
+            outcome = attempt(row, "report", run)
             results.append(
-                asdict(
-                    build_report(doc, observed, profile, reading, input.config.get("provenance"))
-                )
+                asdict(failure_report(outcome["failure"]))
+                if "failure" in outcome
+                else outcome["report"]
             )
         return {"reports": results}
 
     def summarize(self, data):
-        return "Reading coverage and evidence-scoped reports recorded."
+        return "Reports produced; failed documents remain visibly failed."
 
 
 def register_explorer_kernels():

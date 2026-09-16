@@ -521,7 +521,11 @@ reading configuration, never a document's semantic authority.
   priors do not stop candidates: token-local facts survive, truly ambiguous
   normalization is withheld, and prior contradictions are flagged individually.
   E7.7/E8.7 sweep declared gap/cap/dominance/count ranges on synthetic fixtures;
-  no private document is used to tune a constant.
+  no private document is used to tune a constant. Empty/whitespace-only label
+  observations produce counted construct findings before window construction.
+  Expected document-construct failures stay scoped to their document at every
+  kernel stage; a failed report is explicit and unaffected documents continue.
+  Source/schema failures are not repaired or promoted. X21 exercises these paths.
 - **K9.6 Section expressions.** Lists preserve members and ranges preserve their
   literal operator and endpoints. No reader expands a range or resolves it against
   an inventory. Split/glued observations remain flagged. Revisions do not become

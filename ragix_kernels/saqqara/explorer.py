@@ -30,10 +30,20 @@ def explore(
     census_config=CensusConfig(),
     profile_config=ProfileConfig(),
 ) -> ExplorerResult:
-    observed = census(document, census_config)
-    profile = derive_profile(observed, profile_config)
-    reading = read_document(document, observed, profile)
-    report = build_report(document, observed, profile, reading, provenance)
+    from .failures import CONSTRUCT_ERRORS, stage_failure, failure_report
+
+    observed = profile = reading = None
+    stage = "census"
+    try:
+        observed = census(document, census_config)
+        stage = "profile"
+        profile = derive_profile(observed, profile_config)
+        stage = "read"
+        reading = read_document(document, observed, profile)
+        stage = "report"
+        report = build_report(document, observed, profile, reading, provenance)
+    except CONSTRUCT_ERRORS as error:
+        report = failure_report(stage_failure(document, stage, error))
     return ExplorerResult(document, observed, profile, reading, report)
 
 

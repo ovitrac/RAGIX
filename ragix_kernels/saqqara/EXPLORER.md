@@ -138,3 +138,18 @@ accept `census_options` on `explorer_census` and `profile_options` on
 `explorer_profile`; readers cannot override a sealed window. Full acceptance
 runs `tests/` in a detached worktree with `PYTHONPATH` pinned to it, not merely the
 Harvest/Saqqara subsets. Consumer confirmation remains a separate gate.
+
+## Construct-failure boundary (E7.8 / X21)
+
+Empty label observations are retained as counted EMPTY_LABEL findings and never
+instantiated as value windows. A terminal label cut off by a rule is recorded as
+INVALID_LABEL_WINDOW. Reading coverage counts these failures independently from
+unknown-template fields. Census schema `0.3` adds the construct-finding ledger.
+
+The library and each kernel catch expected construct errors (ValueError,
+TypeError, KeyError) at document boundaries. They produce an explicit
+`reading-failure/0.1` report, with source scope, stage, count and error type;
+exception text is not copied into exports. Other documents are still attempted.
+A unique known page is retained; an unknown location is not guessed. Programming
+errors outside that bounded set still propagate. Failed inputs never become
+successful evidence or silently repaired profiles.

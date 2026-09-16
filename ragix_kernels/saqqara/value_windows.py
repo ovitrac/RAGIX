@@ -179,6 +179,7 @@ def build_value_windows(
     horizontal_rules=(),
     table_headers=(),
     edge_ids=frozenset(),
+    findings=None,
 ):
     """Build once at census time; every reader uses these same sealed objects.
 
@@ -191,7 +192,21 @@ def build_value_windows(
     for index, line in enumerate(lines):
         if line.text.strip() in headers:
             continue
-        match = re.match(r"([^:\n]{1,100}):\s*", line.text)
+        match = re.match(r"([^:\n]{0,100}):\s*", line.text)
+        if match and not match[1].strip():
+            if findings is not None:
+                from .failures import construct_finding
+
+                findings.append(
+                    construct_finding(
+                        line.source_id,
+                        "census",
+                        "EMPTY_LABEL",
+                        page=line.page,
+                        span_id=line.view_id,
+                    )
+                )
+            continue
         if match:
             labels[index] = (match[1].strip(), match.end(1), match.end(), ":")
         elif (
@@ -241,6 +256,27 @@ def build_value_windows(
                 flags.append("ROLE_LINE_UNDECIDABLE")
             views.append(candidate)
             stopped = None
+        if (
+            len(views) == 1
+            and not anchor.text[value_start:].strip()
+            and stop == "page_end"
+            and any(
+                r.y >= anchor.bbox[3] and r.left < anchor.bbox[2] and r.right > anchor.bbox[0]
+                for r in horizontal_rules
+            )
+        ):
+            if findings is not None:
+                from .failures import construct_finding
+
+                findings.append(
+                    construct_finding(
+                        anchor.source_id,
+                        "census",
+                        "INVALID_LABEL_WINDOW",
+                        page=anchor.page,
+                        span_id=anchor.view_id,
+                    )
+                )
         first_value = next((v for v in views[1:] if v.text.strip()), None)
         position = (
             "same_line"

@@ -22,6 +22,8 @@ class UnknownTemplate:
     census_id: str
     inspected_count: int
     reason: str = "UNKNOWN_TEMPLATE"
+    page: int | None = None
+    span_id: str | None = None
 
     def __post_init__(self):
         if (
@@ -168,7 +170,19 @@ def read_document(
     quantities = []
     tables = []
     furniture = []
-    findings = []
+    findings = [
+        UnknownTemplate(
+            f.record_id,
+            document.source_id,
+            "reference_fields",
+            profile.census_id,
+            f.inspected_count,
+            f.reason,
+            f.page,
+            f.span_id,
+        )
+        for f in census.construct_findings
+    ]
 
     def unknown(field):
         if not any(f.field == field for f in findings):

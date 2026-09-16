@@ -113,6 +113,7 @@ class ReadingCoverage:
     model_calls_cached: int = 0
     model_calls_refused: int = 0
     stage_times: tuple[tuple[str, float], ...] = ()
+    construct_failures: int = 0
 
     def __post_init__(self):
         if not self.record_id or not self.source_id:
@@ -144,8 +145,20 @@ def build_report(document, census, profile, reading, provenance=None):
         InsufficientEvidence(
             f.record_id,
             f.field,
-            (document.source_id,),
-            "profile/required-field/1",
+            tuple(
+                x
+                for x in (
+                    document.source_id,
+                    "page:" + str(f.page) if f.page is not None else None,
+                    f.span_id,
+                )
+                if x is not None
+            ),
+            (
+                "profile/required-field/1"
+                if f.reason == "UNKNOWN_TEMPLATE"
+                else "census/" + f.reason + "/1"
+            ),
             f.inspected_count,
         )
         for f in reading.findings
@@ -183,7 +196,11 @@ def build_report(document, census, profile, reading, provenance=None):
         len(all_tables) - len(recovered),
         sum(c is None for t in all_tables for r in t.rows for c in r),
         sum(bool(s.flags) for p in document.pages for s in p.spans),
-        len(reading.findings),
+        sum(f.reason == "UNKNOWN_TEMPLATE" for f in reading.findings),
+        construct_failures=sum(
+            f.reason in {"EMPTY_LABEL", "INVALID_LABEL_WINDOW", "INVALID_CONSTRUCT"}
+            for f in reading.findings
+        ),
     )
     findings = tuple(
         {"record_id": f.record_id, "kind": "field", "data": asdict(f)} for f in reading.fields
@@ -224,6 +241,14 @@ def render_report(report: Report, label_map: dict[str, str]) -> str:
     Labels for found relation kinds are caller supplied. No inferred relation is
     reworded into proof. Untrusted source text is always HTML escaped.
     """
+    from ..saqqara.failures import FailureReport
+
+    if isinstance(report, FailureReport):
+        return (
+            '<!doctype html><meta charset="utf-8"><h1>Document reading failed</h1><pre>'
+            + escape(canonical_json(report))
+            + "</pre>"
+        )
     kinds = {r["kind"] for r in report.findings}
     if not kinds <= set(label_map):
         raise ValueError("caller label map incomplete")

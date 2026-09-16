@@ -20,7 +20,9 @@ from .value_windows import (
 
 from ..harvest.numeric_locale import physical_numbers
 
-VERSION = "census/0.2"
+from .failures import ConstructFinding
+
+VERSION = "census/0.3"
 IDENTIFIER = re.compile(r"(?<!\w)[A-Za-z0-9]+(?:[-/]+[A-Za-z0-9]+)+(?!\w)")
 NUMBERING = re.compile(r"(?<![\w.])\d+(?:\.\s*\d+)+(?![\w.])")
 CATEGORIES = frozenset(
@@ -211,6 +213,7 @@ class Census:
     continuation_policy: ContinuationPolicy = DEFAULT_CONTINUATION
     windows: tuple[ValueWindow, ...] = ()
     version: str = VERSION
+    construct_findings: tuple[ConstructFinding, ...] = ()
 
     def __post_init__(self):
         if self.version != VERSION or not self.source_id or not self.digest_id or self.pages < 1:
@@ -246,6 +249,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
     buckets = defaultdict(list)
     windows = []
     physical_evidence = []
+    construct_findings = []
     policy = derive_continuation(
         [page_lines(p) for p in document.pages], config.continuation_policy
     )
@@ -281,6 +285,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
             horizontal_rules=page.horizontal_rules,
             table_headers=tuple(h for t in page.tables for h in (*t.headers, " ".join(t.headers))),
             edge_ids=edge_ids,
+            findings=construct_findings,
         )
         windows.extend(page_windows)
         window_by_label = {w.views[0].view_id: w for w in page_windows}
@@ -540,6 +545,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
         replay_digest([document]),
         policy,
         tuple(windows),
+        construct_findings=tuple(construct_findings),
     )
 
 
@@ -594,6 +600,9 @@ def census_from_dict(data):
         **{
             **data,
             "continuation_policy": policy,
+            "construct_findings": tuple(
+                ConstructFinding(**f) for f in data.get("construct_findings", ())
+            ),
             "windows": tuple(window_from_dict(w, policy) for w in data["windows"]),
             "records": tuple(
                 CensusRecord(
