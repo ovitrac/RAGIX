@@ -1,0 +1,9 @@
+{
+  "author": "Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio",
+  "schema": "explorer-lock/0.1",
+  "platform": "linux-aarch64",
+  "python": "3.12.12",
+  "pymupdf": "1.27.2.2",
+  "sqlite": "3.51.2",
+  "sqlite_participates_in_digest": false
+}

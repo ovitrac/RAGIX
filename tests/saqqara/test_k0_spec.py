@@ -338,6 +338,10 @@ def test_k0_2_generators_either_build_or_refuse(tmp_path):
 #: whose `__module__` it answers to, so `kernel.py` re-exporting SaqqaraKernel is
 #: invisible to this gate, and compatibility shims cost nothing.
 DECLARED_KERNELS = [
+    "ragix_kernels.saqqara.kernels.explorer.CensusKernel",
+    "ragix_kernels.saqqara.kernels.explorer.ProfileKernel",
+    "ragix_kernels.saqqara.kernels.explorer.ReadKernel",
+    "ragix_kernels.saqqara.kernels.explorer.ReportKernel",
     "ragix_kernels.saqqara.kernels.saqqara_index.SaqqaraIndexKernel",
     "ragix_kernels.saqqara.kernels.saqqara_run.SaqqaraKernel",
 ]

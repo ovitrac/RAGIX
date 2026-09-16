@@ -476,3 +476,53 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
   flags digit joins, and refuses unmeasurable boundaries. It is not table-cell
   assembly and must not be used as evidence of cell membership. Test:
   `test_k2p_pdf_readers.py` (column gap, exponent, missing width, digit joins).
+
+## K9 — document Explorer
+
+Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+
+The typed synthetic digest generator in `tests/saqqara/test_explorer.py` exercises
+these propositions directly. It is independent of the file-format generators for
+K1–K7. All thresholds and UNKNOWN states are exposed; a profile is a proposed
+reading configuration, never a document's semantic authority.
+
+- **K9.1 Census separation.** `census` counts every occurrence with exact evidence
+  and accounts for every page, including textless pages. Its closed attributes
+  prohibit semantic role fields. Falsifier: inject `role` into a census record.
+- **K9.2 Profile support.** Every non-UNKNOWN field has a named rule, confidence,
+  and census candidate ids; unsupported or conflicting notation stays UNKNOWN.
+  Falsifiers: absent/forged evidence, conflicting separator observations.
+- **K9.3 Mutation locality.** Changing labels, section markers, numeric notation,
+  table columns, identifier shapes or furniture changes the corresponding
+  profile values only. Provenance ids and the template signature may change.
+  Adjacent context stays in the census instead of coupling unrelated profile
+  values. Falsifiers: X1–X6 in `test_explorer.py`.
+- **K9.4 Review history.** Reviews are explicit, source-bound, append-only and
+  chained per field; they retain prior amendments. Falsifiers: duplicate ids,
+  stale census, incorrect predecessor, absent evidence.
+- **K9.5 Reader boundaries.** The profile supplies labels, numbering operators,
+  revision markers, table column selection and numeric separator. Identifier
+  shapes type identifiers, never whitelist them. Continuations retain character
+  mapping; role-introduced continuation lines remain UNDECIDABLE. Missing required
+  support emits UNKNOWN_TEMPLATE with scope, census id and inspected count.
+- **K9.6 Section expressions.** Lists preserve members and ranges preserve their
+  literal operator and endpoints. No reader expands a range or resolves it against
+  an inventory. Split/glued observations remain flagged. Revisions do not become
+  section members. Falsifier: X11 and the revision regression.
+- **K9.7 Negative records and reports.** A NOT_ESTABLISHED record requires a
+  question, searched scope, named rule and positive inspected count. All report
+  numbers belong to addressable records. Source text is escaped; relation wording
+  comes from a caller map. Falsifiers: X12, injection and missing-label-map tests.
+- **K9.8 Replay.** Semantic rows are sorted, strings NFC-normalized, geometry
+  including character boxes rounded to millipoints. Character order stays intact.
+  Timestamps, run ids and timing measurements are excluded. Imported-source
+  provenance hashes the actual package and refuses dirty source in gate mode.
+- **K9.9 Adapters.** Explicit consumer registration adds `explorer_census`,
+  `explorer_profile`, `explorer_read`, `explorer_report`. Their classes are declared
+  in the K0 inventory. Library, CLI, Kernel and Orchestrator manifest runs yield
+  the same typed report. A socket guard forbids network access in the chain.
+- **K9.10 Model boundary.** `harvest.profile_classify` is a separate effectful job.
+  Its strict schema permits only known ids, closed roles and explicit abstentions.
+  Every supplied id is accounted once. Exact invalid outputs remain cached and
+  refused; no repair turn occurs. The deterministic profile is unchanged whether
+  the service is disabled, accepted or refused. Falsifiers: X8–X9.
