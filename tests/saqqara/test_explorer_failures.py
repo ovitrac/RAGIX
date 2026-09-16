@@ -107,3 +107,20 @@ def test_library_failure_report_is_renderable_and_does_not_quote_input(monkeypat
     assert result.report.status == "FAILED"
     rendered = render_report(result.report, {})
     assert "private exception" not in rendered and "INVALID_CONSTRUCT" in rendered
+
+
+def test_changed_reading_rules_cannot_reuse_pre_plurality_kernel_cache(tmp_path):
+    from ragix_kernels.base import KernelInput
+    from ragix_kernels.saqqara.kernels.explorer import (
+        CensusKernel,
+        ProfileKernel,
+        ReadKernel,
+        ReportKernel,
+    )
+
+    for cls in (CensusKernel, ProfileKernel, ReadKernel, ReportKernel):
+        current = cls()
+        old = cls()
+        old.version = "0.2.0"
+        data = KernelInput(tmp_path, {"documents": [asdict(document())]})
+        assert current._hash_input(data) != old._hash_input(data)
