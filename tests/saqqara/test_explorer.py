@@ -584,3 +584,55 @@ def test_replay_volatile_exclusion_never_deletes_source_columns():
     assert replay_digest([row]) != replay_digest(
         [{**row, "cells": {**row["cells"], "timestamp": "different source date"}}]
     )
+
+
+def test_census_all_planted_category_multisets():
+    from collections import Counter
+
+    c = census(fixture())
+    seen = {}
+    for record in c.records:
+        seen.setdefault(record.category, Counter())[record.literal] += record.count
+    assert seen == {
+        "identifier": Counter({"XZ-AB-641": 3, "XZ-AB-975": 3}),
+        "numbering": Counter({"4.2": 3, "4.3": 3, "4.6": 3, "7.1": 3, "7.4": 3}),
+        "connector": Counter({";": 3, "à": 3, ",": 3}),
+        "label": Counter({"Renvoi": 3, "Value": 3}),
+        "table_header": Counter({'["Key", "Text", "Result"]': 3}),
+        "geometry": Counter({"ARCHIVED": 3}),
+        "title": Counter({"ARCHIVED": 1}),
+        "page": Counter({"page": 3}),
+        "language_token": Counter({"the": 6, "is": 3}),
+        "notation": Counter({"4.2": 3, "4.3": 3, "4.6": 3, "7.1": 3, "7.4": 3, "6,25": 6, "V": 3}),
+        "recurrence": Counter(
+            {
+                "Renvoi: XZ-AB-# § #.#; #.# à #.#": 3,
+                "XZ-AB-# § #.#, #.#": 3,
+                "Value: #,# V": 3,
+                "the part is in the box": 3,
+                "Running header": 3,
+                "ARCHIVED": 3,
+            }
+        ),
+    }
+
+
+def test_french_language_and_textless_drawing_observations():
+    d = DocumentDigest(
+        "synthetic",
+        (
+            PageDigest(1, 600, 800, (line("le composant est dans la boîte", 1, 0),)),
+            PageDigest(2, 600, 800, (), drawing_count=7),
+        ),
+        "synthetic",
+        "1",
+    )
+    result = explore(d)
+    assert result.profile.fields["language"].value == "fr"
+    assert result.profile.fields["reading_coverage"].value == {"pages": 2, "text_layer_pages": 1}
+    empty = next(
+        r
+        for r in result.census.records
+        if r.category == "page" and dict(r.attributes)["text_layer"] == "False"
+    )
+    assert dict(empty.attributes)["drawings"] == "7"
