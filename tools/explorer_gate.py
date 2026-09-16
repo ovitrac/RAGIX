@@ -151,10 +151,21 @@ def main(argv=None):
                     correct = sum(
                         d["role"] == expected[d["candidate_id"]] for d in result.decisions
                     )
+                    category_by_id = {r.candidate_id: r.category for r in sample.census.records}
+                    observed = {d["candidate_id"]: d["role"] for d in result.decisions}
+                    per_field = {}
+                    for candidate_id, role in expected.items():
+                        field = category_by_id[candidate_id]
+                        metrics = per_field.setdefault(field, {"correct": 0, "denominator": 0})
+                        metrics["denominator"] += 1
+                        metrics["correct"] += int(
+                            candidate_id in observed and observed[candidate_id] == role
+                        )
                     row = {
                         **result.manifest,
                         "correct": correct,
                         "denominator": len(expected),
+                        "per_field": per_field,
                         "decisions": result.decisions,
                         "expected": expected,
                     }

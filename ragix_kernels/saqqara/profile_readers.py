@@ -222,8 +222,15 @@ def read_document(
             spans = [source_by_id[sid] for sid in refs]
             # Profiles never authorize deleting matching body text: enforce the
             # geometry condition again at the observation being classified.
-            edge = line.bbox[1] < page.height * 0.08 or line.bbox[3] > page.height * 0.92
-            mark = any(abs(s.direction[1]) > 0.1 and s.font_size >= 20 for s in spans)
+            edge_fraction = furniture_rules["edge_fraction"] if furniture_rules else 0
+            edge = line.bbox[1] < page.height * edge_fraction or line.bbox[3] > page.height * (
+                1 - edge_fraction
+            )
+            mark = furniture_rules and any(
+                abs(s.direction[1]) > furniture_rules["rotation_threshold"]
+                and s.font_size >= furniture_rules["large_points"]
+                for s in spans
+            )
             is_furniture = furniture_rules and (
                 (edge and pattern in furniture_rules["running_patterns"])
                 or (mark and line.text in furniture_rules["mark_literals"])
@@ -324,7 +331,7 @@ def read_document(
                     height = max(1, prev.bbox[3] - prev.bbox[1])
                     boundary = (
                         line.page != prev.page
-                        or line.bbox[1] - prev.bbox[3] > 2.5 * height
+                        or line.bbox[1] - prev.bbox[3] > reference["max_gap_ratio"] * height
                         or line.bbox[2] < prev.bbox[0]
                         or line.bbox[0] > prev.bbox[2] + height
                     )

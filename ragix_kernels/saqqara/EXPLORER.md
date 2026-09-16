@@ -75,7 +75,10 @@ an explicitly selected local endpoint and uses a generated, sealed packet.
   insufficient language evidence stays UNKNOWN.
 - Deterministic range semantics cover known generic connector words; unfamiliar
   connectors remain observations and carry reader uncertainty.
-- A repeated geometric mark is not automatically a lifecycle assertion.
+- A repeated geometric mark is not automatically a lifecycle assertion. Census
+  geometry thresholds are carried in the profile and reused by the reader.
+  The continuation gap is an explicit configurable bound, not a learned layout
+  guarantee; an unfamiliar layout still needs review.
 - No OCR is attempted. Textless pages remain visible in coverage and findings.
 - A numeric locale is not inferred from a single ambiguous thousands/decimal
   spelling. A locale declaration does not remove grouping review flags.

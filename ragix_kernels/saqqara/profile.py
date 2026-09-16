@@ -97,9 +97,22 @@ class DocumentProfile:
                 "list_connectors",
                 "unknown_connectors",
             },
-            "reference_fields": {"labels", "stop_labels", "continuation", "role_line"},
+            "reference_fields": {
+                "labels",
+                "stop_labels",
+                "continuation",
+                "role_line",
+                "max_gap_ratio",
+            },
             "id_row_tables": {"tables"},
-            "furniture": {"running_patterns", "mark_literals", "default"},
+            "furniture": {
+                "running_patterns",
+                "mark_literals",
+                "default",
+                "edge_fraction",
+                "large_points",
+                "rotation_threshold",
+            },
             "numeric_locale": {"decimal_separator", "grouping", "units", "comparators"},
             "reading_coverage": {"pages", "text_layer_pages"},
         }
@@ -135,12 +148,14 @@ class ProfileConfig:
     recurrence_fraction: float = 0.5
     reference_fraction: float = 0.8
     minimum_occurrences: int = 2
+    continuation_gap_ratio: float = 2.5
 
     def __post_init__(self):
         if (
             not 0 < self.recurrence_fraction <= 1
             or not 0 < self.reference_fraction <= 1
             or self.minimum_occurrences < 2
+            or self.continuation_gap_ratio <= 0
         ):
             raise ValueError("invalid profile thresholds")
 
@@ -240,6 +255,7 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
                 "stop_labels": sorted({r.literal for r in labels}),
                 "continuation": "same_page_column_until_boundary",
                 "role_line": "undecidable",
+                "max_gap_ratio": config.continuation_gap_ratio,
             },
             support,
             "labels/identifier-follow/1",
@@ -283,6 +299,10 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
                 "running_patterns": sorted({r.literal for r in recurring}),
                 "mark_literals": sorted({r.literal for r in geometric}),
                 "default": "UNKNOWN",
+                **{
+                    key: float(dict(by["recurrence"][0].attributes)[key])
+                    for key in ("edge_fraction", "large_points", "rotation_threshold")
+                },
             },
             recurring + geometric,
             "furniture/recurrence-and-geometry/1",

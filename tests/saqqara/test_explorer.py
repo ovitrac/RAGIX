@@ -533,3 +533,38 @@ def test_spec_explorer_propositions_are_contiguous_and_declared():
     text = (Path(__file__).resolve().parents[2] / "ragix_kernels/saqqara/SPEC.md").read_text()
     assert re.findall(r"\*\*K8\.(\d+)", text) == [str(i) for i in range(1, 5)]
     assert re.findall(r"\*\*K9\.(\d+)", text) == [str(i) for i in range(1, 11)]
+
+
+def test_nondefault_census_geometry_is_carried_to_reader():
+    from ragix_kernels.saqqara.census import CensusConfig
+
+    d = fixture()
+    pages = tuple(
+        replace(
+            p, spans=tuple(replace(s, font_size=18) if s.text == "ARCHIVED" else s for s in p.spans)
+        )
+        for p in d.pages
+    )
+    d = replace(d, pages=pages)
+    c = census(d, CensusConfig(large_points=16))
+    p = derive_profile(c)
+    assert p.fields["furniture"].value["large_points"] == 16
+    assert len(read_document(d, c, p).furniture) == 6
+
+
+def test_planted_census_patterns_have_exact_recall_and_precision():
+    from collections import Counter
+
+    c = census(fixture())
+    identifiers_seen = Counter({})
+    for r in c.records:
+        if r.category == "identifier":
+            identifiers_seen[r.literal] += r.count
+    assert identifiers_seen == {"XZ-AB-641": 3, "XZ-AB-975": 3}
+    expected = {"4.2": 3, "4.3": 3, "4.6": 3, "7.1": 3, "7.4": 3}
+    numbering_seen = Counter()
+    for r in c.records:
+        if r.category == "numbering":
+            numbering_seen[r.literal] += r.count
+    assert numbering_seen == expected
+    assert {r.literal for r in c.records if r.category == "label"} == {"Renvoi", "Value"}

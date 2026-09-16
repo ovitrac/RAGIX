@@ -178,6 +178,9 @@ class CensusRecord:
             "code",
             "text_layer",
             "drawings",
+            "edge_fraction",
+            "large_points",
+            "rotation_threshold",
         }
         if any(k not in allowed or not isinstance(v, str) for k, v in self.attributes):
             raise ValueError("census interpretation fields forbidden")
@@ -203,9 +206,15 @@ class CensusConfig:
     edge_fraction: float = 0.08
     large_points: float = 20
     adjacency_chars: int = 32
+    rotation_threshold: float = 0.1
 
     def __post_init__(self):
-        if not 0 < self.edge_fraction < 0.5 or self.large_points <= 0 or self.adjacency_chars < 0:
+        if (
+            not 0 < self.edge_fraction < 0.5
+            or self.large_points <= 0
+            or self.adjacency_chars < 0
+            or not 0 < self.rotation_threshold <= 1
+        ):
             raise ValueError("invalid census configuration")
 
 
@@ -252,7 +261,15 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
             edge = line.bbox[1] < page.height * config.edge_fraction or line.bbox[
                 3
             ] > page.height * (1 - config.edge_fraction)
-            emit("recurrence", re.sub(r"\d+", "#", text.strip()), ev(), edge=edge)
+            emit(
+                "recurrence",
+                re.sub(r"\d+", "#", text.strip()),
+                ev(),
+                edge=edge,
+                edge_fraction=config.edge_fraction,
+                large_points=config.large_points,
+                rotation_threshold=config.rotation_threshold,
+            )
             for m in identifiers(text):
                 emit(
                     "identifier",
@@ -353,7 +370,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
                 if op:
                     emit("notation", op["op"], ev(op.start(), op.end()), kind="operator")
         for span in page.spans:
-            rotated = abs(span.direction[1]) > 0.1
+            rotated = abs(span.direction[1]) > config.rotation_threshold
             large = span.font_size >= config.large_points
             edge = span.bbox[1] < page.height * config.edge_fraction or span.bbox[
                 3
