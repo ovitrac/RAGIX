@@ -122,3 +122,116 @@ Continuation distance is an explicit configurable bound. Unknown connectors,
 unsupported language/locale and ambiguous layouts still require review.
 Consumer verification against its own inventories and its own policy remains a
 separate acceptance step. See `EXPLORER.md` for the library and adapter entrypoints.
+
+## Slice 2 — shared value windows and token-local notation, 2026-09-16
+
+Implementation: `5ec3aa27e31add79f3e963a4a1177d15b984ad39`, branch
+`feat/explorer-slice2`, based on merged `main` at `d320077`.
+The committed implementation tree is
+`4c1a9a31c2712b53a277bb04e33ffa9e56269732`.
+This addendum preserves the earlier measurements; the changed schema and parser
+produce new replay identities rather than pretending to replay old semantics.
+
+### Measured synthetic gates
+
+| Gate | Measurement | Result and boundary |
+|---|---|---|
+| E7.1 | Same line, next line, adjacent ruled cell, two line positions below, beyond bound; French and English labels | All ten controls pass. The first four positions retain the identifier-bearing value; the last stays empty and explicitly guard-limited. |
+| E7.2 / X16 | Move the value onto the next line | Reference-field value and confidence, targets and section members are unchanged. Position/evidence and policy provenance remain distinct. |
+| E7.3 | Inspect reader consumption and serialized replay | The reader consumes census window objects; every window shares the census policy. The reader has no independent gap/cap constants. |
+| E7.4 | Role label, known table header/caption, numbered heading, horizontal rule, page and column stops; distant-header and cap controls | Structural stops remain outside the window. Guard closures retain WINDOW_BOUND_HIT and needs_review, including after serialization; a flagged partial field cannot become ready. |
+| E8.1 / X17 | Dotted keys, dates, revisions, identifiers and page markers alongside physical comma/dot decimals | Every planted exclusion is absent from prior evidence; counts and prior strength match the physical observations. Comparator-only numbers and non-identifier cells are also exercised. |
+| E8.2 | Mixed clear tokens, unresolved three-digit tails, weak prior and one prior contradiction | Detection continues. Clear tokens retain local normalization; unresolved tokens retain literals without normalized values. Prior-dependent or contradicting tokens carry review flags individually. |
+| E8.3–E8.4 | Existing X3 plus exact offsets, direction and composite-member checks | Separator changes remain local to numeric profile values; literal spans survive; cell deduplication does not orphan composite members. |
+| E7.7 / E8.7 | Full Cartesian sweep described below | All 108 configurations yield identical accepted field semantics and quantity literals, offsets, values and flags on the planted fixture. |
+| E7.5 / E8.5 | Full committed-tree suite and replay on both architectures | Green, with measurements below. Existing public X1–X12 controls are retained. X13–X15 and X18–X20 are not introduced or claimed as implemented by this slice. |
+| E7.6 / E8.6 | Consumer inventory confirmation | Not run here. Consumer acceptance still requires its sealed field/target/member and quantitative-mention comparisons, with every difference reported. |
+
+### Threshold sensitivity and derivation
+
+The sweep uses actual fallback policies, not hidden reader overrides:
+
+- gap ratios: **1.5, 2.5, 4**;
+- following-nonempty-line caps: **6, 8, 16**;
+- prior dominance ratios: **0.8, 0.9, 1.0**;
+- prior minimum observations: **2, 3, 4, 5**.
+
+These are 108 combinations spanning the required ranges. The fixture has
+structural label stops and locally interpretable physical numbers, so guard
+variation cannot choose its layout or its numerical meaning. Identity hashes and
+recorded configuration are expected to differ; recovered labels, target/member
+semantics, literal offsets, normalized values and review flags are compared.
+Separate adversarial controls deliberately exhaust bounds and require an explicit
+review state, rather than treating a partial window as a successful full reading.
+
+The bimodal-histogram control supplies gap ratios 0.6 (three observations) and
+5.4 (two observations); the derived valley midpoint is 3. The profile records
+`derived` and the histogram. A unimodal control records `default`; an explicit
+amendment retains its supplied bound and records `amended`. Histogram interval
+comparisons use the declared rounding precision, avoiding floating-point tie
+artifacts. No constant or fixture was selected from a consumer corpus.
+
+### Full-suite and architecture measurements
+
+The staged implementation was applied to a detached worktree. Both staged tree
+ids were checked equal before committing. `PYTHONPATH` was pinned to that
+worktree, and both imported package roots were asserted to belong to it.
+The test run checked the staged tree identity again on completion. The resulting
+commit has exactly that tested tree. ARM validation used a separate detached
+checkout of the same commit, with its own pinned `PYTHONPATH`.
+
+| Platform | Full suite | Duration |
+|---|---|---:|
+| x86_64 | **2,088 passed, 38 skipped**, 139 warnings | 34.88 s |
+| aarch64 | **2,088 passed, 38 skipped**, 140 warnings | 23.91 s |
+
+These are committed-tree counts. They exclude ignored local-only tests from a
+development checkout. The detached checkouts also skip the local hook-installation
+check; content and history guards remain active. No ignored local tests or prior
+runtime checkout was changed. Warnings are reported, not counted as failures;
+the durations are single-run observations, not a performance comparison.
+
+Example validation invocation from a detached worktree:
+
+```bash
+EXPLORER_CHECKOUT=$(git rev-parse --show-toplevel)
+conda run --no-capture-output -n ragix-env env PYTHONPATH="$EXPLORER_CHECKOUT" \
+  python -m pytest tests/ -q -p no:cacheprovider --disable-warnings
+conda run --no-capture-output -n ragix-env env PYTHONPATH="$EXPLORER_CHECKOUT" \
+  python tools/explorer_gate.py --require-clean --output /tmp/explorer-slice2.json
+```
+
+All **18** replay cases match between architectures: the original seven typed
+mutations and PDF round trip, plus five value-window positions and five numeric
+notation/prior cases. Platform locks are unchanged. There was no live model work.
+
+| Record, identical on both architectures | SHA-256 |
+|---|---|
+| Imported package source | `a8f25668ccac6bdaa596c70e04e761e18195b9284ae501ce2ece508e15d6af56` |
+| Baseline report | `17a673d2716d3a3b0252cd540863d451eb971d6f69d9d138cb8b27f2ca047e32` |
+| Generated-PDF report | `f3850dcde1ef38d23875260f0069f4e5d741ddd72ef1c8e8bd016ca91753052b` |
+| Next-line value report | `a8436c0849f92eaf0479ebd56a2601dfde66e4119b672f43f8130df4b87315aa` |
+| Mixed local notation report | `5e66dc96c2e4879ec8721de95b33213939854fc2f37db2e6bf1b56e5b9a31ed6` |
+| Individual prior-contradiction report | `364f65484f2267431f2a612f32802d785cf5cad4ef535098824471ea27748369` |
+
+### Intentional contract changes and retained refutations
+
+The old whole-document UNKNOWN assertion is intentionally superseded by the
+lead's token-first rule. A field may record observed numeric evidence with no
+usable document prior. Its reader still emits candidates; a genuinely ambiguous
+literal cannot acquire a value merely by being repeated in the document.
+`census/0.2`, `document-profile/0.2`, and opt-in `quantitative/1.1` distinguish this
+behavior. Legacy harvest calls retain their original producer and behavior.
+Old serialized digests without horizontal-rule observations are refused and must
+be re-extracted; missing observations cannot establish the absence of a rule.
+
+The negative tests additionally preserve these corrections: a known table header
+must not become a plain label; dropping duplicate scalar children must not orphan
+a table composite; a unitless comparator with unresolved direction stays
+unresolved; a serialized guard stop cannot remove its review flag; horizontal
+rule coordinates participate in geometry-normalized replay.
+
+Synthetic success does not close consumer acceptance or establish recall on
+unseen layouts. The adjacent-cell positive control has an observed ruled boundary;
+unproven cross-column associations remain refused. The consumer confirmation is
+a measurement step, not an opportunity to tune these defaults to its documents.
