@@ -354,3 +354,83 @@ def role_only(g):
             )
         )
     return document(pages)
+
+
+REFERENCE = "AB-CDE-900001"  # one document cited on every page, as a protocol cites its source
+VALUE_FORMS = {
+    # revision glued to the first section sign
+    "bare": (f"{TYPE_WORD} {REFERENCE} V 1.0§4.1 §4.2", [("single", "4.1"), ("single", "4.2")]),
+    # the same phrase before a colon
+    "colon": (f"{TYPE_WORD} {REFERENCE} V 1.0: §4.1 à §4.3", [("range", "4.1", "4.3")]),
+    "plain": (f"{REFERENCE} V 1.0 §4.1", [("single", "4.1")]),
+}
+
+
+def b1(g, forms=("bare", "colon"), overhang=0.0, ruled="grid", top_offset=0.3):
+    """A label ends its cell; its value opens the next cell on the same row.
+
+    The value opens with an acronym, an identifier and a revision. With `colon` pages in
+    the same document, that phrase also stands before a colon: it is reference content
+    all the same, never a label. `overhang` is how far the label's last glyph runs past
+    the border between the two cells; the value starts at the border.
+    """
+    pages = []
+    h = g.line_height
+    number = 0
+    for form in forms:
+        for _ in PAGES:
+            number += 1
+            label = span(LABEL_EN + " :", number, "l", 80.0, 100.0, g, right=182.0)
+            border = label.bbox[2] - overhang
+            value = span(
+                VALUE_FORMS[form][0],
+                number,
+                "v",
+                border,
+                100.0 + top_offset,
+                g,
+                right=border + 300.0,
+            )
+            vertical = (VerticalRule(border, 96.0, 104.0 + h),)
+            horizontal = ()
+            if ruled == "grid":
+                vertical = tuple(
+                    VerticalRule(x, 96.0, 104.0 + h) for x in (76.0, border, border + 320.0)
+                )
+                horizontal = tuple(
+                    HorizontalRule(y, 76.0, border + 320.0) for y in (96.0, 104.0 + h)
+                )
+            below = next_block(number, g, 104.0 + h + g.line_height * g.stop_gap_ratio + 8.0)
+            pages.append(
+                PageDigest(
+                    number, 600, 800, (label, value, below), vertical, horizontal_rules=horizontal
+                )
+            )
+    return document(pages)
+
+
+PROSE_LABEL = "Remarque"
+
+
+def b3(g):
+    """A one-word label with its colon, followed by prose that happens to quote identifiers."""
+    pages = []
+    for p in PAGES:
+        first = span(
+            f"{PROSE_LABEL} : les essais de la pompe (voir le plan) n° {identifier(p)}",
+            p,
+            "w1",
+            60.0,
+            100.0,
+            g,
+        )
+        top = 100.0 + 3 * g.line_height
+        lines = (
+            f"{PROSE_LABEL} : la vérification suit l'ordre des essais prévus pour l'ensemble",
+            f"du lot n° {identifier(p, 'FGH')}",
+            f"puis celui du lot {identifier(p, 'JKL')}",
+            "fin.",
+        )
+        more, _ = stacked(p, g, lines, top, g.inner_gaps, prefix="w2")
+        pages.append(PageDigest(p, 600, 800, (first, *more), ()))
+    return document(pages)

@@ -562,3 +562,67 @@ def test_underline_is_told_from_an_edge_by_its_extent():
         HorizontalRule(103.0, 60.0, 180.0),  # upper half: not an underline
     ):
         assert not underlines(rule, line, DEFAULT_REFERENCE), rule
+
+
+# Confirmation on real documents found three defects the gates above did not model.
+VALUE_IS_A_LABEL = (
+    "a phrase holding an identifier is taken as a label and closes its own label's window"
+)
+BORDER_IN_GLYPH = "a border a hair inside the label's last glyph hides the next cell"
+PROSE_VOTES = "an identifier anywhere in prose after a colon label votes for that label"
+
+
+def members(target):
+    return [tuple(v for v in (s.kind, s.key_from, s.key_to) if v) for s in target.sections]
+
+
+@known(VALUE_IS_A_LABEL)
+@corners
+@pytest.mark.parametrize("ruled", ["grid", "vertical_only"])
+def test_b1_a_phrase_holding_an_identifier_is_reference_content_never_a_label(g, ruled):
+    result = explore(fx.b1(g, ruled=ruled))
+    fields = reference_fields(result)
+    assert len(fields) == 2 * len(fx.PAGES)
+    for field, form in zip(fields, [f for f in ("bare", "colon") for _ in fx.PAGES]):
+        assert [(t.raw, t.revision_raw) for t in field.targets] == [(fx.REFERENCE, "1.0")]
+        assert members(field.targets[0]) == fx.VALUE_FORMS[form][1]
+        assert field.status == "READ"
+    assert all(w.value_position == "next_cell" for w in reference_windows(result))
+    from ragix_kernels.saqqara.census import identifiers
+
+    assert not [w.label for w in result.census.windows if identifiers(w.label)]
+
+
+@known(BORDER_IN_GLYPH)
+@corners
+@pytest.mark.parametrize("ruled", ["grid", "vertical_only"])
+@pytest.mark.parametrize("overhang", [0.01, 0.04])
+def test_b2_a_border_grazing_the_last_glyph_still_separates_two_cells(g, ruled, overhang):
+    result = explore(fx.b1(g, forms=("plain",), overhang=overhang, ruled=ruled))
+    fields = reference_fields(result)
+    assert [[(t.raw, t.revision_raw) for t in f.targets] for f in fields] == [
+        [(fx.REFERENCE, "1.0")]
+    ] * len(fx.PAGES)
+    assert all(w.value_position == "next_cell" for w in reference_windows(result))
+    assert not [f for f in result.reading.findings if f.reason == "RULE_STOP"]
+
+
+@known(PROSE_VOTES)
+@corners
+def test_b3_prose_after_a_colon_label_is_not_a_reference_field(g):
+    result = explore(fx.b3(g))
+    field = result.profile.fields["reference_fields"]
+    assert field.status == "UNKNOWN" and field.value is None
+    assert all(f.status == "UNDECIDABLE" and f.needs_review for f in result.reading.fields)
+
+
+@corners
+def test_a_window_that_loses_its_value_is_never_silent(g):
+    """Whatever closes a window before any value, the occurrence is reported with its place."""
+    result = explore(fx.a3(g, edge=True))
+    assert reference_fields(result) == []
+    assert [(f.reason, bool(f.page), bool(f.span_id)) for f in result.reading.findings] == [
+        ("RULE_STOP", True, True)
+    ] * len(fx.PAGES)
+    unresolved = result.profile.fields["reference_fields"].diagnostics["unresolved_occurrences"]
+    assert len(unresolved) == len(fx.PAGES)
