@@ -165,7 +165,14 @@ class ValueWindow:
 
 
 def _same_row(a, b):
-    return min(a.bbox[3], b.bbox[3]) > max(a.bbox[1], b.bbox[1])
+    """Two boxes share a row when the shorter one's vertical centre lies in the taller.
+
+    Overlap alone does not: the boxes of consecutive lines routinely overlap by a
+    couple of points, and reading that as one row turns a wrapped value into a
+    column break.
+    """
+    short, tall = sorted((a.bbox, b.bbox), key=lambda box: box[3] - box[1])
+    return tall[1] < (short[1] + short[3]) / 2 < tall[3]
 
 
 def _edges(values, tolerance):

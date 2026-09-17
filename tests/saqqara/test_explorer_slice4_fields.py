@@ -60,16 +60,42 @@ def test_a1_a4_underline_and_adjacent_value_span_are_not_stops(g):
     assert all(w.value_position == "same_line" for w in reference_windows(result))
 
 
-@known("a line box overlapping the previous one is read as the same row: column_break")
-@corners
+UNDERLINE_ON_THE_EDGE = (
+    "an underline on the label's bottom edge is read as a rule between two lines"
+)
+# Where the next line touches the label line, the underline lies exactly between them.
+corners_underlined = pytest.mark.parametrize(
+    "g",
+    [
+        pytest.param(g, marks=known(UNDERLINE_ON_THE_EDGE)) if g is fx.LOW2 else g
+        for g in fx.GEOMETRIES
+    ],
+    ids=lambda g: g.name,
+)
+
+
+@corners_underlined
 @pytest.mark.parametrize("wrap", ["value", "label"])
 def test_a2_continuation_inside_the_value_cell(g, wrap):
     result = explore(fx.a2(g, wrap))
     fields = reference_fields(result)
     assert len(fields) == len(fx.PAGES)
-    assert all(len(w.views) == 3 for w in reference_windows(result))
+    assert all(len(w.views) == 3 and w.stop_reason == "label" for w in reference_windows(result))
     for page, field in zip(fx.PAGES, fields):
         assert [t.raw for t in field.targets] == [fx.identifier(page), "AB-FORM-900002"]
+        keys = [k for s in field.targets[0].sections for k in (s.key_from, s.key_to) if k]
+        assert keys == ["4.1", "4.2", "4.3", "4.4", "5.1", "5.4"]
+        assert "titre de formulaire" in field.view.text
+        assert field.status == "READ"
+
+
+@known(
+    "the census keeps the marker inside the connector and the profile classifies bare connectors only"
+)
+@corners
+@pytest.mark.parametrize("wrap", ["value", "label"])
+def test_a2_open_range_is_closed_by_the_continuation_line(g, wrap):
+    for field in reference_fields(explore(fx.a2(g, wrap))):
         assert sections(field.targets[0]) == [
             ("single", "4.1", None, None),
             ("single", "4.2", None, None),
@@ -77,8 +103,6 @@ def test_a2_continuation_inside_the_value_cell(g, wrap):
             ("single", "4.4", None, None),
             ("range", "5.1", "5.4", "à"),
         ]
-        assert "titre de formulaire" in field.view.text
-        assert field.status == "READ"
 
 
 @known(
@@ -312,3 +336,14 @@ def test_reference_policy_is_sealed_in_the_census_and_refuses_invalid_values():
     for value in (-0.1, float("nan"), True):
         with pytest.raises(ValueError):
             ReferencePolicy(rule_tolerance=value)
+
+
+def test_rows_are_shared_by_centre_not_by_overlap():
+    from types import SimpleNamespace as box
+    from ragix_kernels.saqqara.value_windows import _same_row
+
+    line = box(bbox=(60.0, 100.0, 300.0, 112.0))
+    assert _same_row(line, box(bbox=(310.0, 100.0, 400.0, 112.0)))
+    assert _same_row(line, box(bbox=(310.0, 103.0, 330.0, 109.0)))  # a smaller span on the row
+    assert not _same_row(line, box(bbox=(60.0, 109.5, 300.0, 121.5)))  # next line, boxes overlap
+    assert not _same_row(line, box(bbox=(60.0, 112.0, 300.0, 124.0)))
