@@ -1,0 +1,26 @@
+name: PDF cleaner synthetic gates
+on:
+  push:
+    paths:
+      - 'ragix_core/pdf_watermark.py'
+      - 'tools/pdf_clean.py'
+      - 'tests/tools/**'
+      - 'pyproject.toml'
+      - '.github/workflows/pdf-clean.yml'
+  pull_request:
+    paths:
+      - 'ragix_core/pdf_watermark.py'
+      - 'tools/pdf_clean.py'
+      - 'tests/tools/**'
+      - 'pyproject.toml'
+      - '.github/workflows/pdf-clean.yml'
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install '.[pdf-clean,dev]'
+      - run: python -m pytest tests/tools/test_pdf_clean.py -q
