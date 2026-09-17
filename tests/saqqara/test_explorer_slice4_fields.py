@@ -114,7 +114,6 @@ def test_a3_value_starting_the_next_line(g):
     assert all(f.status == "READ" and "ROLE_LINE_UNDECIDABLE" not in f.flags for f in fields)
 
 
-@known("label words inside prose are not counted")
 @corners
 @pytest.mark.parametrize("build", [fx.a5, fx.a6], ids=["a5", "a6"])
 def test_a5_a6_label_words_in_prose_make_no_field(g, build):
@@ -122,11 +121,18 @@ def test_a5_a6_label_words_in_prose_make_no_field(g, build):
     assert own_identifiers(reference_fields(result)) == [[fx.identifier(p)] for p in fx.PAGES]
     assert len(result.reading.fields) == len(fx.PAGES)
     mentions = label_in_prose(result)
+    # Label words in prose are observed, and they never vote for or against the label.
+    field = result.profile.fields["reference_fields"]
+    assert field.status == "PROBED" and field.confidence == 1
+    assert [
+        (c["positives"], c["non_empty_negatives"])
+        for c in field.diagnostics["reference_counts"]
+        if c["label"] == fx.LABEL_FR
+    ] == [(len(fx.PAGES), 0)]
     assert [m["page"] for m in mentions] == list(fx.PAGES)
     assert all(m["reason"] == "NO_REFERENCE_CONTENT" and m["span_id"] for m in mentions)
 
 
-@known("a colon-less label followed by reference content on its own line is never a candidate")
 @corners
 @pytest.mark.parametrize("evidence", ["declared", "colon_elsewhere"])
 def test_a7_colonless_label_that_introduces_a_value(g, evidence):
@@ -140,7 +146,6 @@ def test_a7_colonless_label_that_introduces_a_value(g, evidence):
     assert label_in_prose(result) == []
 
 
-@known("type words are consumer policy data, absent from the frozen reader")
 @corners
 def test_a7_type_word_is_reference_content_only_when_declared(g):
     document = fx.a7(g, typed=True)
@@ -258,6 +263,8 @@ BUILDS = {
     "a8_right": lambda g: fx.a8(g, "right", "per_cell", 0.3, True),
     "a8_below": lambda g: fx.a8(g, "below", "per_cell", 0.3, True),
     "a9": fx.a9,
+    "a5": fx.a5,
+    "a7": lambda g: fx.a7(g, colon_evidence=True),
     "a10": fx.a10,
     "a11": fx.a11,
     "a12": fx.a12,
@@ -274,7 +281,7 @@ def reading(result):
 
 # Swept once a fixture reads correctly: each repair extends this list, so the sweep
 # never certifies an invariantly wrong reading.
-SWEPT = ["a1", "a10", "a11", "a13", "a8_right_painted", "a8_below_painted"]
+SWEPT = ["a1", "a5", "a7", "a10", "a11", "a13", "a8_right_painted", "a8_below_painted"]
 
 
 @corners
@@ -379,3 +386,63 @@ def test_connector_closing_a_wrapped_line_is_observed_on_its_own_line():
     assert [(r.literal, r.count) for r in across] == [("à", len(fx.PAGES))]
     assert all(e.literal == "à" and e.end - e.start == 1 for r in across for e in r.evidence)
     assert result.profile.fields["numbering_style"].value["range_connectors"] == ["à"]
+
+
+def test_reference_content_is_what_a_label_may_introduce():
+    from ragix_kernels.saqqara.census import identifiers
+    from ragix_kernels.saqqara.value_windows import begins_with_reference
+
+    for text in (" AB-CDE-900001 V 1.0", "§4.1", "§ 4.1", "4.1.2 et 4.3", "« titre »", "“title”"):
+        assert begins_with_reference(text, identifiers)
+    for text in (
+        "par le laboratoire",
+        "ensuite AB-CDE-900001",
+        "4 essais",
+        "",
+        "ZRS AB-CDE-900001",
+    ):
+        assert not begins_with_reference(text, identifiers)
+    for text in ("ZRS AB-CDE-900001", "zrs n° AB-CDE-900001", "ZRS : AB-CDE-900001"):
+        assert begins_with_reference(text, identifiers, ("ZRS",))
+    assert not begins_with_reference("ZRSX AB-CDE-900001", identifiers, ("ZRS",))
+    assert not begins_with_reference("ZRS puis AB-CDE-900001", identifiers, ("ZRS",))
+    # Shipped type words are language-generic document nouns.
+    assert begins_with_reference("Spécification AB-CDE-900001", identifiers, reference_words())
+
+
+def reference_words():
+    from ragix_kernels.saqqara.value_windows import DEFAULT_REFERENCE
+
+    return DEFAULT_REFERENCE.type_words
+
+
+def test_fold_keeps_the_source_index_of_every_character():
+    from ragix_kernels.saqqara.value_windows import fold
+
+    folded, index = fold("Référence ÉTÉ")
+    assert folded == "reference ete" and index == list(range(13))
+    assert fold("ﬁn")[1] == [0, 0, 1]  # one ligature, two folded characters
+
+
+@corners
+def test_a_longer_word_sharing_the_label_prefix_is_not_the_label(g):
+    """Plural or derived forms are not folded: a consumer declares the forms it uses."""
+    document = fx.a7(g)
+    result = explore(document, census_config=reference_policy(labels=("Tested referenc",)))
+    assert reference_fields(result) == [] and label_in_prose(result) == []
+
+
+def test_declared_words_are_validated_and_sealed():
+    from dataclasses import asdict
+    from ragix_kernels.saqqara.census import census_from_dict
+    from ragix_kernels.saqqara.value_windows import ReferencePolicy
+
+    config = reference_policy(labels=(fx.LABEL_EN,), type_words=(fx.TYPE_WORD,))
+    result = explore(fx.a7(fx.MID, typed=True), census_config=config)
+    assert census_from_dict(asdict(result.census)) == result.census
+    assert result.census.reference_policy.labels == (fx.LABEL_EN,)
+    for bad in ([fx.LABEL_EN], ("",), (" ",), (1,)):
+        with pytest.raises(ValueError):
+            ReferencePolicy(labels=bad)
+        with pytest.raises(ValueError):
+            ReferencePolicy(type_words=bad)

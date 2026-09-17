@@ -187,7 +187,8 @@ def a7(g, typed=False, colon_evidence=False):
     pages = []
     for p in PAGES:
         head = f"{TYPE_WORD} " if typed else ""
-        spans, rules = labelled(p, g, value=f"{head}{identifier(p)} V 1.0 §3.1", colon="")
+        # Without a colon the label span ends with its space, as extracted text does.
+        spans, rules = labelled(p, g, value=f"{head}{identifier(p)} V 1.0 §3.1", colon=" ")
         if colon_evidence:  # the same label, with its colon, elsewhere on the page
             more, more_rules = labelled(p, g, value=f"{identifier(p, 'FGH')} V 2.0 §3.2", top=300.0)
             more = [

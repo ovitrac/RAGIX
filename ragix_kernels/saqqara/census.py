@@ -20,6 +20,7 @@ from .value_windows import (
     ReferencePolicy,
     DEFAULT_REFERENCE,
     reference_from_dict,
+    colon_labels,
 )
 
 from ..harvest.numeric_locale import physical_numbers
@@ -329,6 +330,16 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
         config.continuation_policy,
     )
 
+    def headers_of(page):
+        return tuple(h for t in page.tables for h in (*t.headers, " ".join(t.headers)))
+
+    # A label shown with its colon anywhere in the document is known everywhere in it.
+    known_labels = tuple(
+        sorted(
+            {label for p in document.pages for label in colon_labels(page_lines(p), headers_of(p))}
+        )
+    )
+
     def emit(category, literal, evidence, **attrs):
         buckets[(category, literal, tuple(sorted((k, str(v)) for k, v in attrs.items())))].append(
             evidence
@@ -346,6 +357,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
         )
         emit("page", "page", page_ev, text_layer=bool(page.spans), drawings=page.drawing_count)
         lines = page_lines(page)
+        mentions = []
         edge_ids = {
             v.view_id
             for v in lines
@@ -358,13 +370,16 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
             policy=policy,
             vertical_rules=page.rules,
             horizontal_rules=page.horizontal_rules,
-            table_headers=tuple(h for t in page.tables for h in (*t.headers, " ".join(t.headers))),
+            table_headers=headers_of(page),
             edge_ids=edge_ids,
             findings=construct_findings,
             reference=config.reference_policy,
+            known_labels=known_labels,
+            mentions=mentions,
         )
         windows.extend(page_windows)
         window_by_label = {w.views[0].view_id: w for w in page_windows}
+        mention_by_line = {m[0].view_id: m for m in mentions}
         closing = closing_connectors(page_windows)
         for index, line in enumerate(lines):
             text = line.text
@@ -429,6 +444,19 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
             for left, right in zip(numbers, numbers[1:]):
                 gap = text[left.end() : right.start()].strip()
                 emit("connector", gap, ev(left.end(), right.start()), pattern="between_numbering")
+            if line.view_id in mention_by_line:
+                # Label words in prose are observed and never vote for a field.
+                _, label, end, reason = mention_by_line[line.view_id]
+                emit(
+                    "label",
+                    label,
+                    ev(len(text) - len(text.lstrip()), end),
+                    follow="prose",
+                    separator="none",
+                    value_position="none",
+                    window_line_count=0,
+                    pattern=reason,
+                )
             if line.view_id in closing:
                 start, end = closing[line.view_id]
                 emit("connector", text[start:end], ev(start, end), pattern="across_lines")

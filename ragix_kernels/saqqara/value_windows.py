@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass, replace
 from collections import Counter
 import math
 import re
+import unicodedata
 from .field_views import TextView, stable_id, union_box, view_from_dict
 
 
@@ -35,6 +36,9 @@ class ContinuationPolicy:
 DEFAULT_CONTINUATION = ContinuationPolicy()
 
 
+GENERIC_TYPE_WORDS = ("specification", "specifications", "spécification", "spécifications")
+
+
 @dataclass(frozen=True)
 class ReferencePolicy:
     """Declared numbers of the label-value reader; each is provenance, none a layout.
@@ -42,9 +46,19 @@ class ReferencePolicy:
     `rule_tolerance` (points): parallel painted rules no farther apart than this are
     one edge. Producers paint each cell's own borders, so a shared border arrives
     as two rules a fraction of a point apart; the sliver between them is no cell.
+
+    `labels`: label phrases declared by the consumer. None is shipped: a label is
+    data of the consumer's documents, and a document also supplies its own, the
+    phrases it shows with a colon.
+
+    `type_words`: words that, directly before an identifier, belong to the
+    reference (a document-type noun). The shipped ones are language-generic; a
+    domain's acronyms come from the consumer.
     """
 
     rule_tolerance: float = 1.0
+    labels: tuple[str, ...] = ()
+    type_words: tuple[str, ...] = GENERIC_TYPE_WORDS
     version: str = "reference-policy/0.1"
 
     def __post_init__(self):
@@ -53,6 +67,11 @@ class ReferencePolicy:
             or not math.isfinite(self.rule_tolerance)
             or self.rule_tolerance < 0
             or self.version != "reference-policy/0.1"
+            or any(
+                type(words) is not tuple
+                or any(not isinstance(w, str) or not w.strip() for w in words)
+                for words in (self.labels, self.type_words)
+            )
         ):
             raise ValueError("invalid reference policy")
 
@@ -232,6 +251,70 @@ def _boundary(anchor, previous, candidate, policy, vertical_rules, horizontal_ru
     return None
 
 
+COLON_LABEL = re.compile(r"([^:\n]{0,100}):\s*")
+BULLETS = " \t•●○◦▪▫■□►▶‣⁃∙·*-–—"
+
+
+def fold(text):
+    """Case- and accent-insensitive text, with the source index of each character."""
+    folded, index = [], []
+    for i, char in enumerate(text):
+        for c in unicodedata.normalize("NFKD", char):
+            if not unicodedata.combining(c):
+                for low in c.casefold():
+                    folded.append(low)
+                    index.append(i)
+    return "".join(folded), index
+
+
+def colon_labels(lines, table_headers=()):
+    """The label phrases a page shows with their colon: the document's own lexicon."""
+    headers = set(table_headers)
+    return tuple(
+        match[1].strip()
+        for line in lines
+        if line.text.strip() not in headers
+        for match in [COLON_LABEL.match(line.text)]
+        if match and match[1].strip()
+    )
+
+
+def begins_with_reference(text, identifiers, type_words=()):
+    """Reference content opens the text.
+
+    An identifier, a declared type word directly before one, a section sign or a
+    dotted number, or a quoted title. A label introduces a value; label words
+    followed by anything else are prose.
+    """
+    text = text.lstrip()
+    if re.match(r"§\s*\d|\d+(?:\.\d+)+|[«“„\"]", text):
+        return True
+    found = identifiers(text)
+    if found and found[0].start() == 0:
+        return True
+    folded, index = fold(text)
+    for word in type_words:
+        key = fold(word)[0]
+        if folded.startswith(key) and not folded[len(key) : len(key) + 1].isalnum():
+            rest = re.sub(
+                r"^\s*(?:n\s*[°º]|no\.?|#)?\s*[:\-–]?\s*", "", text[index[len(key) - 1] + 1 :]
+            )
+            found = identifiers(rest)
+            if found and found[0].start() == 0:
+                return True
+    return False
+
+
+def _known_label(text, known):
+    """(label, end offset) when a known label opens the line, bullets aside."""
+    lead = len(text) - len(text.lstrip(BULLETS))
+    folded, index = fold(text[lead:])
+    for key, label in known:
+        if folded.startswith(key) and not folded[len(key) : len(key) + 1].isalnum():
+            return label, lead + index[len(key) - 1] + 1
+    return None
+
+
 def _heading(text):
     match = re.match(r"^\s*\d+(?:\.\d+)*[.)]?\s+([^\W\d_]+)", text)
     return bool(match and match[1].casefold() not in {"à", "to", "through", "et", "and"})
@@ -248,19 +331,30 @@ def build_value_windows(
     edge_ids=frozenset(),
     findings=None,
     reference=DEFAULT_REFERENCE,
+    known_labels=(),
+    mentions=None,
 ):
     """Build once at census time; every reader uses these same sealed objects.
 
     Colon labels are literal observations. Existing plain-label candidacy remains
     restricted to a locally adjacent identifier; no new ranking rule is added.
+
+    A label must introduce a value. `known_labels` are the phrases the document
+    shows with a colon and those the consumer declares: without its colon, such a
+    phrase opening a line is a label only when reference content follows; otherwise
+    it is recorded in `mentions` as label words in prose and makes no window.
     """
     lines = tuple(v for v in lines if v.text.strip())
     headers = set(table_headers)
+    known = sorted(
+        {(fold(label.strip())[0], label.strip()) for label in (*reference.labels, *known_labels)},
+        key=lambda pair: (-len(pair[0]), pair),
+    )
     labels = {}
     for index, line in enumerate(lines):
         if line.text.strip() in headers:
             continue
-        match = re.match(r"([^:\n]{0,100}):\s*", line.text)
+        match = COLON_LABEL.match(line.text)
         if match and not match[1].strip():
             if findings is not None:
                 from .failures import construct_finding
@@ -277,7 +371,17 @@ def build_value_windows(
             continue
         if match:
             labels[index] = (match[1].strip(), match.end(1), match.end(), ":")
-        elif (
+            continue
+        opening = None if line.view_id in edge_ids else _known_label(line.text, known)
+        if opening and line.text[opening[1] :].strip():
+            rest = line.text[opening[1] :]
+            if begins_with_reference(rest, identifiers, reference.type_words):
+                start = opening[1] + len(rest) - len(rest.lstrip())
+                labels[index] = (opening[0], opening[1], start, "space")
+            elif mentions is not None:
+                mentions.append((line, opening[0], opening[1], "NO_REFERENCE_CONTENT"))
+            continue
+        if (
             index + 1 < len(lines)
             and line.view_id not in edge_ids
             and not identifiers(line.text)
@@ -293,7 +397,12 @@ def build_value_windows(
                 reference.rule_tolerance,
             )
         ):
-            labels[index] = (line.text.strip(), len(line.text), len(line.text), "newline")
+            labels[index] = (
+                opening[0] if opening else line.text.strip(),
+                len(line.text),
+                len(line.text),
+                "newline",
+            )
     windows = []
     for index, (label, label_end, value_start, separator) in labels.items():
         anchor = lines[index]
@@ -468,7 +577,9 @@ def policy_from_dict(data):
 
 
 def reference_from_dict(data):
-    return ReferencePolicy(**data)
+    return ReferencePolicy(
+        **{**data, "labels": tuple(data["labels"]), "type_words": tuple(data["type_words"])}
+    )
 
 
 def _cell_at(x, y, vertical, horizontal, tolerance):

@@ -54,6 +54,7 @@ class ProfileField:
                 "observed_ratio",
                 "reference_counts",
                 "unresolved_occurrences",
+                "label_in_prose",
             }
             or (
                 "ambiguous_observations" in self.diagnostics
@@ -303,7 +304,9 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
             numbering + connectors,
             "numbering/literal-connectors/1",
         )
-    labels = by.get("label", [])
+    observed_labels = by.get("label", [])
+    prose = [r for r in observed_labels if dict(r.attributes)["follow"] == "prose"]
+    labels = [r for r in observed_labels if r not in prose]
     selected = []
     support = []
     stats = []
@@ -378,8 +381,21 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
         fields["reference_fields"],
         confidence=confidence,
         rule_id="labels/identifier-plurality/2",
-        evidence=tuple(sorted(r.candidate_id for r in labels)),
-        diagnostics={"reference_counts": stats, "unresolved_occurrences": unresolved},
+        evidence=tuple(sorted(r.candidate_id for r in observed_labels)),
+        diagnostics={
+            "reference_counts": stats,
+            "unresolved_occurrences": unresolved,
+            "label_in_prose": [
+                {
+                    "label": r.literal,
+                    "page": e.page,
+                    "span_id": e.span_id,
+                    "reason": dict(r.attributes)["pattern"],
+                }
+                for r in prose
+                for e in r.evidence
+            ],
+        },
     )
     tables = by.get("table_header", [])
     raw_ids = set(census.table_analysis.candidate_ids) | set(census.table_analysis.excluded)
