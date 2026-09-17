@@ -17,6 +17,9 @@ from .value_windows import (
     window_from_dict,
     derive_continuation,
     policy_from_dict,
+    ReferencePolicy,
+    DEFAULT_REFERENCE,
+    reference_from_dict,
 )
 
 from ..harvest.numeric_locale import physical_numbers
@@ -25,7 +28,7 @@ from .failures import ConstructFinding
 
 from .table_views import TableCell, TablePolicy, TableAnalysis, recover_tables, analysis_from_dict
 
-VERSION = "census/0.6"
+VERSION = "census/0.7"
 IDENTIFIER = re.compile(r"(?<!\w)[A-Za-z0-9]+(?:[-/]+[A-Za-z0-9]+)+(?!\w)")
 NUMBERING = re.compile(r"(?<![\w.])\d+(?:\.\s*\d+)+(?![\w.])")
 CATEGORIES = frozenset(
@@ -224,6 +227,7 @@ class Census:
     construct_findings: tuple[ConstructFinding, ...] = ()
     geometry_policy: dict = field(default_factory=dict)
     table_analysis: TableAnalysis = TableAnalysis()
+    reference_policy: ReferencePolicy = DEFAULT_REFERENCE
 
     def __post_init__(self):
         if self.version != VERSION or not self.source_id or not self.digest_id or self.pages < 1:
@@ -241,6 +245,7 @@ class CensusConfig:
     recurrence_fraction: float = 0.5
     table_policy: TablePolicy = TablePolicy()
     continuation_policy: ContinuationPolicy = DEFAULT_CONTINUATION
+    reference_policy: ReferencePolicy = DEFAULT_REFERENCE
 
     def __post_init__(self):
         if (
@@ -309,6 +314,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
             table_headers=tuple(h for t in page.tables for h in (*t.headers, " ".join(t.headers))),
             edge_ids=edge_ids,
             findings=construct_findings,
+            reference=config.reference_policy,
         )
         windows.extend(page_windows)
         window_by_label = {w.views[0].view_id: w for w in page_windows}
@@ -627,6 +633,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
                 "recurrence_fraction",
             )
         },
+        reference_policy=config.reference_policy,
     )
 
 
@@ -695,6 +702,7 @@ def census_from_dict(data):
         **{
             **data,
             "continuation_policy": policy,
+            "reference_policy": reference_from_dict(data["reference_policy"]),
             "table_analysis": analysis_from_dict(data["table_analysis"]),
             "construct_findings": tuple(
                 ConstructFinding(**f) for f in data.get("construct_findings", ())

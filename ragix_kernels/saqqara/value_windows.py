@@ -14,7 +14,7 @@ from .field_views import TextView, stable_id, union_box, view_from_dict
 class ContinuationPolicy:
     max_gap_ratio: float = 2.5
     max_lines: int = 8
-    version: str = "value-window/0.2"
+    version: str = "value-window/0.3"
     source: str = "default"
     gap_histogram: tuple[tuple[float, int], ...] = ()
     derivation_reason: str | None = None
@@ -26,13 +26,38 @@ class ContinuationPolicy:
             or self.max_gap_ratio <= 0
             or type(self.max_lines) is not int
             or self.max_lines < 1
-            or self.version != "value-window/0.2"
+            or self.version != "value-window/0.3"
             or self.source not in {"derived", "default", "amended"}
         ):
             raise ValueError("invalid continuation policy")
 
 
 DEFAULT_CONTINUATION = ContinuationPolicy()
+
+
+@dataclass(frozen=True)
+class ReferencePolicy:
+    """Declared numbers of the label-value reader; each is provenance, none a layout.
+
+    `rule_tolerance` (points): parallel painted rules no farther apart than this are
+    one edge. Producers paint each cell's own borders, so a shared border arrives
+    as two rules a fraction of a point apart; the sliver between them is no cell.
+    """
+
+    rule_tolerance: float = 1.0
+    version: str = "reference-policy/0.1"
+
+    def __post_init__(self):
+        if (
+            isinstance(self.rule_tolerance, bool)
+            or not math.isfinite(self.rule_tolerance)
+            or self.rule_tolerance < 0
+            or self.version != "reference-policy/0.1"
+        ):
+            raise ValueError("invalid reference policy")
+
+
+DEFAULT_REFERENCE = ReferencePolicy()
 
 
 def derive_continuation(page_line_sets, fallback=DEFAULT_CONTINUATION):
@@ -143,26 +168,47 @@ def _same_row(a, b):
     return min(a.bbox[3], b.bbox[3]) > max(a.bbox[1], b.bbox[1])
 
 
-def _next_cell(a, b, vertical_rules):
+def _edges(values, tolerance):
+    """Painted rules within the tolerance of an edge's first face are that edge.
+
+    Anchoring on the first face keeps a run of close rules from drifting into one
+    wide edge. An edge keeps both faces: (low, high).
+    """
+    edges = []
+    for value in sorted(values):
+        if edges and value - edges[-1][0] <= tolerance:
+            edges[-1] = (edges[-1][0], value)
+        else:
+            edges.append((value, value))
+    return edges
+
+
+def _next_cell(a, b, vertical_rules, tolerance):
     return (
         _same_row(a, b)
         and b.bbox[0] >= a.bbox[2]
-        and sum(
-            a.bbox[2] <= r.x <= b.bbox[0]
-            and r.top < min(a.bbox[3], b.bbox[3])
-            and r.bottom > max(a.bbox[1], b.bbox[1])
-            for r in vertical_rules
+        and len(
+            _edges(
+                (
+                    r.x
+                    for r in vertical_rules
+                    if a.bbox[2] <= r.x <= b.bbox[0]
+                    and r.top < min(a.bbox[3], b.bbox[3])
+                    and r.bottom > max(a.bbox[1], b.bbox[1])
+                ),
+                tolerance,
+            )
         )
         == 1
     )
 
 
-def _boundary(anchor, previous, candidate, policy, vertical_rules, horizontal_rules):
+def _boundary(anchor, previous, candidate, policy, vertical_rules, horizontal_rules, tolerance):
     if (candidate.source_id, candidate.page) != (anchor.source_id, anchor.page):
         return "page_break"
     if any(r.between(previous.bbox, candidate.bbox) for r in horizontal_rules):
         return "horizontal_rule"
-    if _next_cell(previous, candidate, vertical_rules):
+    if _next_cell(previous, candidate, vertical_rules, tolerance):
         return None
     height = max(anchor.bbox[3] - anchor.bbox[1], 1e-9)
     if candidate.bbox[1] - previous.bbox[3] > policy.max_gap_ratio * height:
@@ -194,6 +240,7 @@ def build_value_windows(
     table_headers=(),
     edge_ids=frozenset(),
     findings=None,
+    reference=DEFAULT_REFERENCE,
 ):
     """Build once at census time; every reader uses these same sealed objects.
 
@@ -230,14 +277,22 @@ def build_value_windows(
             and not re.search(r"\d", line.text)
             and identifiers(lines[index + 1].text)
             and not _boundary(
-                line, line, lines[index + 1], policy, vertical_rules, horizontal_rules
+                line,
+                line,
+                lines[index + 1],
+                policy,
+                vertical_rules,
+                horizontal_rules,
+                reference.rule_tolerance,
             )
         ):
             labels[index] = (line.text.strip(), len(line.text), len(line.text), "newline")
     windows = []
     for index, (label, label_end, value_start, separator) in labels.items():
         anchor = lines[index]
-        cell_data = _grid_members(anchor, lines, vertical_rules, horizontal_rules)
+        cell_data = _grid_members(
+            anchor, lines, vertical_rules, horizontal_rules, reference.rule_tolerance
+        )
         grid_cells = () if cell_data is None else cell_data[0]
         views = [anchor]
         flags = []
@@ -278,7 +333,13 @@ def build_value_windows(
                     stop = "line_bound"
                     break
                 boundary = _boundary(
-                    anchor, views[-1], candidate, policy, vertical_rules, horizontal_rules
+                    anchor,
+                    views[-1],
+                    candidate,
+                    policy,
+                    vertical_rules,
+                    horizontal_rules,
+                    reference.rule_tolerance,
                 )
                 if boundary:
                     stop = boundary
@@ -315,15 +376,20 @@ def build_value_windows(
             if anchor.text[value_start:].strip()
             else (
                 "next_cell"
-                if first_value and (grid_cells or _next_cell(anchor, first_value, vertical_rules))
+                if first_value
+                and (
+                    grid_cells
+                    or _next_cell(anchor, first_value, vertical_rules, reference.rule_tolerance)
+                )
                 else "next_line" if first_value else "none"
             )
         )
         if stop in {"gap_bound", "line_bound"}:
             flags.append("WINDOW_BOUND_HIT")
         identity = stable_id(
-            "value-window/0.2",
+            "value-window/0.3",
             asdict(policy),
+            asdict(reference),
             label,
             label_end,
             value_start,
@@ -369,7 +435,7 @@ def join_window(window):
         "UNKNOWN" if any(v.state == "UNKNOWN" for v in window.views) else "CONTENT",
         tuple(sorted({*window.flags, *(f for v in window.views for f in v.flags)})),
         union_box(v.bbox for v in window.views),
-        producer="value-window/0.2",
+        producer="value-window/0.3",
     )
 
 
@@ -394,44 +460,62 @@ def policy_from_dict(data):
     )
 
 
-def _cell_at(x, y, vertical, horizontal):
-    xs = sorted({r.x for r in vertical if r.top <= y <= r.bottom})
-    ys = sorted({r.y for r in horizontal if r.left <= x <= r.right})
-    left = [v for v in xs if v < x]
-    right = [v for v in xs if v > x]
-    top = [v for v in ys if v < y]
-    bottom = [v for v in ys if v > y]
+def reference_from_dict(data):
+    return ReferencePolicy(**data)
+
+
+def _cell_at(x, y, vertical, horizontal, tolerance):
+    """The ruled cell around a point: its inner box and the outer faces of its edges."""
+    xs = _edges((r.x for r in vertical if r.top <= y <= r.bottom), tolerance)
+    ys = _edges((r.y for r in horizontal if r.left <= x <= r.right), tolerance)
+    left = [e for e in xs if e[1] < x]
+    right = [e for e in xs if e[0] > x]
+    top = [e for e in ys if e[1] < y]
+    bottom = [e for e in ys if e[0] > y]
     if not all((left, right, top, bottom)):
         return None
-    box = (left[-1], top[-1], right[0], bottom[0])
+    box = (left[-1][1], top[-1][1], right[0][0], bottom[0][0])
     if not all(
-        any(r.y == yy and r.left <= box[0] and r.right >= box[2] for r in horizontal)
-        for yy in (box[1], box[3])
+        any(
+            low <= r.y <= high and r.left <= box[0] + tolerance and r.right >= box[2] - tolerance
+            for r in horizontal
+        )
+        for low, high in (top[-1], bottom[0])
     ):
         return None
-    return box
+    return box, (left[-1][0], top[-1][0], right[0][1], bottom[0][1])
 
 
-def _grid_members(anchor, lines, vertical, horizontal):
+def _grid_members(anchor, lines, vertical, horizontal, tolerance):
     box = anchor.bbox
     x = (box[0] + box[2]) / 2
     y = (box[1] + box[3]) / 2
-    cell = _cell_at(x, y, vertical, horizontal)
-    if cell is None or not (
-        cell[0] <= box[0] <= box[2] <= cell[2] and cell[1] <= box[1] <= box[3] <= cell[3]
-    ):
+    found = _cell_at(x, y, vertical, horizontal, tolerance)
+    if found is None:
+        return None
+    cell, outer = found
+    if not (cell[0] <= box[0] <= box[2] <= cell[2] and cell[1] <= box[1] <= box[3] <= cell[3]):
         return None
     cells = [cell]
-    right_edges = sorted({r.x for r in vertical if r.x > cell[2] and r.top <= y <= r.bottom})
+    # A neighbour shares an edge: its inner face is the outer face of this cell's edge.
+    right_edges = [
+        e
+        for e in _edges((r.x for r in vertical if r.top <= y <= r.bottom), tolerance)
+        if e[0] > outer[2]
+    ]
     if right_edges:
-        adjacent = _cell_at((cell[2] + right_edges[0]) / 2, y, vertical, horizontal)
-        if adjacent and adjacent[0] == cell[2]:
-            cells.append(adjacent)
-    lower_edges = sorted({r.y for r in horizontal if r.y > cell[3] and r.left <= x <= r.right})
+        adjacent = _cell_at((outer[2] + right_edges[0][0]) / 2, y, vertical, horizontal, tolerance)
+        if adjacent and adjacent[0][0] == outer[2]:
+            cells.append(adjacent[0])
+    lower_edges = [
+        e
+        for e in _edges((r.y for r in horizontal if r.left <= x <= r.right), tolerance)
+        if e[0] > outer[3]
+    ]
     if lower_edges:
-        adjacent = _cell_at(x, (cell[3] + lower_edges[0]) / 2, vertical, horizontal)
-        if adjacent and adjacent[1] == cell[3] and adjacent not in cells:
-            cells.append(adjacent)
+        adjacent = _cell_at(x, (outer[3] + lower_edges[0][0]) / 2, vertical, horizontal, tolerance)
+        if adjacent and adjacent[0][1] == outer[3] and adjacent[0] not in cells:
+            cells.append(adjacent[0])
     members = []
     seen = {anchor.view_id}
     for region in cells:

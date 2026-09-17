@@ -132,16 +132,13 @@ def test_a7_type_word_is_reference_content_only_when_declared(g):
     assert [m["page"] for m in label_in_prose(undeclared)] == list(fx.PAGES)
 
 
-IDEAL = [("shared", 0.0, False), ("per_cell", 0.0, False)]
+IDEAL = [("shared", 0.0, False), ("per_cell", 0.0, False), ("per_cell", 0.3, False)]
 PAINTED = [
     pytest.param(
         "shared", 0.0, True, marks=known("a label underline is taken as the cell's bottom edge")
     ),
     pytest.param(
-        "per_cell", 0.3, False, marks=known("rule coincidence is tested by exact equality")
-    ),
-    pytest.param(
-        "per_cell", 0.3, True, marks=known("rule coincidence is tested by exact equality")
+        "per_cell", 0.3, True, marks=known("a label underline is taken as the cell's bottom edge")
     ),
 ]
 
@@ -237,6 +234,8 @@ BUILDS = {
     "a1": fx.a1,
     "a2": fx.a2,
     "a3": fx.a3,
+    "a8_right_painted": lambda g: fx.a8(g, "right", "per_cell", 0.3),
+    "a8_below_painted": lambda g: fx.a8(g, "below", "per_cell", 0.3),
     "a8_right": lambda g: fx.a8(g, "right", "per_cell", 0.3, True),
     "a8_below": lambda g: fx.a8(g, "below", "per_cell", 0.3, True),
     "a9": fx.a9,
@@ -256,7 +255,7 @@ def reading(result):
 
 # Swept once a fixture reads correctly: each repair extends this list, so the sweep
 # never certifies an invariantly wrong reading.
-SWEPT = ["a1", "a11", "a13"]
+SWEPT = ["a1", "a11", "a13", "a8_right_painted", "a8_below_painted"]
 
 
 @corners
@@ -271,3 +270,45 @@ def test_sensitivity_fallback_bounds_never_change_a_reading(g, name):
                 continuation_policy=ContinuationPolicy(max_gap_ratio=gap, max_lines=cap)
             )
             assert reading(explore(document, census_config=config)) == reference
+
+
+def cells(result):
+    return [(w.stop_reason, w.value_position, w.grid_cells) for w in reference_windows(result)]
+
+
+@corners
+@pytest.mark.parametrize("position", ["right", "below"])
+@pytest.mark.parametrize("tolerance", [0.5, 1.0, 2.0])
+def test_a8_rule_tolerance_is_a_guard_not_a_layout(g, position, tolerance):
+    document = fx.a8(g, position, "per_cell", 0.3)
+    declared = explore(document)
+    swept = explore(document, census_config=reference_policy(rule_tolerance=tolerance))
+    assert reading(swept) == reading(declared) and cells(swept) == cells(declared)
+    assert swept.census.reference_policy.rule_tolerance == tolerance
+
+
+def test_painted_rules_cluster_into_edges_without_drift():
+    from ragix_kernels.saqqara.value_windows import _edges
+
+    assert _edges([220.3, 60.0, 220.0, 480.3], 1.0) == [
+        (60.0, 60.0),
+        (220.0, 220.3),
+        (480.3, 480.3),
+    ]
+    # A run of close rules never chains into one wide edge.
+    assert _edges([0.0, 0.9, 1.8], 1.0) == [(0.0, 0.9), (1.8, 1.8)]
+    # A column as narrow as one short line stays a column at the widest swept tolerance.
+    assert _edges([100.0, 112.0], 2.0) == [(100.0, 100.0), (112.0, 112.0)]
+    assert _edges([100.0, 100.3], 0.0) == [(100.0, 100.0), (100.3, 100.3)]
+
+
+def test_reference_policy_is_sealed_in_the_census_and_refuses_invalid_values():
+    from dataclasses import asdict
+    from ragix_kernels.saqqara.census import census_from_dict
+    from ragix_kernels.saqqara.value_windows import ReferencePolicy
+
+    result = explore(fx.a1(fx.MID), census_config=reference_policy(rule_tolerance=0.5))
+    assert census_from_dict(asdict(result.census)) == result.census
+    for value in (-0.1, float("nan"), True):
+        with pytest.raises(ValueError):
+            ReferencePolicy(rule_tolerance=value)
