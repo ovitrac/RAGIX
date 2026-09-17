@@ -89,10 +89,7 @@ def test_a2_continuation_inside_the_value_cell(g, wrap):
         assert field.status == "READ"
 
 
-@known(
-    "the census keeps the marker inside the connector and the profile classifies bare connectors only"
-)
-@corners
+@corners_underlined
 @pytest.mark.parametrize("wrap", ["value", "label"])
 def test_a2_open_range_is_closed_by_the_continuation_line(g, wrap):
     for field in reference_fields(explore(fx.a2(g, wrap))):
@@ -197,13 +194,11 @@ def test_a9_role_word_lines_are_listed_never_read(g):
         assert [v.text for v in window.undecidable] == list(fx.ROLE_LINES)
 
 
-@known(
-    "the census keeps the marker inside the connector and the profile classifies bare connectors only"
-)
 @corners
+@pytest.mark.parametrize("marker", ["§", ""], ids=["marked", "bare"])
 @pytest.mark.parametrize("connector", ["à", "to"])
-def test_a10_range_stays_one_relation(g, connector):
-    fields = reference_fields(explore(fx.a10(g, connector)))
+def test_a10_range_stays_one_relation(g, connector, marker):
+    fields = reference_fields(explore(fx.a10(g, connector, marker)))
     assert len(fields) == len(fx.PAGES)
     for field in fields:
         assert sections(field.targets[0]) == [("range", "4.1", "4.12", connector)]
@@ -279,7 +274,7 @@ def reading(result):
 
 # Swept once a fixture reads correctly: each repair extends this list, so the sweep
 # never certifies an invariantly wrong reading.
-SWEPT = ["a1", "a11", "a13", "a8_right_painted", "a8_below_painted"]
+SWEPT = ["a1", "a10", "a11", "a13", "a8_right_painted", "a8_below_painted"]
 
 
 @corners
@@ -347,3 +342,40 @@ def test_rows_are_shared_by_centre_not_by_overlap():
     assert _same_row(line, box(bbox=(310.0, 103.0, 330.0, 109.0)))  # a smaller span on the row
     assert not _same_row(line, box(bbox=(60.0, 109.5, 300.0, 121.5)))  # next line, boxes overlap
     assert not _same_row(line, box(bbox=(60.0, 112.0, 300.0, 124.0)))
+
+
+def test_connector_is_classified_without_the_marker_of_the_next_number():
+    from ragix_kernels.saqqara.census import bare_connector
+
+    assert bare_connector(" à § ", ["", "§"]) == "à"
+    assert bare_connector("à\n§", ["§"]) == "à"
+    assert bare_connector(", §", ["§"]) == ","
+    assert bare_connector("§", ["§"]) == ""
+    assert bare_connector("à §", [""]) == "à §"  # an unobserved marker is never assumed
+
+
+def numbering_records(result):
+    return {
+        r.literal: dict(r.attributes)["marker"]
+        for r in result.census.records
+        if r.category == "numbering"
+    }
+
+
+def test_section_sign_marks_every_number_but_a_word_marks_only_the_first():
+    marked = numbering_records(explore(fx.a10(fx.MID, "à", "§")))
+    assert marked["4.1"] == marked["4.12"] == "§"
+    bare = numbering_records(explore(fx.a10(fx.MID, "à", "")))
+    assert bare["4.12"] == ""  # the word before it is a connector
+
+
+def test_connector_closing_a_wrapped_line_is_observed_on_its_own_line():
+    result = explore(fx.a2(fx.MID))
+    across = [
+        r
+        for r in result.census.records
+        if r.category == "connector" and dict(r.attributes)["pattern"] == "across_lines"
+    ]
+    assert [(r.literal, r.count) for r in across] == [("à", len(fx.PAGES))]
+    assert all(e.literal == "à" and e.end - e.start == 1 for r in across for e in r.evidence)
+    assert result.profile.fields["numbering_style"].value["range_connectors"] == ["à"]

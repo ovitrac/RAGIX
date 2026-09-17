@@ -7,13 +7,13 @@ from dataclasses import asdict, dataclass, replace, field
 import json
 import re
 import math
-from .census import Census
+from .census import Census, bare_connector
 from .field_views import stable_id
 from ..harvest.report import replay_digest
 
 from .value_windows import ContinuationPolicy, DEFAULT_CONTINUATION, policy_from_dict
 
-VERSION = "document-profile/0.5"
+VERSION = "document-profile/0.6"
 FIELDS = (
     "language",
     "identifier_families",
@@ -284,12 +284,13 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
     if numbering:
         # Only generic syntactic operators have deterministic direction. An unknown
         # connector remains in observations and is not relabelled as a range.
-        observed = sorted({r.literal for r in connectors})
+        markers = sorted({dict(r.attributes)["marker"] for r in numbering})
+        # Connectors are classified bare: the marker of the next number is not theirs.
+        observed = sorted({bare_connector(r.literal, markers) for r in connectors})
         ranges = [
             s for s in observed if s.casefold() in {"à", "to", "through", "–", "—", "-", "..", "…"}
         ]
-        lists = [s for s in observed if s in {"", ",", ";", ", §", "; §", "§"}]
-        markers = sorted({dict(r.attributes)["marker"] for r in numbering})
+        lists = [s for s in observed if s in {"", ",", ";"}]
         put(
             "numbering_style",
             {

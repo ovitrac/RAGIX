@@ -270,12 +270,15 @@ def a9(g):
     return document(pages)
 
 
-def a10(g, connector="à"):
+def a10(g, connector="à", marker="§"):
     """A range is the whole member list."""
     pages = []
     for p in PAGES:
         spans, rules = labelled(
-            p, g, label=LABEL_FR, value=f"{identifier(p)} V 1.0 §4.1 {connector} §4.12"
+            p,
+            g,
+            label=LABEL_FR,
+            value=f"{identifier(p)} V 1.0 {marker}4.1 {connector} {marker}4.12",
         )
         below = 100.0 + g.line_height * (1 + g.stop_gap_ratio)
         pages.append(

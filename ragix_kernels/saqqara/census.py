@@ -64,6 +64,53 @@ def identifiers(text):
     )
 
 
+def bare_connector(gap, markers):
+    """The connector without the marker that introduces the next number.
+
+    Between `§4.1` and `§4.12` the text is a connector followed by a marker. The
+    profile that classifies connectors and the reader that parses them use this one
+    definition, so a range written with markers is the range written without.
+    """
+    gap = gap.strip()
+    for marker in sorted((m for m in markers if m), key=len, reverse=True):
+        if gap.endswith(marker):
+            return gap[: -len(marker)].strip()
+    return gap
+
+
+def section_numbers(text, physical=None):
+    """Numbering tokens of a line, physical numbers excluded."""
+    physical = physical_numbers(text) if physical is None else physical
+    return [
+        m
+        for m in NUMBERING.finditer(text)
+        if not any(m.start() < p.end and m.end() > p.start for p in physical)
+    ]
+
+
+def closing_connectors(windows):
+    """Connectors that end a window line whose next line opens with a number.
+
+    A wrapped list may leave a connector at the end of a line and its endpoint at
+    the start of the next. The observation stays an exact span of its own line:
+    view id -> (start, end).
+    """
+    found = {}
+    for window in windows:
+        for before, after in zip(window.views, window.views[1:]):
+            numbers = section_numbers(before.text)
+            opening = section_numbers(after.text)
+            if not numbers or not opening:
+                continue
+            if after.text[: opening[0].start()].strip(" §\t"):
+                continue
+            tail = before.text[numbers[-1].end() :]
+            if tail.strip():
+                start = numbers[-1].end() + len(tail) - len(tail.lstrip())
+                found[before.view_id] = (start, start + len(tail.strip()))
+    return found
+
+
 def shape(raw):
     return re.sub(
         r"[A-Za-z]+|\d+",
@@ -318,6 +365,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
         )
         windows.extend(page_windows)
         window_by_label = {w.views[0].view_id: w for w in page_windows}
+        closing = closing_connectors(page_windows)
         for index, line in enumerate(lines):
             text = line.text
 
@@ -357,17 +405,18 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
                     revision_tail=text[m.end() : m.end() + config.adjacency_chars].strip(),
                 )
             physical = physical_numbers(text)
-            numbers = [
-                m
-                for m in NUMBERING.finditer(text)
-                if not any(m.start() < p.end and m.end() > p.start for p in physical)
-            ]
+            numbers = section_numbers(text, physical)
             for m in numbers:
                 prefix = text[: m.start()]
-                marker = (
-                    re.search(r"(?:[^\W\d_]+|§)\s*$", prefix)
-                    if not any(n.end() <= m.start() for n in numbers)
-                    else None
+                # A word before a later number is a connector, never its marker; the
+                # section sign is a marker wherever it introduces a number.
+                marker = re.search(
+                    (
+                        r"(?:[^\W\d_]+|§)\s*$"
+                        if not any(n.end() <= m.start() for n in numbers)
+                        else r"§\s*$"
+                    ),
+                    prefix,
                 )
                 emit(
                     "numbering",
@@ -380,6 +429,9 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
             for left, right in zip(numbers, numbers[1:]):
                 gap = text[left.end() : right.start()].strip()
                 emit("connector", gap, ev(left.end(), right.start()), pattern="between_numbering")
+            if line.view_id in closing:
+                start, end = closing[line.view_id]
+                emit("connector", text[start:end], ev(start, end), pattern="across_lines")
             window = window_by_label.get(line.view_id)
             if window:
                 following = window.following_text
