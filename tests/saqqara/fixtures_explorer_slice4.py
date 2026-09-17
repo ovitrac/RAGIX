@@ -53,9 +53,24 @@ def _cell(page, ident, text, box):
 
 
 def _table(page, ident, physical_rows, slots=None):
-    # The raw matrix exposes empty placeholders for spans across physical slots.
-    slots = slots or max(map(len, physical_rows))
-    matrix = [tuple(c.text for c in row) + (None,) * (slots - len(row)) for row in physical_rows]
+    # Project anchors onto the observed native grid. Spanned slots remain None.
+    edges = sorted(
+        {
+            round(value, 3)
+            for row in physical_rows
+            for cell in row
+            for value in (cell.bbox[0], cell.bbox[2])
+        }
+    )
+    native_slots = len(edges) - 1
+    if slots is not None and slots != native_slots:
+        raise ValueError("declared native slots differ from physical geometry")
+    matrix = []
+    for row in physical_rows:
+        values = [None] * native_slots
+        for cell in row:
+            values[edges.index(round(cell.bbox[0], 3))] = cell.text
+        matrix.append(tuple(values))
     evidence = tuple(
         Evidence(SOURCE, page, c.cell_id, 0, len(c.text or ""), c.text or "", c.bbox)
         for row in physical_rows
@@ -251,7 +266,7 @@ def realistic_table(geometry: TableGeometry, *, all_controls=False, removed_page
             spans = _spans(page, tables)
         pages.append(PageDigest(page, 40 + 5 * width, 1000, spans, tables=tuple(tables)))
     return TableFixture(
-        DocumentDigest(SOURCE, tuple(pages), "synthetic", "slice4/0"),
+        DocumentDigest(SOURCE, tuple(pages), "synthetic", "slice4/1"),
         tuple(expected),
         tuple(row[0] for row in expected),
         tuple(fragments),

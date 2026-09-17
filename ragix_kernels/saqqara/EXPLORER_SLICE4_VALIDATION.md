@@ -62,3 +62,39 @@ PATH`: thirteen clean-checkout synthetic cases, including padding/control layout
 range endpoints, the gap refusal and masked presentations. Independent consumer
 confirmation remains required. No private inventory, source literal or field-reader
 change belongs to this package.
+
+## Measured commit gates
+
+All gates use detached checkouts and pinned imports in `ragix-env`.
+
+| Commit | Scope | x86_64 full suite | ARM full suite |
+|---|---|---|---|
+| `af036e0` | Stage split | 2,377 passed / 38 skipped | 2,377 passed / 38 skipped |
+| `fdcfa2e` | Tables, cell evidence, bounded privacy hook | 2,403 passed / 38 skipped | 2,403 passed / 38 skipped |
+| `1cd625b` | E11 integration | 2,468 passed / 38 skipped | 2,468 passed / 38 skipped |
+
+The refactor's 28 legacy replay cases and privacy outputs match the freeze and
+both architectures. The table package's 13 table/gap/masking cases match across
+architectures. E11's 54 exact-span replay cases also match, and the table replay
+remains green at the E11 commit. No model calls were used.
+
+During setup, the declared Explorer dependency was absent locally; the declared
+PDF renderer and PDF-mining extras were absent on ARM. They were restored only
+in the RAGIX gate environments. The separate demo environment was not modified,
+and neither source tests nor platform locks were weakened.
+
+### Fixture slot-projection correction
+
+The first executable fixture padded wide-header placeholders at the end of its
+raw matrix. It now projects each physical cell anchor onto the observed native
+grid, leaving the spanned slots empty. This corrects the fixture representation,
+not production behavior. Four explicit anchor-position tests accompany the
+correction, and its synthetic intake version is `slice4/1`. The corrected table
+fixture still yields the specified 108 rows and passes the 30 table-specific
+tests. Its replay must be regenerated from the final fixture commit.
+
+Independent confirmation on the seven documents is still required before merge.
+Each item has had zero private confirmation strikes in this run. E12 remains
+held until the reference-field owner releases its shared files. No change to the
+frozen main branch, private reference-field implementation, or decision registry
+is part of this work.

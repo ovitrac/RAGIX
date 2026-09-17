@@ -164,3 +164,27 @@ def test_table_stamp_hook_does_not_join_names_and_dates_across_rows():
     page = replace(page, tables=(changed,))
     document = replace(f.document, pages=(page,))
     assert not table_row_stamps(document)
+
+
+@pytest.mark.parametrize(
+    "native,anchors",
+    [
+        (12, (0, 3, 6, 8, 10)),
+        (13, (0, 3, 6, 9, 11)),
+        (14, (0, 3, 6, 9, 12)),
+        (15, (0, 3, 6, 9, 12)),
+    ],
+)
+def test_t_raw_header_slots_follow_native_spanning_geometry(native, anchors):
+    f = realistic_table(TableGeometry(native, 100, 32, 60, 45))
+    table = next(t for t in f.document.pages[4].tables if t.table_id == "body-fragment:5")
+    assert len(table.headers) == native
+    assert tuple(i for i, text in enumerate(table.headers) if text) == anchors
+    assert tuple(table.headers[i] for i in anchors) == (
+        "Ref",
+        "Requirement",
+        "Criticality",
+        "Spec ref",
+        "Test ref",
+    )
+    assert len(table.cell_rows[0]) == 5

@@ -42,3 +42,10 @@ Compare output dictionaries by identical input keys. The new-fixture replay is
 clean checkout. Architecture replay, full-suite records and independent consumer
 root-fidelity confirmation are separate gates; fixture success is not a claim
 that all residual composite forms have been recovered.
+
+## Measured implementation gate
+
+At `1cd625bcfb8a8a46df0d2108f37960ca96259e55`, both architectures pass
+**2,468 tests with 38 skipped**. The 54 quantity replay cases match exactly; the
+13 table and masking cases also match at the same commit. These are synthetic
+implementation gates, not the private root-fidelity acceptance verdict.
