@@ -295,3 +295,21 @@ These are additive records; old inputs still load, but must be re-extracted from
 PDF to acquire native-cell geometry. Kernels use version **0.5.2**, invalidating
 older cached outcomes. Re-running old intake JSON cannot recover geometry that
 the previous adapter replaced with a table-sized placeholder.
+
+## Slice 4 reference fields
+
+Painted rules are read as edges within a declared tolerance, so per-cell borders no longer
+hide a label's cell, and a border a hair inside the label's last glyph still separates it
+from the next cell; an underline is emphasis and never an edge; overlapping line boxes are
+not one row; a range stays one relation whether or not its numbers carry a marker. A label
+must introduce a value: a phrase that holds an identifier is reference content, with or
+without a colon after it, and is never a label; label words in prose are counted, never
+read; a label's occurrence votes for it only when its value opens with reference content.
+Role-word lines are listed on the window and never read. Labels, type words and role words
+are policy data (`ReferencePolicy`, through `CensusConfig`): the shipped words are
+language-generic, a consumer declares its own labels and acronyms. Gates, swept ranges and
+replay identities are in `EXPLORER_SLICE4_FIELDS_VALIDATION.md`.
+
+The revised records use `census/0.7`, `value-window/0.3` and `document-profile/0.6`; stored
+records of earlier versions are refused and must be rebuilt. Kernel cache versions must move
+with these records, or cached outcomes of the earlier reader are served.

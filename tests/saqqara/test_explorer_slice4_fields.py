@@ -60,9 +60,10 @@ def test_a1_a4_underline_and_adjacent_value_span_are_not_stops(g):
     assert all(w.value_position == "same_line" for w in reference_windows(result))
 
 
-# Both remaining expected failures await one ruling on bounds derived from the gap
-# histogram; until then a derived bound stops as a guard and keeps its review flag.
-WEAK_VALLEY = "a bound derived between two leading values closes the window; awaits a ruling"
+# Bounds derived from the gap histogram were deferred by ruling: the frozen behaviour is
+# kept and every gap stop keeps its review flag. One defect of that derivation remains,
+# flagged and not silent: two leading values are taken as two modes.
+WEAK_VALLEY = "two leading values derive a bound that closes the window (flagged); repair deferred"
 
 
 def corners_with(reasons):
@@ -226,14 +227,14 @@ def test_a12_gap_bound_is_derived_and_stops_the_field(g):
     assert all(len(w.views) == 1 for w in reference_windows(result))
 
 
-@known("a derived bound stops as a guard and keeps its flag; structure awaits a ruling")
 @corners
-def test_a12_derived_bound_is_structure_not_a_guard(g):
+def test_a12_a_derived_bound_still_stops_as_a_guard(g):
+    """Kept by ruling: whatever the provenance of its bound, a gap stop is reviewed."""
     result = explore(fx.a12(g))
     for window in reference_windows(result):
-        assert window.stop_reason == "derived_gap" and not window.flags
-        assert window.policy.gap_histogram and window.policy.valley_margin > 1
-    assert all(f.status == "READ" and not f.needs_review for f in reference_fields(result))
+        assert window.stop_reason == "gap_bound" and window.flags == ("WINDOW_BOUND_HIT",)
+        assert window.needs_review and window.policy.source == "derived"
+    assert all(f.status == "UNDECIDABLE" and f.needs_review for f in reference_fields(result))
 
 
 @corners
