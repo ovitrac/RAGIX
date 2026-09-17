@@ -13,7 +13,6 @@ from statistics import median
 import re
 import math
 from .field_views import stable_id, union_box
-from .privacy import TableStampLine, table_row_stamps, table_stamp_from_dict
 
 
 @dataclass(frozen=True)
@@ -213,7 +212,6 @@ class TableAnalysis:
     excluded: tuple[str, ...] = ()
     candidate_ids: tuple[str, ...] = ()
     version: str = "table-analysis/0.1"
-    stamp_lines: tuple[TableStampLine, ...] = ()
 
 
 def _overlap(a, b):
@@ -793,7 +791,6 @@ def recover_tables(
         tuple(state.findings),
         tuple(state.excluded),
         tuple(state.candidates),
-        stamp_lines=table_row_stamps(document),
     )
 
 
@@ -844,9 +841,6 @@ def analysis_from_dict(data):
             ),
             "excluded": tuple(data["excluded"]),
             "candidate_ids": tuple(data["candidate_ids"]),
-            "stamp_lines": tuple(
-                table_stamp_from_dict(line) for line in data.get("stamp_lines", ())
-            ),
         }
     )
 

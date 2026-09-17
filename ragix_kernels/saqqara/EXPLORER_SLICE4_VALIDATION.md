@@ -4,6 +4,8 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 
 Base: `e3da09991300c00b33117cc18077722d4a68ac63`. The demo freeze is unchanged.
 This record separates implementation checks from independent consumer acceptance.
+Current state: the table-row masking extension is withdrawn. The earlier privacy
+results below are historical; the split record at the end supersedes them.
 
 ## Item 0 — split table recovery
 
@@ -98,3 +100,25 @@ Each item has had zero private confirmation strikes in this run. E12 remains
 held until the reference-field owner releases its shared files. No change to the
 frozen main branch, private reference-field implementation, or decision registry
 is part of this work.
+
+
+## Split — withdraw table-row masking
+
+Independent confirmation rejected the table-row masking extension. Associating
+name-shaped fragments across cell boundaries and promoting their component words
+to global masking terms can over-mask ordinary body text. The table recovery,
+per-cell glyph evidence and E11 changes are retained.
+
+`privacy.py` is restored byte-for-byte to the freeze. Table-row stamp observation,
+serialization and its two hook tests are removed. The table replay retains its
+presentation digests but now asserts the freeze's zero stamp count on fixture T.
+Existing line-stamp privacy tests remain in force. Approval-row masking is deferred
+to a separately specified change; this split does not implement that redesign.
+The earlier zero-strike statement is superseded: row masking has one failed
+independent confirmation. Consumer counts and corpus findings stay outside this
+repository.
+
+The kernel adapter contains no separate stamp wiring: its only differences from
+the freeze are the version values. They remain 0.6.0 / 0.6.1 as ruled; an integration
+version bump is required separately. E12 remains held for the reference-field
+branch's merge and path release. This split does not move the demo freeze.

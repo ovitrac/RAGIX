@@ -124,48 +124,6 @@ def test_t_conflicting_neighbor_headers_do_not_choose_one():
     )
 
 
-def test_t_approval_row_stamps_are_flagged_traced_and_masked():
-    from dataclasses import asdict
-    from ragix_kernels.harvest.report import render_report_json, render_page_view, replay_digest
-
-    f = realistic_table(TableGeometry(15, 100, 32, 60, 45))
-    r = explore(f.document)
-    lines = r.profile.fields["furniture"].value["stamp_lines"]
-    approval = [line for line in lines if line.get("table_id") == "approval:1"]
-    assert len(approval) == 3 and all(line["personal_data_suspected"] for line in approval)
-    by_id = {
-        c.cell_id: c
-        for p in f.document.pages
-        for table in p.tables
-        for row in table.cell_rows
-        for c in row
-    }
-    for line in approval:
-        for char, ref in zip(line["text"], line["mapping"]):
-            if ref is not None:
-                assert by_id[ref["span_id"]].text[ref["offset"]] == char
-    before = replay_digest([r.census, r.profile])
-    output = render_report_json(r.report) + render_page_view(r.report, 1)
-    assert "Prénom" not in output and "Nom Prénom" not in output
-    assert replay_digest([r.census, r.profile]) == before
-    assert not any(row["page"] == 1 for row in r.reading.tables)
-
-
-def test_table_stamp_hook_does_not_join_names_and_dates_across_rows():
-    from dataclasses import replace
-    from ragix_kernels.saqqara.privacy import table_row_stamps
-
-    f = realistic_table(TableGeometry(15, 100, 32, 60, 45))
-    page = f.document.pages[0]
-    table = next(t for t in page.tables if t.table_id == "approval:1")
-    name = table.cell_rows[1][1]
-    date = table.cell_rows[1][2]
-    changed = replace(table, cell_rows=((name,), (date,)))
-    page = replace(page, tables=(changed,))
-    document = replace(f.document, pages=(page,))
-    assert not table_row_stamps(document)
-
-
 @pytest.mark.parametrize(
     "native,anchors",
     [
