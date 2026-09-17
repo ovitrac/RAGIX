@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 import re
 import json
 import unicodedata
-from .field_views import stable_id
+from .field_views import stable_id, TextView
 
 WORD = r"[^\W\d_](?:[^\W\d_]|[\u0300-\u036f])*(?:[-’'][^\W\d_](?:[^\W\d_]|[\u0300-\u036f])*)*"
 DATES = re.compile(
@@ -53,6 +53,72 @@ def stamp_matches(text, *, edge=False, recurring=False):
             {"start": start, "end": end, "raw": text[start:end], "kind": "name_shape"}
         )
     return tuple(sorted(identities, key=lambda r: (r["start"], r["end"])))
+
+
+@dataclass(frozen=True)
+class TableStampLine:
+    table_id: str
+    view: TextView
+    matches: tuple[dict, ...]
+
+    def __post_init__(self):
+        if not self.table_id or not self.matches:
+            raise ValueError("table stamp requires observed matches")
+        for match in self.matches:
+            if (
+                set(match) != {"start", "end", "raw", "kind"}
+                or match["kind"] not in {"email", "user_id", "name_shape"}
+                or self.view.text[match["start"] : match["end"]] != match["raw"]
+            ):
+                raise ValueError("table stamp match must retain exact source text")
+            self.view.source_refs(match["start"], match["end"])
+
+    def as_record(self):
+        view = self.view
+        return {
+            "candidate_id": stable_id("table-stamp/1", self.table_id, view.view_id, self.matches),
+            "line_id": view.view_id,
+            "source_id": view.source_id,
+            "page": view.page,
+            "text": view.text,
+            "bbox": view.bbox,
+            "personal_data_suspected": True,
+            "matches": list(self.matches),
+            "table_id": self.table_id,
+            "mapping": [asdict(ref) if ref is not None else None for ref in view.mapping],
+            "flags": view.flags,
+        }
+
+
+def table_row_stamps(document):
+    """Join only cells in one observed row; never associate separate rows."""
+    from .field_views import TextSpan, assemble
+
+    stamps = []
+    for page in document.pages:
+        for table in page.tables:
+            for row in table.cell_rows:
+                cells = tuple(sorted((c for c in row if c.text), key=lambda c: c.bbox[0]))
+                if len(cells) < 2 or any(stamp_matches(c.text) for c in cells):
+                    continue  # Single-cell stamps already use the line path.
+                view = assemble(
+                    tuple(
+                        TextSpan(
+                            document.source_id, c.cell_id, page.page, c.text, c.bbox, flags=c.flags
+                        )
+                        for c in cells
+                    )
+                )
+                matches = stamp_matches(view.text)
+                if matches:
+                    stamps.append(TableStampLine(table.table_id, view, matches))
+    return tuple(stamps)
+
+
+def table_stamp_from_dict(data):
+    from .field_views import view_from_dict
+
+    return TableStampLine(data["table_id"], view_from_dict(data["view"]), tuple(data["matches"]))
 
 
 @dataclass(frozen=True)
@@ -172,7 +238,7 @@ class PresentationMasker:
 
 def census_stamps(census):
     """The presentation guard reads upstream census facts, not editable reviews."""
-    return tuple(
+    legacy = tuple(
         sorted(
             (
                 {
@@ -190,5 +256,12 @@ def census_stamps(census):
                 for e in r.evidence
             ),
             key=lambda r: (r["page"], r["line_id"]),
+        )
+    )
+
+    return tuple(
+        sorted(
+            (*legacy, *(line.as_record() for line in census.table_analysis.stamp_lines)),
+            key=lambda record: (record["page"], record["line_id"]),
         )
     )

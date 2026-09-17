@@ -13,6 +13,7 @@ from statistics import median
 import re
 import math
 from .field_views import stable_id, union_box
+from .privacy import TableStampLine, table_row_stamps, table_stamp_from_dict
 
 
 @dataclass(frozen=True)
@@ -161,6 +162,13 @@ class TableRow:
     members: tuple[tuple[str, ...], ...]
     bbox: tuple[float, float, float, float]
     flags: tuple[str, ...] = ()
+    cell_flags: tuple[tuple[str, tuple[str, ...]], ...] = ()
+
+    def __post_init__(self):
+        members = {ident for column in self.members for ident in column}
+        ids = [ident for ident, _ in self.cell_flags]
+        if len(ids) != len(set(ids)) or any(ident not in members for ident in ids):
+            raise ValueError("cell flags require unique source members")
 
 
 @dataclass(frozen=True)
@@ -205,6 +213,7 @@ class TableAnalysis:
     excluded: tuple[str, ...] = ()
     candidate_ids: tuple[str, ...] = ()
     version: str = "table-analysis/0.1"
+    stamp_lines: tuple[TableStampLine, ...] = ()
 
 
 def _overlap(a, b):
@@ -329,6 +338,8 @@ class _Fragment:
     policy: dict
     evidence_ids: tuple[str, ...]
     flags: tuple[str, ...]
+    header_cells: tuple[TableCell, ...] = ()
+    header_source_id: str = ""
 
 
 @dataclass
@@ -506,6 +517,14 @@ def _assemble_table_rows(mapped_rows, candidate, marks, state):
             flags.add("UNREADABLE_CELL")
         if any(_overlap(s.bbox, rowbox) for s in marks):
             flags.add("LIFECYCLE_GLYPH_SUSPECTED")
+        cell_flags = []
+        for cell in cells:
+            observed = set(cell.flags)
+            if cell.text is None:
+                observed.add("UNREADABLE_CELL")
+            if any(_overlap(mark.bbox, cell.bbox) for mark in marks):
+                observed.add("LIFECYCLE_GLYPH_SUSPECTED")
+            cell_flags.append((cell.cell_id, tuple(sorted(observed))))
         output_rows.append(
             TableRow(
                 stable_id("table-row", state.source_id, table.table_id, index),
@@ -514,25 +533,31 @@ def _assemble_table_rows(mapped_rows, candidate, marks, state):
                 tuple(tuple(c.cell_id for c in group) for group in row),
                 rowbox,
                 tuple(sorted(flags)),
+                tuple(cell_flags),
             )
         )
     return tuple(output_rows)
 
 
-def _collapse_fragment(candidate, identifiers, numbering, policy, state):
+def _collapse_fragment(candidate, identifiers, numbering, policy, state, header_profile=None):
     page, table = candidate.page, candidate.table
     rows, all_cells, native_cells = candidate.rows, candidate.all_cells, candidate.native_cells
-    if len(rows) < 2:
-        state.fail(table, "TOO_FEW_ROWS")
-        return None
-    header, *body = rows
+    if header_profile is None:
+        if len(rows) < 2:
+            state.fail(table, "TOO_FEW_ROWS")
+            return None
+        header, *body = rows
+    else:
+        header, body = header_profile.header_cells, rows
     geometry = _fragment_geometry(candidate, header, body, policy, state)
     if geometry is None:
         return None
     bands, tolerance, ruled = geometry.bands, geometry.tolerance, geometry.ruled
     try:
         state.trace(table, stage="mapping")
-        mapped = [_map(row, bands, 0 if ruled or native_cells else tolerance) for row in rows]
+        mapped = [
+            _map(row, bands, 0 if ruled or native_cells else tolerance) for row in (header, *body)
+        ]
         state.trace(
             table,
             mapped_band_support=tuple(
@@ -558,9 +583,12 @@ def _collapse_fragment(candidate, identifiers, numbering, policy, state):
         if "id" not in roles:
             raise ValueError("NO_ID_LIKE_COLUMN")
         marks = [s for s in page.spans if abs(s.direction[1]) > 0.1]
-        header_flags = {f for c in header for f in c.flags}
-        if any(_overlap(s.bbox, c.bbox) for s in marks for c in header):
-            header_flags.add("LIFECYCLE_GLYPH_SUSPECTED")
+        if header_profile is None:
+            header_flags = {f for c in header for f in c.flags}
+            if any(_overlap(s.bbox, c.bbox) for s in marks for c in header):
+                header_flags.add("LIFECYCLE_GLYPH_SUSPECTED")
+        else:
+            header_flags = set(header_profile.flags)
         output_rows = _assemble_table_rows(mapped[1:], candidate, marks, state)
         normalized = tuple(re.sub(r"\s+", " ", h).strip().casefold() for h in headers)
         return _Fragment(
@@ -583,6 +611,8 @@ def _collapse_fragment(candidate, identifiers, numbering, policy, state):
             },
             tuple(c.cell_id for c in all_cells),
             tuple(sorted(header_flags)),
+            tuple(header),
+            table.table_id if header_profile is None else header_profile.header_source_id,
         )
     except ValueError as error:
         state.fail(table, str(error))
@@ -598,7 +628,7 @@ def _continuation_key(item):
 
 
 def _continue_fragments(provisional, state):
-    counts = Counter(p.signature for p in provisional)
+    counts = Counter(p.signature for p in provisional if p.header_source_id == p.table.table_id)
 
     per_page = Counter((_continuation_key(item), item.table.page) for item in provisional)
     groups = []
@@ -652,6 +682,16 @@ def _support_groups(groups, identifiers, numbering, policy, state):
             for item in group:
                 state.fail(item.table, "NO_ID_LIKE_COLUMN")
             continue
+        inherited_headers = {
+            item.table.table_id: item.header_source_id
+            for item in group
+            if item.header_source_id != item.table.table_id
+        }
+        group_policy = (
+            {**first.policy, "inherited_headers": inherited_headers}
+            if inherited_headers
+            else first.policy
+        )
         recovered.append(
             RecoveredTable(
                 stable_id("continued-table", state.source_id, first.table.table_id),
@@ -663,12 +703,62 @@ def _support_groups(groups, identifiers, numbering, policy, state):
                 len(group),
                 len(group) - 1,
                 first.bands,
-                first.policy,
+                group_policy,
                 tuple(cid for item in group for cid in item.evidence_ids),
                 flags=tuple(sorted({f for item in group for f in item.flags})),
             )
         )
     return recovered
+
+
+def _row_has_identifier(row, identifiers, numbering):
+    return any(c.text and (identifiers(c.text) or numbering.fullmatch(c.text)) for c in row)
+
+
+def _inherit_fragment_headers(pending, fragments, identifiers, numbering, policy, state):
+    """Use only repeated profiles on adjacent pages; keep all physical data rows."""
+    repeated = Counter(f.signature for f in fragments)
+    by_page = defaultdict(list)
+    for fragment in fragments:
+        if repeated[fragment.signature] >= 2:
+            by_page[fragment.table.page].append(fragment)
+    for candidate in pending:
+        table = candidate.table
+        proposals = []
+        for number in (table.page - 1, table.page + 1):
+            neighbors = by_page[number]
+            unique = Counter(_continuation_key(f) for f in neighbors)
+            proposals.extend(f for f in neighbors if unique[_continuation_key(f)] == 1)
+        tested = {}
+        attempts = []
+        for profile in proposals:
+            key = _continuation_key(profile)
+            if key in tested:
+                continue
+            local = _RecoveryState(
+                state.source_id, diagnostics={table.table_id: state.diagnostics[table.table_id]}
+            )
+            fragment = _collapse_fragment(candidate, identifiers, numbering, policy, local, profile)
+            attempts.append(local)
+            tested[key] = (
+                (fragment, local)
+                if fragment is not None and _continuation_key(fragment) == key
+                else None
+            )
+        matches = [f for f in tested.values() if f is not None]
+        if len(matches) == 1:
+            fragment, local = matches[0]
+            state.diagnostics[table.table_id] = local.diagnostics[table.table_id]
+            fragments.append(fragment)
+            by_page[table.page].append(fragment)
+            # The selected header source is retained in the logical table policy.
+            state.trace(table, stage="continuation")
+        elif len(attempts) == 1 and attempts[0].findings:
+            state.diagnostics[table.table_id] = attempts[0].diagnostics[table.table_id]
+            state.findings.extend(attempts[0].findings)
+        else:
+            state.trace(table, stage="continuation")
+            state.fail(table, "HEADER_NOT_REPEATED")
 
 
 def recover_tables(
@@ -683,18 +773,27 @@ def recover_tables(
     """Run candidacy, collapse, continuation and support with ordered evidence."""
     state = _RecoveryState(document.source_id)
     fragments = []
+    pending = []
     for page in document.pages:
         for table in page.tables:
             candidate = _table_candidacy(page, table, furniture_boxes, furniture_span_ids, state)
             if candidate is None:
                 continue
+            if _row_has_identifier(candidate.rows[0], identifiers, numbering):
+                pending.append(candidate)
+                continue
             fragment = _collapse_fragment(candidate, identifiers, numbering, policy, state)
             if fragment is not None:
                 fragments.append(fragment)
+    _inherit_fragment_headers(pending, fragments, identifiers, numbering, policy, state)
     groups = _continue_fragments(fragments, state)
     recovered = _support_groups(groups, identifiers, numbering, policy, state)
     return TableAnalysis(
-        tuple(recovered), tuple(state.findings), tuple(state.excluded), tuple(state.candidates)
+        tuple(recovered),
+        tuple(state.findings),
+        tuple(state.excluded),
+        tuple(state.candidates),
+        stamp_lines=table_row_stamps(document),
     )
 
 
@@ -717,6 +816,10 @@ def analysis_from_dict(data):
                                     "members": tuple(tuple(m) for m in r["members"]),
                                     "bbox": tuple(r["bbox"]),
                                     "flags": tuple(r["flags"]),
+                                    "cell_flags": tuple(
+                                        (ident, tuple(flags))
+                                        for ident, flags in r.get("cell_flags", ())
+                                    ),
                                 }
                             )
                             for r in t["rows"]
@@ -741,6 +844,9 @@ def analysis_from_dict(data):
             ),
             "excluded": tuple(data["excluded"]),
             "candidate_ids": tuple(data["candidate_ids"]),
+            "stamp_lines": tuple(
+                table_stamp_from_dict(line) for line in data.get("stamp_lines", ())
+            ),
         }
     )
 
