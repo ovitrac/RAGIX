@@ -133,11 +133,17 @@ def a2(g, wrap="value"):
     return document(pages)
 
 
-def a3(g):
-    """Nothing after the label; the value starts the next line."""
+def a3(g, edge=False):
+    """Nothing after the label; the value starts the next line.
+
+    With `edge`, a rule as wide as a table lies on the label's bottom edge instead
+    of the underline: that is the top edge of something, and it closes the window.
+    """
     pages = []
     for p in PAGES:
         spans, rules = labelled(p, g, label=LABEL_FR)
+        if edge:
+            rules = (HorizontalRule(spans[0].bbox[3], 40.0, 540.0),)
         top = 100.0 + g.line_height + max(g.inner_gaps)
         value = span(f"{TYPE_WORD} {identifier(p)} V 1.0 §4.1", p, "v", 60.0, top, g)
         pages.append(PageDigest(p, 600, 800, (*spans, value), (), horizontal_rules=rules))

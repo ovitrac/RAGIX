@@ -80,6 +80,11 @@ class ReferencePolicy:
     one edge. Producers paint each cell's own borders, so a shared border arrives
     as two rules a fraction of a point apart; the sliver between them is no cell.
 
+    `underline_margin` (line heights): a rule in the lower half of a line's box, or
+    on its bottom edge, that runs no farther than this beyond the line's ends
+    underlines that line. An underline is emphasis, never an edge: it closes no
+    window and bounds no cell. A table or cell edge runs past the text it bounds.
+
     `labels`: label phrases declared by the consumer. None is shipped: a label is
     data of the consumer's documents, and a document also supplies its own, the
     phrases it shows with a colon.
@@ -95,6 +100,7 @@ class ReferencePolicy:
     """
 
     rule_tolerance: float = 1.0
+    underline_margin: float = 0.5
     labels: tuple[str, ...] = ()
     type_words: tuple[str, ...] = GENERIC_TYPE_WORDS
     role_words: tuple[str, ...] = GENERIC_ROLE_WORDS
@@ -102,9 +108,10 @@ class ReferencePolicy:
 
     def __post_init__(self):
         if (
-            isinstance(self.rule_tolerance, bool)
-            or not math.isfinite(self.rule_tolerance)
-            or self.rule_tolerance < 0
+            any(
+                isinstance(v, bool) or not math.isfinite(v) or v < 0
+                for v in (self.rule_tolerance, self.underline_margin)
+            )
             or self.version != "reference-policy/0.1"
             or any(
                 type(words) is not tuple
@@ -239,6 +246,17 @@ def _same_row(a, b):
     """
     short, tall = sorted((a.bbox, b.bbox), key=lambda box: box[3] - box[1])
     return tall[1] < (short[1] + short[3]) / 2 < tall[3]
+
+
+def underlines(rule, view, reference):
+    """The rule is emphasis under this line, not an edge between lines or cells."""
+    left, top, right, bottom = view.bbox
+    margin = reference.underline_margin * (bottom - top)
+    return (
+        (top + bottom) / 2 < rule.y <= bottom + reference.rule_tolerance
+        and rule.left >= left - margin
+        and rule.right <= right + margin
+    )
 
 
 def _edges(values, tolerance):
@@ -396,6 +414,10 @@ def build_value_windows(
     it is recorded in `mentions` as label words in prose and makes no window.
     """
     lines = tuple(v for v in lines if v.text.strip())
+    # An underline is never an edge: it is set aside once, for every later test.
+    horizontal_rules = tuple(
+        r for r in horizontal_rules if not any(underlines(r, v, reference) for v in lines)
+    )
     headers = set(table_headers)
     known = sorted(
         {(fold(label.strip())[0], label.strip()) for label in (*reference.labels, *known_labels)},

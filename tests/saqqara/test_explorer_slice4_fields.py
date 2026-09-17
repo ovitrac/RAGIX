@@ -60,9 +60,6 @@ def test_a1_a4_underline_and_adjacent_value_span_are_not_stops(g):
     assert all(w.value_position == "same_line" for w in reference_windows(result))
 
 
-UNDERLINE_ON_THE_EDGE = (
-    "an underline on the label's bottom edge is read as a rule between two lines"
-)
 WEAK_VALLEY = "a bound derived between two leading values closes the window"
 
 
@@ -78,11 +75,7 @@ def corners_with(reasons):
     )
 
 
-# Where the next line touches the label line, the underline lies exactly between them.
-corners_underlined = corners_with({"low2": UNDERLINE_ON_THE_EDGE})
-
-
-@corners_underlined
+@corners
 @pytest.mark.parametrize("wrap", ["value", "label"])
 def test_a2_continuation_inside_the_value_cell(g, wrap):
     result = explore(fx.a2(g, wrap))
@@ -97,7 +90,7 @@ def test_a2_continuation_inside_the_value_cell(g, wrap):
         assert field.status == "READ"
 
 
-@corners_underlined
+@corners
 @pytest.mark.parametrize("wrap", ["value", "label"])
 def test_a2_open_range_is_closed_by_the_continuation_line(g, wrap):
     for field in reference_fields(explore(fx.a2(g, wrap))):
@@ -110,7 +103,7 @@ def test_a2_open_range_is_closed_by_the_continuation_line(g, wrap):
         ]
 
 
-@corners_with({"low": UNDERLINE_ON_THE_EDGE, "low2": UNDERLINE_ON_THE_EDGE})
+@corners
 def test_a3_value_starting_the_next_line(g):
     result = explore(fx.a3(g))
     fields = reference_fields(result)
@@ -163,20 +156,18 @@ def test_a7_type_word_is_reference_content_only_when_declared(g):
     assert [m["page"] for m in label_in_prose(undeclared)] == list(fx.PAGES)
 
 
-IDEAL = [("shared", 0.0, False), ("per_cell", 0.0, False), ("per_cell", 0.3, False)]
-PAINTED = [
-    pytest.param(
-        "shared", 0.0, True, marks=known("a label underline is taken as the cell's bottom edge")
-    ),
-    pytest.param(
-        "per_cell", 0.3, True, marks=known("a label underline is taken as the cell's bottom edge")
-    ),
+GRIDS = [
+    ("shared", 0.0, False),
+    ("per_cell", 0.0, False),
+    ("per_cell", 0.3, False),
+    ("shared", 0.0, True),
+    ("per_cell", 0.3, True),
 ]
 
 
 @corners
 @pytest.mark.parametrize("position", ["right", "below"])
-@pytest.mark.parametrize("borders,jitter,underlined", [*IDEAL, *PAINTED])
+@pytest.mark.parametrize("borders,jitter,underlined", GRIDS)
 def test_a8_label_cell_takes_its_adjacent_value_cell(g, position, borders, jitter, underlined):
     result = explore(fx.a8(g, position, borders, jitter, underlined))
     fields = reference_fields(result)
@@ -189,7 +180,7 @@ def test_a8_label_cell_takes_its_adjacent_value_cell(g, position, borders, jitte
     assert not [f for f in result.reading.findings if f.reason == "RULE_STOP"]
 
 
-@corners_with({"low": UNDERLINE_ON_THE_EDGE, "low2": UNDERLINE_ON_THE_EDGE, "mid": WEAK_VALLEY})
+@corners_with({"mid": WEAK_VALLEY})
 def test_a9_role_word_lines_are_listed_never_read(g):
     result = explore(fx.a9(g))
     fields = reference_fields(result)
@@ -285,7 +276,20 @@ def reading(result):
 
 # Swept once a fixture reads correctly: each repair extends this list, so the sweep
 # never certifies an invariantly wrong reading.
-SWEPT = ["a1", "a5", "a7", "a10", "a11", "a13", "a8_right_painted", "a8_below_painted"]
+SWEPT = [
+    "a1",
+    "a2",
+    "a3",
+    "a5",
+    "a7",
+    "a8_right",
+    "a8_below",
+    "a8_right_painted",
+    "a8_below_painted",
+    "a10",
+    "a11",
+    "a13",
+]
 
 
 @corners
@@ -502,3 +506,57 @@ def test_listed_lines_survive_the_sealed_census_and_explain_an_empty_field():
     assert all(len(w.undecidable) == 1 for w in empty)
     assert own_identifiers(reference_fields(result)) == [[fx.identifier(p)] for p in fx.PAGES]
     assert not {t.raw for f in result.reading.fields for t in f.targets} & set(fx.ROLE_IDENTIFIERS)
+
+
+UNDERLINED = {
+    "a1": fx.a1,
+    "a2": fx.a2,
+    "a3": fx.a3,
+    "a8_right": BUILDS["a8_right"],
+    "a8_below": BUILDS["a8_below"],
+}
+
+
+@corners
+@pytest.mark.parametrize("name", sorted(UNDERLINED))
+@pytest.mark.parametrize("margin", [0.3, 0.5, 1.0])
+def test_underline_margin_is_a_guard_not_a_layout(g, name, margin):
+    document = UNDERLINED[name](g)
+    declared = explore(document)
+    swept = explore(document, census_config=reference_policy(underline_margin=margin))
+    assert reading(swept) == reading(declared) and cells(swept) == cells(declared)
+    assert own_identifiers(reference_fields(swept)) == [
+        [fx.identifier(p), *(["AB-FORM-900002"] if name == "a2" else [])] for p in fx.PAGES
+    ]
+
+
+@corners
+@pytest.mark.parametrize("margin", [0.3, 0.5, 1.0])
+def test_a_rule_running_past_the_line_is_an_edge_even_on_its_bottom_edge(g, margin):
+    """The trap of I-12: an underline is emphasis, a table's top edge is a stop."""
+    result = explore(fx.a3(g, edge=True), census_config=reference_policy(underline_margin=margin))
+    assert reference_fields(result) == []
+    assert all(w.stop_reason == "horizontal_rule" for w in reference_windows(result))
+    assert [f.reason for f in result.reading.findings] == ["RULE_STOP"] * len(fx.PAGES)
+
+
+def test_underline_is_told_from_an_edge_by_its_extent():
+    from types import SimpleNamespace as view
+    from ragix_kernels.saqqara.field_views import HorizontalRule
+    from ragix_kernels.saqqara.value_windows import DEFAULT_REFERENCE, underlines
+
+    line = view(bbox=(60.0, 100.0, 180.0, 112.0))
+    for rule in (
+        HorizontalRule(112.0, 60.0, 180.0),  # on the bottom edge
+        HorizontalRule(109.5, 57.0, 183.0),  # inside the box, a little wider
+        HorizontalRule(112.8, 60.0, 180.0),  # painted just under the box
+        HorizontalRule(111.0, 60.0, 120.0),  # under part of the line
+    ):
+        assert underlines(rule, line, DEFAULT_REFERENCE), rule
+    for rule in (
+        HorizontalRule(112.0, 60.0, 480.0),  # runs past the text: an edge
+        HorizontalRule(112.0, 20.0, 180.0),
+        HorizontalRule(118.0, 60.0, 180.0),  # below the line: between two lines
+        HorizontalRule(103.0, 60.0, 180.0),  # upper half: not an underline
+    ):
+        assert not underlines(rule, line, DEFAULT_REFERENCE), rule
