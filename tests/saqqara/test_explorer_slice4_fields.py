@@ -60,7 +60,9 @@ def test_a1_a4_underline_and_adjacent_value_span_are_not_stops(g):
     assert all(w.value_position == "same_line" for w in reference_windows(result))
 
 
-WEAK_VALLEY = "a bound derived between two leading values closes the window"
+# Both remaining expected failures await one ruling on bounds derived from the gap
+# histogram; until then a derived bound stops as a guard and keeps its review flag.
+WEAK_VALLEY = "a bound derived between two leading values closes the window; awaits a ruling"
 
 
 def corners_with(reasons):
@@ -224,7 +226,7 @@ def test_a12_gap_bound_is_derived_and_stops_the_field(g):
     assert all(len(w.views) == 1 for w in reference_windows(result))
 
 
-@known("a gap stop carries the guard flag whatever the provenance of its bound")
+@known("a derived bound stops as a guard and keeps its flag; structure awaits a ruling")
 @corners
 def test_a12_derived_bound_is_structure_not_a_guard(g):
     result = explore(fx.a12(g))
