@@ -63,15 +63,23 @@ def test_a1_a4_underline_and_adjacent_value_span_are_not_stops(g):
 UNDERLINE_ON_THE_EDGE = (
     "an underline on the label's bottom edge is read as a rule between two lines"
 )
+WEAK_VALLEY = "a bound derived between two leading values closes the window"
+
+
+def corners_with(reasons):
+    """Geometry corners, those named carrying the defect that still blocks them."""
+    return pytest.mark.parametrize(
+        "g",
+        [
+            pytest.param(g, marks=known(reasons[g.name])) if g.name in reasons else g
+            for g in fx.GEOMETRIES
+        ],
+        ids=lambda g: g.name,
+    )
+
+
 # Where the next line touches the label line, the underline lies exactly between them.
-corners_underlined = pytest.mark.parametrize(
-    "g",
-    [
-        pytest.param(g, marks=known(UNDERLINE_ON_THE_EDGE)) if g is fx.LOW2 else g
-        for g in fx.GEOMETRIES
-    ],
-    ids=lambda g: g.name,
-)
+corners_underlined = corners_with({"low2": UNDERLINE_ON_THE_EDGE})
 
 
 @corners_underlined
@@ -102,10 +110,7 @@ def test_a2_open_range_is_closed_by_the_continuation_line(g, wrap):
         ]
 
 
-@known(
-    "an underline on the label's bottom edge closes the window; a word before an identifier is read as a role line"
-)
-@corners
+@corners_with({"low": UNDERLINE_ON_THE_EDGE, "low2": UNDERLINE_ON_THE_EDGE})
 def test_a3_value_starting_the_next_line(g):
     result = explore(fx.a3(g))
     fields = reference_fields(result)
@@ -184,8 +189,7 @@ def test_a8_label_cell_takes_its_adjacent_value_cell(g, position, borders, jitte
     assert not [f for f in result.reading.findings if f.reason == "RULE_STOP"]
 
 
-@known("role-word lines are attached or become labels")
-@corners
+@corners_with({"low": UNDERLINE_ON_THE_EDGE, "low2": UNDERLINE_ON_THE_EDGE, "mid": WEAK_VALLEY})
 def test_a9_role_word_lines_are_listed_never_read(g):
     result = explore(fx.a9(g))
     fields = reference_fields(result)
@@ -446,3 +450,55 @@ def test_declared_words_are_validated_and_sealed():
             ReferencePolicy(labels=bad)
         with pytest.raises(ValueError):
             ReferencePolicy(type_words=bad)
+
+
+def test_role_line_opens_with_a_declared_word_directly_before_an_identifier():
+    from ragix_kernels.saqqara.census import identifiers
+    from ragix_kernels.saqqara.value_windows import DEFAULT_REFERENCE, role_line
+
+    words = DEFAULT_REFERENCE.role_words
+    for text in (
+        "Procédure n° AB-SOP-900005 « Titre »",
+        "PROCEDURE AB-SOP-900005",
+        "Rapport : AB-OPE-900006",
+        "• Voir AB-OPE-900006",
+        "cf. AB-OPE-900006",
+        "Forms # AB-FRM-900008",
+    ):
+        assert role_line(text, identifiers, words), text
+    for text in (
+        "Procédure générale de maintenance",  # no identifier
+        "Procédure de AB-SOP-900005",  # not directly before it
+        "Procedural AB-SOP-900005",  # a longer word
+        "ZRS AB-CDE-900001",  # a type word is not a role word
+        "AB-SOP-900005 procédure",
+    ):
+        assert not role_line(text, identifiers, words), text
+    assert role_line("ZRS AB-CDE-900001", identifiers, ("ZRS",))
+
+
+def test_a_word_cannot_be_both_a_type_word_and_a_role_word():
+    from ragix_kernels.saqqara.value_windows import ReferencePolicy
+
+    with pytest.raises(ValueError):
+        ReferencePolicy(type_words=("Procédure",))  # shipped as a role word, accents aside
+    assert ReferencePolicy(type_words=("ZRS",), role_words=("voir",)).role_words == ("voir",)
+
+
+def test_listed_lines_survive_the_sealed_census_and_explain_an_empty_field():
+    from dataclasses import asdict
+    from ragix_kernels.saqqara.census import census_from_dict
+    from ragix_kernels.saqqara.value_windows import unresolved_reason
+
+    result = explore(fx.a9(fx.HIGH))
+    assert census_from_dict(asdict(result.census)) == result.census
+    # Nothing but a role line after the label: the occurrence is explained, not read.
+    document = fx.role_only(fx.HIGH)
+    result = explore(document)
+    empty = [
+        w for w in result.census.windows if w.label == fx.LABEL_FR and not w.following_text.strip()
+    ]
+    assert [unresolved_reason(w) for w in empty] == ["ROLE_LINE_UNDECIDABLE"] * len(fx.PAGES)
+    assert all(len(w.undecidable) == 1 for w in empty)
+    assert own_identifiers(reference_fields(result)) == [[fx.identifier(p)] for p in fx.PAGES]
+    assert not {t.raw for f in result.reading.fields for t in f.targets} & set(fx.ROLE_IDENTIFIERS)

@@ -11,6 +11,18 @@ import unicodedata
 from .field_views import TextView, stable_id, union_box, view_from_dict
 
 
+def fold(text):
+    """Case- and accent-insensitive text, with the source index of each character."""
+    folded, index = [], []
+    for i, char in enumerate(text):
+        for c in unicodedata.normalize("NFKD", char):
+            if not unicodedata.combining(c):
+                for low in c.casefold():
+                    folded.append(low)
+                    index.append(i)
+    return "".join(folded), index
+
+
 @dataclass(frozen=True)
 class ContinuationPolicy:
     max_gap_ratio: float = 2.5
@@ -37,6 +49,27 @@ DEFAULT_CONTINUATION = ContinuationPolicy()
 
 
 GENERIC_TYPE_WORDS = ("specification", "specifications", "spécification", "spécifications")
+GENERIC_ROLE_WORDS = (
+    "procedure",
+    "procedures",
+    "procédure",
+    "procédures",
+    "report",
+    "reports",
+    "rapport",
+    "rapports",
+    "document",
+    "documents",
+    "instruction",
+    "instructions",
+    "form",
+    "forms",
+    "formulaire",
+    "formulaires",
+    "see",
+    "voir",
+    "cf",
+)
 
 
 @dataclass(frozen=True)
@@ -54,11 +87,17 @@ class ReferencePolicy:
     `type_words`: words that, directly before an identifier, belong to the
     reference (a document-type noun). The shipped ones are language-generic; a
     domain's acronyms come from the consumer.
+
+    `role_words`: words that, opening a line directly before an identifier, name
+    another document's role (a procedure, a report, a cross-reference). Whether
+    such a line belongs to the field cannot be decided from the page: it is listed
+    and never read. A word cannot be both a type word and a role word.
     """
 
     rule_tolerance: float = 1.0
     labels: tuple[str, ...] = ()
     type_words: tuple[str, ...] = GENERIC_TYPE_WORDS
+    role_words: tuple[str, ...] = GENERIC_ROLE_WORDS
     version: str = "reference-policy/0.1"
 
     def __post_init__(self):
@@ -70,8 +109,10 @@ class ReferencePolicy:
             or any(
                 type(words) is not tuple
                 or any(not isinstance(w, str) or not w.strip() for w in words)
-                for words in (self.labels, self.type_words)
+                for words in (self.labels, self.type_words, self.role_words)
             )
+            or {fold(w.strip())[0] for w in self.type_words}
+            & {fold(w.strip())[0] for w in self.role_words}
         ):
             raise ValueError("invalid reference policy")
 
@@ -144,10 +185,16 @@ class ValueWindow:
     flags: tuple[str, ...] = ()
     needs_review: bool = False
     grid_cells: tuple[tuple[float, float, float, float], ...] = ()
+    undecidable: tuple[TextView, ...] = ()
 
     def __post_init__(self):
         if (
             not self.views
+            or bool(self.undecidable) != ("ROLE_LINE_UNDECIDABLE" in self.flags)
+            or any(
+                (v.source_id, v.page) != (self.views[0].source_id, self.views[0].page)
+                for v in self.undecidable
+            )
             or not self.label
             or not self.window_id
             or len({(v.source_id, v.page) for v in self.views}) != 1
@@ -255,18 +302,6 @@ COLON_LABEL = re.compile(r"([^:\n]{0,100}):\s*")
 BULLETS = " \t•●○◦▪▫■□►▶‣⁃∙·*-–—"
 
 
-def fold(text):
-    """Case- and accent-insensitive text, with the source index of each character."""
-    folded, index = [], []
-    for i, char in enumerate(text):
-        for c in unicodedata.normalize("NFKD", char):
-            if not unicodedata.combining(c):
-                for low in c.casefold():
-                    folded.append(low)
-                    index.append(i)
-    return "".join(folded), index
-
-
 def colon_labels(lines, table_headers=()):
     """The label phrases a page shows with their colon: the document's own lexicon."""
     headers = set(table_headers)
@@ -298,6 +333,22 @@ def begins_with_reference(text, identifiers, type_words=()):
         if folded.startswith(key) and not folded[len(key) : len(key) + 1].isalnum():
             rest = re.sub(
                 r"^\s*(?:n\s*[°º]|no\.?|#)?\s*[:\-–]?\s*", "", text[index[len(key) - 1] + 1 :]
+            )
+            found = identifiers(rest)
+            if found and found[0].start() == 0:
+                return True
+    return False
+
+
+def role_line(text, identifiers, role_words):
+    """A declared role word opens the line, directly before an identifier."""
+    text = text.lstrip(BULLETS)
+    folded, index = fold(text)
+    for word in role_words:
+        key = fold(word.strip())[0]
+        if folded.startswith(key) and not folded[len(key) : len(key) + 1].isalnum():
+            rest = re.sub(
+                r"^\.?\s*(?:[:：]|n\s*[°º]|no\.?|#)?\s*", "", text[index[len(key) - 1] + 1 :]
             )
             found = identifiers(rest)
             if found and found[0].start() == 0:
@@ -351,8 +402,12 @@ def build_value_windows(
         key=lambda pair: (-len(pair[0]), pair),
     )
     labels = {}
+
+    def role(view):
+        return role_line(view.text, identifiers, reference.role_words)
+
     for index, line in enumerate(lines):
-        if line.text.strip() in headers:
+        if line.text.strip() in headers or role(line):
             continue
         match = COLON_LABEL.match(line.text)
         if match and not match[1].strip():
@@ -387,6 +442,7 @@ def build_value_windows(
             and not identifiers(line.text)
             and not re.search(r"\d", line.text)
             and identifiers(lines[index + 1].text)
+            and not role(lines[index + 1])
             and not _boundary(
                 line,
                 line,
@@ -411,9 +467,20 @@ def build_value_windows(
         )
         grid_cells = () if cell_data is None else cell_data[0]
         views = [anchor]
+        undecidable = []
         flags = []
         stop = "page_end"
         stopped = None
+
+        def listed(candidate):
+            """A role line, and every line after it up to the next stop, is never read."""
+            if not undecidable and not role(candidate):
+                return False
+            if not undecidable:
+                flags.append("ROLE_LINE_UNDECIDABLE")
+            undecidable.append(candidate)
+            return True
+
         if cell_data is not None:
             stop = "cell_boundary"
             for candidate in cell_data[1]:
@@ -424,12 +491,14 @@ def build_value_windows(
                 if candidate_index in labels or candidate.text.strip() in headers:
                     stop = "label" if candidate_index in labels else "table_header"
                     break
-                if len(views) - 1 >= policy.max_lines:
+                if len(views) - 1 + len(undecidable) >= policy.max_lines:
                     stop = "line_bound"
                     break
-                views.append(candidate)
+                if not listed(candidate):
+                    views.append(candidate)
                 stopped = None
         else:
+            previous = anchor
             for candidate_index in range(index + 1, len(lines)):
                 candidate = lines[candidate_index]
                 stopped = candidate.view_id
@@ -445,12 +514,12 @@ def build_value_windows(
                 if _heading(candidate.text):
                     stop = "numbered_heading"
                     break
-                if len(views) - 1 >= policy.max_lines:
+                if len(views) - 1 + len(undecidable) >= policy.max_lines:
                     stop = "line_bound"
                     break
                 boundary = _boundary(
                     anchor,
-                    views[-1],
+                    previous,
                     candidate,
                     policy,
                     vertical_rules,
@@ -460,13 +529,13 @@ def build_value_windows(
                 if boundary:
                     stop = boundary
                     break
-                ids = identifiers(candidate.text)
-                if ids and re.search(r"[^\W\d_]", candidate.text[: ids[0].start()]):
-                    flags.append("ROLE_LINE_UNDECIDABLE")
-                views.append(candidate)
+                if not listed(candidate):
+                    views.append(candidate)
+                previous = candidate
                 stopped = None
             if (
                 len(views) == 1
+                and not undecidable
                 and not anchor.text[value_start:].strip()
                 and stop == "page_end"
                 and any(
@@ -510,6 +579,7 @@ def build_value_windows(
             label_end,
             value_start,
             [v.view_id for v in views],
+            [v.view_id for v in undecidable],
             stop,
             stopped,
         )
@@ -528,6 +598,7 @@ def build_value_windows(
                 tuple(sorted(set(flags))),
                 bool(flags),
                 tuple(grid_cells),
+                tuple(undecidable),
             )
         )
     return tuple(windows)
@@ -566,6 +637,7 @@ def window_from_dict(data, policy):
             "policy": policy,
             "flags": tuple(data["flags"]),
             "grid_cells": tuple(tuple(b) for b in data.get("grid_cells", ())),
+            "undecidable": tuple(view_from_dict(v) for v in data.get("undecidable", ())),
         }
     )
 
@@ -578,7 +650,12 @@ def policy_from_dict(data):
 
 def reference_from_dict(data):
     return ReferencePolicy(
-        **{**data, "labels": tuple(data["labels"]), "type_words": tuple(data["type_words"])}
+        **{
+            **data,
+            "labels": tuple(data["labels"]),
+            "type_words": tuple(data["type_words"]),
+            "role_words": tuple(data["role_words"]),
+        }
     )
 
 
@@ -652,6 +729,8 @@ def _grid_members(anchor, lines, vertical, horizontal, tolerance):
 def unresolved_reason(window):
     if "WINDOW_BOUND_HIT" in window.flags:
         return "WINDOW_BOUND_HIT"
+    if window.undecidable:
+        return "ROLE_LINE_UNDECIDABLE"
     if window.stop_reason in {
         "label",
         "table_header",

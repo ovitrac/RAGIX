@@ -328,3 +328,23 @@ def a13(g):
         heading = span("5.2 Essais de fonctionnement", p, "h", 60.0, top, g)
         pages.append(PageDigest(p, 600, 800, (*spans, heading), (), horizontal_rules=rules))
     return document(pages)
+
+
+def role_only(g):
+    """A label with nothing after it but a role-word line."""
+    pages = []
+    for p in PAGES:
+        spans, rules = labelled(p, g, label=LABEL_FR)
+        top = 100.0 + g.line_height + max(g.inner_gaps)
+        role = span(ROLE_LINES[2], p, "r", 60.0, top, g)
+        more, more_rules = labelled(p, g, label=LABEL_FR, value=f"{identifier(p)} V 1.0", top=400.0)
+        more = [
+            span(s.text, p, f"m{i}", s.bbox[0], 400.0, g, right=s.bbox[2])
+            for i, s in enumerate(more)
+        ]
+        pages.append(
+            PageDigest(
+                p, 600, 800, (*spans, role, *more), (), horizontal_rules=(*rules, *more_rules)
+            )
+        )
+    return document(pages)
