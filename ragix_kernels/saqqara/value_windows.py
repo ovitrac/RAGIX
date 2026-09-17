@@ -275,15 +275,20 @@ def _edges(values, tolerance):
 
 
 def _next_cell(a, b, vertical_rules, tolerance):
+    """One painted edge separates two boxes of a row, within the painting tolerance.
+
+    A border is routinely a hundredth of a point inside the last glyph of the text it
+    closes; asking for it at or beyond the text's right edge hides the next cell.
+    """
     return (
         _same_row(a, b)
-        and b.bbox[0] >= a.bbox[2]
+        and b.bbox[0] >= a.bbox[2] - tolerance
         and len(
             _edges(
                 (
                     r.x
                     for r in vertical_rules
-                    if a.bbox[2] <= r.x <= b.bbox[0]
+                    if a.bbox[2] - tolerance <= r.x <= b.bbox[0] + tolerance
                     and r.top < min(a.bbox[3], b.bbox[3])
                     and r.bottom > max(a.bbox[1], b.bbox[1])
                 ),
@@ -320,16 +325,35 @@ COLON_LABEL = re.compile(r"([^:\n]{0,100}):\s*")
 BULLETS = " \t•●○◦▪▫■□►▶‣⁃∙·*-–—"
 
 
-def colon_labels(lines, table_headers=()):
-    """The label phrases a page shows with their colon: the document's own lexicon."""
+def colon_labels(lines, identifiers, table_headers=()):
+    """The label phrases a page shows with their colon: the document's own lexicon.
+
+    A phrase that holds an identifier is reference content, with or without a colon
+    after it, and never enters the lexicon.
+    """
     headers = set(table_headers)
     return tuple(
         match[1].strip()
         for line in lines
         if line.text.strip() not in headers
         for match in [COLON_LABEL.match(line.text)]
-        if match and match[1].strip()
+        if match and match[1].strip() and not identifiers(match[1])
     )
+
+
+def introduces_reference(text, identifiers, type_words=()):
+    """The value opens with reference content, one word aside.
+
+    The word is the slot of a document-type noun the policy may not know: `WORD
+    identifier` opens a reference as `identifier` does. An identifier met later, inside
+    a sentence, does not make the sentence a reference.
+    """
+    text = text.lstrip()
+    if begins_with_reference(text, identifiers, type_words):
+        return True
+    word = re.match(r"[^\W\d_]+\.?\s*(?:n\s*[°º]|no\.?|#)?\s*[:\-–]?\s*", text)
+    found = identifiers(text[word.end() :]) if word else ()
+    return bool(found) and found[0].start() == 0
 
 
 def begins_with_reference(text, identifiers, type_words=()):
@@ -432,6 +456,8 @@ def build_value_windows(
         if line.text.strip() in headers or role(line):
             continue
         match = COLON_LABEL.match(line.text)
+        if match and identifiers(match[1]):
+            continue  # reference content before a colon is a value, never a label
         if match and not match[1].strip():
             if findings is not None:
                 from .failures import construct_finding
@@ -482,12 +508,32 @@ def build_value_windows(
                 "newline",
             )
     windows = []
+    demoted = set()
+
+    def takes_value(anchor_value, views, candidate_index):
+        """A colon-less label in the value position of a label that has no value yet.
+
+        The weaker evidence yields: the line is that label's value and opens no window
+        of its own. A value never closes its own label's window.
+        """
+        if (
+            anchor_value
+            or len(views) > 1
+            or candidate_index not in labels
+            or labels[candidate_index][3] != "space"
+        ):
+            return False
+        demoted.add(candidate_index)
+        return True
+
     for index, (label, label_end, value_start, separator) in labels.items():
         anchor = lines[index]
         cell_data = _grid_members(
             anchor, lines, vertical_rules, horizontal_rules, reference.rule_tolerance
         )
         grid_cells = () if cell_data is None else cell_data[0]
+        if index in demoted:
+            continue
         views = [anchor]
         undecidable = []
         flags = []
@@ -510,6 +556,10 @@ def build_value_windows(
                 candidate_index = next(
                     i for i, v in enumerate(lines) if v.view_id == candidate.view_id
                 )
+                if takes_value(anchor.text[value_start:].strip(), views, candidate_index):
+                    views.append(candidate)
+                    stopped = None
+                    continue
                 if candidate_index in labels or candidate.text.strip() in headers:
                     stop = "label" if candidate_index in labels else "table_header"
                     break
@@ -524,6 +574,21 @@ def build_value_windows(
             for candidate_index in range(index + 1, len(lines)):
                 candidate = lines[candidate_index]
                 stopped = candidate.view_id
+                if takes_value(
+                    anchor.text[value_start:].strip(), views, candidate_index
+                ) and not _boundary(
+                    anchor,
+                    previous,
+                    candidate,
+                    policy,
+                    vertical_rules,
+                    horizontal_rules,
+                    reference.rule_tolerance,
+                ):
+                    views.append(candidate)
+                    previous = candidate
+                    stopped = None
+                    continue
                 if candidate_index in labels:
                     stop = "label"
                     break
@@ -703,6 +768,14 @@ def _cell_at(x, y, vertical, horizontal, tolerance):
     return box, (left[-1][0], top[-1][0], right[0][1], bottom[0][1])
 
 
+def _inside(box, cell, tolerance):
+    """The box lies in the cell, its edges known within the painting tolerance."""
+    return (
+        cell[0] - tolerance <= box[0] <= box[2] <= cell[2] + tolerance
+        and cell[1] - tolerance <= box[1] <= box[3] <= cell[3] + tolerance
+    )
+
+
 def _grid_members(anchor, lines, vertical, horizontal, tolerance):
     box = anchor.bbox
     x = (box[0] + box[2]) / 2
@@ -711,7 +784,7 @@ def _grid_members(anchor, lines, vertical, horizontal, tolerance):
     if found is None:
         return None
     cell, outer = found
-    if not (cell[0] <= box[0] <= box[2] <= cell[2] and cell[1] <= box[1] <= box[3] <= cell[3]):
+    if not _inside(box, cell, tolerance):
         return None
     cells = [cell]
     # A neighbour shares an edge: its inner face is the outer face of this cell's edge.
@@ -738,11 +811,7 @@ def _grid_members(anchor, lines, vertical, horizontal, tolerance):
     for region in cells:
         for line in lines:
             b = line.bbox
-            if (
-                line.view_id not in seen
-                and region[0] <= b[0] <= b[2] <= region[2]
-                and region[1] <= b[1] <= b[3] <= region[3]
-            ):
+            if line.view_id not in seen and _inside(b, region, tolerance):
                 members.append(line)
                 seen.add(line.view_id)
     return tuple(cells), tuple(members)

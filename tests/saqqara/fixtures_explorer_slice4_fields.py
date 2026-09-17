@@ -363,6 +363,8 @@ VALUE_FORMS = {
     # the same phrase before a colon
     "colon": (f"{TYPE_WORD} {REFERENCE} V 1.0: §4.1 à §4.3", [("range", "4.1", "4.3")]),
     "plain": (f"{REFERENCE} V 1.0 §4.1", [("single", "4.1")]),
+    # a declared label phrase, without its colon, opening the value cell
+    "known": (f"{LABEL_FR} {REFERENCE} V 1.0 §4.1", [("single", "4.1")]),
 }
 
 

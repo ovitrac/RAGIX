@@ -21,6 +21,7 @@ from .value_windows import (
     DEFAULT_REFERENCE,
     reference_from_dict,
     colon_labels,
+    introduces_reference,
 )
 
 from ..harvest.numeric_locale import physical_numbers
@@ -336,7 +337,11 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
     # A label shown with its colon anywhere in the document is known everywhere in it.
     known_labels = tuple(
         sorted(
-            {label for p in document.pages for label in colon_labels(page_lines(p), headers_of(p))}
+            {
+                label
+                for p in document.pages
+                for label in colon_labels(page_lines(p), identifiers, headers_of(p))
+            }
         )
     )
 
@@ -463,9 +468,14 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
             window = window_by_label.get(line.view_id)
             if window:
                 following = window.following_text
+                # A label introduces a value: an identifier met later in a sentence is no
+                # vote for the label, wherever the sentence wraps.
                 follow = (
                     "identifier-bearing"
                     if identifiers(following)
+                    and introduces_reference(
+                        following, identifiers, config.reference_policy.type_words
+                    )
                     else (
                         "number-bearing"
                         if re.search(r"\d", following)

@@ -263,6 +263,9 @@ BUILDS = {
     "a5": fx.a5,
     "a7": lambda g: fx.a7(g, colon_evidence=True),
     "a10": fx.a10,
+    "b1": fx.b1,
+    "b2": lambda g: fx.b1(g, forms=("plain",), overhang=0.04, ruled="vertical_only"),
+    "b3": fx.b3,
     "a11": fx.a11,
     "a12": fx.a12,
     "a13": fx.a13,
@@ -289,6 +292,8 @@ SWEPT = [
     "a8_right_painted",
     "a8_below_painted",
     "a10",
+    "b1",
+    "b2",
     "a11",
     "a13",
 ]
@@ -564,19 +569,13 @@ def test_underline_is_told_from_an_edge_by_its_extent():
         assert not underlines(rule, line, DEFAULT_REFERENCE), rule
 
 
-# Confirmation on real documents found three defects the gates above did not model.
-VALUE_IS_A_LABEL = (
-    "a phrase holding an identifier is taken as a label and closes its own label's window"
-)
-BORDER_IN_GLYPH = "a border a hair inside the label's last glyph hides the next cell"
-PROSE_VOTES = "an identifier anywhere in prose after a colon label votes for that label"
-
-
+# Confirmation on real documents found three defects the gates above did not model:
+# a phrase holding an identifier taken as a label, a border a hair inside the label's
+# last glyph, and an identifier anywhere in prose voting for a colon label.
 def members(target):
     return [tuple(v for v in (s.kind, s.key_from, s.key_to) if v) for s in target.sections]
 
 
-@known(VALUE_IS_A_LABEL)
 @corners
 @pytest.mark.parametrize("ruled", ["grid", "vertical_only"])
 def test_b1_a_phrase_holding_an_identifier_is_reference_content_never_a_label(g, ruled):
@@ -593,7 +592,6 @@ def test_b1_a_phrase_holding_an_identifier_is_reference_content_never_a_label(g,
     assert not [w.label for w in result.census.windows if identifiers(w.label)]
 
 
-@known(BORDER_IN_GLYPH)
 @corners
 @pytest.mark.parametrize("ruled", ["grid", "vertical_only"])
 @pytest.mark.parametrize("overhang", [0.01, 0.04])
@@ -607,7 +605,6 @@ def test_b2_a_border_grazing_the_last_glyph_still_separates_two_cells(g, ruled, 
     assert not [f for f in result.reading.findings if f.reason == "RULE_STOP"]
 
 
-@known(PROSE_VOTES)
 @corners
 def test_b3_prose_after_a_colon_label_is_not_a_reference_field(g):
     result = explore(fx.b3(g))
@@ -626,3 +623,81 @@ def test_a_window_that_loses_its_value_is_never_silent(g):
     ] * len(fx.PAGES)
     unresolved = result.profile.fields["reference_fields"].diagnostics["unresolved_occurrences"]
     assert len(unresolved) == len(fx.PAGES)
+
+
+@corners
+@pytest.mark.parametrize("overhang", [0.0, 0.04])
+@pytest.mark.parametrize("tolerance", [0.5, 1.0, 2.0])
+def test_b2_the_border_tolerance_is_a_guard_not_a_layout(g, overhang, tolerance):
+    document = fx.b1(g, forms=("plain", "bare"), overhang=overhang)
+    declared = explore(document)
+    swept = explore(document, census_config=reference_policy(rule_tolerance=tolerance))
+    assert reading(swept) == reading(declared) and cells(swept) == cells(declared)
+    assert len(reference_fields(swept)) == 2 * len(fx.PAGES)
+
+
+@corners
+def test_b2_a_rule_well_inside_the_text_is_not_a_cell_border(g):
+    """The trap of the tolerance: a rule through a letter, farther inside the label than the
+    tolerance allows, is no border of the label's cell. (A rule on a space splits the text
+    there, and the two parts are two cells.)"""
+    result = explore(fx.b1(g, forms=("plain",), overhang=14.0, ruled="vertical_only"))
+    assert reference_fields(result) == []
+    assert all(w.stop_reason == "column_break" for w in reference_windows(result))
+
+
+@corners
+def test_b3_swept_bounds_never_make_prose_a_reference_field(g):
+    for gap in (1.5, 2.5, 4.0):
+        for cap in (6, 8, 16):
+            config = CensusConfig(
+                continuation_policy=ContinuationPolicy(max_gap_ratio=gap, max_lines=cap)
+            )
+            result = explore(fx.b3(g), census_config=config)
+            assert result.profile.fields["reference_fields"].status == "UNKNOWN"
+
+
+@corners
+def test_a_known_label_opening_a_value_cell_is_that_cells_value(g):
+    """A colon-less label is the weaker evidence: it never takes a colon label's value."""
+    config = reference_policy(labels=(fx.LABEL_FR,))
+    result = explore(fx.b1(g, forms=("known",)), census_config=config)
+    fields = reference_fields(result)
+    assert [f.label for f in fields] == [fx.LABEL_EN] * len(fx.PAGES)
+    assert own_identifiers(fields) == [[fx.REFERENCE]] * len(fx.PAGES)
+    assert [w.label for w in reference_windows(result)] == [fx.LABEL_EN] * len(fx.PAGES)
+    assert label_in_prose(result) == []
+
+
+def test_a_value_opens_with_reference_content_one_word_aside():
+    from ragix_kernels.saqqara.census import identifiers
+    from ragix_kernels.saqqara.value_windows import introduces_reference
+
+    for text in (
+        "AB-CDE-900001 V 1.0",
+        "\nZRS AB-CDE-900001 V 1.0§4.1",
+        "Document n° AB-CDE-900001",
+        "§4.1 à §4.3",
+        "« titre »",
+    ):
+        assert introduces_reference(text, identifiers), text
+    for text in (
+        "les essais de la pompe (voir le plan) n° AB-CDE-900011",
+        "deux mots AB-CDE-900001",
+        "la vérification suit l'ordre\ndu lot n° AB-FGH-900001",
+        "",
+    ):
+        assert not introduces_reference(text, identifiers), text
+
+
+def test_the_documents_own_lexicon_never_holds_an_identifier():
+    from types import SimpleNamespace as line
+    from ragix_kernels.saqqara.census import identifiers
+    from ragix_kernels.saqqara.value_windows import colon_labels
+
+    lines = [
+        line(text="Tested reference : AB-CDE-900001"),
+        line(text="ZRS AB-CDE-900001 V 1.0: §4.1"),
+        line(text="Version 2 : suite"),
+    ]
+    assert colon_labels(lines, identifiers) == ("Tested reference", "Version 2")
