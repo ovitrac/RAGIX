@@ -25,11 +25,13 @@ QUANTITATIVE_KINDS = frozenset(
         "interval",
         "tolerance",
         "inequality",
+        "equality",
         "symbolic_bound",
         "rate",
     }
 )
 UNITS = {
+    "L/min": ("L/min", "volume_rate"),
     "°C": ("degC", "temperature"),
     "°F": ("degF", "temperature"),
     "K": ("K", "temperature"),
@@ -60,7 +62,9 @@ UNIT = "(?:" + "|".join(re.escape(u) for u in sorted(UNITS, key=len, reverse=Tru
 UNIT_END = r"(?![\w€$£])"
 SCALAR = re.compile(rf"(?<![\w.,])(?P<number>{NUMBER})\s*(?P<unit>{UNIT}){UNIT_END}")
 PREFIX = re.compile(
-    r"(?P<op><=|>=|≤|≥|<|>|=|au moins|au plus|minimum|maximum|" r"(?:allant\s+)?jusqu['’][aà])\s*$",
+    r"(?P<op><=|>=|≤|≥|<|>|=|au moins|au plus|minimum|maximum|"
+    r"(?<!\w)(?:at least|at most|not more than|not less than|minimal|maximal)|"
+    r"(?:allant\s+)?jusqu['’][aà])\s*$",
     re.I,
 )
 NORMAL_OP = {
@@ -70,6 +74,12 @@ NORMAL_OP = {
     "au plus": "<=",
     "minimum": ">=",
     "maximum": "<=",
+    "maximal": "<=",
+    "minimal": ">=",
+    "at least": ">=",
+    "at most": "<=",
+    "not more than": "<=",
+    "not less than": ">=",
 }
 
 
@@ -196,7 +206,9 @@ def harvest(
             else notation_flags(raw, decimal_separator)
         )
 
-    number_pattern = TOKEN_NUMBER if token_locale else NUMBER
+    number_pattern = (
+        TOKEN_NUMBER.replace("[+−-]?", r"(?:[+−]|(?<!\+/)-)?", 1) if token_locale else NUMBER
+    )
     scalar_pattern = (
         re.compile(rf"(?<![\w.,])(?P<number>{number_pattern})\s*(?P<unit>{UNIT}){UNIT_END}")
         if token_locale
@@ -216,13 +228,26 @@ def harvest(
         kind = {"time": "duration", "count": "cardinality", "percentage": "percentage"}.get(
             dimension, "scalar"
         )
+        if kind == "percentage" and match["number"].startswith(("-", "−", "+")):
+            kind = "scalar"
+        end = unit_end = match.end()
+        if dimension == "voltage":
+            qualifier = re.match(r"[ \t]+(?:AC|DC)\b", text[end:])
+            if qualifier:
+                end += qualifier.end()
+                unit_end = end
         start, op, normalized, direction = match.start(), None, None, "not_applicable"
         prefix = PREFIX.search(text[:start])
         if prefix:
             start, op = prefix.start(), prefix["op"]
             direction = "unresolved" if "jusqu" in op.lower() else "resolved"
             normalized = NORMAL_OP.get(op.lower(), op) if direction == "resolved" else None
-            kind = "inequality"
+            kind = "equality" if normalized == "=" else "inequality"
+        postfix = re.match(r"\s+(?P<op>maximal|minimal|maximum|minimum)\b", text[end:], re.I)
+        if postfix and op is None:
+            op = postfix["op"]
+            normalized, direction, kind = NORMAL_OP[op.lower()], "resolved", "inequality"
+            end += postfix.end()
         extra = flags + (("DIRECTION_UNRESOLVED",) if direction == "unresolved" else ())
         extra += ("NUMBER_UNPARSED",) if value is None else ()
         extra += literal_flags(match["number"])
@@ -233,13 +258,13 @@ def harvest(
             node_id,
             text,
             start,
-            match.end(),
+            end,
             kind,
             extra,
             number=format(value, "f") if value is not None else None,
-            unit_raw=match["unit"],
+            unit_raw=text[match.start("unit") : unit_end],
             unit_start=match.start("unit"),
-            unit_end=match.end("unit"),
+            unit_end=unit_end,
             unit=unit,
             dimension=dimension,
             comparator_raw=op,
@@ -250,7 +275,8 @@ def harvest(
         found.append(candidate)
         scalars.append((candidate, match))
     for (left, lm), (right, rm) in zip(scalars, scalars[1:]):
-        gap = text[lm.end() : rm.start()].strip()
+        raw_gap = text[left.end : rm.start()]
+        gap = raw_gap.strip()
         members, kind, values = (), None, {}
         if re.fullmatch(r"±|\+/-", gap):
             kind = "tolerance"
@@ -268,6 +294,8 @@ def harvest(
             )
             plain = re.fullmatch(r"à|a|to|\.\.|…|–|—|-", gap, re.I)
             if not (chain or plain):
+                continue
+            if plain and gap in {"-", "–", "—"} and left.unit != right.unit:
                 continue
             kind = "interval"
             lower, upper = left, right
@@ -294,6 +322,8 @@ def harvest(
                 )
         valid = compatible and left.normalization_status == right.normalization_status == "parsed"
         extra = flags + left.flags + right.flags + (() if valid else ("COMPOSITE_UNRESOLVED",))
+        if kind == "tolerance" and raw_gap == gap:
+            extra += ("GLUED",)
         found.append(
             make(
                 source_id,
@@ -359,6 +389,14 @@ def harvest(
             found.append(right)
         value = parse_literal(match["left"])
         shared_flags = ("UNIT_INHERITED",) + literal_flags(match["left"])
+        if intro and match["op"] not in {"±", "+/-"}:
+            shared_flags += ("UNIT_SHARED",)
+        if (
+            match["op"] in {"±", "+/-"}
+            and match.end("left") == match.start("op")
+            and match.end("op") == match.start("right")
+        ):
+            shared_flags += ("GLUED",)
         if match["op"] == "-":
             shared_flags += ("SIGN_RANGE_AMBIGUOUS",)
         if (
@@ -477,6 +515,7 @@ def harvest(
                 ),
             )
         )
+    found.extend(_span_composites(text, found, make, flags))
     if token_locale:
         for observed in physical_numbers(text, table_cell=table_cell):
             if any(observed.start < c.end and observed.end > c.start for c in found):
@@ -543,10 +582,25 @@ def harvest(
             )
         )
     rate = re.compile(
-        rf"(?<![\w.,])(?P<n>{number_pattern})\s+(?P<event>[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ /-]{{0,60}}?)"
-        r"\s+(?:par|per)\s+(?P<period>jour|day|heure|hour|minute|seconde|second)s?\b",
+        rf"(?<![\w.,])(?:(?P<n>{number_pattern})\s+(?P<event>[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ /-]{{0,60}}?)|(?P<word>once|twice))"
+        r"\s+(?:par|per)\s+(?P<period>jour|day|heure|hour|minute|seconde|second|semaine|week|mois|month|année|year)s?\b",
         re.I,
     )
+    periods = {
+        "jour": "day",
+        "day": "day",
+        "heure": "hour",
+        "hour": "hour",
+        "minute": "minute",
+        "seconde": "second",
+        "second": "second",
+        "semaine": "week",
+        "week": "week",
+        "mois": "month",
+        "month": "month",
+        "année": "year",
+        "year": "year",
+    }
     for match in rate.finditer(text):
         overlaps = [c for c in found if match.start() < c.end and match.end() > c.start]
         if any(
@@ -554,7 +608,16 @@ def harvest(
             for c in overlaps
         ):
             continue
-        number = parse_literal(match["n"])
+        word = match["word"]
+        number = (
+            parse_literal(str({"once": 1, "twice": 2}[word.lower()]))
+            if word
+            else parse_literal(match["n"])
+        )
+        unit_start = match.end("word" if word else "n")
+        unit_start += len(text[unit_start : match.end()]) - len(
+            text[unit_start : match.end()].lstrip()
+        )
         found.append(
             make(
                 source_id,
@@ -564,10 +627,13 @@ def harvest(
                 match.end(),
                 "rate",
                 flags
-                + (literal_flags(match["n"]) if token_locale else ())
+                + (literal_flags(match["n"]) if token_locale and not word else ())
                 + (() if number is not None else ("NUMBER_UNPARSED",)),
                 number=format(number, "f") if number is not None else None,
-                unit_raw=text[match.end("n") : match.end()].strip(),
+                unit_raw=text[unit_start : match.end()],
+                unit_start=unit_start,
+                unit_end=match.end(),
+                unit="count/" + periods[match["period"].lower()],
                 dimension="rate",
                 members=tuple(Member(c.candidate_id, "event_count") for c in overlaps),
                 normalization_status="parsed" if number is not None else "unparsed",
@@ -588,6 +654,74 @@ def harvest(
                     make(source_id, node_id, text, match.start(), match.end(), kind, flags)
                 )
     return tuple(sorted(found, key=lambda c: (c.start, c.end, c.kind, c.candidate_id)))
+
+
+def _span_composites(text, candidates, make, flags):
+    extra = []
+    used = {m.candidate_id for c in candidates for m in c.members}
+    leaves = [
+        c for c in candidates if c.quantitative and not c.members and c.candidate_id not in used
+    ]
+    for c in leaves:
+        leading = re.search(r"(?P<op>±|\+/-)\s*$", text[: c.start])
+        if not leading or c.comparator_raw is not None:
+            continue
+        valid = c.number is not None and parse_decimal(c.number, decimal_separator=".") >= 0
+        extra.append(
+            make(
+                c.source_id,
+                c.node_id,
+                text,
+                leading.start(),
+                c.end,
+                "tolerance",
+                flags
+                + c.flags
+                + ("NOMINAL_ABSENT",)
+                + (() if valid else ("COMPOSITE_UNRESOLVED",)),
+                tolerance=c.number,
+                nominal=None,
+                unit_raw=c.unit_raw,
+                unit_start=c.unit_start,
+                unit_end=c.unit_end,
+                unit=c.unit,
+                dimension=c.dimension,
+                comparator_raw=leading["op"],
+                comparator_normalized="tolerance",
+                normalization_status="parsed" if valid else "unparsed",
+                members=(Member(c.candidate_id, "tolerance"),),
+            )
+        )
+        used.add(c.candidate_id)
+    group = []
+    for c in sorted(leaves, key=lambda value: value.start) + [None]:
+        eligible = c is not None and c.kind == "duration" and c.candidate_id not in used
+        if group and (
+            not eligible
+            or text[group[-1].end : c.start].strip()
+            or c.unit in {m.unit for m in group}
+        ):
+            if len(group) > 1:
+                first, last = group[0], group[-1]
+                valid = all(member.normalization_status == "parsed" for member in group)
+                extra.append(
+                    make(
+                        first.source_id,
+                        first.node_id,
+                        text,
+                        first.start,
+                        last.end,
+                        "duration",
+                        flags + tuple(f for member in group for f in member.flags),
+                        dimension="time",
+                        normalization_status="parsed" if valid else "unparsed",
+                        members=tuple(Member(member.candidate_id, "component") for member in group),
+                    )
+                )
+            group = []
+        if eligible:
+            group.append(c)
+    return extra
 
 
 def roots(candidates):
