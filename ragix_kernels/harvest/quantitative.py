@@ -27,6 +27,9 @@ QUANTITATIVE_KINDS = frozenset(
         "inequality",
         "equality",
         "symbolic_bound",
+        "relative_offset",
+        "relative_interval",
+        "relative_unparsed",
         "rate",
     }
 )
@@ -167,12 +170,27 @@ def harvest(
     token_locale=False,
     locale_prior=None,
     table_cell=False,
+    context=None,
 ) -> tuple[Candidate, ...]:
     """Read classified evidence; return children as well as deterministic composites.
 
     Furniture produces no claims. UNKNOWN is retained with a review flag. Kind
     routing must use quantitative roots, not the count of all numeric-looking ids.
     """
+    if context is not None:
+        from .contextual_quantitative import harvest_cell
+
+        return harvest_cell(
+            text,
+            context=context,
+            source_id=source_id,
+            node_id=node_id,
+            classification=classification,
+            uncertainty=uncertainty,
+            decimal_separator=decimal_separator,
+            token_locale=token_locale,
+            locale_prior=locale_prior,
+        )
     if not source_id or not node_id or classification not in {"CONTENT", "UNKNOWN", "FURNITURE"}:
         raise ValueError("source/node identity and explicit classification required")
     if classification == "FURNITURE":

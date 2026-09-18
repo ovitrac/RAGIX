@@ -613,3 +613,26 @@ reading configuration, never a document's semantic authority.
   comparator, range, duration, percentage, qualifier and rate forms are exercised
   in `test_explorer_slice4_quantities.py`. The 54-case replay checks every candidate
   span and member reference. These readers establish no comparison semantics.
+- **K9.15 Table-cell context.** Header and positional row-label associations keep
+  separate source cell ids, exact cell text, source spans and geometry. Declared
+  multi-row headers retain each matching cell. Missing headers, unavailable cell
+  geometry and unverified header layout cannot be repaired from neighboring prose
+  or data rows. Cross-source and cross-column associations fail closed. Native
+  grids need not contain an identifier column to expose structural context.
+  Falsifiers: `test_table_context.py` and `test_header_unit_context.py`.
+- **K9.16 Inherited units.** A unitless cell may inherit one unambiguous unit only
+  from structurally associated, located header/label evidence. Each unit keeps
+  its originating cell id and exact span; the value's source text is unchanged.
+  Conflicts and missing or uncertain evidence leave an explicit reason, not a
+  normalized guess. Inline units are preserved, contradictions flagged, and
+  inheritance always requires review. Composite child ids remain resolvable.
+  Calls without context retain the original contract. Falsifiers:
+  `test_header_units.py` and the reader cases in `test_header_unit_context.py`.
+- **K9.17 Relative quantity shapes.** Anchored offsets retain their signs,
+  magnitudes and exact anchor/value spans. An explicit relative header may supply
+  the anchor from its own span; ordinary labels cannot. No parameter semantics,
+  applicability, absolute range or comparison is derived. Bare subtraction,
+  identifier hyphens and en/em dashes do not become relative offsets. Conflicting
+  anchors/units and branching signs remain unresolved. Incomplete relative shapes
+  cannot fall back to absolute scalar candidates. Falsifiers:
+  `test_relative_quantities.py` and the reader's relative-row tests.
