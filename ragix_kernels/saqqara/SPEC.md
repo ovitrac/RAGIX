@@ -613,3 +613,10 @@ reading configuration, never a document's semantic authority.
   comparator, range, duration, percentage, qualifier and rate forms are exercised
   in `test_explorer_slice4_quantities.py`. The 54-case replay checks every candidate
   span and member reference. These readers establish no comparison semantics.
+- **K9.15 Table-cell context.** Header and positional row-label associations keep
+  separate source cell ids, exact cell text, source spans and geometry. Declared
+  multi-row headers retain each matching cell. Missing headers, unavailable cell
+  geometry and unverified header layout cannot be repaired from neighboring prose
+  or data rows. Cross-source and cross-column associations fail closed. Native
+  grids need not contain an identifier column to expose structural context.
+  Falsifiers: `test_table_context.py` and `test_header_unit_context.py`.

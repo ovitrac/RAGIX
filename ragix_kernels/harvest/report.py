@@ -141,6 +141,7 @@ class Report:
     replay_digest: str
     presentation_lines: tuple[dict, ...] = ()
     privacy_stamps: tuple[dict, ...] = ()
+    cell_contexts: tuple[dict, ...] = ()
 
 
 def build_report(document, census, profile, reading, provenance=None):
@@ -256,6 +257,8 @@ def build_report(document, census, profile, reading, provenance=None):
         presentation_lines,
         privacy_stamps,
     ]
+    if reading.cell_contexts:
+        payload.append(reading.cell_contexts)
     return Report(
         document.source_id,
         asdict(profile),
@@ -266,6 +269,7 @@ def build_report(document, census, profile, reading, provenance=None):
         replay_digest(payload),
         presentation_lines,
         privacy_stamps,
+        reading.cell_contexts,
     )
 
 

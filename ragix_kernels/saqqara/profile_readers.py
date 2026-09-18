@@ -85,6 +85,7 @@ class ReaderResult:
     tables: tuple[dict, ...]
     furniture: tuple[str, ...]
     findings: tuple[UnknownTemplate, ...]
+    cell_contexts: tuple[dict, ...] = ()
 
 
 def section_expressions(text, style, offset=0):
@@ -460,6 +461,28 @@ def read_document(
                 failure.table_id,
             )
         )
+    from .table_context import document_contexts
+
+    contexts, context_findings = document_contexts(document, census.table_analysis)
+    for finding in context_findings:
+        findings.append(
+            UnknownTemplate(
+                stable_id(
+                    "cell-context-finding",
+                    document.source_id,
+                    finding.table_id,
+                    finding.page,
+                    finding.reason,
+                ),
+                document.source_id,
+                "table_cell_context",
+                profile.census_id,
+                finding.inspected_count,
+                finding.reason,
+                finding.page,
+                finding.table_id,
+            )
+        )
     return ReaderResult(
         document.source_id,
         replay_digest([profile]),
@@ -468,4 +491,19 @@ def read_document(
         tuple(tables),
         tuple(furniture),
         tuple(findings),
+        tuple(
+            {
+                "record_id": stable_id(
+                    "cell-context",
+                    c.value.source_id,
+                    c.value.cell_id,
+                    tuple(x.cell_id for x in c.column_headers),
+                    tuple(x.cell_id for x in c.row_labels),
+                    c.rule,
+                    c.flags,
+                ),
+                **asdict(c),
+            }
+            for c in contexts
+        ),
     )
