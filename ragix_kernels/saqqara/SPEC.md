@@ -583,3 +583,33 @@ reading configuration, never a document's semantic authority.
   Every supplied id is accounted once. Exact invalid outputs remain cached and
   refused; no repair turn occurs. The deterministic profile is unchanged whether
   the service is disabled, accepted or refused. Falsifiers: X8–X9.
+
+- **K9.11 Painted reference windows.** Nearby faces of a painted rule are treated
+  as one border under the recorded rule tolerance. An underline is emphasis,
+  not a cell boundary. Overlapping line boxes do not by themselves split a wrapped
+  value. Labels must introduce a value; an identifier-bearing phrase inside a value
+  cannot become a label merely by repeating known label words. Explicit label and
+  type-word policies remain recorded configuration. Falsifiers: A1–A3, A7–A8 and
+  B1–B3 in `test_explorer_slice4_fields.py`, swept over declared geometry ranges.
+- **K9.12 Field evidence and section relations.** Unlabelled role-word lines are
+  listed as undecidable evidence, never silently consumed as reference targets.
+  Repeated section markers inside a range retain one range relation and its exact
+  operator. Guard stops retain WINDOW_BOUND_HIT and needs_review, including derived
+  bounds. The known weak-gap derivation defect remains a strict expected failure;
+  this release does not claim that gap derivation is complete. Falsifiers: A9–A13
+  and the fallback-bound sensitivity tests in `test_explorer_slice4_fields.py`.
+- **K9.13 Table continuation.** Native column collapse precedes fragment joining
+  and the support test. A headerless fragment may inherit a header only from an
+  unambiguous compatible adjacent profile supported by repeated observed headers;
+  its first identifier-bearing row stays data. Inherited header provenance and
+  per-cell lifecycle-glyph evidence are retained. Missing pages, conflicting
+  neighbors and incompatible geometry do not create a continuation bridge.
+  Table-row stamp masking is outside this contract. Falsifiers: the realistic
+  table, gap and geometry controls in `test_explorer_slice4_tables.py`.
+- **K9.14 Composite quantity spans.** Quantity roots preserve exact source spans,
+  literal signs and units, and immutable member ids. Missing nominal values remain
+  flagged; compound durations retain observed units without invented conversion;
+  incompatible unit neighbors cannot become a normalized range. FR/EN tolerance,
+  comparator, range, duration, percentage, qualifier and rate forms are exercised
+  in `test_explorer_slice4_quantities.py`. The 54-case replay checks every candidate
+  span and member reference. These readers establish no comparison semantics.

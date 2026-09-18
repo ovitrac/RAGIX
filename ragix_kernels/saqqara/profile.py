@@ -7,13 +7,13 @@ from dataclasses import asdict, dataclass, replace, field
 import json
 import re
 import math
-from .census import Census
+from .census import Census, bare_connector
 from .field_views import stable_id
 from ..harvest.report import replay_digest
 
 from .value_windows import ContinuationPolicy, DEFAULT_CONTINUATION, policy_from_dict
 
-VERSION = "document-profile/0.5"
+VERSION = "document-profile/0.6"
 FIELDS = (
     "language",
     "identifier_families",
@@ -54,6 +54,7 @@ class ProfileField:
                 "observed_ratio",
                 "reference_counts",
                 "unresolved_occurrences",
+                "label_in_prose",
             }
             or (
                 "ambiguous_observations" in self.diagnostics
@@ -284,12 +285,13 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
     if numbering:
         # Only generic syntactic operators have deterministic direction. An unknown
         # connector remains in observations and is not relabelled as a range.
-        observed = sorted({r.literal for r in connectors})
+        markers = sorted({dict(r.attributes)["marker"] for r in numbering})
+        # Connectors are classified bare: the marker of the next number is not theirs.
+        observed = sorted({bare_connector(r.literal, markers) for r in connectors})
         ranges = [
             s for s in observed if s.casefold() in {"à", "to", "through", "–", "—", "-", "..", "…"}
         ]
-        lists = [s for s in observed if s in {"", ",", ";", ", §", "; §", "§"}]
-        markers = sorted({dict(r.attributes)["marker"] for r in numbering})
+        lists = [s for s in observed if s in {"", ",", ";"}]
         put(
             "numbering_style",
             {
@@ -302,7 +304,9 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
             numbering + connectors,
             "numbering/literal-connectors/1",
         )
-    labels = by.get("label", [])
+    observed_labels = by.get("label", [])
+    prose = [r for r in observed_labels if dict(r.attributes)["follow"] == "prose"]
+    labels = [r for r in observed_labels if r not in prose]
     selected = []
     support = []
     stats = []
@@ -377,8 +381,21 @@ def derive_profile(census: Census, config=ProfileConfig()) -> DocumentProfile:
         fields["reference_fields"],
         confidence=confidence,
         rule_id="labels/identifier-plurality/2",
-        evidence=tuple(sorted(r.candidate_id for r in labels)),
-        diagnostics={"reference_counts": stats, "unresolved_occurrences": unresolved},
+        evidence=tuple(sorted(r.candidate_id for r in observed_labels)),
+        diagnostics={
+            "reference_counts": stats,
+            "unresolved_occurrences": unresolved,
+            "label_in_prose": [
+                {
+                    "label": r.literal,
+                    "page": e.page,
+                    "span_id": e.span_id,
+                    "reason": dict(r.attributes)["pattern"],
+                }
+                for r in prose
+                for e in r.evidence
+            ],
+        },
     )
     tables = by.get("table_header", [])
     raw_ids = set(census.table_analysis.candidate_ids) | set(census.table_analysis.excluded)

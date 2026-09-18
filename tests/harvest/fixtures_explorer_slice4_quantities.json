@@ -1,0 +1,270 @@
+{
+  "author": "Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio",
+  "schema": "synthetic-e11-fixtures/1",
+  "cases": [
+    {
+      "id": "E11-1-FR-1",
+      "language": "FR",
+      "text": "La résolution est de ± 3 nm sur la plage.",
+      "start": 21,
+      "end": 27,
+      "raw": "± 3 nm",
+      "kind": "tolerance",
+      "note": "nominal absent (flag NOMINAL_ABSENT)"
+    },
+    {
+      "id": "E11-1-EN-2",
+      "language": "EN",
+      "text": "Resolution is ± 3 nm over the range.",
+      "start": 14,
+      "end": 20,
+      "raw": "± 3 nm",
+      "kind": "tolerance",
+      "note": "nominal absent (flag NOMINAL_ABSENT)"
+    },
+    {
+      "id": "E11-2-FR-3",
+      "language": "FR",
+      "text": "Consigne : = +41 °C en fonctionnement.",
+      "start": 11,
+      "end": 19,
+      "raw": "= +41 °C",
+      "kind": "equality",
+      "note": "comparator '=' kept; sign '+' kept"
+    },
+    {
+      "id": "E11-2-EN-4",
+      "language": "EN",
+      "text": "Setpoint: ≤ +41 °C during operation.",
+      "start": 10,
+      "end": 18,
+      "raw": "≤ +41 °C",
+      "kind": "inequality",
+      "note": "comparator '≤' kept; sign '+' kept"
+    },
+    {
+      "id": "E11-3-FR-5",
+      "language": "FR",
+      "text": "Maintenir entre 15 et 25 °C pendant l'essai.",
+      "start": 10,
+      "end": 27,
+      "raw": "entre 15 et 25 °C",
+      "kind": "interval",
+      "note": "members 15, 25; unit on the upper bound applies to both (flag UNIT_SHARED)"
+    },
+    {
+      "id": "E11-3-EN-6",
+      "language": "EN",
+      "text": "Keep between 15 and 25 °C during the test.",
+      "start": 5,
+      "end": 25,
+      "raw": "between 15 and 25 °C",
+      "kind": "interval",
+      "note": "members 15, 25; flag UNIT_SHARED"
+    },
+    {
+      "id": "E11-3-EN-7",
+      "language": "EN",
+      "text": "Operate from 15 to 25 °C only.",
+      "start": 8,
+      "end": 24,
+      "raw": "from 15 to 25 °C",
+      "kind": "interval",
+      "note": "members 15, 25; flag UNIT_SHARED"
+    },
+    {
+      "id": "E11-4-FR-8",
+      "language": "FR",
+      "text": "Durée mesurée : 3 h 17 min au total.",
+      "start": 16,
+      "end": 26,
+      "raw": "3 h 17 min",
+      "kind": "duration",
+      "note": "two members (3 h, 17 min), one candidate"
+    },
+    {
+      "id": "E11-4-EN-9",
+      "language": "EN",
+      "text": "Measured duration: 3 h 17 min in total.",
+      "start": 19,
+      "end": 29,
+      "raw": "3 h 17 min",
+      "kind": "duration",
+      "note": "two members (3 h, 17 min), one candidate"
+    },
+    {
+      "id": "E11-5-FR-10",
+      "language": "FR",
+      "text": "Épaisseur au moins 12 mm pour la paroi.",
+      "start": 10,
+      "end": 24,
+      "raw": "au moins 12 mm",
+      "kind": "inequality",
+      "note": "comparator from words kept as written"
+    },
+    {
+      "id": "E11-5-FR-11",
+      "language": "FR",
+      "text": "Débit 40 L/min maximal en sortie.",
+      "start": 6,
+      "end": 22,
+      "raw": "40 L/min maximal",
+      "kind": "inequality",
+      "note": "comparator from postfix word"
+    },
+    {
+      "id": "E11-5-EN-12",
+      "language": "EN",
+      "text": "Wall thickness at least 12 mm.",
+      "start": 15,
+      "end": 29,
+      "raw": "at least 12 mm",
+      "kind": "inequality",
+      "note": "comparator from words kept as written"
+    },
+    {
+      "id": "E11-5-EN-13",
+      "language": "EN",
+      "text": "Flow not more than 40 L/min at the outlet.",
+      "start": 5,
+      "end": 27,
+      "raw": "not more than 40 L/min",
+      "kind": "inequality",
+      "note": "comparator from words"
+    },
+    {
+      "id": "E11-6-FR-14",
+      "language": "FR",
+      "text": "Plage de réglage 40 % - 180 % du nominal.",
+      "start": 17,
+      "end": 29,
+      "raw": "40 % - 180 %",
+      "kind": "interval",
+      "note": "spaced dash between two unit-bearing values → range"
+    },
+    {
+      "id": "E11-6-FR-15",
+      "language": "FR",
+      "text": "Écart admis -180 % en limite basse.",
+      "start": 12,
+      "end": 18,
+      "raw": "-180 %",
+      "kind": "scalar",
+      "note": "unspaced minus directly before a number → signed; existing sign-vs-range flag if ambiguous"
+    },
+    {
+      "id": "E11-6-EN-16",
+      "language": "EN",
+      "text": "Adjustment range 40 % - 180 % of nominal.",
+      "start": 17,
+      "end": 29,
+      "raw": "40 % - 180 %",
+      "kind": "interval",
+      "note": "spaced dash → range"
+    },
+    {
+      "id": "E11-7-FR-17",
+      "language": "FR",
+      "text": "Alimentation 115 V AC +/- 5 % requise.",
+      "start": 13,
+      "end": 29,
+      "raw": "115 V AC +/- 5 %",
+      "kind": "tolerance",
+      "note": "nominal 115 V AC, tolerance ±5 % (relative)"
+    },
+    {
+      "id": "E11-7-FR-18",
+      "language": "FR",
+      "text": "Température +29°C+/-3°C en chambre.",
+      "start": 12,
+      "end": 23,
+      "raw": "+29°C+/-3°C",
+      "kind": "tolerance",
+      "note": "nominal +29 °C, tolerance ±3 °C; flag GLUED"
+    },
+    {
+      "id": "E11-7-EN-19",
+      "language": "EN",
+      "text": "Supply 115 V AC +/- 5 % required.",
+      "start": 7,
+      "end": 23,
+      "raw": "115 V AC +/- 5 %",
+      "kind": "tolerance",
+      "note": "nominal 115 V AC, tolerance ±5 % (relative)"
+    },
+    {
+      "id": "E11-8-FR-20",
+      "language": "FR",
+      "text": "Vérification 2 fois par semaine.",
+      "start": 13,
+      "end": 31,
+      "raw": "2 fois par semaine",
+      "kind": "rate",
+      "note": "count 2, period week"
+    },
+    {
+      "id": "E11-8-EN-21",
+      "language": "EN",
+      "text": "Check twice per week and once per month.",
+      "start": 25,
+      "end": 39,
+      "raw": "once per month",
+      "kind": "rate",
+      "note": "count 1 (word), period month; 'twice per week' is a second rate candidate"
+    },
+    {
+      "id": "E11-9-FR-22",
+      "language": "FR",
+      "text": "Répéter 14 fois puis 14 cycles.",
+      "start": 8,
+      "end": 15,
+      "raw": "14 fois",
+      "kind": "cardinality",
+      "note": "'14 cycles' is not absorbed into a unit (cycles is not a unit); separate candidate only if the reader types it"
+    },
+    {
+      "id": "E11-9-FR-23",
+      "language": "FR",
+      "text": "Secteur 110 V - 50 Hz monophasé.",
+      "start": 8,
+      "end": 13,
+      "raw": "110 V",
+      "kind": "scalar",
+      "note": "and a second scalar '50 Hz'; never one range across different units"
+    },
+    {
+      "id": "E11-9-EN-24",
+      "language": "EN",
+      "text": "Mains 110 V - 50 Hz single phase.",
+      "start": 6,
+      "end": 11,
+      "raw": "110 V",
+      "kind": "scalar",
+      "note": "and a second scalar '50 Hz'"
+    },
+    {
+      "id": "second-25",
+      "text": "Secteur 110 V - 50 Hz monophasé.",
+      "start": 16,
+      "end": 21,
+      "raw": "50 Hz",
+      "kind": "scalar"
+    },
+    {
+      "id": "second-26",
+      "text": "Mains 110 V - 50 Hz single phase.",
+      "start": 14,
+      "end": 19,
+      "raw": "50 Hz",
+      "kind": "scalar"
+    },
+    {
+      "id": "second-27",
+      "text": "Check twice per week and once per month.",
+      "start": 6,
+      "end": 20,
+      "raw": "twice per week",
+      "kind": "rate"
+    }
+  ]
+}

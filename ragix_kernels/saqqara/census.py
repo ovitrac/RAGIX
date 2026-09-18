@@ -17,6 +17,11 @@ from .value_windows import (
     window_from_dict,
     derive_continuation,
     policy_from_dict,
+    ReferencePolicy,
+    DEFAULT_REFERENCE,
+    reference_from_dict,
+    colon_labels,
+    introduces_reference,
 )
 
 from ..harvest.numeric_locale import physical_numbers
@@ -25,7 +30,7 @@ from .failures import ConstructFinding
 
 from .table_views import TableCell, TablePolicy, TableAnalysis, recover_tables, analysis_from_dict
 
-VERSION = "census/0.6"
+VERSION = "census/0.7"
 IDENTIFIER = re.compile(r"(?<!\w)[A-Za-z0-9]+(?:[-/]+[A-Za-z0-9]+)+(?!\w)")
 NUMBERING = re.compile(r"(?<![\w.])\d+(?:\.\s*\d+)+(?![\w.])")
 CATEGORIES = frozenset(
@@ -59,6 +64,53 @@ def identifiers(text):
         for m in IDENTIFIER.finditer(text)
         if re.search(r"[A-Za-z]", m[0]) and re.search(r"\d", m[0])
     )
+
+
+def bare_connector(gap, markers):
+    """The connector without the marker that introduces the next number.
+
+    Between `§4.1` and `§4.12` the text is a connector followed by a marker. The
+    profile that classifies connectors and the reader that parses them use this one
+    definition, so a range written with markers is the range written without.
+    """
+    gap = gap.strip()
+    for marker in sorted((m for m in markers if m), key=len, reverse=True):
+        if gap.endswith(marker):
+            return gap[: -len(marker)].strip()
+    return gap
+
+
+def section_numbers(text, physical=None):
+    """Numbering tokens of a line, physical numbers excluded."""
+    physical = physical_numbers(text) if physical is None else physical
+    return [
+        m
+        for m in NUMBERING.finditer(text)
+        if not any(m.start() < p.end and m.end() > p.start for p in physical)
+    ]
+
+
+def closing_connectors(windows):
+    """Connectors that end a window line whose next line opens with a number.
+
+    A wrapped list may leave a connector at the end of a line and its endpoint at
+    the start of the next. The observation stays an exact span of its own line:
+    view id -> (start, end).
+    """
+    found = {}
+    for window in windows:
+        for before, after in zip(window.views, window.views[1:]):
+            numbers = section_numbers(before.text)
+            opening = section_numbers(after.text)
+            if not numbers or not opening:
+                continue
+            if after.text[: opening[0].start()].strip(" §\t"):
+                continue
+            tail = before.text[numbers[-1].end() :]
+            if tail.strip():
+                start = numbers[-1].end() + len(tail) - len(tail.lstrip())
+                found[before.view_id] = (start, start + len(tail.strip()))
+    return found
 
 
 def shape(raw):
@@ -224,6 +276,7 @@ class Census:
     construct_findings: tuple[ConstructFinding, ...] = ()
     geometry_policy: dict = field(default_factory=dict)
     table_analysis: TableAnalysis = TableAnalysis()
+    reference_policy: ReferencePolicy = DEFAULT_REFERENCE
 
     def __post_init__(self):
         if self.version != VERSION or not self.source_id or not self.digest_id or self.pages < 1:
@@ -241,6 +294,7 @@ class CensusConfig:
     recurrence_fraction: float = 0.5
     table_policy: TablePolicy = TablePolicy()
     continuation_policy: ContinuationPolicy = DEFAULT_CONTINUATION
+    reference_policy: ReferencePolicy = DEFAULT_REFERENCE
 
     def __post_init__(self):
         if (
@@ -277,6 +331,20 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
         config.continuation_policy,
     )
 
+    def headers_of(page):
+        return tuple(h for t in page.tables for h in (*t.headers, " ".join(t.headers)))
+
+    # A label shown with its colon anywhere in the document is known everywhere in it.
+    known_labels = tuple(
+        sorted(
+            {
+                label
+                for p in document.pages
+                for label in colon_labels(page_lines(p), identifiers, headers_of(p))
+            }
+        )
+    )
+
     def emit(category, literal, evidence, **attrs):
         buckets[(category, literal, tuple(sorted((k, str(v)) for k, v in attrs.items())))].append(
             evidence
@@ -294,6 +362,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
         )
         emit("page", "page", page_ev, text_layer=bool(page.spans), drawings=page.drawing_count)
         lines = page_lines(page)
+        mentions = []
         edge_ids = {
             v.view_id
             for v in lines
@@ -306,12 +375,17 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
             policy=policy,
             vertical_rules=page.rules,
             horizontal_rules=page.horizontal_rules,
-            table_headers=tuple(h for t in page.tables for h in (*t.headers, " ".join(t.headers))),
+            table_headers=headers_of(page),
             edge_ids=edge_ids,
             findings=construct_findings,
+            reference=config.reference_policy,
+            known_labels=known_labels,
+            mentions=mentions,
         )
         windows.extend(page_windows)
         window_by_label = {w.views[0].view_id: w for w in page_windows}
+        mention_by_line = {m[0].view_id: m for m in mentions}
+        closing = closing_connectors(page_windows)
         for index, line in enumerate(lines):
             text = line.text
 
@@ -351,17 +425,18 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
                     revision_tail=text[m.end() : m.end() + config.adjacency_chars].strip(),
                 )
             physical = physical_numbers(text)
-            numbers = [
-                m
-                for m in NUMBERING.finditer(text)
-                if not any(m.start() < p.end and m.end() > p.start for p in physical)
-            ]
+            numbers = section_numbers(text, physical)
             for m in numbers:
                 prefix = text[: m.start()]
-                marker = (
-                    re.search(r"(?:[^\W\d_]+|§)\s*$", prefix)
-                    if not any(n.end() <= m.start() for n in numbers)
-                    else None
+                # A word before a later number is a connector, never its marker; the
+                # section sign is a marker wherever it introduces a number.
+                marker = re.search(
+                    (
+                        r"(?:[^\W\d_]+|§)\s*$"
+                        if not any(n.end() <= m.start() for n in numbers)
+                        else r"§\s*$"
+                    ),
+                    prefix,
                 )
                 emit(
                     "numbering",
@@ -374,12 +449,33 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
             for left, right in zip(numbers, numbers[1:]):
                 gap = text[left.end() : right.start()].strip()
                 emit("connector", gap, ev(left.end(), right.start()), pattern="between_numbering")
+            if line.view_id in mention_by_line:
+                # Label words in prose are observed and never vote for a field.
+                _, label, end, reason = mention_by_line[line.view_id]
+                emit(
+                    "label",
+                    label,
+                    ev(len(text) - len(text.lstrip()), end),
+                    follow="prose",
+                    separator="none",
+                    value_position="none",
+                    window_line_count=0,
+                    pattern=reason,
+                )
+            if line.view_id in closing:
+                start, end = closing[line.view_id]
+                emit("connector", text[start:end], ev(start, end), pattern="across_lines")
             window = window_by_label.get(line.view_id)
             if window:
                 following = window.following_text
+                # A label introduces a value: an identifier met later in a sentence is no
+                # vote for the label, wherever the sentence wraps.
                 follow = (
                     "identifier-bearing"
                     if identifiers(following)
+                    and introduces_reference(
+                        following, identifiers, config.reference_policy.type_words
+                    )
                     else (
                         "number-bearing"
                         if re.search(r"\d", following)
@@ -627,6 +723,7 @@ def census(document: DocumentDigest, config=CensusConfig()) -> Census:
                 "recurrence_fraction",
             )
         },
+        reference_policy=config.reference_policy,
     )
 
 
@@ -695,6 +792,7 @@ def census_from_dict(data):
         **{
             **data,
             "continuation_policy": policy,
+            "reference_policy": reference_from_dict(data["reference_policy"]),
             "table_analysis": analysis_from_dict(data["table_analysis"]),
             "construct_findings": tuple(
                 ConstructFinding(**f) for f in data.get("construct_findings", ())
