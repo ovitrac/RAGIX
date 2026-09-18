@@ -7,14 +7,27 @@ from dataclasses import asdict, dataclass, replace
 from collections import Counter
 import math
 import re
+import unicodedata
 from .field_views import TextView, stable_id, union_box, view_from_dict
+
+
+def fold(text):
+    """Case- and accent-insensitive text, with the source index of each character."""
+    folded, index = [], []
+    for i, char in enumerate(text):
+        for c in unicodedata.normalize("NFKD", char):
+            if not unicodedata.combining(c):
+                for low in c.casefold():
+                    folded.append(low)
+                    index.append(i)
+    return "".join(folded), index
 
 
 @dataclass(frozen=True)
 class ContinuationPolicy:
     max_gap_ratio: float = 2.5
     max_lines: int = 8
-    version: str = "value-window/0.2"
+    version: str = "value-window/0.3"
     source: str = "default"
     gap_histogram: tuple[tuple[float, int], ...] = ()
     derivation_reason: str | None = None
@@ -26,13 +39,92 @@ class ContinuationPolicy:
             or self.max_gap_ratio <= 0
             or type(self.max_lines) is not int
             or self.max_lines < 1
-            or self.version != "value-window/0.2"
+            or self.version != "value-window/0.3"
             or self.source not in {"derived", "default", "amended"}
         ):
             raise ValueError("invalid continuation policy")
 
 
 DEFAULT_CONTINUATION = ContinuationPolicy()
+
+
+GENERIC_TYPE_WORDS = ("specification", "specifications", "spécification", "spécifications")
+GENERIC_ROLE_WORDS = (
+    "procedure",
+    "procedures",
+    "procédure",
+    "procédures",
+    "report",
+    "reports",
+    "rapport",
+    "rapports",
+    "document",
+    "documents",
+    "instruction",
+    "instructions",
+    "form",
+    "forms",
+    "formulaire",
+    "formulaires",
+    "see",
+    "voir",
+    "cf",
+)
+
+
+@dataclass(frozen=True)
+class ReferencePolicy:
+    """Declared numbers of the label-value reader; each is provenance, none a layout.
+
+    `rule_tolerance` (points): parallel painted rules no farther apart than this are
+    one edge. Producers paint each cell's own borders, so a shared border arrives
+    as two rules a fraction of a point apart; the sliver between them is no cell.
+
+    `underline_margin` (line heights): a rule in the lower half of a line's box, or
+    on its bottom edge, that runs no farther than this beyond the line's ends
+    underlines that line. An underline is emphasis, never an edge: it closes no
+    window and bounds no cell. A table or cell edge runs past the text it bounds.
+
+    `labels`: label phrases declared by the consumer. None is shipped: a label is
+    data of the consumer's documents, and a document also supplies its own, the
+    phrases it shows with a colon.
+
+    `type_words`: words that, directly before an identifier, belong to the
+    reference (a document-type noun). The shipped ones are language-generic; a
+    domain's acronyms come from the consumer.
+
+    `role_words`: words that, opening a line directly before an identifier, name
+    another document's role (a procedure, a report, a cross-reference). Whether
+    such a line belongs to the field cannot be decided from the page: it is listed
+    and never read. A word cannot be both a type word and a role word.
+    """
+
+    rule_tolerance: float = 1.0
+    underline_margin: float = 0.5
+    labels: tuple[str, ...] = ()
+    type_words: tuple[str, ...] = GENERIC_TYPE_WORDS
+    role_words: tuple[str, ...] = GENERIC_ROLE_WORDS
+    version: str = "reference-policy/0.1"
+
+    def __post_init__(self):
+        if (
+            any(
+                isinstance(v, bool) or not math.isfinite(v) or v < 0
+                for v in (self.rule_tolerance, self.underline_margin)
+            )
+            or self.version != "reference-policy/0.1"
+            or any(
+                type(words) is not tuple
+                or any(not isinstance(w, str) or not w.strip() for w in words)
+                for words in (self.labels, self.type_words, self.role_words)
+            )
+            or {fold(w.strip())[0] for w in self.type_words}
+            & {fold(w.strip())[0] for w in self.role_words}
+        ):
+            raise ValueError("invalid reference policy")
+
+
+DEFAULT_REFERENCE = ReferencePolicy()
 
 
 def derive_continuation(page_line_sets, fallback=DEFAULT_CONTINUATION):
@@ -100,10 +192,16 @@ class ValueWindow:
     flags: tuple[str, ...] = ()
     needs_review: bool = False
     grid_cells: tuple[tuple[float, float, float, float], ...] = ()
+    undecidable: tuple[TextView, ...] = ()
 
     def __post_init__(self):
         if (
             not self.views
+            or bool(self.undecidable) != ("ROLE_LINE_UNDECIDABLE" in self.flags)
+            or any(
+                (v.source_id, v.page) != (self.views[0].source_id, self.views[0].page)
+                for v in self.undecidable
+            )
             or not self.label
             or not self.window_id
             or len({(v.source_id, v.page) for v in self.views}) != 1
@@ -140,29 +238,73 @@ class ValueWindow:
 
 
 def _same_row(a, b):
-    return min(a.bbox[3], b.bbox[3]) > max(a.bbox[1], b.bbox[1])
+    """Two boxes share a row when the shorter one's vertical centre lies in the taller.
+
+    Overlap alone does not: the boxes of consecutive lines routinely overlap by a
+    couple of points, and reading that as one row turns a wrapped value into a
+    column break.
+    """
+    short, tall = sorted((a.bbox, b.bbox), key=lambda box: box[3] - box[1])
+    return tall[1] < (short[1] + short[3]) / 2 < tall[3]
 
 
-def _next_cell(a, b, vertical_rules):
+def underlines(rule, view, reference):
+    """The rule is emphasis under this line, not an edge between lines or cells."""
+    left, top, right, bottom = view.bbox
+    margin = reference.underline_margin * (bottom - top)
+    return (
+        (top + bottom) / 2 < rule.y <= bottom + reference.rule_tolerance
+        and rule.left >= left - margin
+        and rule.right <= right + margin
+    )
+
+
+def _edges(values, tolerance):
+    """Painted rules within the tolerance of an edge's first face are that edge.
+
+    Anchoring on the first face keeps a run of close rules from drifting into one
+    wide edge. An edge keeps both faces: (low, high).
+    """
+    edges = []
+    for value in sorted(values):
+        if edges and value - edges[-1][0] <= tolerance:
+            edges[-1] = (edges[-1][0], value)
+        else:
+            edges.append((value, value))
+    return edges
+
+
+def _next_cell(a, b, vertical_rules, tolerance):
+    """One painted edge separates two boxes of a row, within the painting tolerance.
+
+    A border is routinely a hundredth of a point inside the last glyph of the text it
+    closes; asking for it at or beyond the text's right edge hides the next cell.
+    """
     return (
         _same_row(a, b)
-        and b.bbox[0] >= a.bbox[2]
-        and sum(
-            a.bbox[2] <= r.x <= b.bbox[0]
-            and r.top < min(a.bbox[3], b.bbox[3])
-            and r.bottom > max(a.bbox[1], b.bbox[1])
-            for r in vertical_rules
+        and b.bbox[0] >= a.bbox[2] - tolerance
+        and len(
+            _edges(
+                (
+                    r.x
+                    for r in vertical_rules
+                    if a.bbox[2] - tolerance <= r.x <= b.bbox[0] + tolerance
+                    and r.top < min(a.bbox[3], b.bbox[3])
+                    and r.bottom > max(a.bbox[1], b.bbox[1])
+                ),
+                tolerance,
+            )
         )
         == 1
     )
 
 
-def _boundary(anchor, previous, candidate, policy, vertical_rules, horizontal_rules):
+def _boundary(anchor, previous, candidate, policy, vertical_rules, horizontal_rules, tolerance):
     if (candidate.source_id, candidate.page) != (anchor.source_id, anchor.page):
         return "page_break"
     if any(r.between(previous.bbox, candidate.bbox) for r in horizontal_rules):
         return "horizontal_rule"
-    if _next_cell(previous, candidate, vertical_rules):
+    if _next_cell(previous, candidate, vertical_rules, tolerance):
         return None
     height = max(anchor.bbox[3] - anchor.bbox[1], 1e-9)
     if candidate.bbox[1] - previous.bbox[3] > policy.max_gap_ratio * height:
@@ -176,6 +318,93 @@ def _boundary(anchor, previous, candidate, policy, vertical_rules, horizontal_ru
         return "column_break"
     if _same_row(previous, candidate):
         return "column_break"
+    return None
+
+
+COLON_LABEL = re.compile(r"([^:\n]{0,100}):\s*")
+BULLETS = " \t•●○◦▪▫■□►▶‣⁃∙·*-–—"
+
+
+def colon_labels(lines, identifiers, table_headers=()):
+    """The label phrases a page shows with their colon: the document's own lexicon.
+
+    A phrase that holds an identifier is reference content, with or without a colon
+    after it, and never enters the lexicon.
+    """
+    headers = set(table_headers)
+    return tuple(
+        match[1].strip()
+        for line in lines
+        if line.text.strip() not in headers
+        for match in [COLON_LABEL.match(line.text)]
+        if match and match[1].strip() and not identifiers(match[1])
+    )
+
+
+def introduces_reference(text, identifiers, type_words=()):
+    """The value opens with reference content, one word aside.
+
+    The word is the slot of a document-type noun the policy may not know: `WORD
+    identifier` opens a reference as `identifier` does. An identifier met later, inside
+    a sentence, does not make the sentence a reference.
+    """
+    text = text.lstrip()
+    if begins_with_reference(text, identifiers, type_words):
+        return True
+    word = re.match(r"[^\W\d_]+\.?\s*(?:n\s*[°º]|no\.?|#)?\s*[:\-–]?\s*", text)
+    found = identifiers(text[word.end() :]) if word else ()
+    return bool(found) and found[0].start() == 0
+
+
+def begins_with_reference(text, identifiers, type_words=()):
+    """Reference content opens the text.
+
+    An identifier, a declared type word directly before one, a section sign or a
+    dotted number, or a quoted title. A label introduces a value; label words
+    followed by anything else are prose.
+    """
+    text = text.lstrip()
+    if re.match(r"§\s*\d|\d+(?:\.\d+)+|[«“„\"]", text):
+        return True
+    found = identifiers(text)
+    if found and found[0].start() == 0:
+        return True
+    folded, index = fold(text)
+    for word in type_words:
+        key = fold(word)[0]
+        if folded.startswith(key) and not folded[len(key) : len(key) + 1].isalnum():
+            rest = re.sub(
+                r"^\s*(?:n\s*[°º]|no\.?|#)?\s*[:\-–]?\s*", "", text[index[len(key) - 1] + 1 :]
+            )
+            found = identifiers(rest)
+            if found and found[0].start() == 0:
+                return True
+    return False
+
+
+def role_line(text, identifiers, role_words):
+    """A declared role word opens the line, directly before an identifier."""
+    text = text.lstrip(BULLETS)
+    folded, index = fold(text)
+    for word in role_words:
+        key = fold(word.strip())[0]
+        if folded.startswith(key) and not folded[len(key) : len(key) + 1].isalnum():
+            rest = re.sub(
+                r"^\.?\s*(?:[:：]|n\s*[°º]|no\.?|#)?\s*", "", text[index[len(key) - 1] + 1 :]
+            )
+            found = identifiers(rest)
+            if found and found[0].start() == 0:
+                return True
+    return False
+
+
+def _known_label(text, known):
+    """(label, end offset) when a known label opens the line, bullets aside."""
+    lead = len(text) - len(text.lstrip(BULLETS))
+    folded, index = fold(text[lead:])
+    for key, label in known:
+        if folded.startswith(key) and not folded[len(key) : len(key) + 1].isalnum():
+            return label, lead + index[len(key) - 1] + 1
     return None
 
 
@@ -194,19 +423,41 @@ def build_value_windows(
     table_headers=(),
     edge_ids=frozenset(),
     findings=None,
+    reference=DEFAULT_REFERENCE,
+    known_labels=(),
+    mentions=None,
 ):
     """Build once at census time; every reader uses these same sealed objects.
 
     Colon labels are literal observations. Existing plain-label candidacy remains
     restricted to a locally adjacent identifier; no new ranking rule is added.
+
+    A label must introduce a value. `known_labels` are the phrases the document
+    shows with a colon and those the consumer declares: without its colon, such a
+    phrase opening a line is a label only when reference content follows; otherwise
+    it is recorded in `mentions` as label words in prose and makes no window.
     """
     lines = tuple(v for v in lines if v.text.strip())
+    # An underline is never an edge: it is set aside once, for every later test.
+    horizontal_rules = tuple(
+        r for r in horizontal_rules if not any(underlines(r, v, reference) for v in lines)
+    )
     headers = set(table_headers)
+    known = sorted(
+        {(fold(label.strip())[0], label.strip()) for label in (*reference.labels, *known_labels)},
+        key=lambda pair: (-len(pair[0]), pair),
+    )
     labels = {}
+
+    def role(view):
+        return role_line(view.text, identifiers, reference.role_words)
+
     for index, line in enumerate(lines):
-        if line.text.strip() in headers:
+        if line.text.strip() in headers or role(line):
             continue
-        match = re.match(r"([^:\n]{0,100}):\s*", line.text)
+        match = COLON_LABEL.match(line.text)
+        if match and identifiers(match[1]):
+            continue  # reference content before a colon is a value, never a label
         if match and not match[1].strip():
             if findings is not None:
                 from .failures import construct_finding
@@ -223,26 +474,81 @@ def build_value_windows(
             continue
         if match:
             labels[index] = (match[1].strip(), match.end(1), match.end(), ":")
-        elif (
+            continue
+        opening = None if line.view_id in edge_ids else _known_label(line.text, known)
+        if opening and line.text[opening[1] :].strip():
+            rest = line.text[opening[1] :]
+            if begins_with_reference(rest, identifiers, reference.type_words):
+                start = opening[1] + len(rest) - len(rest.lstrip())
+                labels[index] = (opening[0], opening[1], start, "space")
+            elif mentions is not None:
+                mentions.append((line, opening[0], opening[1], "NO_REFERENCE_CONTENT"))
+            continue
+        if (
             index + 1 < len(lines)
             and line.view_id not in edge_ids
             and not identifiers(line.text)
             and not re.search(r"\d", line.text)
             and identifiers(lines[index + 1].text)
+            and not role(lines[index + 1])
             and not _boundary(
-                line, line, lines[index + 1], policy, vertical_rules, horizontal_rules
+                line,
+                line,
+                lines[index + 1],
+                policy,
+                vertical_rules,
+                horizontal_rules,
+                reference.rule_tolerance,
             )
         ):
-            labels[index] = (line.text.strip(), len(line.text), len(line.text), "newline")
+            labels[index] = (
+                opening[0] if opening else line.text.strip(),
+                len(line.text),
+                len(line.text),
+                "newline",
+            )
     windows = []
+    demoted = set()
+
+    def takes_value(anchor_value, views, candidate_index):
+        """A colon-less label in the value position of a label that has no value yet.
+
+        The weaker evidence yields: the line is that label's value and opens no window
+        of its own. A value never closes its own label's window.
+        """
+        if (
+            anchor_value
+            or len(views) > 1
+            or candidate_index not in labels
+            or labels[candidate_index][3] != "space"
+        ):
+            return False
+        demoted.add(candidate_index)
+        return True
+
     for index, (label, label_end, value_start, separator) in labels.items():
         anchor = lines[index]
-        cell_data = _grid_members(anchor, lines, vertical_rules, horizontal_rules)
+        cell_data = _grid_members(
+            anchor, lines, vertical_rules, horizontal_rules, reference.rule_tolerance
+        )
         grid_cells = () if cell_data is None else cell_data[0]
+        if index in demoted:
+            continue
         views = [anchor]
+        undecidable = []
         flags = []
         stop = "page_end"
         stopped = None
+
+        def listed(candidate):
+            """A role line, and every line after it up to the next stop, is never read."""
+            if not undecidable and not role(candidate):
+                return False
+            if not undecidable:
+                flags.append("ROLE_LINE_UNDECIDABLE")
+            undecidable.append(candidate)
+            return True
+
         if cell_data is not None:
             stop = "cell_boundary"
             for candidate in cell_data[1]:
@@ -250,18 +556,39 @@ def build_value_windows(
                 candidate_index = next(
                     i for i, v in enumerate(lines) if v.view_id == candidate.view_id
                 )
+                if takes_value(anchor.text[value_start:].strip(), views, candidate_index):
+                    views.append(candidate)
+                    stopped = None
+                    continue
                 if candidate_index in labels or candidate.text.strip() in headers:
                     stop = "label" if candidate_index in labels else "table_header"
                     break
-                if len(views) - 1 >= policy.max_lines:
+                if len(views) - 1 + len(undecidable) >= policy.max_lines:
                     stop = "line_bound"
                     break
-                views.append(candidate)
+                if not listed(candidate):
+                    views.append(candidate)
                 stopped = None
         else:
+            previous = anchor
             for candidate_index in range(index + 1, len(lines)):
                 candidate = lines[candidate_index]
                 stopped = candidate.view_id
+                if takes_value(
+                    anchor.text[value_start:].strip(), views, candidate_index
+                ) and not _boundary(
+                    anchor,
+                    previous,
+                    candidate,
+                    policy,
+                    vertical_rules,
+                    horizontal_rules,
+                    reference.rule_tolerance,
+                ):
+                    views.append(candidate)
+                    previous = candidate
+                    stopped = None
+                    continue
                 if candidate_index in labels:
                     stop = "label"
                     break
@@ -274,22 +601,28 @@ def build_value_windows(
                 if _heading(candidate.text):
                     stop = "numbered_heading"
                     break
-                if len(views) - 1 >= policy.max_lines:
+                if len(views) - 1 + len(undecidable) >= policy.max_lines:
                     stop = "line_bound"
                     break
                 boundary = _boundary(
-                    anchor, views[-1], candidate, policy, vertical_rules, horizontal_rules
+                    anchor,
+                    previous,
+                    candidate,
+                    policy,
+                    vertical_rules,
+                    horizontal_rules,
+                    reference.rule_tolerance,
                 )
                 if boundary:
                     stop = boundary
                     break
-                ids = identifiers(candidate.text)
-                if ids and re.search(r"[^\W\d_]", candidate.text[: ids[0].start()]):
-                    flags.append("ROLE_LINE_UNDECIDABLE")
-                views.append(candidate)
+                if not listed(candidate):
+                    views.append(candidate)
+                previous = candidate
                 stopped = None
             if (
                 len(views) == 1
+                and not undecidable
                 and not anchor.text[value_start:].strip()
                 and stop == "page_end"
                 and any(
@@ -315,19 +648,25 @@ def build_value_windows(
             if anchor.text[value_start:].strip()
             else (
                 "next_cell"
-                if first_value and (grid_cells or _next_cell(anchor, first_value, vertical_rules))
+                if first_value
+                and (
+                    grid_cells
+                    or _next_cell(anchor, first_value, vertical_rules, reference.rule_tolerance)
+                )
                 else "next_line" if first_value else "none"
             )
         )
         if stop in {"gap_bound", "line_bound"}:
             flags.append("WINDOW_BOUND_HIT")
         identity = stable_id(
-            "value-window/0.2",
+            "value-window/0.3",
             asdict(policy),
+            asdict(reference),
             label,
             label_end,
             value_start,
             [v.view_id for v in views],
+            [v.view_id for v in undecidable],
             stop,
             stopped,
         )
@@ -346,6 +685,7 @@ def build_value_windows(
                 tuple(sorted(set(flags))),
                 bool(flags),
                 tuple(grid_cells),
+                tuple(undecidable),
             )
         )
     return tuple(windows)
@@ -369,7 +709,7 @@ def join_window(window):
         "UNKNOWN" if any(v.state == "UNKNOWN" for v in window.views) else "CONTENT",
         tuple(sorted({*window.flags, *(f for v in window.views for f in v.flags)})),
         union_box(v.bbox for v in window.views),
-        producer="value-window/0.2",
+        producer="value-window/0.3",
     )
 
 
@@ -384,6 +724,7 @@ def window_from_dict(data, policy):
             "policy": policy,
             "flags": tuple(data["flags"]),
             "grid_cells": tuple(tuple(b) for b in data.get("grid_cells", ())),
+            "undecidable": tuple(view_from_dict(v) for v in data.get("undecidable", ())),
         }
     )
 
@@ -394,54 +735,83 @@ def policy_from_dict(data):
     )
 
 
-def _cell_at(x, y, vertical, horizontal):
-    xs = sorted({r.x for r in vertical if r.top <= y <= r.bottom})
-    ys = sorted({r.y for r in horizontal if r.left <= x <= r.right})
-    left = [v for v in xs if v < x]
-    right = [v for v in xs if v > x]
-    top = [v for v in ys if v < y]
-    bottom = [v for v in ys if v > y]
+def reference_from_dict(data):
+    return ReferencePolicy(
+        **{
+            **data,
+            "labels": tuple(data["labels"]),
+            "type_words": tuple(data["type_words"]),
+            "role_words": tuple(data["role_words"]),
+        }
+    )
+
+
+def _cell_at(x, y, vertical, horizontal, tolerance):
+    """The ruled cell around a point: its inner box and the outer faces of its edges."""
+    xs = _edges((r.x for r in vertical if r.top <= y <= r.bottom), tolerance)
+    ys = _edges((r.y for r in horizontal if r.left <= x <= r.right), tolerance)
+    left = [e for e in xs if e[1] < x]
+    right = [e for e in xs if e[0] > x]
+    top = [e for e in ys if e[1] < y]
+    bottom = [e for e in ys if e[0] > y]
     if not all((left, right, top, bottom)):
         return None
-    box = (left[-1], top[-1], right[0], bottom[0])
+    box = (left[-1][1], top[-1][1], right[0][0], bottom[0][0])
     if not all(
-        any(r.y == yy and r.left <= box[0] and r.right >= box[2] for r in horizontal)
-        for yy in (box[1], box[3])
+        any(
+            low <= r.y <= high and r.left <= box[0] + tolerance and r.right >= box[2] - tolerance
+            for r in horizontal
+        )
+        for low, high in (top[-1], bottom[0])
     ):
         return None
-    return box
+    return box, (left[-1][0], top[-1][0], right[0][1], bottom[0][1])
 
 
-def _grid_members(anchor, lines, vertical, horizontal):
+def _inside(box, cell, tolerance):
+    """The box lies in the cell, its edges known within the painting tolerance."""
+    return (
+        cell[0] - tolerance <= box[0] <= box[2] <= cell[2] + tolerance
+        and cell[1] - tolerance <= box[1] <= box[3] <= cell[3] + tolerance
+    )
+
+
+def _grid_members(anchor, lines, vertical, horizontal, tolerance):
     box = anchor.bbox
     x = (box[0] + box[2]) / 2
     y = (box[1] + box[3]) / 2
-    cell = _cell_at(x, y, vertical, horizontal)
-    if cell is None or not (
-        cell[0] <= box[0] <= box[2] <= cell[2] and cell[1] <= box[1] <= box[3] <= cell[3]
-    ):
+    found = _cell_at(x, y, vertical, horizontal, tolerance)
+    if found is None:
+        return None
+    cell, outer = found
+    if not _inside(box, cell, tolerance):
         return None
     cells = [cell]
-    right_edges = sorted({r.x for r in vertical if r.x > cell[2] and r.top <= y <= r.bottom})
+    # A neighbour shares an edge: its inner face is the outer face of this cell's edge.
+    right_edges = [
+        e
+        for e in _edges((r.x for r in vertical if r.top <= y <= r.bottom), tolerance)
+        if e[0] > outer[2]
+    ]
     if right_edges:
-        adjacent = _cell_at((cell[2] + right_edges[0]) / 2, y, vertical, horizontal)
-        if adjacent and adjacent[0] == cell[2]:
-            cells.append(adjacent)
-    lower_edges = sorted({r.y for r in horizontal if r.y > cell[3] and r.left <= x <= r.right})
+        adjacent = _cell_at((outer[2] + right_edges[0][0]) / 2, y, vertical, horizontal, tolerance)
+        if adjacent and adjacent[0][0] == outer[2]:
+            cells.append(adjacent[0])
+    lower_edges = [
+        e
+        for e in _edges((r.y for r in horizontal if r.left <= x <= r.right), tolerance)
+        if e[0] > outer[3]
+    ]
     if lower_edges:
-        adjacent = _cell_at(x, (cell[3] + lower_edges[0]) / 2, vertical, horizontal)
-        if adjacent and adjacent[1] == cell[3] and adjacent not in cells:
-            cells.append(adjacent)
+        adjacent = _cell_at(x, (outer[3] + lower_edges[0][0]) / 2, vertical, horizontal, tolerance)
+        if adjacent and adjacent[0][1] == outer[3] and adjacent[0] not in cells:
+            cells.append(adjacent[0])
     members = []
     seen = {anchor.view_id}
     for region in cells:
         for line in lines:
             b = line.bbox
-            if (
-                line.view_id not in seen
-                and region[0] <= b[0] <= b[2] <= region[2]
-                and region[1] <= b[1] <= b[3] <= region[3]
-            ):
+            if line.view_id not in seen and _inside(b, region, tolerance):
                 members.append(line)
                 seen.add(line.view_id)
     return tuple(cells), tuple(members)
@@ -450,6 +820,8 @@ def _grid_members(anchor, lines, vertical, horizontal):
 def unresolved_reason(window):
     if "WINDOW_BOUND_HIT" in window.flags:
         return "WINDOW_BOUND_HIT"
+    if window.undecidable:
+        return "ROLE_LINE_UNDECIDABLE"
     if window.stop_reason in {
         "label",
         "table_header",

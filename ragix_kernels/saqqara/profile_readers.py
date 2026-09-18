@@ -5,7 +5,15 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 
 from dataclasses import asdict, dataclass, replace
 import re
-from .census import DocumentDigest, Census, identifiers, shape, NUMBERING, page_lines
+from .census import (
+    DocumentDigest,
+    Census,
+    identifiers,
+    shape,
+    NUMBERING,
+    page_lines,
+    bare_connector,
+)
 from .field_views import TextView, stable_id, union_box
 from .profile import DocumentProfile, derive_census_id
 from ..harvest.quantitative import harvest
@@ -90,14 +98,6 @@ def section_expressions(text, style, offset=0):
     i = 0
     ranges = set(style["range_connectors"])
     lists = set(style["list_connectors"])
-    markers = sorted((m for m in style["markers"] if m), key=len, reverse=True)
-
-    def strip_marker(gap):
-        for marker in markers:
-            if gap.endswith(marker):
-                return gap[: -len(marker)].strip()
-        return gap
-
     while i < len(matches):
         m = matches[i]
         raw = m[0]
@@ -105,7 +105,7 @@ def section_expressions(text, style, offset=0):
         key = None if split else raw
         if i + 1 < len(matches):
             n = matches[i + 1]
-            gap = strip_marker(text[m.end() : n.start()].strip())
+            gap = bare_connector(text[m.end() : n.start()], style["markers"])
             if gap in ranges:
                 other_split = bool(re.search(r"\.\s+", n[0]))
                 flags = ("SPLIT_NUMBERING",) if split or other_split else ()
