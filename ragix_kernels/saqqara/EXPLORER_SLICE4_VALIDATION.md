@@ -122,3 +122,30 @@ The kernel adapter contains no separate stamp wiring: its only differences from
 the freeze are the version values. They remain 0.6.0 / 0.6.1 as ruled; an integration
 version bump is required separately. E12 remains held for the reference-field
 branch's merge and path release. This split does not move the demo freeze.
+
+
+## Integrated release
+
+The reference-field and table branches are integrated together. All four Explorer
+kernels now use version **0.7.0**: census, profile, read and report. Their cache
+identities therefore differ from both standalone branches and the earlier reader.
+The runtime sources match the independently confirmed combined implementation.
+The separate PDF-cleaner utility remains additive and is not called by Explorer.
+
+The executable contracts are stated in SPEC K9.11–K9.14. Reproduce the three
+synthetic replays from a clean checkout in the declared gate environment:
+
+```bash
+python -m tests.saqqara.explorer_slice4_fields_replay --output fields.json
+python -m tests.saqqara.explorer_slice4_replay --output tables.json
+python -m tests.harvest.explorer_slice4_quantity_replay --output quantities.json
+```
+
+Compare the `cases` objects across architectures; provenance identifies each host
+and checkout separately. Run the full repository suite as well. Consumer source
+material and confirmation measurements remain outside this repository.
+
+The strict expected failure for weak gap-bound derivation remains visible. Slash
+revision parsing, the implicit field-end rule, labels intersected by a rule with
+values on another row, identifier-family expansion and table-row privacy redesign
+remain outside this release. No environment lock or extractor pin is changed.
