@@ -157,3 +157,12 @@ def test_legacy_locale_context_preserves_bare_comparator():
         c.value.text, source_id="synthetic", node_id="v", classification="CONTENT", context=c
     )
     assert q.kind == "inequality" and q.comparator_normalized == "<=" and q.raw == "<= 23"
+
+
+def test_unit_inheritance_does_not_resolve_an_ambiguous_comparator():
+    c = context(text="jusqu'à 23")
+    (q,) = harvest(
+        c.value.text, source_id="synthetic", node_id="v", classification="CONTENT", context=c
+    )
+    assert q.unit == "mm" and q.comparator_normalized is None
+    assert q.direction_status == "unresolved" and q.needs_review

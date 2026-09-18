@@ -65,3 +65,18 @@ def test_cross_copy_and_wrong_column_evidence_is_rejected():
         CellContext(v, (replace(h, column=2),))
     with pytest.raises(ValueError):
         v.span(0, 5)
+
+
+def test_context_json_roundtrip_revalidates_source_and_preserves_spans():
+    from dataclasses import asdict
+    import json
+    from ragix_kernels.harvest.table_context import context_from_dict
+
+    h = cell("h", 0, 1, "[mm]")
+    v = cell("v", 1, 1, "23")
+    original = associate(v, (h, v), header_rows=(0,))
+    data = json.loads(json.dumps(asdict(original)))
+    assert context_from_dict({"record_id": "external-record", **data}) == original
+    data["column_headers"][0]["source_id"] = "other"
+    with pytest.raises(ValueError):
+        context_from_dict(data)

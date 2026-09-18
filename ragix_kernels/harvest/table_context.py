@@ -141,3 +141,22 @@ def associate(value, cells, *, header_rows=(), row_label_columns=()):
         and c.row <= value.row < c.row + c.row_span
     )
     return CellContext(value, headers, labels, () if headers else ("NO_COLUMN_HEADER",))
+
+
+def context_from_dict(data):
+    """Load a stored structural context through the same source/row/column guards."""
+    values = dict(data)
+    values.pop("record_id", None)
+
+    def cell(record):
+        fields = dict(record)
+        for key in ("bbox", "source_spans", "flags"):
+            if key in fields:
+                fields[key] = tuple(fields[key])
+        return Cell(**fields)
+
+    values["value"] = cell(values["value"])
+    for key in ("column_headers", "row_labels"):
+        values[key] = tuple(cell(c) for c in values.get(key, ()))
+    values["flags"] = tuple(values.get("flags", ()))
+    return CellContext(**values)

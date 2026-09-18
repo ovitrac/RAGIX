@@ -163,6 +163,20 @@ def harvest_cell(
         raise ValueError("context does not describe the harvested source cell")
     if classification == "FURNITURE":
         return ()
+    if classification not in {"CONTENT", "UNKNOWN"}:
+        raise ValueError("explicit classification required")
+    from .relative_quantitative import harvest_relative
+
+    relative = harvest_relative(
+        context,
+        classification=classification,
+        uncertainty=uncertainty,
+        token_locale=token_locale,
+        decimal_separator=decimal_separator,
+        locale_prior=locale_prior,
+    )
+    if relative is not None:
+        return (relative,)
     base = list(
         harvest(
             text,
@@ -202,10 +216,24 @@ def harvest_cell(
                 number.comparator_start if number.comparator_start is not None else number.start,
                 number.end,
                 "inequality" if number.comparator else "scalar",
-                flags + nf,
+                flags
+                + nf
+                + (
+                    ("DIRECTION_UNRESOLVED",)
+                    if number.comparator and "jusqu" in number.comparator.casefold()
+                    else ()
+                ),
                 comparator_raw=number.comparator,
-                comparator_normalized=NORMAL_OP.get(number.comparator, number.comparator),
-                direction_status="resolved" if number.comparator else "not_applicable",
+                comparator_normalized=(
+                    None
+                    if number.comparator and "jusqu" in number.comparator.casefold()
+                    else NORMAL_OP.get(number.comparator, number.comparator)
+                ),
+                direction_status=(
+                    "unresolved"
+                    if number.comparator and "jusqu" in number.comparator.casefold()
+                    else "resolved" if number.comparator else "not_applicable"
+                ),
                 number=format(value, "f") if value is not None else None,
                 normalization_status="parsed" if value is not None else "unparsed",
             )

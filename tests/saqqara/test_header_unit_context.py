@@ -110,3 +110,52 @@ def test_reader_recovers_row_label_units_without_a_column_unit():
         q["unit"] == "mm" and q["unit_evidence"][0]["association"] == "row_label"
         for q in quantities
     )
+
+
+def test_relative_rows_use_cell_units_without_absolute_quantity_duplicates():
+    from ragix_kernels.saqqara.field_views import TextSpan
+    from ragix_kernels.saqqara.table_views import TableCell
+
+    rows = tuple(
+        (f"Channel {letter} [mm]", f"datum -{a} au datum -{b}", "plain")
+        for letter, a, b in zip("ABCD", (13, 17, 23, 29), (31, 37, 41, 43))
+    )
+    doc, table = table_fixture(headers=("Channel", "Relative range", "Note"), rows=rows)
+    spans = []
+    for row in table.cell_rows:
+        for cell in row:
+            x, y, right, bottom = cell.bbox
+            width = min(2, (right - x - 4) / max(1, len(cell.text)))
+            boxes = tuple(
+                (x + 2 + i * width, y + 2, x + 2 + (i + 1) * width, bottom - 2)
+                for i in range(len(cell.text))
+            )
+            spans.append(
+                TextSpan(
+                    doc.source_id,
+                    cell.source_spans[0],
+                    1,
+                    cell.text,
+                    (x + 2, y + 2, x + 2 + len(cell.text) * width, bottom - 2),
+                    boxes,
+                    state="CONTENT",
+                )
+            )
+    doc = replace(doc, pages=(replace(doc.pages[0], spans=tuple(spans)),))
+    quantities = explore(doc).reading.quantities
+    relative = [q for q in quantities if q["kind"] == "relative_interval"]
+    assert len(relative) == 4
+    assert all(q["unit"] == "mm" and q["lower"] is None and q["upper"] is None for q in relative)
+    assert not any(q["kind"] == "scalar" for q in quantities)
+
+
+def test_header_only_relative_anchor_is_exposed_from_its_source_cell():
+    rows = tuple(
+        (f"Channel {letter}", f"-{a} to -{b}", "plain")
+        for letter, a, b in zip("ABCD", (13, 17, 23, 29), (31, 37, 41, 43))
+    )
+    doc, _ = table_fixture(headers=("Channel", "Relative to datum [mm]", "Note"), rows=rows)
+    relative = explore(doc).reading.quantities
+    assert len(relative) == 4
+    assert all(q["anchor_source"] == "CONTEXT" for q in relative)
+    assert all(q["anchor_candidates"][0]["cell_id"] == "t:0:1" for q in relative)

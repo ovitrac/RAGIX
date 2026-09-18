@@ -27,6 +27,9 @@ QUANTITATIVE_KINDS = frozenset(
         "inequality",
         "equality",
         "symbolic_bound",
+        "relative_offset",
+        "relative_interval",
+        "relative_unparsed",
         "rate",
     }
 )

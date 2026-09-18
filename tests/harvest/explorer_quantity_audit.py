@@ -25,7 +25,7 @@ def pytest_configure(config):
 
     def capture(*args, **kwargs):
         result = original(*args, **kwargs)
-        key = json.dumps((args, kwargs), sort_keys=True, ensure_ascii=False)
+        key = json.dumps((args, kwargs), sort_keys=True, ensure_ascii=False, default=asdict)
         value = [asdict(candidate) for candidate in result]
         if key in CAPTURE:
             assert CAPTURE[key] == value

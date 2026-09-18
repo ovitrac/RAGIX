@@ -628,3 +628,11 @@ reading configuration, never a document's semantic authority.
   inheritance always requires review. Composite child ids remain resolvable.
   Calls without context retain the original contract. Falsifiers:
   `test_header_units.py` and the reader cases in `test_header_unit_context.py`.
+- **K9.17 Relative quantity shapes.** Anchored offsets retain their signs,
+  magnitudes and exact anchor/value spans. An explicit relative header may supply
+  the anchor from its own span; ordinary labels cannot. No parameter semantics,
+  applicability, absolute range or comparison is derived. Bare subtraction,
+  identifier hyphens and en/em dashes do not become relative offsets. Conflicting
+  anchors/units and branching signs remain unresolved. Incomplete relative shapes
+  cannot fall back to absolute scalar candidates. Falsifiers:
+  `test_relative_quantities.py` and the reader's relative-row tests.
