@@ -83,3 +83,30 @@ def test_unlocated_geometry_cannot_supply_context():
     rows[0] = tuple(replace(c, flags=("MISSING_CELL_GEOMETRY",)) for c in rows[0])
     contexts, failures = native_contexts(doc.source_id, replace(table, cell_rows=tuple(rows)))
     assert not contexts and failures[0].reason == "NO_EXACT_CELL_TOPOLOGY"
+
+
+def test_reader_harvests_each_column_with_its_own_unit():
+    doc, _ = table_fixture()
+    result = explore(doc)
+    quantities = result.reading.quantities
+    assert len(quantities) == 8
+    for q in quantities:
+        assert q["unit_source"] == "INHERITED" and q["needs_review"]
+        proof = q["unit_evidence"][0]["span"]
+        assert q["unit"] == ("mm" if q["node_id"].endswith(":1") else "V")
+        assert proof["cell_id"] == ("t:0:1" if q["unit"] == "mm" else "t:0:2")
+        assert q["unit_start"] is None
+
+
+def test_reader_recovers_row_label_units_without_a_column_unit():
+    rows = tuple(
+        (f"Axis {letter} [mm]", str(value), "plain")
+        for letter, value in zip("ABCD", (23, 31, 47, 53))
+    )
+    doc, _ = table_fixture(headers=("Channel", "Reading", "Note"), rows=rows)
+    quantities = explore(doc).reading.quantities
+    assert len(quantities) == 4
+    assert all(
+        q["unit"] == "mm" and q["unit_evidence"][0]["association"] == "row_label"
+        for q in quantities
+    )

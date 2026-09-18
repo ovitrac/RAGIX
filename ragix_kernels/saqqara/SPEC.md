@@ -620,3 +620,11 @@ reading configuration, never a document's semantic authority.
   or data rows. Cross-source and cross-column associations fail closed. Native
   grids need not contain an identifier column to expose structural context.
   Falsifiers: `test_table_context.py` and `test_header_unit_context.py`.
+- **K9.16 Inherited units.** A unitless cell may inherit one unambiguous unit only
+  from structurally associated, located header/label evidence. Each unit keeps
+  its originating cell id and exact span; the value's source text is unchanged.
+  Conflicts and missing or uncertain evidence leave an explicit reason, not a
+  normalized guess. Inline units are preserved, contradictions flagged, and
+  inheritance always requires review. Composite child ids remain resolvable.
+  Calls without context retain the original contract. Falsifiers:
+  `test_header_units.py` and the reader cases in `test_header_unit_context.py`.

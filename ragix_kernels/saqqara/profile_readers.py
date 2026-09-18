@@ -464,6 +464,9 @@ def read_document(
     from .table_context import document_contexts
 
     contexts, context_findings = document_contexts(document, census.table_analysis)
+    from .table_quantities import read_cell_quantities
+
+    quantities = read_cell_quantities(document, contexts, quantities, locale)
     for finding in context_findings:
         findings.append(
             UnknownTemplate(
