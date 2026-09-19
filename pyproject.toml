@@ -69,6 +69,8 @@ saqqara-mupdf = ["pymupdf>=1.24.0"]
 explorer = ["pymupdf==1.27.2.2"]
 # Explicit opt-in utility; PyMuPDF retains its AGPL/commercial license terms.
 pdf-clean = ["pikepdf==10.13.0.post1", "ragix[explorer]", "numpy>=1.24.0"]
+# Optional raster validation for the structured region envelope; no renderer import.
+regions = ["Pillow>=12.0.0"]
 all = ["ragix[mcp,web,retrieval,vault,ci,wasm,ast,reports,koas,docs,sealed,translate,saqqara]"]
 
 [project.scripts]

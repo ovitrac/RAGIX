@@ -636,3 +636,20 @@ reading configuration, never a document's semantic authority.
   anchors/units and branching signs remain unresolved. Incomplete relative shapes
   cannot fall back to absolute scalar candidates. Falsifiers:
   `test_relative_quantities.py` and the reader's relative-row tests.
+- **K9.18 Renderable regions.** An explicit envelope returns enclosing prose,
+  table, list or figure structure as data. Member text and source references stay
+  exact; the caller's line or CellSpan remains identifiable. Cross-page groups
+  retain per-page geometry and CROSSES_PAGE. Declared neighbourhood counts and
+  window rules are visible; shortages carry TRUNCATED_AT_WINDOW. Stroke lattices
+  cannot become cell tables, contamination is flagged rather than cleaned, and
+  tags/entities/style tokens in selected data refuse the response. No relevance,
+  answer status or comparison semantics are assigned. Falsifiers:
+  `test_region_boundaries.py`, `test_renderable_regions.py` and adapter tests.
+- **K9.19 Figure envelopes.** Available raster bytes are encoded as validated
+  base64 with MIME, dimensions, size and checksum. Source and derived assets stay
+  distinct; missing/corrupt or ambiguous assets are explicit. Coordinates require
+  a declared transform. Renderer fallback is opt-in, source-hash bound and records
+  its parameters. It neither loads a renderer by default nor changes extraction,
+  source bytes or the frozen tree. SVG and malformed/oversized images are refused.
+  Falsifiers: figure, source-mutation, encoding and resource-budget tests in the
+  region suites. Privacy and presentation policy remain outside this envelope.
