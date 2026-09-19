@@ -13,6 +13,7 @@ from statistics import median
 import re
 import math
 from .field_views import stable_id, union_box
+from ..harvest.region_types import RegionRefused
 
 
 @dataclass(frozen=True)
@@ -254,11 +255,11 @@ def _map(cells, bands, tolerance):
         bands = tuple((round(a, 3), round(b, 3)) for a, b in bands)
         overlaps = [i for i, (a, b) in enumerate(bands) if min(box[2], b) > max(box[0], a)]
         if len(overlaps) != 1:
-            raise ValueError("STRADDLING_OR_OUTSIDE_BANDS")
+            raise RegionRefused("STRADDLING_OR_OUTSIDE_BANDS")
         i = overlaps[0]
         a, b = bands[i]
         if box[0] < a - tolerance or box[2] > b + tolerance:
-            raise ValueError("STRADDLING_OR_OUTSIDE_BANDS")
+            raise RegionRefused("STRADDLING_OR_OUTSIDE_BANDS")
         columns[i].append(cell)
     return columns
 
@@ -289,16 +290,18 @@ def _native_header_bands(header, body):
         tuple(sorted((round(c.bbox[0], 3), round(c.bbox[2], 3)) for c in row))
         for row in (header, *body)
     ]
+    if not partitions or any(not p for p in partitions):
+        raise RegionRefused("TABLE_COLUMN_LAYOUT_UNAVAILABLE")
     for partition in partitions:
         if any(a[1] != b[0] for a, b in zip(partition, partition[1:])):
-            raise ValueError("STRADDLING_OR_OUTSIDE_BANDS")
+            raise RegionRefused("STRADDLING_OR_OUTSIDE_BANDS")
     if len({(p[0][0], p[-1][1]) for p in partitions}) != 1:
-        raise ValueError("STRADDLING_OR_OUTSIDE_BANDS")
+        raise RegionRefused("STRADDLING_OR_OUTSIDE_BANDS")
     edges = sorted(set.intersection(*(set(v for pair in p for v in pair) for p in partitions)))
     bands = tuple(zip(edges, edges[1:]))
     grouped = _map(header, bands, 0)
     if any(sum(bool(c.text) for c in group) > 1 for group in grouped):
-        raise ValueError("BAND_COUNT_VARIES")
+        raise RegionRefused("BAND_COUNT_VARIES")
     return bands
 
 

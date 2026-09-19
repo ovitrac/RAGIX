@@ -14,6 +14,7 @@ from ..harvest.regions import (
     RegionLimits,
     FigureInput,
     RegionRefused,
+    TableRegionRefusal,
     image_from_store,
     image_payload,
     identity,
@@ -48,7 +49,126 @@ def _member(
     )
 
 
-def table_members(result):
+def _recovered_members(document, table, physical, labels, observations, known):
+    members = {}
+    for row_index, row in enumerate(table.rows, 1):
+        flags = dict(row.cell_flags)
+        for column, ids in enumerate(row.members):
+            for ident in ids:
+                if ident not in physical:
+                    raise RegionRefused("TABLE_SOURCE_MEMBER_MISSING")
+                c = physical[ident]
+                members[ident] = _member(
+                    document.source_id,
+                    table.table_id,
+                    row.page,
+                    row_index,
+                    column,
+                    c,
+                    label=ident in labels,
+                    flags=flags.get(ident, ()),
+                )
+    for fragment in table.fragments:
+        origin = table.policy.get("inherited_headers", {}).get(fragment, fragment)
+        observed = observations.get(origin)
+        if observed is None or not observed.cell_rows or not observed.cell_rows[0]:
+            raise RegionRefused("TABLE_HEADER_GEOMETRY_UNAVAILABLE")
+        row = observed.cell_rows[0]
+        left, right = min(c.bbox[0] for c in row), max(c.bbox[2] for c in row)
+        if not table.bands or table.bands[-1][1] <= table.bands[0][0]:
+            raise RegionRefused("TABLE_COLUMN_LAYOUT_UNAVAILABLE")
+        a, b = table.bands[0][0], table.bands[-1][1]
+        bands = tuple(
+            (
+                left + (x - a) / (b - a) * (right - left),
+                left + (y - a) / (b - a) * (right - left),
+            )
+            for x, y in table.bands
+        )
+        for c in row:
+            if c.cell_id in members:
+                continue
+            if c.cell_id in known:
+                column = known[c.cell_id].column
+                span = known[c.cell_id].column_span
+            else:
+                columns = [
+                    i for i, (x, y) in enumerate(bands) if min(c.bbox[2], y) > max(c.bbox[0], x)
+                ]
+                if not columns:
+                    raise RegionRefused("TABLE_HEADER_COLUMN_UNAVAILABLE")
+                column, span = columns[0], columns[-1] - columns[0] + 1
+            members[c.cell_id] = _member(
+                document.source_id,
+                table.table_id,
+                observed.page,
+                0,
+                column,
+                c,
+                header=True,
+                column_span=span,
+                flags=table.flags,
+            )
+    return tuple(members.values())
+
+
+def _observed_members(document, table, known, headers, labels):
+    if any(
+        c.geometry_kind != "cell_box" or "MISSING_CELL_GEOMETRY" in c.flags
+        for row in table.cell_rows
+        for c in row
+    ):
+        raise RegionRefused("TABLE_CELL_GEOMETRY_UNAVAILABLE")
+    rows = table.cell_rows
+    bands = _native_header_bands(rows[0], rows[1:])
+    if not bands:
+        raise RegionRefused("TABLE_COLUMN_LAYOUT_UNAVAILABLE")
+    members = []
+    for r, row in enumerate(rows):
+        try:
+            mapped = _map(row, bands, 0)
+        except ValueError as error:
+            raise RegionRefused("TABLE_COLUMN_LAYOUT_UNAVAILABLE") from error
+        for column, group in enumerate(mapped):
+            for c in group:
+                k = known.get(c.cell_id)
+                members.append(
+                    _member(
+                        document.source_id,
+                        table.table_id,
+                        table.page,
+                        r,
+                        column,
+                        c,
+                        header=c.cell_id in headers or (r == 0 and bool(any(table.headers))),
+                        label=c.cell_id in labels,
+                        column_span=k.column_span if k else 1,
+                    )
+                )
+    return tuple(members)
+
+
+def _table_refusal(error, sink, document, table_id, fragments, pages, observations):
+    if sink is None:
+        raise error
+    member_ids = tuple(
+        sorted(
+            {
+                cell.cell_id
+                for fragment in fragments
+                if fragment in observations
+                for row in observations[fragment].cell_rows
+                for cell in row
+            }
+        )
+    )
+    sink.append(
+        TableRegionRefusal(document.source_id, table_id, tuple(pages), error.code, member_ids)
+    )
+
+
+def table_members(result, *, refusals=None):
+    """Keep strict direct reads; a supplied sink enables counted per-table refusal."""
     document = result.document
     observations = {t.table_id: t for p in document.pages for t in p.tables}
     physical = {c.cell_id: c for t in observations.values() for row in t.cell_rows for c in row}
@@ -58,106 +178,40 @@ def table_members(result):
     }
     headers = {c.cell_id for ctx in contexts for c in ctx.column_headers}
     labels = {c.cell_id for ctx in contexts for c in ctx.row_labels}
-    tables = []
-    used = set()
+    tables, used = [], set()
     for table in result.census.table_analysis.tables:
-        members = {}
         used.update(table.fragments)
-        for row_index, row in enumerate(table.rows, 1):
-            flags = dict(row.cell_flags)
-            for column, ids in enumerate(row.members):
-                for ident in ids:
-                    if ident not in physical:
-                        raise RegionRefused("TABLE_SOURCE_MEMBER_MISSING")
-                    c = physical[ident]
-                    members[ident] = _member(
-                        document.source_id,
-                        table.table_id,
-                        row.page,
-                        row_index,
-                        column,
-                        c,
-                        label=ident in labels,
-                        flags=flags.get(ident, ()),
-                    )
-        for fragment in table.fragments:
-            origin = table.policy.get("inherited_headers", {}).get(fragment, fragment)
-            observed = observations[origin]
-            if not observed.cell_rows:
-                raise RegionRefused("TABLE_HEADER_GEOMETRY_UNAVAILABLE")
-            row = observed.cell_rows[0]
-            left, right = min(c.bbox[0] for c in row), max(c.bbox[2] for c in row)
-            a, b = table.bands[0][0], table.bands[-1][1]
-            bands = tuple(
-                (
-                    left + (x - a) / (b - a) * (right - left),
-                    left + (y - a) / (b - a) * (right - left),
-                )
-                for x, y in table.bands
+        try:
+            tables.append(
+                _recovered_members(document, table, physical, labels, observations, known)
             )
-            for c in row:
-                if c.cell_id in members:
-                    continue
-                if c.cell_id in known:
-                    column = known[c.cell_id].column
-                    span = known[c.cell_id].column_span
-                else:
-                    columns = [
-                        i for i, (x, y) in enumerate(bands) if min(c.bbox[2], y) > max(c.bbox[0], x)
-                    ]
-                    if not columns:
-                        raise RegionRefused("TABLE_HEADER_COLUMN_UNAVAILABLE")
-                    column, span = columns[0], columns[-1] - columns[0] + 1
-                members[c.cell_id] = _member(
-                    document.source_id,
-                    table.table_id,
-                    observed.page,
-                    0,
-                    column,
-                    c,
-                    header=True,
-                    column_span=span,
-                    flags=table.flags,
-                )
-        tables.append(tuple(members.values()))
+        except RegionRefused as error:
+            _table_refusal(
+                error,
+                refusals,
+                document,
+                table.table_id,
+                table.fragments,
+                table.pages,
+                observations,
+            )
     for table in observations.values():
         if table.table_id in used or table.table_id in result.census.table_analysis.excluded:
             continue
         if not table.cell_rows:
             continue  # Strokes or flattened strings are not observed cells.
-        if any(
-            c.geometry_kind != "cell_box" or "MISSING_CELL_GEOMETRY" in c.flags
-            for row in table.cell_rows
-            for c in row
-        ):
-            raise RegionRefused("TABLE_CELL_GEOMETRY_UNAVAILABLE")
-        rows = table.cell_rows
-        bands = _native_header_bands(rows[0], rows[1:])
-        if not bands:
-            raise RegionRefused("TABLE_COLUMN_LAYOUT_UNAVAILABLE")
-        members = []
-        for r, row in enumerate(rows):
-            try:
-                mapped = _map(row, bands, 0)
-            except ValueError as error:
-                raise RegionRefused("TABLE_COLUMN_LAYOUT_UNAVAILABLE") from error
-            for column, group in enumerate(mapped):
-                for c in group:
-                    k = known.get(c.cell_id)
-                    members.append(
-                        _member(
-                            document.source_id,
-                            table.table_id,
-                            table.page,
-                            r,
-                            column,
-                            c,
-                            header=c.cell_id in headers or (r == 0 and bool(any(table.headers))),
-                            label=c.cell_id in labels,
-                            column_span=k.column_span if k else 1,
-                        )
-                    )
-        tables.append(tuple(members))
+        try:
+            tables.append(_observed_members(document, table, known, headers, labels))
+        except RegionRefused as error:
+            _table_refusal(
+                error,
+                refusals,
+                document,
+                table.table_id,
+                (table.table_id,),
+                (table.page,),
+                observations,
+            )
     return tuple(tables)
 
 
@@ -204,11 +258,14 @@ def regions_from_explorer(
             )
     if not headings <= {m.member_id for m in lines}:
         raise RegionRefused("UNKNOWN_HEADING_MEMBER")
+    refusals = []
+    tables = table_members(result, refusals=refusals)
     return RegionIndex(
         result.document.source_id,
         tuple(PageGeometry(p.page, p.width, p.height) for p in result.document.pages),
         lines,
-        tables=table_members(result),
+        tables=tables,
+        refusals=refusals,
         figures=figures,
         policy=policy,
         limits=limits,

@@ -9,6 +9,7 @@ from .region_types import (
     RULE,
     KINDS,
     RegionRefused,
+    TableRegionRefusal,
     RegionMember,
     PageGeometry,
     BoundaryPolicy,
@@ -112,6 +113,7 @@ class RegionIndex:
         policy=BoundaryPolicy(),
         limits=RegionLimits(),
         continuations=(),
+        refusals=(),
     ):
         self.source_id = source_id
         self.policy = policy
@@ -125,6 +127,14 @@ class RegionIndex:
         if len({p.page for p in pages}) != len(pages):
             raise RegionRefused("DUPLICATE_PAGE")
         known_pages = {p.page for p in pages}
+        self.refusals = tuple(refusals)
+        if any(
+            not isinstance(r, TableRegionRefusal)
+            or r.source_id != source_id
+            or not set(r.pages) <= known_pages
+            for r in self.refusals
+        ):
+            raise RegionRefused("INVALID_TABLE_REGION_REFUSAL")
         all_members = lines + tuple(m for table in tables for m in table)
         if len(all_members) > limits.max_members:
             raise RegionRefused("REGION_MEMBER_LIMIT")
@@ -198,6 +208,15 @@ class RegionIndex:
                 if m.member_id not in self._ambiguous:
                     self._member[m.member_id] = (r, m)
         self._validated_images = set()
+
+    def refusal_report(self):
+        """A serializable count and scope for every omitted table."""
+        return {
+            "source_id": self.source_id,
+            "rule": "table-region/1",
+            "count": len(self.refusals),
+            "tables": [asdict(r) for r in self.refusals],
+        }
 
     def get(self, anchor, *, window=RegionWindow()):
         if window.before + window.after > self.limits.max_members:
