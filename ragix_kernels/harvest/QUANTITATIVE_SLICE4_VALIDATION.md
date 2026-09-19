@@ -49,3 +49,15 @@ At `1cd625bcfb8a8a46df0d2108f37960ca96259e55`, both architectures pass
 **2,468 tests with 38 skipped**. The 54 quantity replay cases match exactly; the
 13 table and masking cases also match at the same commit. These are synthetic
 implementation gates, not the private root-fidelity acceptance verdict.
+
+
+## Signed-percentage correction
+
+The original signed-percentage fixture expected `scalar`, which allowed a kind
+regression despite preserving the observed `%` unit. That expectation is corrected
+to `percentage`: a unary sign changes the literal value, not its unit-derived kind.
+The sign/form matrix in `test_signed_percentages.py` checks unsigned, plus, ASCII
+minus and Unicode minus with integer, dot-decimal and comma-decimal forms under
+both notation modes. Exact source spans, signs, units and tolerance child links
+are asserted independently. This correction supersedes the original fixture's
+kind expectation; the historical gate counts above describe the earlier commit.

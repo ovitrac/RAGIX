@@ -246,8 +246,6 @@ def harvest(
         kind = {"time": "duration", "count": "cardinality", "percentage": "percentage"}.get(
             dimension, "scalar"
         )
-        if kind == "percentage" and match["number"].startswith(("-", "−", "+")):
-            kind = "scalar"
         end = unit_end = match.end()
         if dimension == "voltage":
             qualifier = re.match(r"[ \t]+(?:AC|DC)\b", text[end:])
