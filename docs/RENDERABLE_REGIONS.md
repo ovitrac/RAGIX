@@ -84,6 +84,25 @@ short window at a page/document edge always carries `TRUNCATED_AT_WINDOW`; zero
 requested neighbours do not. Missing source, ambiguous ownership, invalid topology
 and resource-budget excess raise `RegionRefused` with a stable reason code.
 
+Explorer table assembly isolates a refusal to the affected table. Other tables,
+prose, lists and figures remain available. Omitted tables appear in
+`index.refusals`, with source id, table id, pages, observed member ids, stable
+`code`, and rule `table-region/1`. `index.refusal_report()` returns these records
+and their count as ordinary JSON-compatible data. Check this report when assessing
+coverage; a returned index does not assert that every table was rendered.
+
+Native band geometry can refuse with `STRADDLING_OR_OUTSIDE_BANDS` (including a
+small gap or overlap), `BAND_COUNT_VARIES` (including a spanning cell that prevents
+unambiguous header mapping), or `TABLE_COLUMN_LAYOUT_UNAVAILABLE` (including an
+empty physical row). Missing source members, header geometry, header columns or
+cell geometry use `TABLE_SOURCE_MEMBER_MISSING`, `TABLE_HEADER_GEOMETRY_UNAVAILABLE`,
+`TABLE_HEADER_COLUMN_UNAVAILABLE`, and `TABLE_CELL_GEOMETRY_UNAVAILABLE`.
+These are typed `RegionRefused` failures. Geometry tolerances are unchanged;
+unsupported topology is recorded rather than guessed. Direct `table_members`
+calls stay strict unless the caller supplies a `refusals` list to receive omissions.
+Document-level identity, stale presentation and invalid context failures still
+refuse the call.
+
 The data-only gate is strict: literal tags, entities or CSS/style tokens in any
 selected member or neighbour refuse that response. They are never escaped into
 changed source text or silently omitted. JSON quoting itself is ordinary JSON

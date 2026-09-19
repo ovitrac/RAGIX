@@ -645,6 +645,12 @@ reading configuration, never a document's semantic authority.
   tags/entities/style tokens in selected data refuse the response. No relevance,
   answer status or comparison semantics are assigned. Falsifiers:
   `test_region_boundaries.py`, `test_renderable_regions.py` and adapter tests.
+  A table's unsupported geometry raises typed `RegionRefused` and is recorded
+  against that table; it never erases other tables or prose. Refusal scope includes
+  source, table, pages, observed member ids and rule. Native band gaps/overlaps,
+  spanning cells, missing geometry, empty rows and missing recovered members are
+  exercised by `test_region_table_refusals.py`. The native geometry rule is not
+  relaxed to make an envelope succeed.
 - **K9.19 Figure envelopes.** Available raster bytes are encoded as validated
   base64 with MIME, dimensions, size and checksum. Source and derived assets stay
   distinct; missing/corrupt or ambiguous assets are explicit. Coordinates require

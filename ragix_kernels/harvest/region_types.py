@@ -23,6 +23,32 @@ class RegionRefused(ValueError):
         super().__init__(code)
 
 
+@dataclass(frozen=True)
+class TableRegionRefusal:
+    """A table omitted from envelopes, scoped to its source and observed members."""
+
+    source_id: str
+    table_id: str
+    pages: tuple[int, ...]
+    code: str
+    member_ids: tuple[str, ...]
+    rule: str = "table-region/1"
+
+    def __post_init__(self):
+        if (
+            not self.source_id
+            or not self.table_id
+            or not self.code
+            or not self.pages
+            or self.pages != tuple(sorted(set(self.pages)))
+            or any(type(p) is not int or p < 1 for p in self.pages)
+            or len(set(self.member_ids)) != len(self.member_ids)
+            or any(not isinstance(m, str) or not m for m in self.member_ids)
+            or self.rule != "table-region/1"
+        ):
+            raise RegionRefused("INVALID_TABLE_REGION_REFUSAL")
+
+
 def json_data(value):
     """No Unicode normalization: member text must keep its original code points."""
     return json.dumps(
