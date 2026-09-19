@@ -46,10 +46,11 @@ from ..analyzers import PIPELINE, OutlineAnalyzer
 from ..analyzers.contract import (abstention_records, count_reported,
                                   reports_abstention, tree_abstention_records)
 from ..builder import build_tree
+from ..assets import AssetStore
 from ..model import CANONICAL_JSON
 
 #: Extensions this kernel will pick up when scanning a directory.
-READABLE = (".pdf", ".docx", ".xlsx", ".xlsm", ".pptx", ".md", ".markdown")
+READABLE = (".pdf", ".doc", ".docx", ".xls", ".xlsx", ".xlsm", ".pptx", ".md", ".markdown")
 
 
 class SaqqaraKernel(Kernel):
@@ -74,7 +75,7 @@ class SaqqaraKernel(Kernel):
     """
 
     name = "saqqara"
-    version = "0.1.0"
+    version = "0.2.0"
     category = "saqqara"
     stage = 1
     description = "Read documents into typed trees with provenance and recognise their structure"
@@ -147,7 +148,10 @@ class SaqqaraKernel(Kernel):
         config = input.config or {}
         readers = self._readers(config)
         paths = self._paths(config)
-        by_path, report = read_corpus(paths, readers=readers)
+        conversion_store = None
+        if any(path.suffix.lower() in (".doc", ".xls") for path in paths):
+            conversion_store = AssetStore(input.workspace / "assets" / "office-conversions")
+        by_path, report = read_corpus(paths, readers=readers, conversion_store=conversion_store)
 
         documents = []
         for path in report.read:

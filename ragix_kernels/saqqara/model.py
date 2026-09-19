@@ -47,6 +47,7 @@ from typing import Any, ClassVar, Iterator, Optional
 __all__ = [
     "CANONICAL_JSON",
     "DocumentLocator",
+    "ConversionLocator",
     "DocxLocator",
     "KindError",
     "Locator",
@@ -151,6 +152,50 @@ class DocumentLocator(Locator):
 
     def key(self) -> tuple:
         return ()
+
+
+@register_locator
+@dataclass(frozen=True)
+class ConversionLocator(Locator):
+    """Bridge from original bytes to the derivative whose coordinates follow."""
+
+    format: ClassVar[str] = "conversion"
+    input_format: str = ""
+    output_format: str = ""
+    source_sha256: str = ""
+    derived_sha256: str = ""
+    converter: str = ""
+    converter_version: str = ""
+    filter_name: str = ""
+    artifact_retained: bool = False
+    rule: str = "office-conversion/1"
+
+    def __post_init__(self):
+        import re
+
+        if (
+            (self.input_format, self.output_format)
+            not in {("doc", "docx"), ("xls", "xlsx")}
+            or any(
+                not re.fullmatch(r"[0-9a-f]{64}", value)
+                for value in (self.source_sha256, self.derived_sha256)
+            )
+            or not all((self.converter, self.converter_version, self.filter_name))
+            or type(self.artifact_retained) is not bool
+            or self.rule != "office-conversion/1"
+        ):
+            raise LocatorError("invalid Office conversion provenance")
+
+    def key(self):
+        return (
+            self.input_format,
+            self.output_format,
+            self.source_sha256,
+            self.derived_sha256,
+            self.converter,
+            self.converter_version,
+            self.filter_name,
+        )
 
 
 @register_locator

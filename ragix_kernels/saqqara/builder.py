@@ -39,7 +39,7 @@ from .model import DocumentLocator, Locator, Node, Provenance, Tree, kind_regist
 
 __all__ = ["BuildResult", "Builder", "FORMAT_PLANS", "FormatPlan", "build_tree"]
 
-BUILDER_VERSION = "0.1.0"
+BUILDER_VERSION = "0.2.0"
 
 #: Kinds this layer needs that the standard vocabulary does not declare.
 #: Registered deliberately rather than by widening the core (K1.3).
@@ -171,12 +171,21 @@ class Builder:
         attached = 0
         meta: dict[str, Any] = {}
 
+        conversions = {record.conversion for record in observations}
+        conversion = next(iter(conversions)) if len(conversions) == 1 else None
+        if len(conversions) > 1 or (conversion and conversion.output_format != plan.format):
+            raise ValueError("inconsistent Office conversion provenance")
+        prefix = (conversion,) if conversion else ()
+        if conversion:
+            meta["conversion"] = conversion.to_dict()
+
         def provenance(locator: Locator) -> Provenance:
             """Derived from the observation's own coordinate (K3.48)."""
             return Provenance(
                 source_path=source_path,
                 source_format=plan.format,
-                chain=(locator,),
+                chain=prefix + (locator,),
+                source_sha256=conversion.source_sha256 if conversion else None,
                 kernel=reader,
                 kernel_version=reader_version,
             )
@@ -186,7 +195,8 @@ class Builder:
             provenance=Provenance(
                 source_path=source_path,
                 source_format=plan.format,
-                chain=(DocumentLocator(),),
+                chain=prefix + (DocumentLocator(),),
+                source_sha256=conversion.source_sha256 if conversion else None,
                 kernel=reader,
                 kernel_version=reader_version,
             ),

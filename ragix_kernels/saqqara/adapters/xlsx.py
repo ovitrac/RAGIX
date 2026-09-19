@@ -55,9 +55,10 @@ class XlsxAdapter(Adapter):
     """Read a workbook into sheet, cell and border observations."""
 
     format = "xlsx"
-    version = "0.6.0"          # 0.5.0: a vocabulary declared per record kind
+    version = "0.7.0"          # 0.5.0: a vocabulary declared per record kind
     skip_reasons = PART_SKIPS
-    extensions = (".xlsx", ".xlsm")
+    extensions = (".xlsx", ".xlsm", ".xls")
+    legacy_extensions = (".xls",)
     fact_sets = {
         "figure": FIGURE_FACTS,
         "sheet": SHEET_FACTS,
@@ -101,7 +102,14 @@ class XlsxAdapter(Adapter):
                 },
             )
 
-    def read(self, path: Path) -> Iterator[Mastaba]:
+    def read(self, path: Path, *, conversion_store=None) -> Iterator[Mastaba]:
+        if path.suffix.lower() in self.legacy_extensions:
+            from ..office_conversion import read_legacy
+            yield from read_legacy(path, self._read_native, store=conversion_store)
+        else:
+            yield from self._read_native(path)
+
+    def _read_native(self, path: Path) -> Iterator[Mastaba]:
         from openpyxl import load_workbook
 
         workbook = load_workbook(path, data_only=False)

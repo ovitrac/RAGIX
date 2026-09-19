@@ -153,3 +153,8 @@ pip install -e ".[saqqara]"
 ## Licence
 
 MIT, as the rest of this repository.
+
+Legacy `.doc` and `.xls` inputs use optional local LibreOffice conversion into
+the existing DOCX/XLSX readers, with an explicit conversion provenance bridge.
+Without LibreOffice they receive a counted refusal with installation guidance.
+See [Legacy Office input](LEGACY_OFFICE.md) for retention, limits and usage.
