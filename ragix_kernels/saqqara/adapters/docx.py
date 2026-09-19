@@ -193,9 +193,10 @@ class DocxAdapter(Adapter):
     format = "docx"
     # 0.4.0 replaces the paragraph's boolean `bold` with `bold_frac`, and adds
     # `size` / `size_frac`: the facts a rule about dominance is written against.
-    version = "0.7.0"
+    version = "0.8.0"
     skip_reasons = PART_SKIPS
-    extensions = (".docx",)
+    extensions = (".docx", ".doc")
+    legacy_extensions = (".doc",)
     fact_sets = {
         "figure": FIGURE_FACTS,
         "table": TABLE_FACTS,
@@ -204,7 +205,14 @@ class DocxAdapter(Adapter):
         "marker": PARAGRAPH_FACTS,
     }
 
-    def read(self, path: Path) -> Iterator[Mastaba]:
+    def read(self, path: Path, *, conversion_store=None) -> Iterator[Mastaba]:
+        if path.suffix.lower() in self.legacy_extensions:
+            from ..office_conversion import read_legacy
+            yield from read_legacy(path, self._read_native, store=conversion_store)
+        else:
+            yield from self._read_native(path)
+
+    def _read_native(self, path: Path) -> Iterator[Mastaba]:
         from docx import Document
 
         document = Document(path)

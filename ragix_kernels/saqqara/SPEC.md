@@ -653,3 +653,16 @@ reading configuration, never a document's semantic authority.
   source bytes or the frozen tree. SVG and malformed/oversized images are refused.
   Falsifiers: figure, source-mutation, encoding and resource-budget tests in the
   region suites. Privacy and presentation policy remain outside this envelope.
+
+## Legacy Office conversion addendum
+
+This optional adapter extends input support without changing the frozen native
+reader fact vocabularies. The conversion bridge is provenance, not a source fact.
+
+| Clause | Contract | Executable falsifier in `test_legacy_office.py` |
+|---|---|---|
+| LO.1 | Legacy DOC and XLS enter the existing DOCX and XLSX readers only after successful local conversion. Native formats require no converter. | `test_conversion_uses_native_reader_and_bridges_provenance`, `test_native_formats_do_not_need_libreoffice`, `test_real_binary_conversion` |
+| LO.2 | A missing converter yields an explicit, counted refusal asking for LibreOffice installation. | `test_missing_libreoffice_is_a_counted_refusal` |
+| LO.3 | Conversion preserves original bytes and records their hash, derivative hash, converter version and filter. Every derived node keeps the bridge before its native coordinate; conflicting bridges are rejected. | `test_conversion_uses_native_reader_and_bridges_provenance` |
+| LO.4 | Failed, missing, malformed, oversized, timed-out or observation-free conversions produce no accepted document. Temporary directories are cleaned. | `test_bad_conversion_never_returns_partial_records`, `test_timeout_kills_process_and_refuses`, `test_input_limit_and_empty_reader_refuse` |
+| LO.5 | The kernel retains the derivative by hash, runs its normal analyzers, and keeps the original content hash. Direct reads declare whether their derivative was retained. | `test_kernel_retains_derivative_and_runs_analyzers`, `test_conversion_uses_native_reader_and_bridges_provenance` |

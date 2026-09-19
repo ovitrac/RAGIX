@@ -177,7 +177,7 @@ def test_k2_4_a_fact_may_be_a_list_of_primitives(built):
 #: kind whose facts it happened to hold, which is how five readers came to
 #: declare five vocabularies while emitting sixteen.
 PINNED = {
-    "xlsx": ("0.6.0", {
+    "xlsx": ("0.7.0", {
         "figure": ("asset", "source", "media_type", "width", "height",
                    "x", "y", "w", "h", "colorspace", "bits", "smask"),
         "sheet": ("hidden", "list_objects", "max_row", "max_column"),
@@ -188,7 +188,7 @@ PINNED = {
     # the document's own break marks (D-0017). The grid kinds are untouched — their
     # vocabulary is one shared object across three formats (K2.22), and two of them
     # have no pages at all.
-    "docx": ("0.7.0", {
+    "docx": ("0.8.0", {
         "figure": ("asset", "source", "media_type", "width", "height",
                    "x", "y", "w", "h", "colorspace", "bits", "smask"),
         "table": ("n_rows", "n_grid_cols", "ragged", "style"),

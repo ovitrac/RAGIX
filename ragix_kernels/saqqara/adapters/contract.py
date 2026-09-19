@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Mapping
 
-from ..model import Locator
+from ..model import Locator, ConversionLocator
 
 __all__ = [
     "Adapter",
@@ -41,6 +41,7 @@ __all__ = [
     "ReadReport",
     "Refusal",
     "UnreadableFile",
+    "ConversionUnavailable",
     "UnsupportedFormat",
     "adapter_for",
     "read_path",
@@ -115,6 +116,10 @@ class UnreadableFile(ValueError):
     """A reader claimed the file and could not read it."""
 
 
+class ConversionUnavailable(UnreadableFile):
+    """A supported legacy format requires a missing local converter."""
+
+
 @dataclass(frozen=True)
 class Mastaba:
     """One raw observation about a source, with the coordinate it was seen at.
@@ -128,6 +133,7 @@ class Mastaba:
     locator: Locator
     text: str | None = None
     facts: Mapping[str, Any] = field(default_factory=dict)
+    conversion: ConversionLocator | None = None
 
     def to_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {"kind": self.kind, "locator": self.locator.to_dict()}
@@ -135,6 +141,8 @@ class Mastaba:
             out["text"] = self.text
         if self.facts:
             out["facts"] = dict(self.facts)
+        if self.conversion is not None:
+            out["conversion"] = self.conversion.to_dict()
         return out
 
 
@@ -182,6 +190,7 @@ class Adapter:
     format: str = ""
     version: str = "0.0.0"
     extensions: tuple[str, ...] = ()
+    legacy_extensions: tuple[str, ...] = ()
     fact_sets: Mapping[str, tuple[str, ...] | OpenVocabulary] = {}
 
     #: The reasons this reader may decline something. Closed, per reader, and
@@ -242,7 +251,7 @@ def adapter_for(path: Path,
 
 
 def read_path(path: Path, store=None,
-              readers: Mapping[str, Adapter] | None = None) -> list[Mastaba]:
+              readers: Mapping[str, Adapter] | None = None, *, conversion_store=None) -> list[Mastaba]:
     """Read one file. Raises rather than returning an empty result.
 
     `store` is where extracted bytes go. A reader given none reads no objects:
@@ -260,6 +269,9 @@ def read_path(path: Path, store=None,
     if store is not None and hasattr(adapter, "store"):
         adapter.store = store
     try:
+        if path.suffix.lower() in adapter.legacy_extensions:
+            retained = conversion_store if conversion_store is not None else store
+            return list(adapter.read(path, conversion_store=retained))
         return list(adapter.read(path))
     except (UnsupportedFormat, UnreadableFile):
         raise
@@ -268,7 +280,7 @@ def read_path(path: Path, store=None,
 
 
 def read_corpus(paths: Iterable[Path],
-                readers: Mapping[str, Adapter] | None = None,
+                readers: Mapping[str, Adapter] | None = None, *, conversion_store=None,
                 ) -> tuple[dict[str, list[Mastaba]], ReadReport]:
     """Read a set of files, keeping each observation with the file it came from.
 
@@ -296,9 +308,12 @@ def read_corpus(paths: Iterable[Path],
             continue
 
         try:
-            found = read_path(path, readers=readers)
+            found = read_path(path, readers=readers, conversion_store=conversion_store)
         except UnsupportedFormat as exc:
             report.refusals.append(Refusal(str(path), "unsupported-format", str(exc)))
+            continue
+        except ConversionUnavailable as exc:
+            report.refusals.append(Refusal(str(path), "converter-unavailable", str(exc)))
             continue
         except UnreadableFile as exc:
             report.refusals.append(Refusal(str(path), "unreadable-file", str(exc)))
