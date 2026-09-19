@@ -109,6 +109,8 @@ asset store. An explicit `to_region_box(page, pdf_box)` converts the reader's
 coordinates; there is no implicit PDF-user-space/top-left conversion. Captions can
 be linked by node address and original line id. A vector lattice with an existing
 raster remains `FIGURE`, flagged `LATTICE_AS_IMAGE`, never a reconstructed table.
+An upstream inferred figure retains `FIGURE_STRUCTURE_INFERRED`; this envelope
+does not promote its origin to a direct observation.
 A figure's `figure_bbox` positions the raster separately from a caption that may
 extend the enclosing region's `bbox`.
 

@@ -263,6 +263,8 @@ def figures_from_tree(
             box = tuple(to_region_box(page, raw))
             ident = identity("figure-observation/1", source_id, address, f["asset"])
             flags = ("LATTICE_AS_IMAGE",) if f.get("rule") == "table-as-image" else ()
+            if node.origin == "inferred":
+                flags += ("FIGURE_STRUCTURE_INFERRED",)
             try:
                 image = image_from_store(
                     store, f["asset"], raster_asset=raster_choices.get(f["asset"]), limits=limits

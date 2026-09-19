@@ -120,6 +120,7 @@ def test_lattice_with_stored_raster_stays_figure_not_table(tmp_path, monkeypatch
         to_region_box=transform,
     )
     assert figures[0].image.sha256 == raster and "LATTICE_AS_IMAGE" in figures[0].flags
+    assert "FIGURE_STRUCTURE_INFERRED" in figures[0].flags
     index = RegionIndex(
         "synthetic",
         (PageGeometry(1, 400, 800),),
@@ -252,3 +253,28 @@ def test_render_source_changes_are_refused(tmp_path):
             renderer=Renderer(),
             source_path=path,
         )
+
+
+def test_inferred_ordinary_vector_figure_retains_its_origin(tmp_path, monkeypatch):
+    from ragix_kernels.saqqara import model
+
+    monkeypatch.setattr(
+        model, "kind_registry", model.KindRegistry((*model.kind_registry.known(), "vector_region"))
+    )
+    store = AssetStore(tmp_path / "assets")
+    asset = store.put(b'{"marks":[]}', "application/json", {})
+    store.put(png(), "image/png", {"derived_from": asset})
+    figures = figures_from_tree(
+        tree(asset, kind="vector_region", rule="region-render"),
+        store,
+        source_id="synthetic",
+        to_region_box=transform,
+    )
+    assert "FIGURE_STRUCTURE_INFERRED" in figures[0].flags
+    index = RegionIndex(
+        "synthetic",
+        (PageGeometry(1, 400, 800),),
+        (line("a", "Drawing label", 30),),
+        figures=figures,
+    )
+    assert "FIGURE_STRUCTURE_INFERRED" in index.get("a").flags
