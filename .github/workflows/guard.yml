@@ -72,10 +72,13 @@ jobs:
           python-version: '3.12'
 
       - name: Install
-        run: python3 -m pip install --upgrade pip && python3 -m pip install -e ".[saqqara,mcp,dev]"
+        run: python3 -m pip install --upgrade pip && python3 -m pip install -e ".[saqqara,mcp,dev,regions]"
 
       - name: Gates
         run: python3 -m pytest tests/saqqara -q
+
+      - name: Region data gates
+        run: python3 -m pytest tests/harvest/test_region_boundaries.py tests/harvest/test_renderable_regions.py -q
 
       - name: Family gates
         run: python3 -m pytest tests/tender -q
