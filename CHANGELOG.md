@@ -6,6 +6,20 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## Unreleased — source context independent of table structure
+
+- Added pure `context_groups` and `cell_inventory` functions for native table
+  observations refused by the canonical region reader. Groups retain source ids
+  with bounded, linked chunks and explicit missing-geometry and sharing flags.
+- Added `text_ledger` with literal character-mapping validation and exact-text
+  fallback in observed cell boxes. Missing characters fail the retention gate;
+  unreadable cells remain a separate observation state.
+- Existing regions, table rules, refusal records, extraction and kernel discovery
+  are unchanged. Synthetic falsifiers exercise retention, chunking, provenance
+  failures and canonical snapshots. No dependency was added.
+
+---
+
 ## v0.74.0 — RAGIX-Pentest: Containerized Security-Hardening Lab (2026-06-24)
 
 > A self-contained, **rootless** lab for **defensive** security assessment of systems you
