@@ -177,7 +177,7 @@ class TextEntry:
         ):
             raise RegionRefused("INVALID_TEXT_STATUS")
         if self.status == "EXCLUDED" and (
-            self.carried_count != self.span_length or normalised or missing
+            missing or self.carried_count + len(normalised) != self.span_length
         ):
             raise RegionRefused("INVALID_TEXT_STATUS")
 
@@ -483,6 +483,7 @@ def text_ledger(
     nonfurniture = {span_id: set() for span_id in spans}
     text_carriers = {span_id: set() for span_id in spans}
     occurrences = {span_id: defaultdict(set) for span_id in spans}
+    furniture_occurrences = {span_id: defaultdict(set) for span_id in spans}
     order_breaks = []
     for view_id, view in views.items():
         if len(view.text) != len(view.mapping):
@@ -512,6 +513,16 @@ def text_ledger(
                 raise RegionRefused("CONTEXT_MAPPING_CHARACTER_MISMATCH")
             positions[span.span_id].append((carrier_position, offset))
             (excluded if view_id in furniture else nonfurniture)[span.span_id].add(offset)
+            if view_id in furniture:
+                furniture_occurrences[span.span_id][offset].add(
+                    _Occurrence(
+                        "MEMBER",
+                        view_id,
+                        "LINE",
+                        carrier_position,
+                        view.text,
+                    )
+                )
             if member is not None:
                 coverage[span.span_id].add(offset)
                 covered_here.add(span.span_id)
@@ -538,14 +549,29 @@ def text_ledger(
         text_carriers,
     )
     normalised = _normalised_whitespace(ordered_spans, coverage, occurrences)
+    furniture_normalised = _normalised_whitespace(ordered_spans, excluded, furniture_occurrences)
     entries = []
     for span in ordered_spans:
         span_id = span.span_id
         length = len(span.text)
-        if length and len(excluded[span_id]) == length and not nonfurniture[span_id]:
+        offsets = set(range(length))
+        non_whitespace = {
+            offset for offset, character in enumerate(span.text) if not character.isspace()
+        }
+        whitespace = offsets - non_whitespace
+        furniture_normalised_offsets = furniture_normalised[span_id] - excluded[span_id]
+        excluded_with_normalisation = (
+            bool(excluded[span_id])
+            and non_whitespace <= excluded[span_id]
+            and not (non_whitespace & nonfurniture[span_id])
+            and whitespace <= excluded[span_id] | furniture_normalised_offsets
+        )
+        if excluded_with_normalisation:
             status = "EXCLUDED"
-            carried_count = length
-            normalised_ranges = ()
+            carried_count = len(excluded[span_id])
+            normalised_ranges = tuple(
+                NormalisedRange(start, end) for start, end in _ranges(furniture_normalised_offsets)
+            )
             missing_ranges = ()
         else:
             normalised_offsets = normalised[span_id] - coverage[span_id]

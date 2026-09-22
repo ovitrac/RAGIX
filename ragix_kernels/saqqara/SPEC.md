@@ -679,7 +679,9 @@ reading configuration, never a document's semantic authority.
   accepted-normalised and missing sets with checked arithmetic.
   `CARRIED_NORMALISED` remains distinct from byte-exact carriage. Partial
   coverage, absent occurrences and order breaks fail the retention gate. Only
-  the existing reader's furniture classifications justify exclusions.
+  the existing reader's furniture classifications justify exclusions; an
+  excluded span may normalise its remaining whitespace under the same declared
+  separation rule.
   Cell readability is independent: unreadable is never coerced to readable-empty.
   The ledger validates every refusal is grouped; the inventory checks every cell
   of those candidates is assigned exactly once. Canonical regions, their ids and
