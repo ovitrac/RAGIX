@@ -17,6 +17,12 @@ All notable changes to the **RAGIX** project will be documented here.
 - Existing regions, table rules, refusal records, extraction and kernel discovery
   are unchanged. Synthetic falsifiers exercise retention, chunking, provenance
   failures and canonical snapshots. No dependency was added.
+- The v2.2 ledger distinguishes separation-preserving whitespace normalisation
+  from loss across source-span seams. It checks mapped order, consumes distinct
+  exact-text occurrences, and validates the carried/normalised/missing partition
+  per source span under `text-occurrence-ledger/2`. Accepted normalisation is
+  reported separately and never
+  relabelled as byte-exact carriage.
 
 ## Unreleased — native-cell connectivity view
 

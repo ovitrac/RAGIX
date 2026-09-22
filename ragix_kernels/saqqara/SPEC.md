@@ -667,15 +667,24 @@ reading configuration, never a document's semantic authority.
   its text in a separate cell inventory. Member and cell budgets are independent;
   chunks prefer region boundaries and explicitly split oversized regions, with
   stable identities and neighbouring links. Source identity is checked at entry.
-  The text ledger measures literal source-character coverage: mapped characters
+  The `text-occurrence-ledger/2` measures literal source-character coverage: mapped characters
   must match the original and the current member text, while unmapped cells need
   exact text and observed-box containment on the same page. Referenced span ids
-  alone prove nothing. Partial coverage and absent carriers fail the retention
-  gate. Only the existing reader's furniture classifications justify exclusions.
+  alone prove nothing. Exact fallback consumes distinct carrier occurrences.
+  Unmapped whitespace is accepted only under `whitespace-normalisation/1` when
+  the actual retained representation preserves separation across source-span
+  seams or through a line/cell boundary. Otherwise it remains missing. Mapped
+  source offsets must strictly increase inside each carrier; order breaks fail
+  the gate. Every entry partitions source offsets into carried,
+  accepted-normalised and missing sets with checked arithmetic.
+  `CARRIED_NORMALISED` remains distinct from byte-exact carriage. Partial
+  coverage, absent occurrences and order breaks fail the retention gate. Only
+  the existing reader's furniture classifications justify exclusions.
   Cell readability is independent: unreadable is never coerced to readable-empty.
   The ledger validates every refusal is grouped; the inventory checks every cell
   of those candidates is assigned exactly once. Canonical regions, their ids and
-  refusal reports remain byte-identical. Falsifiers: `test_context_groups.py`.
+  refusal reports remain byte-identical. Falsifiers: `test_context_groups.py`
+  and `test_content_ledger_v22.py`.
   API and integration: `CONTEXT_GROUPS.md`.
 
 - **K9.21 Native-cell connectivity view.** A pure optional view rounds observed
