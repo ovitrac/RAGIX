@@ -4,6 +4,7 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 """
 
 from dataclasses import replace
+from types import SimpleNamespace
 
 import pytest
 
@@ -373,4 +374,54 @@ def test_edge_whitespace_never_hides_uncarried_non_whitespace():
     assert entry.status == "PARTIAL"
     assert entry.normalised == (NormalisedRange(0, 1), NormalisedRange(8, 9))
     assert entry.missing == ((1, 8),)
+
+
+def test_w12_furniture_trailing_whitespace_is_excluded(monkeypatch):
+    import ragix_kernels.saqqara.content_ledger as module
+
+    source = span("furniture", "Internal ", (10, 10, 80, 18))
+    furniture = view(
+        "furniture-line",
+        "Internal",
+        tuple(("furniture", offset) for offset in range(8)),
+    )
+    result, index = fixture(spans=[source])
+    result = replace(
+        result,
+        reading=SimpleNamespace(source_id=SOURCE, furniture=(furniture.view_id,)),
+    )
+    index.regions = ()
+    monkeypatch.setattr(module, "page_lines", lambda page: [furniture])
+    groups = context_groups(result, index, source_id=SOURCE)
+    ledger = text_ledger(result, index, groups, source_id=SOURCE)
+    entry = ledger.entries[0]
+    assert entry.status == "EXCLUDED"
+    assert entry.rule == "reader-furniture/1"
+    assert entry.carried_count == 8
+    assert entry.normalised == (NormalisedRange(8, 9),)
+    assert entry.missing == () and ledger.passes
+
+
+def test_w12_furniture_does_not_exclude_unmapped_non_whitespace(monkeypatch):
+    import ragix_kernels.saqqara.content_ledger as module
+
+    source = span("furniture", "Internal X", (10, 10, 90, 18))
+    furniture = view(
+        "furniture-line",
+        "Internal",
+        tuple(("furniture", offset) for offset in range(8)),
+    )
+    result, index = fixture(spans=[source])
+    result = replace(
+        result,
+        reading=SimpleNamespace(source_id=SOURCE, furniture=(furniture.view_id,)),
+    )
+    index.regions = ()
+    monkeypatch.setattr(module, "page_lines", lambda page: [furniture])
+    groups = context_groups(result, index, source_id=SOURCE)
+    ledger = text_ledger(result, index, groups, source_id=SOURCE)
+    entry = ledger.entries[0]
+    assert entry.status == "PARTIAL"
+    assert entry.missing and not ledger.passes
+
     assert not ledger.passes

@@ -84,8 +84,9 @@ literal coverage record:
 - `PARTIAL`: carried or accepted-normalised characters survive, with every
   missing half-open offset range explicit.
 - `NOT_CARRIED`: no sufficient literal representation was established.
-- `EXCLUDED`: every source character belongs only to lines already classified as
-  furniture by the reader. The ledger adds no exclusion rule.
+- `EXCLUDED`: every non-whitespace source character belongs only to lines already
+  classified as furniture by the reader, while remaining whitespace is carried
+  or accepted under `whitespace-normalisation/1`. The ledger adds no exclusion rule.
 
 Each entry records `carried_count`, accepted-normalised ranges with their rule,
 and missing ranges. These form a disjoint partition of the source offsets; bad

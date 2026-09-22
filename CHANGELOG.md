@@ -23,6 +23,8 @@ All notable changes to the **RAGIX** project will be documented here.
   per source span under `text-occurrence-ledger/2`. Accepted normalisation is
   reported separately and never
   relabelled as byte-exact carriage.
+- Furniture exclusion applies the same declared whitespace normalisation while
+  requiring every non-whitespace character to occur only in furniture lines.
 
 ## Unreleased — native-cell connectivity view
 
