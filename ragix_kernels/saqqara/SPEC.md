@@ -660,6 +660,24 @@ reading configuration, never a document's semantic authority.
   Falsifiers: figure, source-mutation, encoding and resource-budget tests in the
   region suites. Privacy and presentation policy remain outside this envelope.
 
+- **K9.20 Context groups and literal retention.** Pure context groups reference
+  existing line members and native cell observations of refused candidates; they
+  neither replace canonical regions nor assert table or header structure.
+  Envelopes use observed cell boxes only. Missing geometry is labelled and keeps
+  its text in a separate cell inventory. Member and cell budgets are independent;
+  chunks prefer region boundaries and explicitly split oversized regions, with
+  stable identities and neighbouring links. Source identity is checked at entry.
+  The text ledger measures literal source-character coverage: mapped characters
+  must match the original and the current member text, while unmapped cells need
+  exact text and observed-box containment on the same page. Referenced span ids
+  alone prove nothing. Partial coverage and absent carriers fail the retention
+  gate. Only the existing reader's furniture classifications justify exclusions.
+  Cell readability is independent: unreadable is never coerced to readable-empty.
+  The ledger validates every refusal is grouped; the inventory checks every cell
+  of those candidates is assigned exactly once. Canonical regions, their ids and
+  refusal reports remain byte-identical. Falsifiers: `test_context_groups.py`.
+  API and integration: `CONTEXT_GROUPS.md`.
+
 ## Legacy Office conversion addendum
 
 This optional adapter extends input support without changing the frozen native
