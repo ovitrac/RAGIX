@@ -678,6 +678,22 @@ reading configuration, never a document's semantic authority.
   refusal reports remain byte-identical. Falsifiers: `test_context_groups.py`.
   API and integration: `CONTEXT_GROUPS.md`.
 
+- **K9.21 Native-cell connectivity view.** A pure optional view rounds observed
+  native cell rectangles once to 0.001 point and exposes elementary half-open
+  tiles with zero, one or several owners. Holes and conflicts stay explicit.
+  Missing or rounding-degenerate geometry remains in the cell inventory and owns
+  no tile; unreadable text is not empty. A merged cell remains one observation
+  with its full scope. Four-connected singly owned tiles form deterministic,
+  possibly nonrectangular components; conflicts cannot connect them. Component
+  membership never creates a smaller cell, and scope extending into a conflict is
+  flagged. Header output is only a named proposal over the geometric first row;
+  it never falls through to a later row and never establishes table semantics or
+  documentary authority. COMPLETE, PARTIAL and NONE describe geometric occupancy
+  only. The view assigns no applicability, relevance, comparison or qualification
+  meaning and does not change canonical regions or table refusals. Falsifiers:
+  `test_grid_view.py`. API and integration: `GRID_VIEW.md`.
+
+
 ## Legacy Office conversion addendum
 
 This optional adapter extends input support without changing the frozen native

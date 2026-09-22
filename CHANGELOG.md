@@ -18,8 +18,20 @@ All notable changes to the **RAGIX** project will be documented here.
   are unchanged. Synthetic falsifiers exercise retention, chunking, provenance
   failures and canonical snapshots. No dependency was added.
 
----
+## Unreleased — native-cell connectivity view
 
+- Added the pure `grid_view` API for native table observations. It preserves
+  every cell once, builds half-open elementary tiles from observed rectangles,
+  and exposes holes, single ownership and conflicts without changing canonical
+  table admission.
+- Missing and rounding-degenerate geometry remains explicit and owns no tile.
+  Merged scopes are retained once; four-connected clean components survive
+  conflicts elsewhere; header output is a named proposal over the geometric
+  first row only.
+- The view makes no table, applicability or documentary-authority claim. Existing
+  extraction, regions, refusals, kernel discovery and dependencies are unchanged.
+
+---
 ## v0.74.0 — RAGIX-Pentest: Containerized Security-Hardening Lab (2026-06-24)
 
 > A self-contained, **rootless** lab for **defensive** security assessment of systems you
