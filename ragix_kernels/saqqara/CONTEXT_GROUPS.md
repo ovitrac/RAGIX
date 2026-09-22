@@ -67,27 +67,44 @@ The inventory validates every cell in every candidate named by the supplied grou
 The text ledger additionally checks that every refusal has its context group, so
 run both functions when evaluating the document gate.
 
-The text ledger has one entry per native source span:
+The `text-occurrence-ledger/2` record has one entry per native source span.
+Version 2 adds normalisation, order and occurrence accounting to the version-1
+literal coverage record:
 
 - `CARRIED`: all original character offsets are represented by checked mappings.
+  Mapped order is assessed separately; any `order_breaks` make the ledger fail.
 - `CARRIED_EXACT`: a native cell or canonical cell member contains the whole literal
-  span within observed geometry on the same page. A shared span id is insufficient.
-- `PARTIAL`: some mapped characters survive; the missing half-open offset ranges
-  are explicit.
+  span within observed geometry on the same page. Distinct, non-overlapping text
+  occurrences are consumed in geometric order; a shared span id is insufficient.
+- `CARRIED_NORMALISED`: all content is retained after a declared
+  `whitespace-normalisation/1` transformation. Unmapped Unicode whitespace is
+  accepted only when the actual carrier keeps whitespace between the adjacent
+  source content or retains a line/cell boundary. Edge trimming is never enough
+  when it merges tokens across a source-span seam.
+- `PARTIAL`: carried or accepted-normalised characters survive, with every
+  missing half-open offset range explicit.
 - `NOT_CARRIED`: no sufficient literal representation was established.
 - `EXCLUDED`: every source character belongs only to lines already classified as
   furniture by the reader. The ledger adds no exclusion rule.
 
-`passes` requires zero `PARTIAL` and zero `NOT_CARRIED` entries. The summary reports
-all statuses by page and for the document. It establishes retention of observations,
-not completeness of extraction, correctness of a table or absence of unreadable
+Each entry records `carried_count`, accepted-normalised ranges with their rule,
+and missing ranges. These form a disjoint partition of the source offsets; bad
+arithmetic or overlap refuses construction. `order_breaks` records mapped
+characters that do not strictly increase within one carrier. `passes` requires
+zero missing-content entries and zero order breaks. The summary separates passed,
+accepted-normalised, missing and excluded populations by page and document.
+
+The ledger establishes character retention only. It does not establish row/column
+association, table structure, completeness of extraction or absence of unreadable
 cells. Original source text in the ledger is observation data; use the consumer's
 existing presentation controls when exposing it.
 
 ## Verification
 
-Run `python -m pytest tests/saqqara/test_context_groups.py -q`, then the repository's
-full test suite and forbidden-content guard. The synthetic suite includes mapped
-sign loss, same-id text substitution, cells without source spans, missing geometry,
-oversized regions, cell-only chunks, repeated occurrences and canonical snapshots.
-The connectivity view is separate and is not implemented by this slice.
+Run `python -m pytest tests/saqqara/test_context_groups.py
+tests/saqqara/test_content_ledger_v22.py -q`, then the repository's full test
+suite and forbidden-content guard. The synthetic suite includes mapped sign loss,
+same-id text substitution, cells without source spans, missing geometry, cross-span
+seams, order reversal, occurrence consumption, explicit partition arithmetic,
+oversized regions, cell-only chunks and canonical snapshots. The connectivity
+view is separate and is not implemented by this slice.
