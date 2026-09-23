@@ -116,7 +116,8 @@ def _exercise_reads(tmp_path):
 
     Table.rows = property(counting)
     # PyMuPDF reads Table.rows itself inside find_tables() and extract(); count those reads first, on the same file,
-    # so the assertion isolates the explorer's own reads.
+    # so the assertion isolates the explorer's own reads. The baseline calls find_tables() with its defaults, as
+    # digest_pdf does today: if digest_pdf ever passes find_tables() options, pass the same options here.
     with pymupdf.open(str(path)) as doc:
         for page in doc:
             for table in page.find_tables().tables:
