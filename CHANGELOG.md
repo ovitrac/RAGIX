@@ -6,6 +6,14 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## Unreleased — explorer: native table rows read once per table
+
+- `digest_pdf` reads PyMuPDF's `Table.rows` once per table instead of once per
+  cell and per span test; the property re-sorts and rebuilds every row on each
+  access. Output is unchanged (K9.22, X22). On two private table-heavy PDFs
+  (52 and 11 pages, 30 and 11 native tables) `digest_pdf` went from 13.6 s to
+  6.1 s and from 10.2 s to 3.2 s, with byte-identical digests.
+
 ## Unreleased — source context independent of table structure
 
 - Added pure `context_groups` and `cell_inventory` functions for native table
