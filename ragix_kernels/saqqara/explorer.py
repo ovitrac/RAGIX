@@ -115,6 +115,10 @@ def digest_pdf(path: Path, *, expected_pymupdf=None) -> DocumentDigest:
                 rows = table.extract()
                 if not rows:
                     continue
+                # PyMuPDF's Table.rows is a property that re-sorts the cells and rebuilds every
+                # row on each access; it is a pure function of table.cells, so it is read once
+                # per table here instead of once per cell and per span test below.
+                native_rows = table.rows
                 headers = tuple("" if h is None else h for h in rows[0])
                 ident = f"table:{number}:{index}"
                 evidence = tuple(
@@ -125,35 +129,35 @@ def digest_pdf(path: Path, *, expected_pymupdf=None) -> DocumentDigest:
                         0,
                         len(cell or ""),
                         cell or "",
-                        tuple(table.rows[r].cells[c] or table.bbox),
+                        tuple(native_rows[r].cells[c] or table.bbox),
                     )
                     for r, row in enumerate(rows)
                     for c, cell in enumerate(row)
-                    if table.rows[r].cells[c] is not None or cell
+                    if native_rows[r].cells[c] is not None or cell
                 )
                 cell_rows = tuple(
                     tuple(
                         TableCell(
                             ident + f":{r}:{c}",
                             cell,
-                            tuple(table.rows[r].cells[c] or table.bbox),
+                            tuple(native_rows[r].cells[c] or table.bbox),
                             tuple(
                                 s.span_id
                                 for s in geometry["spans"]
-                                if min(s.bbox[2], (table.rows[r].cells[c] or table.bbox)[2])
-                                > max(s.bbox[0], (table.rows[r].cells[c] or table.bbox)[0])
-                                and min(s.bbox[3], (table.rows[r].cells[c] or table.bbox)[3])
-                                > max(s.bbox[1], (table.rows[r].cells[c] or table.bbox)[1])
+                                if min(s.bbox[2], (native_rows[r].cells[c] or table.bbox)[2])
+                                > max(s.bbox[0], (native_rows[r].cells[c] or table.bbox)[0])
+                                and min(s.bbox[3], (native_rows[r].cells[c] or table.bbox)[3])
+                                > max(s.bbox[1], (native_rows[r].cells[c] or table.bbox)[1])
                             ),
                             flags=(
                                 ()
-                                if table.rows[r].cells[c] is not None
+                                if native_rows[r].cells[c] is not None
                                 else ("MISSING_CELL_GEOMETRY",)
                             ),
                             geometry_kind="cell_box",
                         )
                         for c, cell in enumerate(row)
-                        if table.rows[r].cells[c] is not None or cell
+                        if native_rows[r].cells[c] is not None or cell
                     )
                     for r, row in enumerate(rows)
                 )

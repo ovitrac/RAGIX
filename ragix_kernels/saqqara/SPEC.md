@@ -704,6 +704,15 @@ reading configuration, never a document's semantic authority.
   meaning and does not change canonical regions or table refusals. Falsifiers:
   `test_grid_view.py`. API and integration: `GRID_VIEW.md`.
 
+- **K9.22 Native table rows are read once per table.** PyMuPDF's `Table.rows`
+  re-sorts the cells and rebuilds every row on each access; it is a pure function
+  of `table.cells`. `digest_pdf` reads it once per table, so every cell and
+  evidence box is exactly the native row's cell box (or the table box when the
+  cell has none), and PyMuPDF's own reads inside `find_tables()` and `extract()`
+  are the only others. Output is unchanged. Falsifiers:
+  `test_explorer_native_rows_once.py` (X22): boxes equal an independent native
+  read; the explorer's own reads equal the table count.
+
 
 ## Legacy Office conversion addendum
 
