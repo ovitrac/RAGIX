@@ -6,6 +6,15 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## Unreleased — regions: a table nested in another table's cell is refused
+
+- A table lying inside another table's cell box whose text is all carried by one
+  cell of that table (a ruled grid inside a page frame) is refused as
+  `TABLE_INSIDE_TABLE_CELL` and counted with its cells, so its text is stated
+  once, by the holding cell, instead of by both tables (K9.25, X25). Tables whose
+  text spans several cells of the other, tables of equal box, tables reaching
+  outside the other and tables with no text are unchanged.
+
 ## Unreleased — tables: native rows lacking end cells are kept
 
 - A native table row that lacks cells at its ends, where the source draws none
