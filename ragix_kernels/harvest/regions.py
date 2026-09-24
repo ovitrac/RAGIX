@@ -95,6 +95,11 @@ def region(kind, members, *, source_id, policy, flags=(), figure=None):
 PARTLY_IN_TABLE = "LINE_PARTLY_IN_TABLE_CELLS"
 
 
+#: K9.25: a table lying inside another table's cell box whose text is all carried by ONE cell of
+#: that table: it is that cell's content, refused so its text is stated once, by the cell.
+INSIDE_TABLE_CELL = "TABLE_INSIDE_TABLE_CELL"
+
+
 def _inside(box, container):
     return all(
         (
@@ -104,6 +109,37 @@ def _inside(box, container):
             box[3] <= container[3],
         )
     )
+
+
+def _tables_inside_a_cell(tables):
+    """K9.25: the indices of tables nested in another table's cell.
+
+    A table is nested when, on every one of its pages, its cell box lies inside the
+    other table's cell box and not the reverse (equal boxes nest neither way), and
+    when every source span of its cells is carried by one single cell of the other
+    table. A table carrying no span states nothing twice and is never refused.
+    """
+    boxes = [
+        {p: box_union(m.bbox for m in t if m.page == p) for p in {m.page for m in t}}
+        for t in tables
+    ]
+    nested = set()
+    for i, inner in enumerate(tables):
+        spans = {span for m in inner for span in (m.source_spans or ())}
+        if not spans:
+            continue
+        for j, outer in enumerate(tables):
+            if i == j or not set(boxes[i]) <= set(boxes[j]):
+                continue
+            if not all(
+                _inside(boxes[i][p], boxes[j][p]) and not _inside(boxes[j][p], boxes[i][p])
+                for p in boxes[i]
+            ):
+                continue
+            if any(spans <= set(m.source_spans or ()) for m in outer):
+                nested.add(i)
+                break
+    return nested
 
 
 class RegionIndex:
@@ -149,16 +185,30 @@ class RegionIndex:
             raise RegionRefused("FIGURE_SOURCE_OR_PAGE_MISMATCH")
         if len({m.member_id for m in all_members}) != len(all_members):
             raise RegionRefused("DUPLICATE_REGION_MEMBER")
+        for table in tables:
+            if not table or any(m.kind != "CELL" for m in table):
+                raise RegionRefused("TABLE_REQUIRES_OBSERVED_CELLS")
+            if len({m.table_id for m in table}) != 1:
+                raise RegionRefused("MIXED_TABLE_TOPOLOGY")
+        # K9.25: a table nested in another table's cell is that cell's content; it is refused,
+        # counted, and its text stays stated once, by the holding cell.
+        nested = _tables_inside_a_cell(tables)
+        self.refusals += tuple(
+            TableRegionRefusal(
+                source_id,
+                tables[i][0].table_id,
+                tuple(sorted({m.page for m in tables[i]})),
+                INSIDE_TABLE_CELL,
+                tuple(m.member_id for m in tables[i]),
+            )
+            for i in sorted(nested)
+        )
+        tables = tuple(t for i, t in enumerate(tables) if i not in nested)
         lookup = {m.member_id: m for m in lines}
         claimed = defaultdict(list)
         partly = set()
         seeds = []
         for table in tables:
-            if not table or any(m.kind != "CELL" for m in table):
-                raise RegionRefused("TABLE_REQUIRES_OBSERVED_CELLS")
-            tids = {m.table_id for m in table}
-            if len(tids) != 1:
-                raise RegionRefused("MIXED_TABLE_TOPOLOGY")
             boxes = {
                 p: box_union(m.bbox for m in table if m.page == p) for p in {m.page for m in table}
             }

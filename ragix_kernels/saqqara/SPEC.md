@@ -732,6 +732,17 @@ reading configuration, never a document's semantic authority.
   a gap between present cells are refused as before (STRADDLING_OR_OUTSIDE_BANDS);
   a table whose rows are all full width keeps exactly its bands. A blank row is
   never made a header. Falsifiers: `test_native_partial_end_rows.py` (X24).
+- **K9.25 A table nested in another table's cell is that cell's content.** A
+  page drawn inside a frame reads as a table whose one cell holds the page, and a
+  ruled grid on that page reads as a second table whose text the frame cell
+  already carries. A table whose cell box lies, on each of its pages, inside
+  another table's cell box (strictly: equal boxes nest neither way) and whose
+  every source span is carried by one single cell of that table is refused as
+  `TABLE_INSIDE_TABLE_CELL`, counted with its cells; its text stays stated once,
+  by the holding cell, which also keeps the table's source lines. A table whose
+  text is spread over several cells of the other, one reaching outside the
+  other's box or onto a page it does not reach, and one carrying no span are
+  unchanged. Falsifiers: `test_table_inside_table_cell.py` (X25).
 
 
 ## Legacy Office conversion addendum
