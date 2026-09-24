@@ -90,6 +90,11 @@ def region(kind, members, *, source_id, policy, flags=(), figure=None):
     )
 
 
+#: K9.23: a line some of whose source spans, not all, are a table's cell text: kept in its own
+#: region, never dropped, and flagged, since those spans are also stated by the table.
+PARTLY_IN_TABLE = "LINE_PARTLY_IN_TABLE_CELLS"
+
+
 def _inside(box, container):
     return all(
         (
@@ -146,6 +151,7 @@ class RegionIndex:
             raise RegionRefused("DUPLICATE_REGION_MEMBER")
         lookup = {m.member_id: m for m in lines}
         claimed = defaultdict(list)
+        partly = set()
         seeds = []
         for table in tables:
             if not table or any(m.kind != "CELL" for m in table):
@@ -156,13 +162,23 @@ class RegionIndex:
             boxes = {
                 p: box_union(m.bbox for m in table if m.page == p) for p in {m.page for m in table}
             }
+            # K9.23: a line is this table's source line when it lies inside the cell box, or
+            # when every one of its source spans is carried by this table's cells (a line can
+            # lie across the box edge and still be nothing but cell text). A line of which some
+            # spans, not all, are carried stays in its own region, flagged, never dropped.
+            carried = {span for m in table for span in (m.source_spans or ())}
             aliases = []
             for line in lines:
-                if line.page in boxes and _inside(line.bbox, boxes[line.page]):
+                if line.page not in boxes:
+                    continue
+                spans = set(line.source_spans or ())
+                if _inside(line.bbox, boxes[line.page]) or (spans and spans <= carried):
                     aliases.append(
                         replace(line, flags=tuple(sorted(set(line.flags) | {"SOURCE_LINE_ALIAS"})))
                     )
                     claimed[line.member_id].append(len(seeds))
+                elif spans & carried:
+                    partly.add(line.member_id)
             seeds.append(region("TABLE", (*table, *aliases), source_id=source_id, policy=policy))
         for figure in figures:
             ids = set(figure.member_ids) | set(figure.caption_ids)
@@ -192,7 +208,13 @@ class RegionIndex:
             )
         self._ambiguous = {ident for ident, owners in claimed.items() if len(owners) > 1}
         barriers = tuple((p, b) for seed in seeds for p, b in seed.page_boxes)
-        remaining = tuple(m for m in lines if m.member_id not in claimed)
+        remaining = tuple(
+            replace(m, flags=tuple(sorted(set(m.flags) | {PARTLY_IN_TABLE})))
+            if m.member_id in partly
+            else m
+            for m in lines
+            if m.member_id not in claimed
+        )
         seeds.extend(
             region(g.kind, g.members, source_id=source_id, policy=policy, flags=g.flags)
             for g in group_lines(

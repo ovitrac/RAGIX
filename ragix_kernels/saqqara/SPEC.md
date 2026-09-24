@@ -713,6 +713,16 @@ reading configuration, never a document's semantic authority.
   `test_explorer_native_rows_once.py` (X22): boxes equal an independent native
   read; the explorer's own reads equal the table count.
 
+- **K9.23 A table's source lines are claimed by their spans.** A line is a
+  table's source line (`SOURCE_LINE_ALIAS`) when it lies inside the table's cell
+  box or when every one of its source spans is carried by the table's cells: a
+  line can lie across the box edge and be nothing but cell text. A line of which
+  some spans, not all, are carried stays in its own region, flagged
+  `LINE_PARTLY_IN_TABLE_CELLS`, never dropped. A line sharing no span with the
+  cells, inside or outside the box, is unchanged. No span of a cell is stated by
+  another region without that flag. Falsifiers: `test_table_alias_straddling.py`
+  (X23).
+
 
 ## Legacy Office conversion addendum
 
