@@ -40,7 +40,10 @@ are never flattened into one fictitious page.
 
 A table includes all observed cells, their row/column indices, spans, header and
 positional-stub flags. Table source lines are retained as `LINE` members flagged
-`SOURCE_LINE_ALIAS`, so a line-based request keeps its original scored id. Render
+`SOURCE_LINE_ALIAS`, so a line-based request keeps its original scored id. A line
+is a table's source line when it lies inside the cell box or when all its source
+spans are the table's cell text; a line only partly made of cell text keeps its
+own region and is flagged `LINE_PARTLY_IN_TABLE_CELLS` (K9.23). Render
 the table structure from `CELL` members and use the alias geometry for highlighting;
 the alias is not an additional cell. A lattice without observed cells cannot
 become a table. Unreadable cells and lifecycle contamination stay explicit.

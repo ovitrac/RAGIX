@@ -6,6 +6,14 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## Unreleased — regions: a table's source lines are claimed by their spans
+
+- A source line whose every span is a table cell's text is now that table's
+  `SOURCE_LINE_ALIAS` even when its box lies across the table's cell box, so the
+  same source text is no longer stated both by a cell and by a prose region. A
+  line only partly made of cell text keeps its region and is flagged
+  `LINE_PARTLY_IN_TABLE_CELLS`; nothing is dropped (K9.23, X23).
+
 ## Unreleased — explorer: native table rows read once per table
 
 - `digest_pdf` reads PyMuPDF's `Table.rows` once per table instead of once per
