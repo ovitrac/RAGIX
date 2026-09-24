@@ -722,6 +722,16 @@ reading configuration, never a document's semantic authority.
   cells, inside or outside the box, is unchanged. No span of a cell is stated by
   another region without that flag. Falsifiers: `test_table_alias_straddling.py`
   (X23).
+- **K9.24 A native table row may lack cells at its ends.** A ruled table can draw
+  no cell over a blank corner or over the label column of a band row, and PyMuPDF
+  then reports that row without those cells. Such a row is kept when its present
+  cells are contiguous and it begins and ends on edges the full-width rows draw;
+  its missing ends are absent cells, never text, it takes no part in the
+  band-edge intersection, and its cells are mapped to bands by their edges. A
+  partial row ending off that grid, a table with no full-width row and a row with
+  a gap between present cells are refused as before (STRADDLING_OR_OUTSIDE_BANDS);
+  a table whose rows are all full width keeps exactly its bands. A blank row is
+  never made a header. Falsifiers: `test_native_partial_end_rows.py` (X24).
 
 
 ## Legacy Office conversion addendum

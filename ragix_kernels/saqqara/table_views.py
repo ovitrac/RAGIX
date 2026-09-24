@@ -285,7 +285,15 @@ def _covering_rule_positions(rules, top, bottom):
 
 
 def _native_header_bands(header, body):
-    """Coarsen observed partitions while keeping header labels distinct."""
+    """Coarsen observed partitions while keeping header labels distinct.
+
+    K9.24: a row may lack cells at either end where the source draws none (a blank corner,
+    a band with no label cell). Such a row is kept when its present cells are contiguous and
+    it begins and ends on edges the full-width rows draw; its missing ends are absent cells,
+    never text, and it takes no part in the band-edge intersection. A partial row that ends
+    off that grid, a table with no full-width row, and a row with a gap between its present
+    cells are refused as before.
+    """
     partitions = [
         tuple(sorted((round(c.bbox[0], 3), round(c.bbox[2], 3)) for c in row))
         for row in (header, *body)
@@ -295,9 +303,15 @@ def _native_header_bands(header, body):
     for partition in partitions:
         if any(a[1] != b[0] for a, b in zip(partition, partition[1:])):
             raise RegionRefused("STRADDLING_OR_OUTSIDE_BANDS")
-    if len({(p[0][0], p[-1][1]) for p in partitions}) != 1:
+    left = min(p[0][0] for p in partitions)
+    right = max(p[-1][1] for p in partitions)
+    full = [p for p in partitions if (p[0][0], p[-1][1]) == (left, right)]
+    if not full:
         raise RegionRefused("STRADDLING_OR_OUTSIDE_BANDS")
-    edges = sorted(set.intersection(*(set(v for pair in p for v in pair) for p in partitions)))
+    grid = {v for p in full for pair in p for v in pair}
+    if any(p[0][0] not in grid or p[-1][1] not in grid for p in partitions):
+        raise RegionRefused("STRADDLING_OR_OUTSIDE_BANDS")
+    edges = sorted(set.intersection(*(set(v for pair in p for v in pair) for p in full)))
     bands = tuple(zip(edges, edges[1:]))
     grouped = _map(header, bands, 0)
     if any(sum(bool(c.text) for c in group) > 1 for group in grouped):

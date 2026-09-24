@@ -6,6 +6,15 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## Unreleased — tables: native rows lacking end cells are kept
+
+- A native table row that lacks cells at its ends, where the source draws none
+  (a blank corner, a band row with no label cell), no longer refuses the whole
+  table: it is kept when its present cells are contiguous and it begins and ends
+  on edges the full-width rows draw, and it is left out of the band-edge
+  intersection (K9.24, X24). Refusals for off-grid partial rows, tables with no
+  full-width row and gaps between cells are unchanged; all-full-width tables keep
+  their bands.
 ## Unreleased — regions: a table's source lines are claimed by their spans
 
 - A source line whose every span is a table cell's text is now that table's

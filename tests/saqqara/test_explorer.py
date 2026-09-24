@@ -544,7 +544,7 @@ def test_spec_explorer_propositions_are_contiguous_and_declared():
 
     text = (Path(__file__).resolve().parents[2] / "ragix_kernels/saqqara/SPEC.md").read_text()
     assert re.findall(r"\*\*K8\.(\d+)", text) == [str(i) for i in range(1, 5)]
-    assert re.findall(r"\*\*K9\.(\d+)", text) == [str(i) for i in range(1, 24)]
+    assert re.findall(r"\*\*K9\.(\d+)", text) == [str(i) for i in range(1, 25)]
 
 
 def test_nondefault_census_geometry_is_carried_to_reader():
