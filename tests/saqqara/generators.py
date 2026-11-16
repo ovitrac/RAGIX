@@ -2355,9 +2355,10 @@ def pdf_page_positions(path: Path) -> Path:
       - a run begun by `'` ("Premier", after "Zero", with a leading of 14 points on
         the page) and continued by `Tj` ("Second"); it starts where `'` shows its
         string, after the line move, not at the continuation;
-      - a run shown by `'` alone in a new text object on the previous baseline
-        ("Apres", with no leading); the library's own matrices for it are those of
-        the new text object, the page origin on page 1.
+      - a run shown by `"` alone in a new text object on the previous baseline
+        ("Apres", with no leading and zero spacings); the library's own matrices for
+        it are those of the new text object, the page origin on page 1. `'` and `"`
+        are each carried by a string of their own.
 
     Every run must read where its first string starts (`PAGE_POSITIONS`) on BOTH
     pages. A reader reporting the text matrix alone passes most of page 1 and puts
@@ -2374,7 +2375,7 @@ def pdf_page_positions(path: Path) -> Path:
         b"BT /F1 12 Tf 14 TL 1 0 0 1 72 464 Tm (" + _pdf_escape("Zero") + b") Tj "
         b"(" + _pdf_escape("Premier") + b") ' 200 0 Td (" + _pdf_escape("Second") + b") Tj ET\n"
         b"BT /F1 12 Tf 1 0 0 1 72 400 Tm (" + _pdf_escape("Avant") + b") Tj ET\n"
-        b"BT /F1 12 Tf 0 TL 1 0 0 1 300 400 Tm (" + _pdf_escape("Apres") + b") ' ET\n"
+        b"BT /F1 12 Tf 0 TL 1 0 0 1 300 400 Tm 0 0 (" + _pdf_escape("Apres") + b") \" ET\n"
     )
     page_transformed = (
         b"q 0.5 0 0 -0.5 0 1684 cm\n"
@@ -2388,7 +2389,7 @@ def pdf_page_positions(path: Path) -> Path:
         b"BT /F1 24 Tf 28 TL 1 0 0 -1 144 2440 Tm (" + _pdf_escape("Zero") + b") Tj "
         b"(" + _pdf_escape("Premier") + b") ' 400 0 Td (" + _pdf_escape("Second") + b") Tj ET\n"
         b"BT /F1 24 Tf 1 0 0 -1 144 2568 Tm (" + _pdf_escape("Avant") + b") Tj ET\n"
-        b"BT /F1 24 Tf 0 TL 1 0 0 -1 600 2568 Tm (" + _pdf_escape("Apres") + b") ' ET\nQ\n"
+        b"BT /F1 24 Tf 0 TL 1 0 0 -1 600 2568 Tm 0 0 (" + _pdf_escape("Apres") + b") \" ET\nQ\n"
     )
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
