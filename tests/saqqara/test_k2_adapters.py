@@ -800,7 +800,7 @@ def test_k2_26_a_run_reads_at_the_same_point_however_the_page_is_transformed(tmp
         "the two pages hold the same strings and must be read as the same runs",
         sorted(by_page[1]), sorted(by_page[2]))
     starts = [t for t in G.PAGE_POSITIONS if any(r.startswith(t) for r in by_page[1])]
-    assert {"Titre du document", "Valeur", "Gauche", "Droite", "Note"} <= set(starts), sorted(by_page[1])
+    assert {"Titre du document", "Valeur", "Gauche", "Droite", "Note", "Zero", "Premier", "Avant", "Apres"} <= set(starts), sorted(by_page[1])
     for page in (1, 2):
         for run, got in by_page[page].items():
             first = next(t for t in G.PAGE_POSITIONS if run.startswith(t))

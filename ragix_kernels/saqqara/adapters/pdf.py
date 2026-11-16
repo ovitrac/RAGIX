@@ -283,16 +283,22 @@ OPTIONS: dict[str, object] = {"text_reader": "pypdf", "line_join": False}
 
 
 def _shows_a_character(operator: bytes, operands) -> bool:
-    """Whether a `Tj` or `TJ` shows at least one character (K2.26).
+    """Whether a text-showing operator shows at least one character (K2.26).
 
-    `Tj` takes one string; `TJ` an array of strings and kerning numbers. An empty
-    string, an empty array or an array of numbers only moves nothing onto the page,
-    and the library calls no visitor for it.
+    `Tj` and `'` take one string, `"` takes two spacings then a string, and `TJ`
+    an array of strings and kerning numbers. An empty string, an empty array or an
+    array of numbers only moves nothing onto the page, and the library calls no
+    visitor for it.
     """
     if not operands:
         return False
+    if operator == b'"':
+        if len(operands) < 3:
+            return False
+        shown = operands[2]
+        return isinstance(shown, (str, bytes)) and len(shown) > 0
     shown = operands[0]
-    if operator == b"Tj":
+    if operator in (b"Tj", b"'"):
         return isinstance(shown, (str, bytes)) and len(shown) > 0
     try:
         return any(isinstance(item, (str, bytes)) and len(item) > 0 for item in shown)
@@ -645,6 +651,12 @@ class PdfAdapter(Adapter):
         `[-250] TJ`) starts nothing: it produces no run, so the library never calls
         the visitor for it, and a start captured there would survive the next move
         and be handed to the next run.
+
+        A run begun by `'` or `"` is captured after the operator, not before it: the
+        operator moves to the next line and the library flushes the previous run
+        inside it, so only once it returns are the matrices those of the run's
+        start. A `'` that does not move (zero leading) and continues a run keeps the
+        start already held.
         """
         placements: list[tuple[str, float, float, float, str]] = []
 
@@ -677,8 +689,13 @@ class PdfAdapter(Adapter):
             if operator in (b"Tj", b"TJ") and not shown and _shows_a_character(operator, operands):
                 shown.append((list(cm), list(tm)))
 
+        def after(operator, operands, cm, tm):
+            if operator in (b"'", b'"') and not shown and _shows_a_character(operator, operands):
+                shown.append((list(cm), list(tm)))
+
         try:
-            page.extract_text(visitor_text=visitor, visitor_operand_before=before)
+            page.extract_text(visitor_text=visitor, visitor_operand_before=before,
+                              visitor_operand_after=after)
         except Exception:
             placements = []
             if geometry is not None:

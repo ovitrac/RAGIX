@@ -2318,6 +2318,11 @@ PAGE_POSITIONS = {
     "Gauche": (72.0, 600.0),
     "Droite": (300.0, 600.0),
     "Note": (72.0, 550.0),
+    "Zero": (72.0, 464.0),
+    "Premier": (72.0, 450.0),
+    "Second": (272.0, 450.0),
+    "Avant": (72.0, 400.0),
+    "Apres": (300.0, 400.0),
 }
 
 
@@ -2346,7 +2351,13 @@ def pdf_page_positions(path: Path) -> Path:
         the page origin on page 1;
       - a `Tj` and a `TJ` that show no character, then a move, then "Note"; a start
         captured at the empty strings would place "Note" where they stood, at
-        (400, 750).
+        (400, 750);
+      - a run begun by `'` ("Premier", after "Zero", with a leading of 14 points on
+        the page) and continued by `Tj` ("Second"); it starts where `'` shows its
+        string, after the line move, not at the continuation;
+      - a run shown by `'` alone in a new text object on the previous baseline
+        ("Apres", with no leading); the library's own matrices for it are those of
+        the new text object, the page origin on page 1.
 
     Every run must read where its first string starts (`PAGE_POSITIONS`) on BOTH
     pages. A reader reporting the text matrix alone passes most of page 1 and puts
@@ -2360,6 +2371,10 @@ def pdf_page_positions(path: Path) -> Path:
         b"BT /F1 12 Tf 1 0 0 1 300 600 Tm (" + _pdf_escape("Droite") + b") Tj ET\n"
         b"BT /F1 12 Tf 1 0 0 1 400 750 Tm () Tj [-250] TJ "
         b"1 0 0 1 72 550 Tm (" + _pdf_escape("Note") + b") Tj ET\n"
+        b"BT /F1 12 Tf 14 TL 1 0 0 1 72 464 Tm (" + _pdf_escape("Zero") + b") Tj "
+        b"(" + _pdf_escape("Premier") + b") ' 200 0 Td (" + _pdf_escape("Second") + b") Tj ET\n"
+        b"BT /F1 12 Tf 1 0 0 1 72 400 Tm (" + _pdf_escape("Avant") + b") Tj ET\n"
+        b"BT /F1 12 Tf 0 TL 1 0 0 1 300 400 Tm (" + _pdf_escape("Apres") + b") ' ET\n"
     )
     page_transformed = (
         b"q 0.5 0 0 -0.5 0 1684 cm\n"
@@ -2369,7 +2384,11 @@ def pdf_page_positions(path: Path) -> Path:
         b"BT /F1 24 Tf 1 0 0 -1 144 2168 Tm (" + _pdf_escape("Gauche") + b") Tj ET\n"
         b"BT /F1 24 Tf 1 0 0 -1 600 2168 Tm (" + _pdf_escape("Droite") + b") Tj ET\n"
         b"BT /F1 24 Tf 1 0 0 -1 800 1868 Tm () Tj [-250] TJ "
-        b"1 0 0 -1 144 2268 Tm (" + _pdf_escape("Note") + b") Tj ET\nQ\n"
+        b"1 0 0 -1 144 2268 Tm (" + _pdf_escape("Note") + b") Tj ET\n"
+        b"BT /F1 24 Tf 28 TL 1 0 0 -1 144 2440 Tm (" + _pdf_escape("Zero") + b") Tj "
+        b"(" + _pdf_escape("Premier") + b") ' 400 0 Td (" + _pdf_escape("Second") + b") Tj ET\n"
+        b"BT /F1 24 Tf 1 0 0 -1 144 2568 Tm (" + _pdf_escape("Avant") + b") Tj ET\n"
+        b"BT /F1 24 Tf 0 TL 1 0 0 -1 600 2568 Tm (" + _pdf_escape("Apres") + b") ' ET\nQ\n"
     )
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
