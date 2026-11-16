@@ -6,6 +6,23 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## Unreleased — pdf: a run is placed on the page, not in text space
+
+- The default PDF reader now reports where a run of type starts **on the page**: the
+  text matrix in force when the run's first string was shown, composed with the page
+  transformation in force then (K2.26, fixture `pdf_page_positions`). It used to report
+  the text matrix's own point, which equals the page point only where the page
+  transformation is the identity. Browser-printed PDFs scale and flip the page: on two
+  such public PDFs of this repository, 650 of 874 and 13 067 of 14 701 runs fell outside
+  the page; now 0 and 76. Positions now agree within 0.5 pt with the opt-in PyMuPDF
+  reader on 865 of 874 and 12 799 of 14 338 runs. A Ghostscript-made PDF reads as before
+  (0 outside, 998 of 998 within 0.5 pt).
+- The PDF adapter moves to 0.9.0, so trees read before and after carry different
+  provenance. Sizes and widths are unchanged.
+- Known hole H2: text drawn inside a form XObject (here, the running header and footer)
+  is still placed with the matrices outside the form; recorded in SPEC.md with its route
+  to closing it.
+
 ## Unreleased — regions: a table nested in another table's cell is refused
 
 - A table lying inside another table's cell box whose text is all carried by one

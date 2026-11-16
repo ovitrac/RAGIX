@@ -184,7 +184,7 @@ def test_k2p_every_record_carries_the_vocabulary_its_reader_declares(joined):
     assert reader.fact_sets["page"] == PAGE_FACTS + JOIN_PAGE_FACTS
     registered = registered_adapters()[".pdf"]
     assert registered.fact_sets["text"] == TEXT_FACTS, "the registered vocabulary is untouched"
-    assert registered.version == "0.8.0"
+    assert registered.version == "0.9.0"
 
 
 def test_k2p_the_reader_used_is_in_the_provenance(pieces, tmp_path):
@@ -199,8 +199,8 @@ def test_k2p_the_reader_used_is_in_the_provenance(pieces, tmp_path):
 
     (tmp_path / "a").mkdir()
     (tmp_path / "b").mkdir()
-    assert version(None, tmp_path / "a") == "0.8.0"
-    assert version({"line_join": True}, tmp_path / "b") == "0.8.0+line-join"
+    assert version(None, tmp_path / "a") == "0.9.0"
+    assert version({"line_join": True}, tmp_path / "b") == "0.9.0+line-join"
 
 
 # ---------------------------------------------------- the opt-in reader, in a fresh process
@@ -244,7 +244,7 @@ def _probe(path: Path, workspace: Path, options: dict) -> dict:
 def test_k2p_the_opt_in_reader_reads_and_says_so(pieces, tmp_path):
     result = _probe(pieces, tmp_path / "w", {"text_reader": "pymupdf"})
     assert result["success"], result["errors"]
-    assert result["version"].startswith("0.8.0+pymupdf-")
+    assert result["version"].startswith("0.9.0+pymupdf-")
     assert "pymupdf" in result["loaded"], "the runtime check sees the opt-in when it is chosen"
     words = " ".join(text for text, _ in result["texts"])
     for word in ("Livraison", "Article", "douze", "Remise", "finale"):
@@ -255,7 +255,7 @@ def test_k2p_the_opt_in_reader_reads_and_says_so(pieces, tmp_path):
 def test_k2p_the_opt_in_reader_takes_the_join(pieces, tmp_path):
     result = _probe(pieces, tmp_path / "w", {"text_reader": "pymupdf", "line_join": True})
     assert result["success"], result["errors"]
-    assert result["version"].startswith("0.8.0+pymupdf-")
+    assert result["version"].startswith("0.9.0+pymupdf-")
     assert result["version"].endswith(".line-join")
     texts = [text for text, _ in result["texts"]]
     assert "Montant 150" in texts and "50" in texts, "two columns never become one number"

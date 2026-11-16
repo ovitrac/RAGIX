@@ -16,7 +16,7 @@ that embedder, from indexing and search.
 
 ## Status
 
-Gated. `SPEC.md` holds 153 falsifiable propositions and every one is carried by a test.
+Gated. `SPEC.md` holds 154 falsifiable propositions and every one is carried by a test.
 
 | layer | what it does | gate |
 |---|---|---|
@@ -89,7 +89,7 @@ These are not style preferences. Each is carried by a proposition in `SPEC.md` a
 
 ```
 saqqara/
-├── SPEC.md        the specification: 153 propositions, gates K1-K4, K6 and K7
+├── SPEC.md        the specification: 154 propositions, gates K1-K4, K6 and K7
 ├── README.md      this file
 ├── __init__.py    the family's docstring
 ├── kernel.py      re-exports SaqqaraKernel for older callers

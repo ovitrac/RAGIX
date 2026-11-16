@@ -92,7 +92,7 @@ Two separations carry the design.
 - **`assets.py`** — the side-car store for picture bytes, which never enter a tree. `AssetStore`
   keeps bytes under their sha256 with a `manifest.json` of every reference to them; `read` raises
   `MissingAsset` when bytes are absent or no longer hash to their name. Carries K6.2, K6.3 and K6.6.
-- **`SPEC.md`** — the specification: 153 falsifiable propositions, each with its fixture and its
+- **`SPEC.md`** — the specification: 154 falsifiable propositions, each with its fixture and its
   falsifier, the rules for reading a measurement, and the known holes (ids prefixed `H`).
 - **`README.md`** — the package's short introduction, its design rules, its layout and how to run
   its tests.
@@ -110,7 +110,7 @@ Two separations carry the design.
   `read_paths` turn those into `Refusal` records in a `ReadReport` and drop byte-identical duplicates.
   The shared vocabularies live here: `FIGURE_FACTS`, `FIGURE_SOURCES`, `PART_SKIPS`,
   `GRID_TABLE_FACTS`, `GRID_CELL_FACTS`. Carries K2.
-- **`adapters/pdf.py`** — the laid-out-document reader, version 0.8.0, extension `.pdf`. It emits a
+- **`adapters/pdf.py`** — the laid-out-document reader, version 0.9.0, extension `.pdf`. It emits a
   `page` per page (facts `has_text`, `image_count`, `needs_ocr`, `width`, `height`), a `text`
   observation per text-showing operation (facts `x`, `y`, `font_size`, `font`, `width`), the declared
   outline as `outline_entry` records (fact `level`), `drawing` records (facts `x`, `y`, `w`, `h`,
