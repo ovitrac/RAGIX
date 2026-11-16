@@ -2308,17 +2308,21 @@ def pdf_text_widths(path: Path) -> Path:
 
 #: Where the strings of `pdf_page_positions` start, on both of its pages, in page points
 #: with y upward. A run a library assembles from several strings starts where its first
-#: string does. Chosen so each route reaches them exactly: 0.5, 144, 1684 and 1968 are
-#: exact in binary, so a difference in the reading is a difference in the method.
+#: string does. Chosen so each route reaches them exactly: on page 2 a page point (x, y)
+#: is the text-space point (2x, 3368 - 2y), and every such value is exact in binary, so
+#: a difference in the reading is a difference in the method.
 PAGE_POSITIONS = {
     "Titre du document": (72.0, 700.0),
     "Valeur": (72.0, 650.0),
     "mesuree": (132.0, 650.0),
+    "Gauche": (72.0, 600.0),
+    "Droite": (300.0, 600.0),
+    "Note": (72.0, 550.0),
 }
 
 
 def pdf_page_positions(path: Path) -> Path:
-    """One document, two pages, the same three runs at the same places on both.
+    """One document, two pages, the same runs at the same places on both.
 
     A reader is told where a run starts by the text matrix and by the page
     transformation in force, and only their product is the point on the page. The
@@ -2331,25 +2335,41 @@ def pdf_page_positions(path: Path) -> Path:
               is expressed in that space, the size operand is doubled, and the
               second line is reached by a relative `Td` from the first
 
-    Each page also sets one line as two strings on the same baseline, the second
-    reached by its own `Td`. A library may deliver them as one run; that run starts
-    where its first string was shown, which catches a reader that places it where
-    the library last flushed instead.
+    Each page also carries three shapes that catch a reader placing a run where
+    the library last flushed rather than where its first string was shown:
+
+      - one line set as two strings on the same baseline, the second reached by its
+        own `Td`; a library may deliver them as one run, which starts where its
+        first string does;
+      - two text objects on one baseline ("Gauche", then "Droite" in a new `BT`);
+        the library's own matrices for the second are those of the new text object,
+        the page origin on page 1;
+      - a `Tj` and a `TJ` that show no character, then a move, then "Note"; a start
+        captured at the empty strings would place "Note" where they stood, at
+        (400, 750).
 
     Every run must read where its first string starts (`PAGE_POSITIONS`) on BOTH
-    pages. A reader reporting the text matrix alone passes page 1 and puts every
-    run of page 2 at y 1968 to 2068, above the top of an 842-point page.
+    pages. A reader reporting the text matrix alone passes most of page 1 and puts
+    every run of page 2 above the top of an 842-point page.
     """
     page_identity = (
         b"BT /F1 12 Tf 1 0 0 1 72 700 Tm (" + _pdf_escape("Titre du document") + b") Tj "
         b"0 -50 Td (" + _pdf_escape("Valeur") + b") Tj "
         b"60 0 Td (" + _pdf_escape("mesuree") + b") Tj ET\n"
+        b"BT /F1 12 Tf 1 0 0 1 72 600 Tm (" + _pdf_escape("Gauche") + b") Tj ET\n"
+        b"BT /F1 12 Tf 1 0 0 1 300 600 Tm (" + _pdf_escape("Droite") + b") Tj ET\n"
+        b"BT /F1 12 Tf 1 0 0 1 400 750 Tm () Tj [-250] TJ "
+        b"1 0 0 1 72 550 Tm (" + _pdf_escape("Note") + b") Tj ET\n"
     )
     page_transformed = (
         b"q 0.5 0 0 -0.5 0 1684 cm\n"
         b"BT /F1 24 Tf 1 0 0 -1 144 1968 Tm (" + _pdf_escape("Titre du document") + b") Tj "
         b"0 -100 Td (" + _pdf_escape("Valeur") + b") Tj "
-        b"120 0 Td (" + _pdf_escape("mesuree") + b") Tj ET\nQ\n"
+        b"120 0 Td (" + _pdf_escape("mesuree") + b") Tj ET\n"
+        b"BT /F1 24 Tf 1 0 0 -1 144 2168 Tm (" + _pdf_escape("Gauche") + b") Tj ET\n"
+        b"BT /F1 24 Tf 1 0 0 -1 600 2168 Tm (" + _pdf_escape("Droite") + b") Tj ET\n"
+        b"BT /F1 24 Tf 1 0 0 -1 800 1868 Tm () Tj [-250] TJ "
+        b"1 0 0 -1 144 2268 Tm (" + _pdf_escape("Note") + b") Tj ET\nQ\n"
     )
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",

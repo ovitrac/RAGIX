@@ -11,17 +11,23 @@ All notable changes to the **RAGIX** project will be documented here.
 - The default PDF reader now reports where a run of type starts **on the page**: the
   text matrix in force when the run's first string was shown, composed with the page
   transformation in force then (K2.26, fixture `pdf_page_positions`). It used to report
-  the text matrix's own point, which equals the page point only where the page
-  transformation is the identity. Browser-printed PDFs scale and flip the page: on two
-  such public PDFs of this repository, 650 of 874 and 13 067 of 14 701 runs fell outside
-  the page; now 0 and 76. Positions now agree within 0.5 pt with the opt-in PyMuPDF
-  reader on 865 of 874 and 12 799 of 14 338 runs. A Ghostscript-made PDF reads as before
-  (0 outside, 998 of 998 within 0.5 pt).
+  the point the library last flushed the text matrix to, without the page
+  transformation. A string that shows no character starts no run.
+- Browser-printed PDFs scale and flip the page: on two such public PDFs of this
+  repository, 650 of 874 and 13 068 of 14 701 runs fell outside the page; now 0 and 76.
+  Positions now agree within 0.5 pt with the opt-in PyMuPDF reader on 865 of 874 and
+  12 799 of 14 338 runs.
+- Pages without a transformation move too: a run that opens a new text object on the
+  previous run's baseline (a row of cells, for instance) was placed at the page origin and
+  now reads where it starts. Rules that group lines or measure distances (headings by
+  size, caption binding) can change on such documents. On the Ghostscript-made paper of
+  this repository, nothing moved (0 outside, 998 of 998 within 0.5 pt).
 - The PDF adapter moves to 0.9.0, so trees read before and after carry different
   provenance. Sizes and widths are unchanged.
-- Known hole H2: text drawn inside a form XObject (here, the running header and footer)
-  is still placed with the matrices outside the form; recorded in SPEC.md with its route
-  to closing it.
+- Known holes, recorded in SPEC.md with their routes to closing them: H2, text drawn
+  inside a form XObject (here, the running header and footer) is read twice and placed
+  without the form's matrices; H3, a run begun by `'` or `"` is placed at its next
+  string.
 
 ## Unreleased — regions: a table nested in another table's cell is refused
 

@@ -282,6 +282,24 @@ TEXT_READERS = ("pypdf", "pymupdf")
 OPTIONS: dict[str, object] = {"text_reader": "pypdf", "line_join": False}
 
 
+def _shows_a_character(operator: bytes, operands) -> bool:
+    """Whether a `Tj` or `TJ` shows at least one character (K2.26).
+
+    `Tj` takes one string; `TJ` an array of strings and kerning numbers. An empty
+    string, an empty array or an array of numbers only moves nothing onto the page,
+    and the library calls no visitor for it.
+    """
+    if not operands:
+        return False
+    shown = operands[0]
+    if operator == b"Tj":
+        return isinstance(shown, (str, bytes)) and len(shown) > 0
+    try:
+        return any(isinstance(item, (str, bytes)) and len(item) > 0 for item in shown)
+    except TypeError:
+        return False
+
+
 def _origin(raw: str, tm, cm, shown=None):
     """Where a run of type starts on the page, for the line join only.
 
@@ -622,6 +640,11 @@ class PdfAdapter(Adapter):
         flush, which for a run assembled from several strings is not where it
         starts; they are used only for a run whose first string was not shown by
         `Tj` or `TJ`.
+
+        A `Tj` or `TJ` that shows no character (`() Tj`, `[] TJ`, a kerning-only
+        `[-250] TJ`) starts nothing: it produces no run, so the library never calls
+        the visitor for it, and a start captured there would survive the next move
+        and be handed to the next run.
         """
         placements: list[tuple[str, float, float, float, str]] = []
 
@@ -651,7 +674,7 @@ class PdfAdapter(Adapter):
         shown: list[tuple[list, list]] = []
 
         def before(operator, operands, cm, tm):
-            if operator in (b"Tj", b"TJ") and not shown:
+            if operator in (b"Tj", b"TJ") and not shown and _shows_a_character(operator, operands):
                 shown.append((list(cm), list(tm)))
 
         try:
