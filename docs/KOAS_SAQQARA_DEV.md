@@ -1137,17 +1137,16 @@ gates `tests/harvest/test_region_boundaries.py` and `tests/harvest/test_renderab
 ### 10.3 The baseline at `3cb2ad6`
 
 Measured on 2026-11-17 in `ragix-env` (an editable install of the repository): Python 3.12.12,
-pypdf 6.13.3, pypdfium2 5.13.0, PyMuPDF 1.27.2.2, LibreOffice 26.8 on the path, so the optional
+pypdf 6.17.0, pypdfium2 5.13.0, PyMuPDF 1.27.2.2, LibreOffice 26.8 on the path, so the optional
 readers' tests ran. `python -m pytest tests/saqqara -p no:cacheprovider -rsx`: **1860 collected,
-1849 passed, 1 failed, 9 skipped, 1 xfailed**.
+1850 passed, 9 skipped, 1 xfailed**; `tests/tender`: 148 passed.
 
-The failure is `test_k2_26_a_run_reads_at_the_same_point_however_the_page_is_transformed`: under
-pypdf 6.13.3 the run that opens a new text object on the previous run's baseline ("Premier Second"
-in the fixture) is placed 154 pt below its start, on the identity page and on the transformed one,
-and the scaled page reads "Valeurmesuree" without its space. Every other run is placed exactly. The
-same test passes under pypdf 6.17.0, the version continuous integration installs. The position fix
-of K2.26 therefore depends on the order in which pypdf calls the reader, while the package declares
-`pypdf>=4.0.0` (§11).
+Why the `saqqara` extra requires `pypdf>=6.17.0`: the same suite under pypdf 6.13.3 failed one test,
+`test_k2_26_a_run_reads_at_the_same_point_however_the_page_is_transformed`. There, the run that opens
+a new text object on the previous run's baseline ("Premier Second" in the fixture) was placed 154 pt
+below its start, on the identity page and on the transformed one, and the scaled page read
+"Valeurmesuree" without its space; every other run was placed exactly. The position fix of K2.26
+relies on the order in which pypdf calls the reader. Versions 6.14 to 6.16 were not measured.
 
 | skipped | where | reason as reported |
 |---|---|---|
@@ -1249,9 +1248,10 @@ Parametrisation makes the collected count larger than the sum of functions.
     `list` block read from a converted `.xls` drops its `ConversionLocator`, while the nodes the
     reader produced keep it. SPEC LO.3 says every derived node keeps the bridge; its test does not
     reach blocks.
-17. **K2.26 depends on the pypdf version.** Under pypdf 6.13.3 one construct, a run that opens a new
-    text object on the previous run's baseline, is misplaced (§10.3); under 6.17.0 it is exact. The
-    package declares `pypdf>=4.0.0`.
+17. **K2.26 relies on pypdf's call order.** Under pypdf 6.13.3 one construct, a run that opens a new
+    text object on the previous run's baseline, was misplaced (§10.3); under 6.17.0 it is exact, so
+    the `saqqara` extra requires `pypdf>=6.17.0`. Continuous integration installs the newest pypdf
+    and runs the K2.26 test, so a release that changes the call order shows as a failing gate.
 18. **Text inside a form XObject is read twice (H2).** Once run by run in the form's own space and
     once whole under the outer matrices, with sizes and widths missing the form's scale: the
     running header and footer of a browser-printed PDF are duplicated and misplaced.
