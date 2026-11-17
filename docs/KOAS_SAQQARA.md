@@ -2,7 +2,8 @@
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 
-**Version:** 2.0 (2026-09-10) — describes RAGIX 0.74.0 at commit `75b0fe1`
+**Version:** 2.1 (2026-11-17) — describes RAGIX 0.74.0, written at commit `75b0fe1`; the reader versions
+(§3) and the licence note (§14) are checked against commit `b7eb0a7`
 
 **Audience:** users. Modules, schema, records, refusal code paths and extension points are in the
 developer reference, [KOAS_SAQQARA_DEV.md](KOAS_SAQQARA_DEV.md).
@@ -145,8 +146,8 @@ reading, so a file it excludes appears nowhere in the report.
 | extension | reader | reader version |
 |---|---|---|
 | `.pdf` | `pdf` | 0.9.0 |
-| `.docx` | `docx` | 0.7.0 |
-| `.xlsx`, `.xlsm` | `xlsx` | 0.6.0 |
+| `.docx` | `docx` | 0.8.0 |
+| `.xlsx`, `.xlsm` | `xlsx` | 0.7.0 |
 | `.pptx` | `pptx` | 0.5.0 |
 | `.md`, `.markdown` | `md` | 0.2.0 |
 
@@ -926,8 +927,10 @@ eight.
 The package default is permissive: `pip install -e ".[saqqara]"` pulls the `pypdfium2` renderer,
 under Apache-2.0, and nothing under a copyleft licence.
 
-`pymupdf` is AGPL-3.0. It is reachable only through the opt-in `saqqara-mupdf` extra, which the
-`all` extra does **not** include. The quarantine is enforced, not only documented, by
+`pymupdf` is AGPL-3.0. Saqqara asks for it only through two opt-in extras: `saqqara-mupdf`, and
+`explorer`, which pins one version for the Explorer. The `all` extra does install it, through
+`translate`: a deployment that must stay free of AGPL code installs `ragix[saqqara]`, not
+`ragix[all]`. Whatever is installed, the quarantine is enforced, not only documented, by
 `ragix_kernels/saqqara/render/guard.py`:
 
 - `scan_sources()` refuses an import of `pymupdf`, `fitz` or `pymupdf4llm` anywhere in the package

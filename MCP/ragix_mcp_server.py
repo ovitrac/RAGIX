@@ -120,6 +120,8 @@ KOAS Base Tools:
 Saqqara (document substrate):
 32. koas_saqqara_run(source, workspace, formats, promote_outline)
 33. koas_saqqara_status(workspace)
+34. koas_saqqara_index(workspace, config)
+35. koas_saqqara_search(workspace, query, k, config)
 
 Installation
 ------------
