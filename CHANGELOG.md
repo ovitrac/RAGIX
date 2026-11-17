@@ -6,6 +6,20 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## Unreleased — docs: the Saqqara tech sheet, and statements brought in line with the code
+
+- The Saqqara tech sheet, `docs/marketing/saqqara_techsheet/`: a 21-page dossier and its PDF, a
+  12-slide deck and its PDF (text kept as text), and the measurement record behind every figure,
+  published as `evidence/` with its `SHA256SUMS`. Figures come from public files of this repository
+  only; the comparison with Docling 2.150.1 is documented and measured on the same files.
+- Statements that no longer matched the code: saqqara has 6 kernels (`docs/INDEX.md`, `README.md`);
+  the MCP server header lists its four tools; `saqqaractl` has four commands; three modules define
+  its `Kernel` subclasses; the docx and xlsx readers are 0.8.0 and 0.7.0 (`docs/KOAS_SAQQARA.md`).
+- Licences: `README.md` and `docs/KOAS_SAQQARA.md` now name the three extras that install PyMuPDF
+  (AGPL-3.0 or commercial): `saqqara-mupdf` and `explorer`, both opt-in, and `translate`, which
+  `all` includes. The default install is unchanged.
+- `docs/INDEX.md` gains a Tech Sheets section linking the RAGIX and Saqqara sheets.
+
 ## Unreleased — pdf: a run is placed on the page, not in text space
 
 - The default PDF reader now reports where a run of type starts **on the page**: the
