@@ -419,7 +419,7 @@ Production-ready RAG for document processing (tenders, CVs, reports).
 | [docs/KOAS_PRESENTER.md](docs/KOAS_PRESENTER.md) | Slide deck generation from documents (8 kernels) |
 | [docs/KOAS_REVIEW.md](docs/KOAS_REVIEW.md) | Traceable Markdown review (13 kernels) |
 | [docs/KOAS_TRANSLATE.md](docs/KOAS_TRANSLATE.md) | Local-first scientific translation (6 kernels, EN→FR) |
-| [docs/KOAS_SAQQARA.md](docs/KOAS_SAQQARA.md) | Document substrate: typed trees with provenance, one-file store, two retrieval lanes (2 kernels) |
+| [docs/KOAS_SAQQARA.md](docs/KOAS_SAQQARA.md) | Document substrate: typed trees with provenance, one-file store, two retrieval lanes (6 kernels: reading, indexing and the four Explorer kernels) |
 | [docs/KOAS_SAQQARA_DEV.md](docs/KOAS_SAQQARA_DEV.md) | saqqara developer reference: modules, SQLite schema, records, refusal paths, gates |
 | [docs/KOAS_ACTIVITY.md](docs/KOAS_ACTIVITY.md) | Centralized activity logging and governance |
 | [docs/KOAS_MEMORY_MCP.md](docs/KOAS_MEMORY_MCP.md) | Episodic memory MCP tools (17 tools) |
@@ -792,21 +792,23 @@ MIT License — See [LICENSE](LICENSE) for details.
 
 ### Optional extras and their licences
 
-Every dependency installed by default, and every one in the `all` extra bar the exception noted
-below, carries a licence compatible with distributing this package under MIT.
+Every dependency installed by default carries a licence compatible with distributing this package
+under MIT. Three extras install `pymupdf`, which does not: `saqqara-mupdf` and `explorer`, both
+opt-in and described below, and `translate`, which the `all` extra includes (see the note at the end
+of this section).
 
-**`saqqara-mupdf` is the exception, and it is opt-in.** It installs `pymupdf`, which is
-**AGPL-3.0** (or a paid commercial licence from its vendor). Installing it subjects the deploying
-system to AGPL obligations that are **incompatible with distributing this package under MIT**.
+**`saqqara-mupdf` and `explorer` are opt-in.** Both install `pymupdf`, which is **AGPL-3.0** (or a
+paid commercial licence from its vendor); `explorer` pins one version for the Explorer's
+reproducible geometry. Installing either subjects the deploying system to AGPL obligations that are
+**incompatible with distributing this package under MIT**.
 
-- it is never installed by default, never pulled in by the `all` extra, and never required by any
-  test;
+- neither is installed by default or pulled in by the `all` extra, and no test requires them;
 - the document kernel's default renderer is `pypdfium2` (Apache-2.0) and its default text reader
   `pypdf` (BSD-3-Clause), which impose nothing;
 - the kernel refuses to import `pymupdf` from anywhere but its two named adapters — the opt-in
   renderer and the opt-in text reader — and a gate enforces that.
 
-Install it only if you already hold a commercial licence from the vendor, or if you are not
+Install either only if you already hold a commercial licence from the vendor, or if you are not
 distributing the result and accept the AGPL terms. That choice is yours to make explicitly.
 
 > Note: the pre-existing `translate` extra also installs `pymupdf` (via `pymupdf4llm`), and

@@ -208,6 +208,17 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
 
 ---
 
+### Tech Sheets
+
+Overviews for decision-makers, each with its sources, a self-contained build and a PDF:
+
+- **[RAGIX tech sheet](marketing/ragix_techsheet/Adservio-RAGIXTechSheet.pdf)** — the platform in
+  one dossier; [slides](marketing/ragix_techsheet/ragix-tech-sheet/RAGIX-Tech-Sheet-Slides.pdf)
+- **[Saqqara tech sheet](marketing/saqqara_techsheet/Adservio-SaqqaraTechSheet.pdf)** — the document
+  substrate, its place in RAGIX, a measured comparison with Docling, and the evidence behind every
+  figure ([marketing/saqqara_techsheet/evidence/](marketing/saqqara_techsheet/evidence/));
+  [slides](marketing/saqqara_techsheet/saqqara-tech-sheet/Saqqara-Tech-Sheet-Slides.pdf)
+
 ## Document Relationships
 
 ### Conceptual Flow
@@ -378,6 +389,7 @@ Documentation follows these principles:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.74.0 | 2026-11-17 | Added the Tech Sheets section (RAGIX, Saqqara); saqqara counted at 6 kernels |
 | 0.74.0 | 2026-09-10 | Added KOAS_SAQQARA (user) and KOAS_SAQQARA_DEV (developer) for the saqqara document substrate |
 | 0.74.0 | 2026-06-24 | Added security/pentest nav (SECURITY_KERNELS_GUIDE, PENTEST_CONTAINER_GUIDE); kernel counts refreshed to 88 (registry-authoritative) |
 | 0.73.0 | 2026-06-20 | Added RAGIX_SEALED.md (confidential-document subsystem, 9 sealed kernels) |
