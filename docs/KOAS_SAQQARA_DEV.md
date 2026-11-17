@@ -2,7 +2,9 @@
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 
-**Version:** 1.0 (2026-09-10) — describes RAGIX 0.74.0 at commit `75b0fe1`
+**Version:** 2.0 (2026-11-17) — describes RAGIX 0.74.0 at commit `3cb2ad6`. Version 1.0 described
+`75b0fe1`; since then the package gained legacy Office input, a PDF text-reader port and the document
+Explorer (four kernels), which this version documents.
 
 **Audience:** developers. Installing, running and querying are in the user page,
 [KOAS_SAQQARA.md](KOAS_SAQQARA.md); this page does not repeat them. Paths are relative to the
@@ -31,7 +33,7 @@ is dropped.
 
 ```mermaid
 flowchart LR
-    F[files] -->|adapters/: read| O[observations<br/>Mastaba]
+    F[files] -->|adapters/: read;<br/>.doc, .xls through office_conversion.py| O[observations<br/>Mastaba]
     O -->|builder.py: build_tree| T[tree<br/>Node, Provenance]
     T -->|analyzers/: PIPELINE| TA[tree + traces]
     TA -->|kernels/saqqara_run.py| S1[(stage1/saqqara.json)]
@@ -43,18 +45,33 @@ flowchart LR
     DB -->|store/retrieve.py| H[hits with ranks<br/>and provenance]
     CLI[cli/saqqaractl.py] --> TA
     CLI --> DB
-    MCP[mcp/tools.py] --> CLI
+    MCP[mcp/tools.py] --> TA
+    MCP --> DB
+    MCP -->|search only| CLI
+    PDF[PDF files] -->|explorer.py: digest_pdf,<br/>opt-in PyMuPDF| D[DocumentDigest]
+    D -->|census.py, profile.py,<br/>profile_readers.py| RD[census, profile,<br/>reading]
+    RD -->|harvest/report.py| REP[reading report]
+    XK[kernels/explorer.py] --> RD
+    XCLI[cli/explorer.py] --> D
 ```
 
 Two separations carry the design.
 
-- **Reader and analyzer.** An adapter emits what the file says, with `origin` read and confidence
-  1.0. An analyzer decides what it means, and does so by **adding** nodes or facts, never by
-  rewriting an observation. An inferred node carries `origin` inferred, a confidence below 1.0 and
-  its producer's name.
-- **Tree and store.** Stage 1 computes and writes only its envelope. Stage 2 never reads a source
-  file again: it reads the trees, which are the only things carrying provenance, and writes the
-  store.
+- **Reader and analyzer.** An adapter emits what the file says as `Mastaba` observations; the
+  builder makes each a node with `origin` read and confidence 1.0. An analyzer decides what it means,
+  and does so by **adding** nodes or facts, never by rewriting an observation. An inferred node
+  carries `origin` inferred and a confidence below 1.0; most name their producer as the provenance
+  kernel, but a `tables` block keeps the reader's name there and its rule in `facts.signals`.
+- **Tree and store.** Stage 1 computes and writes only its envelope, plus, when the source holds
+  `.doc` or `.xls`, each converted derivative under `assets/office-conversions/`, addressed by its
+  hash. Stage 2 never reads a source file again: it reads the trees, which are the only things
+  carrying provenance, and writes the store.
+
+Beside this route, the **Explorer** builds no tree. It digests a PDF through the opt-in PyMuPDF
+reader, takes a census of the notation it observes, derives a document profile, reads fields,
+quantities and tables by that profile, and reports through `ragix_kernels.harvest`; it runs as four
+kernels (§3.4) or from `cli/explorer.py`. The module documents `EXPLORER.md`, `GRID_VIEW.md` and
+`CONTEXT_GROUPS.md` describe it in detail; §2.8 lists its files.
 
 ---
 
@@ -68,7 +85,8 @@ Two separations carry the design.
   `ragix_kernels.saqqara.kernel`. It defines nothing, so the registry walk still finds one
   definition site.
 - **`model.py`** — the tree. `Locator` and one subclass per format (`DocumentLocator`, `PdfLocator`,
-  `XlsxLocator`, `DocxLocator`, `PptxLocator`, `MdLocator`), registered by `register_locator` and
+  `XlsxLocator`, `DocxLocator`, `PptxLocator`, `MdLocator`), plus `ConversionLocator`, the provenance
+  bridge from a legacy `.doc`/`.xls` to its OOXML derivative, all registered by `register_locator` and
   rebuilt by `locator_from_dict`; `Provenance`, required at construction; `KindRegistry` and the
   process-wide `kind_registry` holding `STANDARD_KINDS`; `Node`; `Tree`, serialised through
   `CANONICAL_JSON` (sorted keys, fixed separators, no ASCII escaping). `_serialisable` writes facts
@@ -78,7 +96,10 @@ Two separations carry the design.
   to its container, the node kind of every other observation, and what is attached rather than made
   into a node. It registers the kinds `cell`, `marker`, `note`, `shape`, `page`, `slide`, `sheet`
   and `vector_region`. Every observation ends as a node, an attachment or a counted drop, and the
-  three totals reconcile (`BuildResult.reconciles`). Carries K3.j.
+  three totals reconcile (`BuildResult.reconciles`). `BUILDER_VERSION` = 0.2.0. A converted
+  `.doc`/`.xls` gets its `ConversionLocator` first in every node's chain, the original's hash as
+  `source_sha256` and `meta.conversion`; observations carrying different bridges are refused. Carries
+  K3.j.
 - **`services.py`** — the three questions every consumer asks of a tree. `doc_title` walks
   `TITLE_RUNGS` (`metadata`, `heading`, `first-text`) and returns the node it answered from.
   `page_nodes` groups nodes by the format's page policy: exact page for pdf, one-based slide for
@@ -89,25 +110,38 @@ Two separations carry the design.
   give a document's shape: node counts by kind, headings by level, an outline capped at
   `OUTLINE_CAP` = 50 with its total, and `flat_mass_ratio`, the share of text under no heading or
   section (`STRUCTURING_KINDS`). Carries K1.5–K1.8.
-- **`assets.py`** — the side-car store for picture bytes, which never enter a tree. `AssetStore`
+- **`assets.py`** — the side-car store for bytes that never enter a tree: pictures, and the
+  retained derivatives of converted `.doc`/`.xls` files. `AssetStore`
   keeps bytes under their sha256 with a `manifest.json` of every reference to them; `read` raises
   `MissingAsset` when bytes are absent or no longer hash to their name. Carries K6.2, K6.3 and K6.6.
-- **`SPEC.md`** — the specification: 154 falsifiable propositions, each with its fixture and its
-  falsifier, the rules for reading a measurement, and the known holes (ids prefixed `H`).
+- **`SPEC.md`** — the specification: 154 propositions in the tables of gates K1–K4, K6 and K7, each
+  with its fixture or named test and its falsifier; 29 more written as items for the field views
+  (K8, 4) and the Explorer (K9, 25); the legacy-Office clauses LO.1–LO.5; the rules for reading a
+  measurement; and the known holes (ids prefixed `H`: H1, H2).
 - **`README.md`** — the package's short introduction, its design rules, its layout and how to run
   its tests.
+- **`office_conversion.py`** — local, isolated conversion of legacy `.doc` and `.xls` into OOXML by
+  LibreOffice, read afterwards by the native docx or xlsx reader. `read_legacy`, `converted_office`,
+  `ConversionOptions` (fixed limits: timeout 120 s, input and output 128 MiB, expanded 512 MiB,
+  20 000 zip entries) and `ConvertedOffice`; the derivative is kept by hash in an asset store.
+  Specified by LO.1–LO.5.
+- **`LEGACY_OFFICE.md`** — the module documentation of legacy Office input, including the
+  `converter-unavailable` refusal.
 
 ### 2.2 `adapters/` — one reader per format
 
 - **`adapters/__init__.py`** — imports each reader so that it registers its extensions, and
   re-exports the contract.
 - **`adapters/contract.py`** — what a reader is. `Mastaba` is one observation: a kind in the
-  reader's vocabulary, a locator, optional text and facts. `Adapter` declares `format`, `version`,
-  `extensions`, `fact_sets` (the facts it emits **per record kind**, or an `OpenVocabulary` where the
-  names come from the document) and `skip_reasons`, and counts what it declines through `_skip`.
-  `register_adapter`, `registered_adapters` and `adapter_for` map extensions to readers. `read_path`
-  raises `UnsupportedFormat` or `UnreadableFile` rather than returning nothing; `read_corpus` and
-  `read_paths` turn those into `Refusal` records in a `ReadReport` and drop byte-identical duplicates.
+  reader's vocabulary, a locator, optional text and facts, and, for a converted legacy file, its
+  `conversion` bridge. `Adapter` declares `format`, `version`, `extensions`, `legacy_extensions` (the
+  extensions read through a LibreOffice conversion), `fact_sets` (the facts it emits **per record
+  kind**, or an `OpenVocabulary` where the names come from the document) and `skip_reasons`, and
+  counts what it declines through `_skip`. `register_adapter`, `registered_adapters` and `adapter_for`
+  map extensions to readers. `read_path` raises `UnsupportedFormat`, `UnreadableFile` or
+  `ConversionUnavailable` rather than returning nothing, and hands a legacy file a `conversion_store`;
+  `read_corpus` and `read_paths` turn those into `Refusal` records (`unsupported-format`,
+  `unreadable-file`, `converter-unavailable`) in a `ReadReport` and drop byte-identical duplicates.
   The shared vocabularies live here: `FIGURE_FACTS`, `FIGURE_SOURCES`, `PART_SKIPS`,
   `GRID_TABLE_FACTS`, `GRID_CELL_FACTS`. Carries K2.
 - **`adapters/pdf.py`** — the laid-out-document reader, version 0.9.0, extension `.pdf`. It emits a
@@ -118,9 +152,21 @@ Two separations carry the design.
   size on the page, the operand scaled by both matrices (K2.24), and a run's width is measured from
   the font's own widths or left unknown (K2.25). No bounding box is invented for text. Its skip
   vocabulary is `OBJECT_SKIPS`: `inline-image-not-extracted`, `xobject-unresolvable`,
-  `xobject-empty`, `form-cycle`, `form-too-deep` and `no-text-layer`. Carries K2.13, K2.14, K2.24,
-  K2.25 and the pdf half of K6.
-- **`adapters/docx.py`** — the word-processing reader, version 0.7.0, extension `.docx`. It resolves
+  `xobject-empty`, `form-cycle`, `form-too-deep` and `no-text-layer`. A run's `x`, `y` is its start
+  on the page: the text matrix in force when its first string was shown, composed with the page
+  transformation in force then (K2.26). `configured` selects the text reader (`pypdf` default,
+  `pymupdf` opt-in) and the opt-in `line_join`; any non-default choice is a new, unregistered reader
+  whose version names it (`0.9.0+pymupdf-<version>`, `.line-join`). Carries K2.13, K2.14, K2.24–K2.26
+  and the pdf half of K6.
+- **`adapters/pdf_mupdf.py`** — `MuPdfTextReader`, the opt-in text reader on `pymupdf` (AGPL-3.0),
+  constructed by `PdfAdapter.configured({"text_reader": "pymupdf"})` and by the Explorer's
+  `digest_pdf`. `placements` replaces the text records only (outline, pages, pictures and drawings
+  are still read by pypdf); `page_geometry` gives the glyph spans and drawn rules the field views read.
+- **`adapters/pdf_lines.py`** — `join_lines`, the opt-in line join (`pdf.line_join`): raw fragments
+  kept in `facts.fragments`, digit–digit joins marked in `facts.review`, per-page counts in the page's
+  `facts.line_join`. Carries K8.4.
+- **`adapters/docx.py`** — the word-processing reader, version 0.8.0, extensions `.docx` and `.doc`
+  (the latter converted locally by LibreOffice, `office_conversion.py`). It resolves
   each table's grid (span, vertical merge, continuation cells) in the body, the page headers and
   nested tables, each indexed within its own flow; distinguishes a fillable marker in a cell from one
   in the body (`FIELD_MARKERS`: `FORMTEXT`, `FORMCHECKBOX`); records numbering, outline level, a bold
@@ -128,7 +174,8 @@ Two separations carry the design.
   node's page from the document's own break marks into a `derived` fact block (K6.20). Pictures are
   read as parts when an asset store is given; skips use `PART_SKIPS`. Carries K2.6–K2.10, K2.23 and
   K6.20.
-- **`adapters/xlsx.py`** — the spreadsheet reader, version 0.6.0, extensions `.xlsx` and `.xlsm`.
+- **`adapters/xlsx.py`** — the spreadsheet reader, version 0.7.0, extensions `.xlsx`, `.xlsm` and
+  `.xls` (the latter converted locally by LibreOffice).
   Exactly six facts per cell (`CELL_FACTS`: `dtype`, `bold`, `number_format`, `locked`, `formula`,
   `merged`), borders as their own records (`BORDER_EDGES`), sheet facts (`SHEET_FACTS`: `hidden`,
   `list_objects`, `max_row`, `max_column`). A whitespace-only cell is blank but keeps its data type;
@@ -219,23 +266,23 @@ Two separations carry the design.
   `source_id` (the canonical description of what a region is), `raster_key` (source, renderer,
   version, resolution) and `default_renderer`, which always returns the Apache-2.0 renderer.
 - **`render/pdfium.py`** — `PdfiumRenderer`, the default, on `pypdfium2`.
-- **`render/mupdf.py`** — `MuPdfRenderer`, on `pymupdf` (AGPL-3.0): the only file allowed to import
-  it, never imported by the package, installed only by the `saqqara-mupdf` extra.
+- **`render/mupdf.py`** — `MuPdfRenderer`, on `pymupdf` (AGPL-3.0): one of the two files allowed to
+  import it, never imported by the package. `pymupdf` arrives through the `saqqara-mupdf` and
+  `explorer` extras, and through `translate`, hence `all`.
 - **`render/guard.py`** — `scan_sources` refuses an import of `AGPL_MODULES` (`pymupdf`, `fitz`,
   `pymupdf4llm`) outside `EXEMPT` (`render/mupdf.py`, `adapters/pdf_mupdf.py`);
-  `loaded_agpl_modules` reports which are in `sys.modules`.
-- **`adapters/pdf_mupdf.py`** — `MuPdfTextReader`, the opt-in text reader on `pymupdf` (AGPL-3.0),
-  constructed only by `PdfAdapter.configured({"text_reader": "pymupdf"})`.
-- **`adapters/pdf_lines.py`** — `join_lines`, the opt-in line join (`pdf.line_join`): raw fragments
-  kept in `facts.fragments`, digit–digit joins marked in `facts.review`, per-page counts in the page's
-  `facts.line_join`.
-  Carries K6.16.
+  `loaded_agpl_modules` reports which are in `sys.modules`. Carries K6.16.
 
 ### 2.5 `kernels/`
 
-- **`kernels/__init__.py`** — exports the two kernel classes.
+- **`kernels/__init__.py`** — exports `SaqqaraKernel` and `SaqqaraIndexKernel`; the Explorer
+  kernels are imported from their module.
 - **`kernels/saqqara_run.py`** — `SaqqaraKernel`, stage 1 (§3.1).
 - **`kernels/saqqara_index.py`** — `SaqqaraIndexKernel`, stage 2 (§3.2).
+- **`kernels/explorer.py`** — the Explorer as four kernels: `explorer_census` (stage 1) →
+  `explorer_profile` → `explorer_read` (stage 2) → `explorer_report` (stage 3); a construct failure
+  is recorded per document and never drops it (§3.4). `register_explorer_kernels` registers them
+  explicitly. With the two above, these are the six classes the K0.3 gate pins.
 
 ### 2.6 `store/`
 
@@ -253,12 +300,16 @@ Two separations carry the design.
 - **`store/chunker.py`** — `chunk_tree`: level-0 units, level-1 roll-ups, the declared window
   fallback, and a `ChunkPlan` with every refusal. `CHUNKABLE_KINDS`, `NON_CHUNKABLE_KINDS` (each
   with its reason), `AGGREGATING_KINDS`, `SECTION_KINDS`, `UNIT_MAX_CHARS` = 1200,
-  `WINDOW_FALLBACK_CHARS` = 4000, `WINDOW_OVERLAP_CHARS` = 200. Carries K7.3, K7.4 and K7.5.
+  `WINDOW_FALLBACK_CHARS` = 4000, `WINDOW_OVERLAP_CHARS` = 200. The opt-in
+  `rollup_without_window_overlap` assembles a roll-up holding each windowed node's text once, whole,
+  at the place of its first window; the level-0 windows are unchanged. Carries K7.3, K7.4 and K7.5.
 - **`store/feed.py`** — a read document becomes stored records. `feed_tree` works on a tree in
   memory and `feed_result` on a stage-1 result (a path, its text or its parsed form); both end in a
   `FeedResult`. `objects_of` keeps `table`, `figure` and `vector_region` nodes as objects;
   `edges_of` copies bindings an analyzer recorded (`BINDING_FROM_FACT` = `caption_of` to `binds`)
-  and refuses one it cannot resolve. Carries K7.1, K7.3 and K7.11.
+  and refuses one it cannot resolve. With `table_cells`, each table object also carries its cells
+  as `CELL_COLUMNS` rows (`node_id`, `row`, `col`, `merged`, `text`) in `objects.cells_json`. Carries
+  K7.1, K7.3 and K7.11.
 - **`store/embed.py`** — `PROVIDERS` (`none`, `sentence-transformers`, `ollama`, `dummy`),
   `build_embedder`, and `embed_missing`, which embeds only what a model lacks, one document at a
   time, and records refusals (§8.8). Carries K7.6, K7.7 and K7.21.
@@ -270,7 +321,7 @@ Two separations carry the design.
 - **`store/config.py`** — `load_config`, `StoreConfig`, `resolve_secret`, `DEFAULTS_PATH` (§7).
   Carries K7.14 and K7.19.
 - **`store/defaults.yaml`** — the packaged defaults: the single source of truth for the shape of a
-  configuration.
+  configuration, including the stage-1 `pdf` options and the opt-in `store_options`.
 
 ### 2.7 Surfaces
 
@@ -280,10 +331,53 @@ Two separations carry the design.
   (`report.abstentions`), prints an unknown report key raw, and gives a hit the same shape as the MCP
   tool through `_hit_payload`. Carries the command-line half of K7.16.
 - **`mcp/__init__.py`** — the subpackage docstring.
+- **`cli/explorer.py`** — the Explorer's thin command line: a typed digest JSON, or a PDF read
+  through an explicitly selected reader (`--pdf-reader pymupdf`; a PDF without it is refused).
 - **`mcp/tools.py`** — `register_saqqara_tools(server)` defines the four tools on a FastMCP server.
   `koas_saqqara_search` calls `cmd_search` with `--json` and returns what it prints, so the two
-  surfaces cannot drift. `MCP/ragix_mcp_server.py` calls the registration at import and continues
+  surfaces cannot drift; `koas_saqqara_run` and `koas_saqqara_index` run their kernels directly, and
+  `koas_saqqara_status` reads `stage1/saqqara.json` itself. `MCP/ragix_mcp_server.py` calls the registration at import and continues
   without the tools if it fails.
+
+### 2.8 The Explorer
+
+Each module states its role in its first line; the module documents carry the detail.
+
+- **`explorer.py`** — library-first exploration and explicit local file intake: `explore`,
+  `digest_pdf` (always through `MuPdfTextReader`), `imported_provenance`.
+- **`census.py`** — deterministic notation observations, no semantic roles: `census`,
+  `DocumentDigest`, `PageDigest`, `TableObservation`, `Evidence`, `CensusConfig`; version `census/0.7`.
+- **`profile.py`** — versioned, evidence-backed notation profiles and append-only reviews:
+  `derive_profile`, `apply_reviews`; version `document-profile/0.6`.
+- **`profile_readers.py`** — profile-driven fields, generic identifiers and literal section
+  expressions: `read_document`, `section_expressions`.
+- **`failures.py`** — counted construct failures, kept apart from evidence: `CONSTRUCT_ERRORS`,
+  `stage_failure`, `failure_report`.
+- **`field_views.py`** — boundary-aware text views that keep character provenance: `line_views`,
+  `TextSpan`, `TextView`; version `field-view/1.0`; K8.1–K8.3.
+- **`value_windows.py`** — bounded label-value windows over immutable lines: `build_value_windows`,
+  `ContinuationPolicy`, `ReferencePolicy`.
+- **`table_views.py`** — recurrence-filtered physical table blocks and traced column reconstruction:
+  `recover_tables`, `TablePolicy`, `TableCell`.
+- **`table_context.py`** — cell-context adapters over observed and recovered tables:
+  `document_contexts`, `native_contexts`, `recovered_contexts`.
+- **`table_quantities.py`** — quantities read from a cell's exact context: `read_cell_quantities`.
+- **`grid_view.py`** — geometry-only connectivity over native table cells: `grid_view`, rule
+  `table-grid-view/1` (`GRID_VIEW.md`).
+- **`context_groups.py`** — bounded source-context overlays: `context_groups`, `cell_inventory`, rule
+  `context-group/1` (`CONTEXT_GROUPS.md`).
+- **`content_ledger.py`** — literal source-character coverage: `text_ledger`, rule
+  `text-occurrence-ledger/2`.
+- **`renderable_regions.py`** — envelope adapters over Explorer observations and figure assets:
+  `regions_from_explorer`, `figures_from_tree`, `table_members`.
+- **`privacy.py`** — stamp shapes and presentation-only masking: `stamp_matches`, `MaskPolicy`,
+  `PresentationMasker`.
+- **`EXPLORER.md`**, **`GRID_VIEW.md`**, **`CONTEXT_GROUPS.md`** — the module documents;
+  **`EXPLORER_VALIDATION.md`**, **`EXPLORER_SLICE4_VALIDATION.md`**,
+  **`EXPLORER_SLICE4_FIELDS_VALIDATION.md`** — the validation records of the Explorer's slices.
+
+The Explorer imports `ragix_kernels.harvest` (`report`, `regions`, `region_types`, `table_context`,
+`quantitative`, `numeric_locale`), which holds no model call (§6.5).
 
 ---
 
@@ -294,19 +388,28 @@ Two separations carry the design.
 | attribute | value |
 |---|---|
 | `name` | `saqqara` |
-| `version` | `0.1.0` |
+| `version` | `0.2.0` |
 | `category` | `saqqara` |
 | `stage` | 1 |
 | `requires` | `[]` |
 | `provides` | `document_tree`, `traces`, `merkle_root` |
 
+Configuration: the kernel's own, never merged with `store/defaults.yaml`: `source.path`, and at the
+top level `formats` (extensions with their dot, `.docx`), `promote_outline`, `pdf` and `analyzers`.
 `validate_input` adds `source.path is required` to the envelope's checks. `compute`:
 
-1. refuses an `analyzers` entry naming an analyzer outside `PIPELINE` and `outline`;
+1. refuses an `analyzers` entry naming an analyzer outside `PIPELINE` and `outline`, and builds the
+   PDF reader from the optional `pdf` mapping (`text_reader`: `pypdf` | `pymupdf`; `line_join`: a
+   boolean) through `PdfAdapter.configured`. An unknown key, a value outside the vocabulary or a
+   missing library is refused before any file is read; options equal to the defaults keep the
+   registered reader;
 2. lists the files (`_paths`): the source file itself, or every file under the directory, sorted,
    filtered by `formats` only when given;
-3. reads them with `read_corpus`, with no asset store;
-4. per document read: `build_tree`, then each `PIPELINE` analyzer constructed with its declared
+3. reads them with `read_corpus`, passing the configured readers. No asset store is given for
+   objects; when any path ends in `.doc` or `.xls`, an `AssetStore` at
+   `WORKSPACE/assets/office-conversions` keeps each LibreOffice derivative;
+4. per document read: `build_tree` with the format and version of the reader that read it (a
+   configured PDF reader's version carries its choice), then each `PIPELINE` analyzer constructed with its declared
    options, then `OutlineAnalyzer()` when `promote_outline` is true;
 5. returns the documents, the two roots and the report.
 
@@ -335,13 +438,16 @@ each trace's `dropped` through `count_reported`. The kernel carries the K4 gate.
 | `requires` | `document_tree` |
 | `provides` | `document_store` |
 
-Configuration: `config` (a YAML path), `overrides` (dotted keys), `result` (a stage-1 result, or a
+Configuration: `config` (a YAML path or a mapping), `overrides` (dotted keys), `result` (a stage-1 result, or a
 list of `(tree, source_path, source_sha256)` tuples, used instead of the dependency). `compute`:
 
 1. loads the configuration, then builds the store at `store.path`, resolved against the workspace;
 2. finds the trees: `result`, else the `document_tree` dependency, else
    `WORKSPACE/stage1/saqqara.json`, and raises `FileNotFoundError` if none exists;
-3. feeds them with the `chunker` section as options;
+3. feeds them with the `chunker` section plus two `store_options` switches, both off by default:
+   `rollup_without_window_overlap` goes to `chunk_tree` and `table_cells` to `objects_of`. It raises
+   `ValueError` before feeding when `rollup_without_window_overlap` meets a non-empty
+   `refine.budgets`;
 4. builds the embedder from `embedder.provider` and `embedder.model`, passing `base_url` and
    `batch_size` when set;
 5. per document: `upsert_document` with its objects and edges, `replace_chunks`, `embed_missing`;
@@ -362,18 +468,49 @@ with `refused` printed even when zero. The kernel carries K7.15 and K7.16.
 
 ### 3.3 The envelope — `ragix_kernels/base.py`
 
-Both kernels are `Kernel` subclasses and are run by `Kernel.run`, which a subclass must not
+All six kernels are `Kernel` subclasses and are run by `Kernel.run`, which a subclass must not
 override. It validates the input (the workspace exists; every `requires` entry is present in
 `dependencies` and exists on disk), hashes the input, calls `compute` then `summarize`, truncates a
 summary over 500 characters with a warning, and writes `WORKSPACE/stage<N>/<name>.json` as
 `{"_meta": {kernel_name, kernel_version, execution_time_ms, input_hash, timestamp, success},
 "data": …}` beside `<name>.summary.txt`. An exception in `compute` becomes `success: false` with
-`data = {error, error_type}`; a validation failure returns without writing. Neither kernel writes
+`data = {error, error_type}`; a validation failure returns without writing. None of the six writes
 activity events: `Kernel.run` emits none, and the orchestrator emits them only through an activity
 writer that some caller has initialised.
 
 The registry discovers kernels by walking packages. K0.3 pins the exact list of kernel classes this
-package defines, by defining module, in `DECLARED_KERNELS` in `tests/saqqara/test_k0_spec.py`.
+package defines, by defining module, in `DECLARED_KERNELS` in `tests/saqqara/test_k0_spec.py`: six
+classes, four in `kernels/explorer.py` and one each in `kernels/saqqara_index.py` and
+`kernels/saqqara_run.py`. `register_explorer_kernels()` registers the four Explorer kernels
+explicitly.
+
+### 3.4 The Explorer kernels — `kernels/explorer.py`
+
+| class | `name` | `version` | `stage` | `requires` | `provides` |
+|---|---|---|---|---|---|
+| `CensusKernel` | `explorer_census` | `0.7.0` | 1 | `[]` | `document_census` |
+| `ProfileKernel` | `explorer_profile` | `0.7.0` | 2 | `explorer_census` | `document_profiles` |
+| `ReadKernel` | `explorer_read` | `0.9.0` | 2 | `explorer_profile` | `document_readings` |
+| `ReportKernel` | `explorer_report` | `0.9.0` | 3 | `explorer_read` | `document_reading_report` |
+
+- Their category is `docs`, their `requires` entries name kernels rather than capabilities, and none
+  overrides `validate_input`.
+- **Configuration.** Census: `documents`, a non-empty list of `DocumentDigest` mappings ("nonempty
+  document manifest required"), and `census_options` for the `CensusConfig` fields
+  (`continuation_policy` through `policy_from_dict`, `table_policy` through `TablePolicy(**…)`,
+  `reference_policy` passed on as given). Profile: `profile_options` for the `ProfileConfig` fields.
+  Read: none. Report: `provenance`, handed to `build_report`.
+- **Dependencies.** Each reads its producer's JSON and raises "failed dependency" when that run's
+  `_meta.success` is false.
+- **Per-document failures.** A `ValueError`, `TypeError` or `KeyError` (`CONSTRUCT_ERRORS`) raised for
+  one document replaces that document's row by `{"document", "failure": ConstructFinding}` (reason
+  `INVALID_CONSTRUCT`, stage `census`, `profile`, `read` or `report`); a row that already failed is
+  passed on untouched; any other exception fails the kernel.
+- **Outputs.** Census `{"documents": [{document, census} | {document, failure}]}`; profile adds
+  `profile`; read adds `reading`; report `{"reports": [Report | FailureReport]}`. The report kernel
+  recomputes the reading and fails a row whose canonical JSON differs from the stored one ("reading
+  replay mismatch"). `Kernel.run` writes `stage1/explorer_census.json`, `stage2/explorer_profile.json`,
+  `stage2/explorer_read.json` and `stage3/explorer_report.json`.
 
 ---
 
@@ -383,7 +520,8 @@ package defines, by defining module, in `DECLARED_KERNELS` in `tests/saqqara/tes
 
 | type | fields | rules |
 |---|---|---|
-| `Provenance` (frozen) | `source_path`, `source_format`, `chain` (tuple of `Locator`, broadest first), `kernel`, `kernel_version`, `source_sha256` (optional) | every field but the last required; an empty chain or a non-locator raises `ProvenanceError`; `leaf` is the narrowest locator |
+| `Provenance` (frozen) | `source_path`, `source_format`, `chain` (tuple of `Locator`, broadest first), `kernel`, `kernel_version`, `source_sha256` (optional) | every field but the last required; an empty chain or a non-locator raises `ProvenanceError`; `leaf` is the narrowest locator; a node of a converted `.doc`/`.xls` has its `ConversionLocator` first and the original file's hash as `source_sha256` |
+| `ConversionLocator` (frozen) | `input_format`, `output_format`, `source_sha256`, `derived_sha256`, `converter`, `converter_version`, `filter_name`, `artifact_retained`, `rule` | the bridge from a `.doc`/`.xls` to its derivative: only `doc`→`docx` or `xls`→`xlsx`, both hashes 64 lowercase hex, converter, version and filter non-empty, rule `office-conversion/1`, else `LocatorError` |
 | `Node` | `kind`, `provenance`, `text`, `level`, `span`, `facts`, `children`, `origin` (`read` or `inferred`), `confidence` | an unregistered kind raises `KindError`; confidence in (0, 1]; `inferred` at 1.0 and `read` below 1.0 both raise |
 | `Tree` | `root`, `meta` | `to_json` and `from_json` through `CANONICAL_JSON`; `replace_source_path` proves path invariance |
 | `KindRegistry` | the known kinds | `register`, `check`, `known`; `kind_registry` is the process-wide instance |
@@ -395,11 +533,13 @@ The locator classes are listed in the user page (§3.2). Each has a `format` cla
 
 | type | fields |
 |---|---|
-| `Mastaba` (frozen) | `kind`, `locator`, `text`, `facts` |
+| `Mastaba` (frozen) | `kind`, `locator`, `text`, `facts`, `conversion` (a `ConversionLocator` on observations read from a converted `.doc`/`.xls`, else `None`) |
 | `Refusal` (frozen) | `path`, `reason`, `detail` |
 | `ReadReport` | `read`, `refusals`, `duplicates`; `counts` gives `read`, `refused`, `duplicate` |
 | `OpenVocabulary` (frozen) | `reserved`: the fact names a reader keeps for itself in an open vocabulary |
-| `Adapter` | class attributes `format`, `version`, `extensions`, `fact_sets`, `skip_reasons`; instance attributes `store` (an asset store or `None`) and `skips` (reason to count) |
+| `Adapter` | class attributes `format`, `version`, `extensions`, `legacy_extensions`, `fact_sets`, `skip_reasons`; instance attributes `store` (an asset store or `None`) and `skips` (reason to count) |
+| `ConversionOptions` (frozen, `office_conversion.py`) | `timeout` 120.0, `max_input_bytes` and `max_output_bytes` 128 MiB, `max_expanded_bytes` 512 MiB, `max_zip_entries` 20 000; each must be positive |
+| `ConvertedOffice` (frozen, `office_conversion.py`) | `path`, `provenance` (a `ConversionLocator`) |
 
 ### 4.3 Building and analysing
 
@@ -433,6 +573,20 @@ The locator classes are listed in the user page (§3.2). Each has a `format` cla
 | `RefinePlan` (`refine.py`) | `passes`, `remaining_refusals`; `to_dict()` adds `parts` | |
 | `StoreConfig` (`config.py`) | `data`; `section`, `get`, `to_dict`, `api_key` | |
 | `EmbeddingRefusal` (`ragix_core/embeddings.py`) | `index`, `reason`, `status`, `message`, `model`, `batch_size`, `chars` | produced by the ollama backend |
+
+### 4.5 The Explorer's records
+
+All are frozen dataclasses, and none is stored in SQLite.
+
+| stage | records (module) |
+|---|---|
+| input digest | `DocumentDigest`, `PageDigest`, `TableObservation`, `Evidence` (`census.py`; `Evidence` requires `end - start == len(literal)`); `TextSpan`, `VerticalRule`, `HorizontalRule` (`field_views.py`); `TableCell` (`table_views.py`) |
+| census | `CensusRecord` (`count` equals the number of its evidence items; category and attribute keys are closed sets), `Census` (version `census/0.7`), `CensusConfig` (`census.py`) |
+| profile | `DocumentProfile` (version `document-profile/0.6`), `ProfileField`, `ProfileReview`, `ProfileConfig` (`profile.py`) |
+| reading | `ReaderResult`, `FieldReading`, `Target`, `SectionExpression`, `UnknownTemplate` (`profile_readers.py`) |
+| failures | `ConstructFinding`, `FailureReport` (status `FAILED`, version `reading-failure/0.1`) (`failures.py`) |
+| report | `Report`, `ReadingCoverage`, `InsufficientEvidence` (`ragix_kernels/harvest/report.py`); `ExplorerResult` (`explorer.py`) |
+| views | `GridView` and its cells (`grid_view.py`); `TextLedger` and its entries (`content_ledger.py`); context groups (`context_groups.py`); `TablePolicy`, `RecoveredTable`, `TableAnalysis` (`table_views.py`); `ContinuationPolicy`, `ReferencePolicy`, `ValueWindow` (`value_windows.py`); `CharacterRef`, `TextView` (`field_views.py`); `ContextFinding` (`table_context.py`); `MaskPolicy` (`privacy.py`) |
 
 ---
 
@@ -483,7 +637,7 @@ JSON columns are written through canonical JSON where noted. Vectors are float32
 | `bbox_json` | TEXT | `[x0, y0, x1, y1]` from the facts `bbox`, `box`, or `x`, `y`, `w`, `h` |
 | `caption` | TEXT | the fact `caption` |
 | `asset_ref` | TEXT | the fact `asset_ref`, else `sha256` |
-| `cells_json` | TEXT | the fact `cells` |
+| `cells_json` | TEXT | the fact `cells`; with `store_options.table_cells` on, for a `table` object, one `[node_id, row, col, merged, text]` row per cell in the grid vocabulary (`CELL_COLUMNS`), positions one-based, `merged` an A1 range or null |
 | `meta_json` | TEXT, not null, default `{}` | every other fact, canonical JSON |
 
 Rewritten whole for a document on every upsert.
@@ -581,17 +735,22 @@ them for those features.
 
 ### 6.2 The embedder — `store/embed.py` over `ragix_core/embeddings.py`
 
-`build_embedder(provider, model="", **options)` returns `None` for `none`, and otherwise calls
-`ragix_core.embeddings.create_embedding_backend` with an `EmbeddingConfig` whose attributes the
-options set. A backend satisfies the core layer's `EmbeddingBackend` protocol: `embed_text`,
+`build_embedder(provider, model="", **options)` returns `None` for `none`. For `dummy` it returns a
+bare `create_embedding_backend("dummy")`, ignoring the model and the options. Otherwise it calls
+`create_embedding_backend(provider, config)` with an `EmbeddingConfig` whose attributes the options
+set; an option not given keeps `EmbeddingConfig`'s default, so an ollama backend built without
+`batch_size` sends 32 texts per request, not the backend's own 128. A backend satisfies the core layer's `EmbeddingBackend` protocol: `embed_text`,
 `embed_batch`, `dimension`, `model_name`. `embed_missing` looks for one optional capability **by
 name**, `embed_batch_recording_refusals(texts) -> (vectors, refusals)`, where a refused text's
 vector is `None`. The ollama backend provides it; a backend without it takes the strict path, where
 any refusal raises. The ollama backend posts slices of `batch_size` texts to `/api/embed` with
 `truncate: false` (`TRUNCATE`, with no setting to change it), and finds a refused text by halving
-the slice; a 404 on that path raises rather than falling back. With `batch_size: 1` it sends one
-text per request through `embed_text`, which tries `/api/embed` and then the legacy
-`/api/embeddings`. The legacy endpoint has no truncate control, a hole the code names.
+the slice; a 404 on that path raises rather than falling back. Indexing (`embed_missing`, and
+`refine_store` through it) always takes `embed_batch_recording_refusals`: with `batch_size: 1` each
+text is its own `/api/embed` request. `embed_batch`'s per-text route through `embed_text`
+(`/api/embed`, then the legacy `/api/embeddings`, which has no truncate control, a hole the code
+names) is not reached from saqqara; its one `embed_batch` call, the query in `cmd_search`, runs at
+batch size 32.
 
 ### 6.3 The vector index — `store/retrieve.py` over `ragix_core/vector_index.py`
 
@@ -606,12 +765,38 @@ it. The fusion reproduces the core layer's reciprocal-rank formula rather than c
 
 `Renderer` is a protocol: `name`, `version`, `render(path, page_number, box, dpi) -> (bytes,
 media_type)`. `default_renderer()` returns `PdfiumRenderer`. Nothing in the package constructs
-`MuPdfRenderer`.
+`MuPdfRenderer`. Two consumers take a renderer: `VectorRegionsAnalyzer` (its own, or the default) and
+`renderable_regions.figures_from_tree`, which renders only when a caller passes a renderer and the
+asset store holds no raster, records the result as `conversion_rule` `bounded-render/1` with the
+renderer's name, version and resolution, and turns a failure into `FIGURE_RENDER_FAILED`.
 
 ### 6.5 No language-model seam
 
 saqqara calls no language model, so it has no chat or completion port. The only model it can reach
-is the embedder of §6.2.
+is the embedder of §6.2. The Explorer's dependency, `ragix_kernels.harvest` (reporting, regions,
+quantities), is deterministic and calls no model either.
+
+### 6.6 The PDF text reader — `adapters/pdf.py`
+
+A port with two implementations: pypdf, the default and the registered reader, and
+`MuPdfTextReader` (`adapters/pdf_mupdf.py`, AGPL-3.0), chosen by the stage-1 option
+`pdf.text_reader` (`TEXT_READERS` = `pypdf`, `pymupdf`; `OPTIONS` = `text_reader: pypdf`,
+`line_join: false`). `PdfAdapter.configured(options)` returns the registered reader itself at the
+defaults and otherwise a fresh, unregistered `PdfAdapter` whose version names the choice, so every
+tree it built says how it was read. A text library plugs in as an object with `open`, `close`,
+`version` and `placements` (and `page_geometry` for the field views). The configured reader reaches
+the build through `adapter_for(path, readers)` and `read_corpus(…, readers=…)`, from
+`SaqqaraKernel._readers`. Outline, pages, pictures and drawings are read by pypdf whichever text
+reader is chosen.
+
+### 6.7 The AGPL guard — `render/guard.py`
+
+`AGPL_MODULES` = `pymupdf`, `fitz`, `pymupdf4llm`; `EXEMPT` = `render/mupdf.py`,
+`adapters/pdf_mupdf.py`. `scan_sources` checks every import statement of the package against the
+exemption, and `loaded_agpl_modules` checks `sys.modules` after a default route ran (K6.16). The
+Explorer's PDF intake constructs `MuPdfTextReader` through the exempt adapter, so it is PyMuPDF-only:
+`cli/explorer.py` refuses a PDF without `--pdf-reader pymupdf`. PyMuPDF is installed by the
+`saqqara-mupdf` extra, by `explorer` (pinned `pymupdf==1.27.2.2`) and by `translate`, hence `all`.
 
 ---
 
@@ -621,27 +806,37 @@ is the embedder of §6.2.
 already-parsed mapping), then merges `overrides` given as dotted keys. `_merge` refuses a key the
 defaults do not declare, naming its dotted path and the keys known at that level, and refuses a
 value where the defaults hold a mapping, or the reverse. Then `embedder.provider` must be in
-`PROVIDERS` and `index.backend` must be `numpy` or `faiss`. The loaded object's `to_dict` never holds
+`PROVIDERS` and `index.backend` must be `numpy` or `faiss`. No other value is checked at load:
+`pdf.*` values are refused only by the stage-1 reader (§8.9), and `store_options.*` values are cast
+with `bool()`, so the string `"false"` reads as on. The loaded object's `to_dict` never holds
 a resolved secret. `resolve_secret` reads `env:NAME` or `file:/path#Label` at the moment of use and
 raises on every unresolvable form.
 
 | key | consumer |
 |---|---|
-| `source.path`, `source.formats`, `source.promote_outline` | none; the run kernel takes its own configuration |
+| `source.path`, `source.formats`, `source.promote_outline` | none: `load_config` accepts them and nothing reads them. The run kernel takes its own options (§3.1), never merged with these defaults; its `formats` are extensions with their dot, so the defaults' `[pdf, docx, …]` would match no file |
+| `pdf.text_reader`, `pdf.line_join` | none through `load_config`; the run kernel's own `pdf` option, read by `SaqqaraKernel._readers` into `PdfAdapter.configured`; reachable from a manifest, not from `saqqaractl run` or `koas_saqqara_run` |
 | `store.provider` | `store/ports.py`, `build_store` |
 | `store.path` | `kernels/saqqara_index.py`, `cli/saqqaractl.py` `cmd_search` |
-| `store.corpus` | `SqliteDocumentStore.__init__`, reported in `status` |
-| `refine.budgets`, `refine.overlap_children` | `kernels/saqqara_index.py`, then `store/refine.py` |
+| `store.corpus` | `SqliteDocumentStore.__init__`, reported in `status`; not written to the rows, since `feed_tree` stamps every record `corpus="default"` and the store's value is only the fallback for an empty one |
+| `store_options.table_cells` | `kernels/saqqara_index.py` into `store/feed.py` `objects_of` |
+| `store_options.rollup_without_window_overlap` | `kernels/saqqara_index.py` into `store/chunker.py` `chunk_tree`; refused together with `refine.budgets` |
+| `refine.budgets`, `refine.overlap_children` | `kernels/saqqara_index.py` (which also refuses budgets together with `store_options.rollup_without_window_overlap`), then `store/refine.py`; with no embedder the passes are skipped and `refinement` is `None` |
 | `embedder.provider`, `embedder.model` | `kernels/saqqara_index.py`, `cmd_search`, both through `build_embedder` |
-| `embedder.base_url`, `embedder.batch_size` | `kernels/saqqara_index.py` only |
+| `embedder.base_url`, `embedder.batch_size` | `kernels/saqqara_index.py` only, and only when truthy (`batch_size: 0` falls back to 32 rather than being refused); `search` embeds its query at `http://localhost:11434` with batch size 32 whatever these say (§11) |
 | `embedder.api_key_ref` | `StoreConfig.api_key()`, which nothing calls |
 | `index.backend` | `cmd_search`, into `Retriever` |
 | `index.use_gpu` | none |
-| `chunker.unit_max_chars`, `chunker.rollup_levels`, `chunker.window_fallback_chars` | `store/feed.py` into `store/chunker.py` `chunk_tree` |
+| `chunker.unit_max_chars`, `chunker.rollup_levels`, `chunker.window_fallback_chars` | `kernels/saqqara_index.py`, through `store/feed.py` into `store/chunker.py` `chunk_tree` |
 | `retrieval.fusion` | none |
 | `retrieval.rrf_k`, `retrieval.dense_k`, `retrieval.lexical_k`, `retrieval.top_k` | `cmd_search` |
 
 Defaults and effects are tabulated in the user page, §12.
+
+Options outside `store/defaults.yaml`: `saqqara_index` takes `config` (a user file), `overrides`
+(dotted keys) and `result` (an in-memory stage-1 result); the Explorer kernels take `documents`,
+`census_options`, `profile_options` and `provenance` (§3.4). The Office conversion limits are fixed
+(`ConversionOptions` defaults; `read_legacy` always uses them).
 
 ---
 
@@ -652,7 +847,8 @@ Defaults and effects are tabulated in the user page, §12.
 | reason | raised or recorded in | surfaced as |
 |---|---|---|
 | `unsupported-format` | `read_path` raises `UnsupportedFormat`; `read_corpus` records it | `report.refusals` |
-| `unreadable-file` | `read_corpus` when the bytes cannot be read; `read_path` raises `UnreadableFile` when the path is not a file or the reader fails | `report.refusals`, `detail` carrying the message |
+| `unreadable-file` | `read_corpus` when the bytes cannot be read; `read_path` raises `UnreadableFile` when the path is not a file or the reader fails; for `.doc`/`.xls` also on a conversion timeout, input or output over its limit, no usable output, expansion limits, invalid member paths, an invalid OOXML package, a non-zero exit, a source changed during conversion or reading, a store hash mismatch, or no readable observations | `report.refusals`, `detail` carrying the message |
+| `converter-unavailable` | `office_conversion` raises `ConversionUnavailable` (a subclass of `UnreadableFile`) when no `libreoffice`/`soffice` is on the path, the process cannot start, or no version is reported; `read_corpus` records it | `report.refusals` |
 | (duplicate) | `read_corpus`, by content hash | `report.duplicates` |
 
 ### 8.2 Reader skips — `Adapter._skip`, counted on the adapter instance
@@ -660,11 +856,19 @@ Defaults and effects are tabulated in the user page, §12.
 | reasons | reader | reached from a run |
 |---|---|---|
 | `image-part-empty`, `image-part-unreadable` (`PART_SKIPS`) | `xlsx.py`, `docx.py`, `pptx.py` | no: pictures are read only with an asset store |
-| `inline-image-not-extracted`, `xobject-unresolvable`, `xobject-empty`, `form-cycle`, `form-too-deep` | `pdf.py` | no, for the same reason |
+| `inline-image-not-extracted`, `xobject-empty`, and `xobject-unresolvable` when a picture's bytes cannot be read | `pdf.py` `_figures` | no, for the same reason |
+| `form-cycle`, `form-too-deep` (`MAX_FORM_DEPTH` = 6), and `xobject-unresolvable` when a content stream or a `Do` target cannot be resolved | `pdf.py` `_descend`/`_enter`, on every page | yes, counted on the adapter and not reported |
 | `no-text-layer` | `pdf.py` | yes, and listed in the register through the page's facts (§8.3) |
 
 `_skip` raises `ValueError` for a reason outside the reader's `skip_reasons`. A run does not report
-the adapter's `skips` counter.
+the adapter's `skips` counter. "Only with an asset store" holds per process: `read_path` sets the
+store on the registered reader when given one and never clears it, so a later run in the same
+process also reads pictures.
+
+With `pdf.line_join` on, the line join adds the review reason `digit-run-joined` to a text node's
+`facts.review`, and the page's `facts.line_join` counts `joined`, `absorbed`, `review` and
+`undecided` (no geometry, zero size or unknown width); `join_lines` raises `ValueError` when
+placements and geometry differ in length.
 
 ### 8.3 The abstention register — `analyzers/contract.py`
 
@@ -707,8 +911,10 @@ report shape, and `ValueError` when a tally disagrees with its records. `count_r
 | `drawing-without-a-page` | a pdf drawing whose page container is missing |
 | `border-matches-no-cell` | a border whose position matches no cell record |
 
-`build_tree` raises `ValueError` for a format no plan declares. `tables` counts
-`bordered-region-holds-no-value` in its own trace.
+`build_tree` raises `ValueError` for a format no plan declares, and `ValueError("inconsistent Office
+conversion provenance")` when one document's observations carry more than one conversion bridge or
+one whose output format is not the plan's. `tables` counts `bordered-region-holds-no-value` in its
+own trace.
 
 ### 8.6 Chunker and feed — `store/chunker.py` `chunk_tree`, `store/feed.py` `edges_of`
 
@@ -746,7 +952,8 @@ documents.
 |---|---|
 | refusal `input-rejected` (`REFUSED_INPUT_REJECTED`) | `OllamaEmbeddingBackend._embed_slice`, on an HTTP 4xx other than 404 for a single text; recorded by `embed_missing` into `replace_embedding_refusals`, or `add_embedding_refusals` during refinement |
 | raises: no endpoint or model not pulled | `_embed_slice` on HTTP 404 |
-| raises: an answer that cannot be matched | `_embed_slice` on a wrong vector count; `embed_missing` on `N vectors for M chunks`, on an empty vector, or on a chunk both refused and embedded |
+| raises: no connection; server error | `RuntimeError` "ollama embedding request failed"; an HTTP 5xx through `raise_for_status` |
+| raises: an answer that cannot be matched | `_embed_slice` on a wrong vector count or an empty vector; `embed_missing` on `N vectors for M chunks`, on an empty vector, or on a chunk both refused and embedded |
 | raises: more than one document | `embed_missing`, since the refusal register is replaced per document |
 | raises: a lane with refusals and no vector | `SaqqaraIndexKernel.compute` |
 | raises: refinement stopped | `refine_store`, naming the document, the pass, the budget and the documents completed |
@@ -761,14 +968,39 @@ documents.
 | unresolvable secret: no scheme, unset or empty variable, unreadable or empty file, label absent, unknown scheme | `resolve_secret` |
 | unknown store provider; provider registered twice | `store/ports.py` `build_store`, `register_store` |
 | analyzer not run by the kernel | `SaqqaraKernel.compute` |
+| stage-1 `pdf` options: not a mapping; an unknown option, a `text_reader` outside `TEXT_READERS`, a `line_join` that is not a boolean; `pymupdf` not installed (`ImportError`) | `SaqqaraKernel._readers`; `PdfAdapter.configured`; `MuPdfTextReader.__init__`, before any file is read |
+| `store_options.rollup_without_window_overlap` with a non-empty `refine.budgets` | `SaqqaraIndexKernel.compute` |
+| a refine budget below 1, or a negative `overlap_children` | `store/refine.py` |
+| a conversion bridge that breaks its invariants; a non-positive conversion limit | `ConversionLocator.__post_init__` (`LocatorError`); `ConversionOptions` |
 | option an analyzer does not declare | `analyzers/contract.py` `Analyzer.__init__` |
 | `source.path is required` | `SaqqaraKernel.validate_input` |
 | no stage-1 result | `SaqqaraIndexKernel.compute` |
 | record invariants | `DocumentRecord`, `ObjectRecord`, `EdgeRecord`, `ChunkRecord`, `EmbeddingRecord`, `EmbeddingRefusalRecord` in `__post_init__` |
 | tree invariants | `Node`, `Provenance`, `KindRegistry`, `register_locator`, `locator_from_dict`, `_serialisable` in `model.py` |
-| extension claimed twice | `register_adapter` |
+| an extension already claimed by another format; a reader with no format or no extension | `register_adapter` |
 | missing or altered asset | `AssetStore.read` raises `MissingAsset` |
 | a region that cannot be rasterised | `RenderFailed`, from either renderer |
+
+### 8.10 The Explorer
+
+The Explorer's codes are literals in each module rather than closed tuples; the module documents
+(`EXPLORER.md`, `GRID_VIEW.md`, `CONTEXT_GROUPS.md`) give their meaning.
+
+| refusal or finding | code path |
+|---|---|
+| a construct failure for one document: `INVALID_CONSTRUCT`, as a `ConstructFinding`, and in the report stage a `FailureReport` (status `FAILED`) | `kernels/explorer.py`, `failures.py` |
+| "nonempty document manifest required"; "failed dependency" | the census kernel; every kernel's dependency read |
+| "duplicate document identity"; "reading replay mismatch" | the census kernel; the report kernel, both caught as per-document failures |
+| "extractor lock mismatch"; "clean imported source required for gate"; "reader is not open"; "page number outside document" | `explorer.py`; `adapters/pdf_mupdf.py` |
+| "PDF intake requires explicit --pdf-reader pymupdf"; "no input documents" | `cli/explorer.py` |
+| `RegionRefused(code)` (a `ValueError` carrying `.code`, `harvest/region_types.py`) | `content_ledger.py`, `context_groups.py`, `grid_view.py`, `renderable_regions.py`, `table_views.py` |
+| table findings `MISSING_CELL_GEOMETRY`, `BAND_COUNT_VARIES`, `INSUFFICIENT_BANDS`, `TOO_FEW_ROWS`, `HEADER_NOT_REPEATED`, `NO_ID_LIKE_COLUMN`, `HEADER_UNREADABLE` | `table_views.py` |
+| `HEADER_ASSOCIATION_UNRESOLVED`, `HEADER_UNREADABLE`, `NO_EXACT_CELL_TOPOLOGY`, `COLUMN_ASSOCIATION_UNRESOLVED`, `AMBIGUOUS_SOURCE_FRAGMENT` | `table_context.py` |
+| window reasons `WINDOW_BOUND_HIT`, `ROLE_LINE_UNDECIDABLE`, `RULE_STOP`, `EMPTY_CELL`, `NO_TEXT` | `value_windows.py` |
+| `EMPTY_LABEL`, `INVALID_LABEL_WINDOW` | `census.py`, as construct findings |
+| `UNKNOWN_TEMPLATE`, `TABLE_UNRESOLVED:<reason>` | `profile_readers.py` |
+| an untyped mask policy, an unmask without a recorded reason, empty literals, an empty-match pattern; colliding masked keys | `privacy.py` `MaskPolicy`, `PresentationMasker` |
+| `FIGURE_RENDER_FAILED`; `RENDER_SOURCE_AND_DPI_REQUIRED`, `RENDER_SOURCE_HASH_MISMATCH`, `RENDER_SOURCE_CHANGED` | `renderable_regions.py` `figures_from_tree` |
 
 ---
 
@@ -785,8 +1017,9 @@ documents.
 5. Give the format a page policy in `services._PAGE_POLICY` or `_WINDOW_FORMATS`, or `page_nodes`
    raises.
 6. Add its channels to `sections.READER_CHANNELS` if it declares section names.
-7. Specify it: propositions in `SPEC.md`, fixtures in `tests/saqqara/generators.py`, and the new
-   counts in `FROZEN_COUNTS`.
+7. Specify it: propositions in `SPEC.md`; fixtures in `tests/saqqara/generators.py`, registered in
+   `FIXTURES` with their suffix in `FIXTURE_SUFFIX`; and the new counts in `FROZEN_COUNTS` and in
+   the literal copy that T0.7 holds in `tests/tender/test_t0_family.py`, all in the same commit.
 
 **A new analyzer.** Subclass `Analyzer` with `name`, `version` and `DEFAULTS`; return
 `AnalyzerResult(tree, self.traced(trace))`. Add nodes or facts rather than rewriting observations,
@@ -809,8 +1042,29 @@ to `store/embed.py` `PROVIDERS`, which `load_config` also checks. Provide
 **A new configuration key.** Declare it in `store/defaults.yaml`; the loader refuses anything
 undeclared.
 
-**A new kernel.** Add a module under `kernels/`, and its class to `DECLARED_KERNELS` in
-`tests/saqqara/test_k0_spec.py`.
+**A store option.** Declare it under `store_options:` in `store/defaults.yaml`, copy it into the
+feed options in `kernels/saqqara_index.py`, and make its default reproduce the store as it was built
+before the option existed.
+
+**A PDF reader option.** Add it to `OPTIONS` in `adapters/pdf.py` and to `pdf:` in
+`store/defaults.yaml` (a test holds the two equal), and handle it in `PdfAdapter.configured`, which
+must return the registered reader itself at the defaults and otherwise a new reader whose version
+names the choice. A new text library joins `TEXT_READERS` with an object exposing `open`, `close`,
+`version`, `page_geometry` and `placements` (see `MuPdfTextReader`); an AGPL one must also be named in
+`render/guard.py` `EXEMPT` (K6.16).
+
+**A legacy format.** List the suffix in both `extensions` and `legacy_extensions`, take
+`read(path, *, conversion_store=None)`, and send legacy paths through `office_conversion.read_legacy`,
+which converts locally and hands the derivative to the native reader. The builder places the
+conversion locator before every native coordinate. Specified by the LO addendum, tested by
+`test_legacy_office.py`.
+
+**A new kernel.** Define its class under `kernels/`. Insert it in `DECLARED_KERNELS`
+(`tests/saqqara/test_k0_spec.py`) at its place in walk order (module name, then definition order),
+because the gate compares ordered lists, and amend the same list in T0.7
+(`tests/tender/test_t0_family.py`). `KernelRegistry.discover` finds it by walking the package; a family
+that wants explicit registration exposes a function, as `kernels/explorer.py` does with
+`register_explorer_kernels()`.
 
 **A new MCP tool.** Define it inside `register_saqqara_tools` in `mcp/tools.py`.
 
@@ -824,24 +1078,41 @@ undeclared.
 |---|---|---:|---|
 | K0 | the specification itself, the kernel list, the guard, the prose counts | — | `test_k0_spec.py` |
 | K1 | the model | 10 | `test_k1_model.py` |
-| K2 | the readers | 25 | `test_k2_adapters.py`, `test_k2p_pdf.py` |
+| K2 | the readers | 26 | `test_k2_adapters.py`, `test_k2p_pdf.py`, `test_k2p_pdf_readers.py` |
 | K3 | analyzers, builder, services | 73 | `test_k3_analyzers.py`, `test_k3f_cross_format.py`, `test_k3g_services.py`, `test_k3hi_sections_outline.py`, `test_k3j_builder.py`, `test_k3k_format_headings.py` |
 | K4 | the envelope, the roots, the register | 3 | `test_k4_envelope.py` |
 | K6 | objects | 20 | `test_k6_objects.py`, `test_k6_captions.py`, `test_k6_regions.py` |
 | K7 | the store | 22 | `test_k7_store.py` |
+| K8 | field views and line joins | 4 (pinned in `test_explorer.py`) | `test_field_views.py`, `test_field_views_mupdf.py`, `test_k2p_pdf_readers.py`; `tests/harvest/test_explorer_prerequisites.py` (K8.3) |
+| K9 | the document Explorer | 25 (pinned in `test_explorer.py`) | `test_explorer*.py`, `test_header_unit_context.py`, `test_renderable_region_adapters.py`, `test_region_table_refusals.py`, `test_context_groups.py`, `test_content_ledger_v22.py`, `test_grid_view.py`, `test_native_partial_end_rows.py`; in `tests/harvest/`: `test_explorer_slice4_quantities.py`, `test_table_context.py`, `test_header_units.py`, `test_relative_quantities.py`, `test_region_boundaries.py`, `test_renderable_regions.py`, `test_table_alias_straddling.py`, `test_table_inside_table_cell.py` |
+| LO | legacy Office conversion | 5 clauses | `test_legacy_office.py` |
+
+K8 and K9 are written as items rather than table rows, and named falsifier series run inside K9
+(X1–X25, A1–A13, B1–B3, E7.7, E7.9a–f, E8.7, E9.5b, E9.11, E9.12). The known holes H1 and H2 are not
+propositions. Continuous integration runs two of the `tests/harvest` files; the others that carry
+K8.3 and parts of K9 are run by hand.
 
 K0 holds these, among others, in `tests/saqqara/test_k0_spec.py`:
 
-- `FROZEN_COUNTS` = K1 10, K2 25, K3 73, K4 3, K6 20, K7 22. A change to `SPEC.md` that does not
-  move this pin fails, and the comment beside it records why each count moved.
+- `FROZEN_COUNTS` = K1 10, K2 26, K3 73, K4 3, K6 20, K7 22 (154). Adding or removing a K1–K7 table
+  row in `SPEC.md` without moving this pin fails, and the comment beside it records why each count
+  moved. The K8 and K9 items and the LO clauses are not counted there; the contiguity of K8 (1–4) and
+  K9 (1–25) is pinned in `test_explorer.py`.
 - The specification and `generators.FIXTURES` agree in both directions, and every fixture declares
   its suffix in `FIXTURE_SUFFIX`.
-- `DECLARED_KERNELS`: the exact kernel classes, by defining module.
+- `DECLARED_KERNELS`: the six kernel classes, by defining module and in walk order — the four
+  Explorer kernels of `kernels/explorer.py` (`CensusKernel`, `ProfileKernel`, `ReadKernel`,
+  `ReportKernel`), then `SaqqaraIndexKernel` and `SaqqaraKernel`. T0.7 in
+  `tests/tender/test_t0_family.py` holds this list and `FROZEN_COUNTS` as literals, so moving either is
+  a two-file edit.
 - The repository guard fires on a planted violation, finds nothing in the package or its tests, and
-  its hashed table holds `FROZEN_TIER1_ROWS` = 6 rows.
+  its hashed table holds `FROZEN_TIER1_ROWS` = 6 rows. Its history mode is exercised on generated
+  repositories: it reads a commit message and a blob only an intermediate commit held, and refuses
+  through the command line.
 - The prose gate: in `README.md` of the package, in `SPEC.md` and in the user page
   `docs/KOAS_SAQQARA.md`, every number written before the word "propositions" equals the frozen
-  total, and a line naming a range of gates names them all.
+  total, and a line naming a range of gates names them all (K1–K4, K6 and K7). This page is not read
+  by that gate, and neither is `__init__.py`.
 
 ### 10.2 Running the suite
 
@@ -850,31 +1121,69 @@ python -m pytest tests/saqqara -q
 OLLAMA_LIVE=1 OLLAMA_EMBED_MODEL=<a pulled embedding model> python -m pytest tests/saqqara -q
 ```
 
-The live tests run only with `OLLAMA_LIVE=1`, against a generated oversized input and never a
-document. Fixtures are generated by `tests/saqqara/generators.py`; a binary file under
+The three live tests (K7.6, K7.20, K7.21) run only with `OLLAMA_LIVE=1`, on generated text — short
+invented strings, and for K7.21 an oversized input — never a document. The Explorer's replays:
+`python -m tests.saqqara.explorer_slice4_fields_replay --output replay.json`,
+`tests/saqqara/explorer_slice4_replay.py` and `tools/explorer_slice3_gate.py`. Fixtures are generated by `tests/saqqara/generators.py`; a binary file under
 `tests/saqqara/` is refused by the guard.
 
-Continuous integration (`.github/workflows/guard.yml`) proves the guard fires, scans every blob
-revision and commit message of a pull request with `tools/check_forbidden.py --history`, installs
-`.[saqqara,mcp,dev]` on Python 3.12, runs `tests/saqqara` and `tests/tender`, and runs
-`examples/saqqara/run_demo.sh`.
+Continuous integration (`.github/workflows/guard.yml`) proves the guard fires and scans every
+tracked file on each push and pull request; on a pull request it also scans every blob revision and
+commit message with `tools/check_forbidden.py --history`. It installs `.[saqqara,mcp,dev,regions]` on
+Python 3.12 (no `pymupdf`, so the opt-in reader's tests skip), runs `tests/saqqara`, the region data
+gates `tests/harvest/test_region_boundaries.py` and `tests/harvest/test_renderable_regions.py`, then
+`tests/tender`, and runs `examples/saqqara/run_demo.sh`.
 
-### 10.3 The baseline at `75b0fe1`
+### 10.3 The baseline at `3cb2ad6`
 
-Python 3.12.12, `python -m pytest tests/saqqara -q`: **783 collected, 775 passed, 8 skipped**.
+Measured on 2026-11-17 in `ragix-env` (an editable install of the repository): Python 3.12.12,
+pypdf 6.13.3, pypdfium2 5.13.0, PyMuPDF 1.27.2.2, LibreOffice 26.8 on the path, so the optional
+readers' tests ran. `python -m pytest tests/saqqara -p no:cacheprovider -rsx`: **1860 collected,
+1849 passed, 1 failed, 9 skipped, 1 xfailed**.
+
+The failure is `test_k2_26_a_run_reads_at_the_same_point_however_the_page_is_transformed`: under
+pypdf 6.13.3 the run that opens a new text object on the previous run's baseline ("Premier Second"
+in the fixture) is placed 154 pt below its start, on the identity page and on the transformed one,
+and the scaled page reads "Valeurmesuree" without its space. Every other run is placed exactly. The
+same test passes under pypdf 6.17.0, the version continuous integration installs. The position fix
+of K2.26 therefore depends on the order in which pypdf calls the reader, while the package declares
+`pypdf>=4.0.0` (§11).
 
 | skipped | where | reason as reported |
 |---|---|---|
+| 1 | `test_k0_spec.py` | no .git/hooks in this checkout (a git worktree) |
 | 3 | `test_k3_analyzers.py` | this fixture pins an abstention, not a split |
 | 2 | `test_k3hi_sections_outline.py` | counted as a refusal, asserted in K3.43 and K3.42 |
 | 3 | `test_k7_store.py` | live embedding test; set `OLLAMA_LIVE=1` to run |
 
+The expected failure is strict: `test_explorer_slice4_fields.py::test_a9_role_word_lines_are_listed_never_read[mid]`,
+"two leading values derive a bound that closes the window (flagged); repair deferred".
+
+Where `pymupdf` or LibreOffice is absent, the tests of the opt-in reader, the field views on
+PyMuPDF and the legacy conversion skip instead of running.
+
 | test file | test functions |
 |---|---:|
+| `test_content_ledger_v22.py` | 23 |
+| `test_context_groups.py` | 33 |
+| `test_explorer.py` | 31 |
+| `test_explorer_failures.py` | 4 |
+| `test_explorer_native_rows_once.py` | 2 |
+| `test_explorer_occurrences.py` | 7 |
+| `test_explorer_privacy.py` | 17 |
+| `test_explorer_slice2.py` | 24 |
+| `test_explorer_slice4_fields.py` | 43 |
+| `test_explorer_slice4_tables.py` | 7 |
+| `test_explorer_tables.py` | 34 |
+| `test_field_views.py` | 9 |
+| `test_field_views_mupdf.py` | 1 |
+| `test_grid_view.py` | 24 |
+| `test_header_unit_context.py` | 9 |
 | `test_k0_spec.py` | 22 |
 | `test_k1_model.py` | 36 |
-| `test_k2_adapters.py` | 61 |
+| `test_k2_adapters.py` | 63 |
 | `test_k2p_pdf.py` | 11 |
+| `test_k2p_pdf_readers.py` | 13 |
 | `test_k3_analyzers.py` | 42 |
 | `test_k3f_cross_format.py` | 22 |
 | `test_k3g_services.py` | 26 |
@@ -884,8 +1193,14 @@ Python 3.12.12, `python -m pytest tests/saqqara -q`: **783 collected, 775 passed
 | `test_k4_envelope.py` | 31 |
 | `test_k6_captions.py` | 15 |
 | `test_k6_objects.py` | 45 |
-| `test_k6_regions.py` | 35 |
-| `test_k7_store.py` | 149 |
+| `test_k6_regions.py` | 37 |
+| `test_k7_store.py` | 158 |
+| `test_legacy_office.py` | 8 |
+| `test_native_partial_end_rows.py` | 6 |
+| `test_region_table_refusals.py` | 4 |
+| `test_renderable_region_adapters.py` | 12 |
+
+35 files, 915 test functions (591 in 15 files at `75b0fe1`).
 
 Parametrisation makes the collected count larger than the sum of functions.
 
@@ -899,7 +1214,7 @@ Parametrisation makes the collected count larger than the sum of functions.
 2. **The index result's per-document keys collide.** Each `documents[]` entry is built as
    `{"chunks": <replace_chunks counts>, "refused": <embedding refusals>, **FeedResult.counts()}`, and
    the feed's counts overwrite both keys. `chunks` is therefore the number of chunks planned and
-   `refused` the number of chunker refusals. Embedding refusals are in the top-level `refused` and
+   `refused` the number of the chunker's refusals plus the bindings the feed could not resolve. Embedding refusals are in the top-level `refused` and
    `embedder_refusals`.
 3. **What the index kernel writes into `documents`.** `feed_result` passes no corpus, kernel,
    version or time, so every document is stored with corpus `default`, kernel `saqqara`, kernel
@@ -917,11 +1232,11 @@ Parametrisation makes the collected count larger than the sum of functions.
 10. **The `outline` entry of `analyzers` is accepted and ignored.** `compute` admits its name and
     constructs `OutlineAnalyzer()` without options.
 11. **`READABLE` in `kernels/saqqara_run.py` is not used.** The kernel offers every file to the
-    readers.
-12. **Two MCP docstrings differ from the code.** `koas_saqqara_run` says an empty workspace means a
-    temporary one, and the code uses the source's parent directory; `koas_saqqara_search` lists a
-    `dense` field, and the code returns only `hits`. `koas_saqqara_status` collects `abstentions` from
-    each trace's own `abstentions` key rather than from the register.
+    readers; the tuple now lists `.doc` and `.xls` too.
+12. **`koas_saqqara_status` does not read the abstention register.** It collects `abstentions` from
+    each trace's own `abstentions` key, which only `header_bands` writes, so `grid_tables`
+    abstentions and those recorded in the tree are missing from its list. The complete register is
+    `report.abstentions` in the same result.
 13. **The drop trace and lexical refusals are per process.** `drops` and `lexical_refusals` are
     lists on the store object, not tables.
 14. **Output files carry wall-clock time.** The envelope's `_meta` and the store's `indexed_at` and
@@ -929,3 +1244,28 @@ Parametrisation makes the collected count larger than the sum of functions.
     the output file.
 15. **The connection is not shared across threads.** `SqliteDocumentStore` opens one `sqlite3`
     connection with the module's defaults.
+16. **A spreadsheet block loses the conversion bridge.** `analyzers/tables.py` builds each block's
+    provenance with the chain `(locator,)` and no `source_sha256`, so a `table`, `paragraph` or
+    `list` block read from a converted `.xls` drops its `ConversionLocator`, while the nodes the
+    reader produced keep it. SPEC LO.3 says every derived node keeps the bridge; its test does not
+    reach blocks.
+17. **K2.26 depends on the pypdf version.** Under pypdf 6.13.3 one construct, a run that opens a new
+    text object on the previous run's baseline, is misplaced (§10.3); under 6.17.0 it is exact. The
+    package declares `pypdf>=4.0.0`.
+18. **Text inside a form XObject is read twice (H2).** Once run by run in the form's own space and
+    once whole under the outer matrices, with sizes and widths missing the form's scale: the
+    running header and footer of a browser-printed PDF are duplicated and misplaced.
+19. **A non-default PDF reader is a different reader.** Its trees carry the version
+    `0.9.0+pymupdf-<version>` and/or `.line-join`, so their roots differ from the default reader's.
+    The PyMuPDF reader replaces the text records only; outline, pages, pictures and drawings are
+    still read by pypdf.
+20. **A text-extraction failure reads as a page without text.** An exception from pypdf's
+    `extract_text` leaves the page empty, so it is reported `has_text: false`, `needs_ocr: true` and
+    listed as `no-text-layer`; an exception from `MuPdfTextReader.placements` instead makes the whole
+    file `unreadable-file`. A malformed outline, and an outline entry with no title, are dropped
+    without a count.
+21. **Legacy Office input writes to the workspace.** A `.doc` or `.xls` among the inputs makes the
+    run create `assets/office-conversions/`; without LibreOffice the file is refused as
+    `converter-unavailable`.
+22. **The Explorer's PDF path is PyMuPDF only.** `digest_pdf` always reads through
+    `MuPdfTextReader`, and the `explorer` extra pins `pymupdf==1.27.2.2` for reproducible geometry.
