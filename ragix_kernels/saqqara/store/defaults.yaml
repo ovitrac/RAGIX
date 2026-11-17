@@ -27,14 +27,14 @@ pdf:
   # pypdf (BSD-3-Clause) is the default. pymupdf is AGPL-3.0, installed only by
   # the `saqqara-mupdf` extra, confined to adapters/pdf_mupdf.py and never
   # loaded unless chosen here (K6.16). A document it read says so in its
-  # provenance: kernel_version `0.8.0+pymupdf-<version>`. Outline, pages,
+  # provenance: kernel_version `0.9.0+pymupdf-<version>`. Outline, pages,
   # pictures and ink are read by pypdf whichever reader is chosen.
   text_reader: pypdf
   # Join the fragments of one visual line into one text node. A joined node
   # keeps its raw fragments in `facts.fragments`; a join where a digit meets a
   # digit is marked `facts.review: {reason: digit-run-joined}` — a value to be
   # verified by a person, never a silent repair. Counts per page in
-  # `facts.line_join`; provenance kernel_version `0.8.0+line-join`.
+  # `facts.line_join`; provenance kernel_version `0.9.0+line-join`.
   line_join: false
 # ---------------------------------------------------------------------------
 

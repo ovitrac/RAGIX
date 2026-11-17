@@ -2306,6 +2306,106 @@ def pdf_text_widths(path: Path) -> Path:
     return path
 
 
+#: Where the strings of `pdf_page_positions` start, on both of its pages, in page points
+#: with y upward. A run a library assembles from several strings starts where its first
+#: string does. Chosen so each route reaches them exactly: on page 2 a page point (x, y)
+#: is the text-space point (2x, 3368 - 2y), and every such value is exact in binary, so
+#: a difference in the reading is a difference in the method.
+PAGE_POSITIONS = {
+    "Titre du document": (72.0, 700.0),
+    "Valeur": (72.0, 650.0),
+    "mesuree": (132.0, 650.0),
+    "Gauche": (72.0, 600.0),
+    "Droite": (300.0, 600.0),
+    "Note": (72.0, 550.0),
+    "Zero": (72.0, 464.0),
+    "Premier": (72.0, 450.0),
+    "Second": (272.0, 450.0),
+    "Avant": (72.0, 400.0),
+    "Apres": (300.0, 400.0),
+}
+
+
+def pdf_page_positions(path: Path) -> Path:
+    """One document, two pages, the same runs at the same places on both.
+
+    A reader is told where a run starts by the text matrix and by the page
+    transformation in force, and only their product is the point on the page. The
+    two pages agree on that point and disagree about how they express it:
+
+      page 1  identity transformation; the text matrix carries the position
+      page 2  the page is scaled by 0.5, flipped, and drawn in a space twice the
+              page's height (`0.5 0 0 -0.5 0 1684 cm`), the shape a browser's
+              print engine writes; the text matrix flips the type back upright and
+              is expressed in that space, the size operand is doubled, and the
+              second line is reached by a relative `Td` from the first
+
+    Each page also carries three shapes that catch a reader placing a run where
+    the library last flushed rather than where its first string was shown:
+
+      - one line set as two strings on the same baseline, the second reached by its
+        own `Td`; a library may deliver them as one run, which starts where its
+        first string does;
+      - two text objects on one baseline ("Gauche", then "Droite" in a new `BT`);
+        the library's own matrices for the second are those of the new text object,
+        the page origin on page 1;
+      - a `Tj` and a `TJ` that show no character, then a move, then "Note"; a start
+        captured at the empty strings would place "Note" where they stood, at
+        (400, 750);
+      - a run begun by `'` ("Premier", after "Zero", with a leading of 14 points on
+        the page) and continued by `Tj` ("Second"); it starts where `'` shows its
+        string, after the line move, not at the continuation;
+      - a run shown by `"` alone in a new text object on the previous baseline
+        ("Apres", with no leading and zero spacings); the library's own matrices for
+        it are those of the new text object, the page origin on page 1. `'` and `"`
+        are each carried by a string of their own.
+
+    Every run must read where its first string starts (`PAGE_POSITIONS`) on BOTH
+    pages. A reader reporting the text matrix alone passes most of page 1 and puts
+    every run of page 2 above the top of an 842-point page.
+    """
+    page_identity = (
+        b"BT /F1 12 Tf 1 0 0 1 72 700 Tm (" + _pdf_escape("Titre du document") + b") Tj "
+        b"0 -50 Td (" + _pdf_escape("Valeur") + b") Tj "
+        b"60 0 Td (" + _pdf_escape("mesuree") + b") Tj ET\n"
+        b"BT /F1 12 Tf 1 0 0 1 72 600 Tm (" + _pdf_escape("Gauche") + b") Tj ET\n"
+        b"BT /F1 12 Tf 1 0 0 1 300 600 Tm (" + _pdf_escape("Droite") + b") Tj ET\n"
+        b"BT /F1 12 Tf 1 0 0 1 400 750 Tm () Tj [-250] TJ "
+        b"1 0 0 1 72 550 Tm (" + _pdf_escape("Note") + b") Tj ET\n"
+        b"BT /F1 12 Tf 14 TL 1 0 0 1 72 464 Tm (" + _pdf_escape("Zero") + b") Tj "
+        b"(" + _pdf_escape("Premier") + b") ' 200 0 Td (" + _pdf_escape("Second") + b") Tj ET\n"
+        b"BT /F1 12 Tf 1 0 0 1 72 400 Tm (" + _pdf_escape("Avant") + b") Tj ET\n"
+        b"BT /F1 12 Tf 0 TL 1 0 0 1 300 400 Tm 0 0 (" + _pdf_escape("Apres") + b") \" ET\n"
+    )
+    page_transformed = (
+        b"q 0.5 0 0 -0.5 0 1684 cm\n"
+        b"BT /F1 24 Tf 1 0 0 -1 144 1968 Tm (" + _pdf_escape("Titre du document") + b") Tj "
+        b"0 -100 Td (" + _pdf_escape("Valeur") + b") Tj "
+        b"120 0 Td (" + _pdf_escape("mesuree") + b") Tj ET\n"
+        b"BT /F1 24 Tf 1 0 0 -1 144 2168 Tm (" + _pdf_escape("Gauche") + b") Tj ET\n"
+        b"BT /F1 24 Tf 1 0 0 -1 600 2168 Tm (" + _pdf_escape("Droite") + b") Tj ET\n"
+        b"BT /F1 24 Tf 1 0 0 -1 800 1868 Tm () Tj [-250] TJ "
+        b"1 0 0 -1 144 2268 Tm (" + _pdf_escape("Note") + b") Tj ET\n"
+        b"BT /F1 24 Tf 28 TL 1 0 0 -1 144 2440 Tm (" + _pdf_escape("Zero") + b") Tj "
+        b"(" + _pdf_escape("Premier") + b") ' 400 0 Td (" + _pdf_escape("Second") + b") Tj ET\n"
+        b"BT /F1 24 Tf 1 0 0 -1 144 2568 Tm (" + _pdf_escape("Avant") + b") Tj ET\n"
+        b"BT /F1 24 Tf 0 TL 1 0 0 -1 600 2568 Tm 0 0 (" + _pdf_escape("Apres") + b") \" ET\nQ\n"
+    )
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [4 0 R 5 0 R] /Count 2 >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        (b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+         b"/Resources << /Font << /F1 3 0 R >> >> /Contents 6 0 R >>"),
+        (b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+         b"/Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>"),
+        _pdf_stream(page_identity),
+        _pdf_stream(page_transformed),
+    ]
+    path.write_bytes(_pdf_assemble(objects))
+    return path
+
+
 def pdf_caption_below(path: Path) -> Path:
     """Four figures: one per binding rule, and one with nothing near it.
 
@@ -2806,6 +2906,7 @@ FIXTURES: Dict[str, Callable[[Path], Path]] = {
     "pdf_image_in_form": pdf_image_in_form,
     "pdf_caption_below": pdf_caption_below,
     "pdf_text_widths": pdf_text_widths,
+    "pdf_page_positions": pdf_page_positions,
     "pdf_vector_region": pdf_vector_region,
     "pdf_page_furniture": pdf_page_furniture,
     "pdf_table_as_image": pdf_table_as_image,
@@ -2880,6 +2981,7 @@ FIXTURE_SUFFIX: Dict[str, str] = {
     "pdf_image_in_form": ".pdf",
     "pdf_caption_below": ".pdf",
     "pdf_text_widths": ".pdf",
+    "pdf_page_positions": ".pdf",
     "pdf_vector_region": ".pdf",
     "pdf_page_furniture": ".pdf",
     "pdf_table_as_image": ".pdf",

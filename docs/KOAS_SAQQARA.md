@@ -144,7 +144,7 @@ reading, so a file it excludes appears nowhere in the report.
 
 | extension | reader | reader version |
 |---|---|---|
-| `.pdf` | `pdf` | 0.8.0 |
+| `.pdf` | `pdf` | 0.9.0 |
 | `.docx` | `docx` | 0.7.0 |
 | `.xlsx`, `.xlsm` | `xlsx` | 0.6.0 |
 | `.pptx` | `pptx` | 0.5.0 |
@@ -890,18 +890,18 @@ the defaults, or loading refuses it with its path. This file configures `index` 
 
 ## 13. Gates and specification
 
-`ragix_kernels/saqqara/SPEC.md` holds **153 falsifiable propositions**, each with the fixture that
+`ragix_kernels/saqqara/SPEC.md` holds **154 falsifiable propositions**, each with the fixture that
 exercises it and what would falsify it.
 
 | gate | layer | propositions |
 |---|---|---:|
 | K1 | `model.py`: nodes, kinds, locators, provenance, stable JSON | 10 |
-| K2 | `adapters/`: one reader per format | 25 |
+| K2 | `adapters/`: one reader per format | 26 |
 | K3 | `analyzers/`, `builder.py`, `services.py` | 73 |
 | K4 | the kernel envelope, the roots and the abstention register | 3 |
 | K6 | objects: figures, captions, drawn regions | 20 |
 | K7 | the store: one SQLite file, embeddings beside the chunks | 22 |
-| | **total** | **153** |
+| | **total** | **154** |
 
 K0 is the gate that lets the others mean something. It proves that the specification parses and is
 self-consistent, that specification and fixtures agree in both directions, that the package defines

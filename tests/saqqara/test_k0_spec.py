@@ -198,7 +198,21 @@ from generators import FIXTURES, FIXTURE_SUFFIX  # noqa: E402
 #:                short answer cannot be matched to its inputs, and retrying one by
 #:                one would hide a server that cannot batch behind a run twenty
 #:                times slower.
-FROZEN_COUNTS = {"K1": 10, "K2": 25, "K3": 73, "K4": 3, "K6": 20, "K7": 22}
+#:   K2 25 -> 26  K2.26, measured before it was written. The laid-out reader
+#:                reported a run at the point the library last flushed the text
+#:                matrix to, ignoring the page transformation that K2.24 already
+#:                composes for size and K2.25 for width. A browser's print engine
+#:                scales and flips the page and draws in a space taller than it: on
+#:                the two browser-printed public PDFs of this repository, 650 of 874
+#:                and 13 068 of 14 701 runs fell outside the page, and none landed
+#:                within 0.5 pt of where the opt-in reader puts the same text. After:
+#:                0 and 76 outside, 865 of 874 and 12 799 of 14 338 within 0.5 pt.
+#:                The 76 are the second copies of header and footer lines drawn in
+#:                form XObjects -- H2, recorded with its route to closing it. Identity
+#:                pages moved too: a run opening a new text object on the previous
+#:                run's baseline was placed at the page origin. On the Ghostscript-made
+#:                paper of this repository nothing moved (0 outside, 998 of 998).
+FROZEN_COUNTS = {"K1": 10, "K2": 26, "K3": 73, "K4": 3, "K6": 20, "K7": 22}
 
 _ROW = re.compile(r"^\|\s*(K[1-7])\.(\d+)\s*\|(.+?)\|(.+?)\|(.+?)\|\s*$")
 _TICKED = re.compile(r"`([a-z0-9_']+)`")

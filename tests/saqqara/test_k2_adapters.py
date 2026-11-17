@@ -212,7 +212,7 @@ PINNED = {
         "heading": ("level",),
         "paragraph": (),
     }),
-    "pdf": ("0.8.0", {
+    "pdf": ("0.9.0", {
         "outline_entry": ("level",),
         "page": ("has_text", "image_count", "needs_ocr", "width", "height"),
         "text": ("x", "y", "font_size", "font", "width"),
@@ -770,3 +770,52 @@ def test_k2_25_a_font_without_widths_reports_unknown(tmp_path):
     unknown = [r for r in records if r.facts["width"] is None]
     assert len(unknown) == 1, [r.facts for r in records]
     assert len(records) == 2, "both runs are read; only one can be measured"
+
+
+# ---------------------------- K2.26 a run is placed on the page, not in text space
+
+def _positions_by_page(path):
+    """{page: {text: (x, y)}} from the default reader, positions as reported."""
+    from ragix_kernels.saqqara.adapters import read_path
+
+    by_page: dict[int, dict[str, tuple[float, float]]] = {}
+    for record in read_path(path):
+        if record.kind == "text":
+            by_page.setdefault(record.locator.page, {})[record.text] = (
+                record.facts["x"], record.facts["y"])
+    return by_page
+
+
+def test_k2_26_a_run_reads_at_the_same_point_however_the_page_is_transformed(tmp_path):
+    """Two pages, one layout: identity on page 1, a scaled and flipped page on page 2.
+
+    A reader reporting the text matrix alone passes page 1 and misplaces every run
+    of page 2, which is the shape of the browser-printed documents this came from.
+    """
+    import generators as G
+
+    by_page = _positions_by_page(G.FIXTURES["pdf_page_positions"](tmp_path / "positions.pdf"))
+    assert sorted(by_page) == [1, 2], "the fixture writes two pages"
+    assert set(by_page[1]) == set(by_page[2]), (
+        "the two pages hold the same strings and must be read as the same runs",
+        sorted(by_page[1]), sorted(by_page[2]))
+    starts = [t for t in G.PAGE_POSITIONS if any(r.startswith(t) for r in by_page[1])]
+    assert {"Titre du document", "Valeur", "Gauche", "Droite", "Note", "Zero", "Premier", "Avant", "Apres"} <= set(starts), sorted(by_page[1])
+    for page in (1, 2):
+        for run, got in by_page[page].items():
+            first = next(t for t in G.PAGE_POSITIONS if run.startswith(t))
+            x, y = G.PAGE_POSITIONS[first]
+            assert abs(got[0] - x) <= 0.01 and abs(got[1] - y) <= 0.01, (
+                f"page {page}: {run!r} read at {got}, its first string starts at {(x, y)}")
+
+
+def test_k2_26_every_run_is_inside_its_page(tmp_path):
+    """The weaker statement, kept separate because it is the one a corpus can check:
+    nothing in this reader may place ink outside the page that holds it."""
+    import generators as G
+
+    path = G.FIXTURES["pdf_page_positions"](tmp_path / "positions.pdf")
+    outside = [(page, text, xy) for page, runs in _positions_by_page(path).items()
+               for text, xy in runs.items()
+               if not (0 <= xy[0] <= 595 and 0 <= xy[1] <= 842)]
+    assert not outside, outside

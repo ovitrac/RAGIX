@@ -20,8 +20,12 @@ and a lie about the document: downstream, an empty page is indistinguishable fro
 read and found blank. So a page with no text layer is reported with `needs_ocr` set and its image
 count attached — a declared pending state, never a silent emptiness (K2.14).
 
-Positions: each text observation records the point the text matrix placed it at, and the locator
-carries the page. It does not carry a bounding box. A true box needs glyph metrics this reader
+Positions: each text observation records the point on the page where its run starts, in the page's
+own space with y upward: the text matrix in force when the run's first string was shown, composed
+with the page transformation in force then (K2.26). The text matrix alone is a point in text space,
+and it equals the page point only where the transformation is the identity; a browser's print engine
+scales and flips the page and draws in a space taller than it. The locator carries the page. A text
+observation does not carry a bounding box. A true box needs glyph metrics this reader
 does not have, and a box invented from a font size would be a measurement nobody made — the kind
 of plausible number that survives precisely because it looks like the others.
 
@@ -32,7 +36,7 @@ text comes from `pymupdf` instead — AGPL-3.0, confined to `pdf_mupdf.py`, neve
 keeping the raw fragments on the joined node and marking every join where a digit meets a digit
 for review. Both are off by default, and a reader configured with the defaults *is* the registered
 reader: the default route is today's code, not an equivalent of it. A non-default reader says so in
-the provenance of everything it read, through its version (`0.8.0+pymupdf-<version>.line-join`).
+the provenance of everything it read, through its version (`0.9.0+pymupdf-<version>.line-join`).
 """
 
 from __future__ import annotations
@@ -278,6 +282,30 @@ TEXT_READERS = ("pypdf", "pymupdf")
 OPTIONS: dict[str, object] = {"text_reader": "pypdf", "line_join": False}
 
 
+def _shows_a_character(operator: bytes, operands) -> bool:
+    """Whether a text-showing operator shows at least one character (K2.26).
+
+    `Tj` and `'` take one string, `"` takes two spacings then a string, and `TJ`
+    an array of strings and kerning numbers. An empty string, an empty array or an
+    array of numbers only moves nothing onto the page, and the library calls no
+    visitor for it.
+    """
+    if not operands:
+        return False
+    if operator == b'"':
+        if len(operands) < 3:
+            return False
+        shown = operands[2]
+        return isinstance(shown, (str, bytes)) and len(shown) > 0
+    shown = operands[0]
+    if operator in (b"Tj", b"'"):
+        return isinstance(shown, (str, bytes)) and len(shown) > 0
+    try:
+        return any(isinstance(item, (str, bytes)) and len(item) > 0 for item in shown)
+    except TypeError:
+        return False
+
+
 def _origin(raw: str, tm, cm, shown=None):
     """Where a run of type starts on the page, for the line join only.
 
@@ -310,7 +338,8 @@ class PdfAdapter(Adapter):
 
     format = "pdf"
     # 0.4.0 reads the images a document holds, one record per placement (K6.1).
-    version = "0.8.0"
+    # 0.9.0 places each run on the page, not in text space (K2.26).
+    version = "0.9.0"
     extensions = (".pdf",)
     fact_sets = {
         "outline_entry": OUTLINE_FACTS,
@@ -609,8 +638,25 @@ class PdfAdapter(Adapter):
         """The default text reader: pypdf's visitor, one placement per text run.
 
         `geometry`, when a list, receives per placement what the line join needs
-        (`_origin`). It is None on the default route, which is this reader exactly
-        as it was before the port existed.
+        (`_origin`). It is None on the default route.
+
+        A run is placed where it starts on the page (K2.26): the text matrix in force
+        when its first string was shown, composed with the transformation in force
+        then. The matrices handed to the visitor are those of the library's last
+        flush, which for a run assembled from several strings is not where it
+        starts; they are used only for a run whose first string was not shown by
+        `Tj` or `TJ`.
+
+        A `Tj` or `TJ` that shows no character (`() Tj`, `[] TJ`, a kerning-only
+        `[-250] TJ`) starts nothing: it produces no run, so the library never calls
+        the visitor for it, and a start captured there would survive the next move
+        and be handed to the next run.
+
+        A run begun by `'` or `"` is captured after the operator, not before it: the
+        operator moves to the next line and the library flushes the previous run
+        inside it, so only once it returns are the matrices those of the run's
+        start. A `'` that does not move (zero leading) and continues a run keeps the
+        start already held.
         """
         placements: list[tuple[str, float, float, float, str]] = []
 
@@ -624,25 +670,32 @@ class PdfAdapter(Adapter):
                 size = float(font_size or 0) * _y_scale(tm) * _y_scale(cm)
                 width = _run_width(text, font_dict if isinstance(font_dict, dict) else {},
                                    font_size or 0, tm, cm)
-                placements.append((text.strip(), float(tm[4]), float(tm[5]),
+                # The same distinction for position (K2.26): the text matrix places
+                # the run in text space, and only its product with the page
+                # transformation places it on the page.
+                start_cm, start_tm = shown[0] if shown else (cm, tm)
+                placed = _concat(tuple(float(v) for v in start_tm),
+                                 tuple(float(v) for v in start_cm))
+                placements.append((text.strip(), placed[4], placed[5],
                                    size, name, width))
                 if geometry is not None:
                     geometry.append(_origin(text, tm, cm, shown[0] if shown else None))
-            if geometry is not None:
-                shown.clear()                     # the next run starts afresh
+            shown.clear()                         # the next run starts afresh
 
-        # The line join only: the matrices in force at the first string each run shows.
+        # The matrices in force at the first string each run shows.
         shown: list[tuple[list, list]] = []
 
         def before(operator, operands, cm, tm):
-            if operator in (b"Tj", b"TJ") and not shown:
+            if operator in (b"Tj", b"TJ") and not shown and _shows_a_character(operator, operands):
+                shown.append((list(cm), list(tm)))
+
+        def after(operator, operands, cm, tm):
+            if operator in (b"'", b'"') and not shown and _shows_a_character(operator, operands):
                 shown.append((list(cm), list(tm)))
 
         try:
-            if geometry is None:
-                page.extract_text(visitor_text=visitor)
-            else:
-                page.extract_text(visitor_text=visitor, visitor_operand_before=before)
+            page.extract_text(visitor_text=visitor, visitor_operand_before=before,
+                              visitor_operand_after=after)
         except Exception:
             placements = []
             if geometry is not None:
