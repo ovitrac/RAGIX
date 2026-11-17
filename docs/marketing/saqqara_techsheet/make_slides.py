@@ -178,8 +178,8 @@ slides["slide-01-cover.html"] = HEAD.format(title="Slide 01 — Saqqara cover", 
 
         <div class="cover-right">
           <div class="cover-img-wrapper">
-            <img src="../images/hero.png" alt="One page of a public document, with every node Saqqara records outlined on it.">
-            <div class="cover-tagline">One public page, with every node Saqqara records outlined on it.</div>
+            <img src="../images/hero.png" alt="One page of a public document; a bar in the margin marks each text run Saqqara records, corner marks its drawn region.">
+            <div class="cover-tagline">One public page: each bar marks a text run Saqqara records, with its exact place.</div>
           </div>
         </div>
       </div>
