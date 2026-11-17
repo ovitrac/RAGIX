@@ -6,8 +6,9 @@ Reads documents into typed trees with provenance on every node, runs the structu
 them, and emits the trees, the traces the analyzers produced, and a Merkle root over both. No LLM,
 no retrieval, no store — pure computation over files.
 
-This is the ONLY module of the family that exposes a Kernel subclass: the registry discovers
-kernels by walking the package, so a second one here would register as an independent kernel.
+This module exposes one Kernel subclass. The registry discovers kernels by walking the package, so
+any further one would register as an independent kernel; the K0.3 gate pins the family's six
+(this one, the index kernel and the four Explorer kernels).
 
 Two roots are reported, and the difference between them is the point.
 

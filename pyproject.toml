@@ -51,7 +51,10 @@ translate = ["pymupdf4llm>=0.0.17", "pymupdf>=1.24.0"]
 # pypdfium2 is Apache-2.0 and rasterises a region of drawing so it can be stored
 # and compared. It is the DEFAULT renderer precisely because its licence imposes
 # nothing on a deployment of this MIT package.
-saqqara = ["ragix[docs]", "pypdf>=4.0.0", "pypdfium2>=4.0.0", "numpy>=1.24.0"]
+# pypdf>=6.17: the K2.26 placement relies on the order in which pypdf calls the reader. Measured: 6.17.0
+# places every run of the fixture; 6.13.3 puts a run that opens a new text object on the previous
+# baseline 154 pt off. 6.14-6.16 were not measured (docs/KOAS_SAQQARA_DEV.md §10.3).
+saqqara = ["ragix[docs]", "pypdf>=6.17.0", "pypdfium2>=4.0.0", "numpy>=1.24.0"]
 # saqqara-mupdf: an ALTERNATIVE renderer and text reader, opt-in and never
 # installed by default.
 #

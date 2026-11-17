@@ -6,6 +6,18 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## Unreleased — saqqara requires pypdf>=6.17.0; developer reference 2.0; tech sheet v1 fixes
+
+- The `saqqara` extra now requires `pypdf>=6.17.0` (was `>=4.0.0`). The K2.26 placement relies on the
+  order in which pypdf calls the reader: under pypdf 6.13.3 a run that opens a new text object on the
+  previous run's baseline was placed 154 pt off; under 6.17.0 every run of the fixture is exact.
+  Versions 6.14 to 6.16 were not measured.
+- `docs/KOAS_SAQQARA_DEV.md` 2.0 describes `3cb2ad6`: legacy Office input, the PDF text-reader port,
+  store options and the document Explorer (four kernels), checked section by section against the
+  code; four docstrings that contradicted it are corrected.
+- RAGIX tech sheet v1: page 10 no longer clipped, the `.lifecycle` styles defined, two icon names
+  that do not exist replaced; PDF, standalone HTML and slides PDF regenerated.
+
 ## Unreleased — docs: the Saqqara tech sheet, and statements brought in line with the code
 
 - The Saqqara tech sheet, `docs/marketing/saqqara_techsheet/`: a 21-page dossier and its PDF, a

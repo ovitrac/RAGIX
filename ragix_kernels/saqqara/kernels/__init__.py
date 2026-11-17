@@ -1,7 +1,8 @@
-"""saqqara kernels — one Kernel subclass per module.
+"""saqqara kernels — six Kernel subclasses in three modules.
 
-The registry discovers kernels by walking the package, so every module here
-that defines a Kernel registers independently. Adding one amends the pinned
+`saqqara_run` and `saqqara_index` hold one each, re-exported here; `explorer`
+holds the four Explorer kernels. The registry discovers kernels by walking the
+package, so every Kernel defined here registers independently. Adding one amends the pinned
 list in the K0.3 gate: that edit is the point, not an obstacle to it.
 
 Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio

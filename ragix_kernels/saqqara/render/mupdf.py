@@ -9,8 +9,9 @@ This module uses **pymupdf**, which is **AGPL-3.0** or a paid commercial licence
 Importing it subjects the running system to AGPL obligations that are **incompatible with
 distributing this package under MIT**.
 
-Nothing in this package imports this module. It is not installed by default, not pulled in by the
-`all` extra, and not required by any test; the default renderer is `pypdfium2` (Apache-2.0). This
+Nothing in this package imports this module. pymupdf is not installed by default and no test
+requires it; it arrives through the opt-in `saqqara-mupdf` and `explorer` extras, and through
+`translate`, which the `all` extra includes. The default renderer is `pypdfium2` (Apache-2.0). This
 file exists so that a caller who has *deliberately* installed the `saqqara-mupdf` extra — because
 they hold a commercial licence, or are not distributing — can construct the renderer explicitly.
 

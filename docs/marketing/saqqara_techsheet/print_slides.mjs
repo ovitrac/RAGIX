@@ -6,9 +6,9 @@
  *
  * Each slide file is opened in headless Chrome at 1280 x 720 px and printed at scale 4/3, which fills a
  * 1280 x 720 pt page (the page size of the RAGIX slides PDF). The pages are joined with pdfunite in the
- * order of deploy.py's SLIDE_ORDER.
+ * order of SLIDE_ORDER in deploy.py (this folder's, or the one given as a third argument).
  *
- * Usage: node print_slides.mjs <slides_dir> <out.pdf>
+ * Usage: node print_slides.mjs <slides_dir> <out.pdf> [deploy.py]
  * Needs puppeteer-core (resolved from the user's node_modules), /usr/bin/google-chrome and pdfunite.
  */
 import { createRequire } from 'node:module';
@@ -21,11 +21,11 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(resolve(homedir(), 'node_modules') + '/');
 const puppeteer = require('puppeteer-core');
 
-const [dir, out] = process.argv.slice(2);
-if (!dir || !out) { console.error('usage: node print_slides.mjs <slides_dir> <out.pdf>'); process.exit(2); }
+const [dir, out, deployPath] = process.argv.slice(2);
+if (!dir || !out) { console.error('usage: node print_slides.mjs <slides_dir> <out.pdf> [deploy.py]'); process.exit(2); }
 
 const here = dirname(fileURLToPath(import.meta.url));
-const deploy = readFileSync(join(here, 'deploy.py'), 'utf-8');
+const deploy = readFileSync(deployPath ? resolve(deployPath) : join(here, 'deploy.py'), 'utf-8');
 const block = deploy.match(/SLIDE_ORDER = \[([\s\S]*?)\]/);
 if (!block) { console.error('SLIDE_ORDER not found in deploy.py'); process.exit(2); }
 const order = [...block[1].matchAll(/"([^"]+\.html)"/g)].map(m => m[1]);
