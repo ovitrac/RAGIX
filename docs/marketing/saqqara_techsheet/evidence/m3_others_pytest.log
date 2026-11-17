@@ -1,0 +1,162 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.1.1, pluggy-1.6.0
+rootdir: <worktree>
+configfile: pyproject.toml
+plugins: anyio-4.15.1
+collected 773 items
+
+tests/harvest/test_bindings.py .......................                   [  2%]
+tests/harvest/test_core_records.py sssss                                 [  3%]
+tests/harvest/test_core_workers.py ssss                                  [  4%]
+tests/harvest/test_derived_embeddings.py ....                            [  4%]
+tests/harvest/test_descent.py ...ss                                      [  5%]
+tests/harvest/test_embed_abstracts.py .....                              [  5%]
+tests/harvest/test_exact_numbers.py ..........................           [  9%]
+tests/harvest/test_explorer_prerequisites.py ..................          [ 11%]
+tests/harvest/test_explorer_slice4_quantities.py ....................... [ 14%]
+..........................................                               [ 20%]
+tests/harvest/test_family_stage.py sssssss                               [ 20%]
+tests/harvest/test_form.py ......................                        [ 23%]
+tests/harvest/test_form_grain.py ......                                  [ 24%]
+tests/harvest/test_form_hollow.py .....                                  [ 25%]
+tests/harvest/test_form_markers.py ...                                   [ 25%]
+tests/harvest/test_form_substitute.py ......                             [ 26%]
+tests/harvest/test_fr_cut.py ......                                      [ 27%]
+tests/harvest/test_fr_dates.py .........                                 [ 28%]
+tests/harvest/test_fr_grammars.py ...................................... [ 33%]
+.........                                                                [ 34%]
+tests/harvest/test_graph_edges.py sss                                    [ 34%]
+tests/harvest/test_graph_references.py ......                            [ 35%]
+tests/harvest/test_header_units.py ........................              [ 38%]
+tests/harvest/test_imports.py .......................................... [ 44%]
+.....                                                                    [ 44%]
+tests/harvest/test_pass1_ladder.py .....                                 [ 45%]
+tests/harvest/test_pass1_truncation.py .....ss..s..                      [ 46%]
+tests/harvest/test_physical_guard.py .................                   [ 49%]
+tests/harvest/test_quantitative.py ..................................... [ 53%]
+......                                                                   [ 54%]
+tests/harvest/test_region_boundaries.py .......                          [ 55%]
+tests/harvest/test_relative_quantities.py ...........................    [ 59%]
+tests/harvest/test_renderable_regions.py ............................... [ 63%]
+...                                                                      [ 63%]
+tests/harvest/test_runner_bakeoff.py ......                              [ 64%]
+tests/harvest/test_runner_nodes.py .........                             [ 65%]
+tests/harvest/test_runner_window.py .......................              [ 68%]
+tests/harvest/test_runner_window_job.py ......                           [ 69%]
+tests/harvest/test_signed_percentages.py ............................... [ 73%]
+.......                                                                  [ 74%]
+tests/harvest/test_table_alias_straddling.py .....                       [ 74%]
+tests/harvest/test_table_context.py ......                               [ 75%]
+tests/harvest/test_table_inside_table_cell.py ..........                 [ 76%]
+tests/tender/test_domain_authority.py ..........                         [ 78%]
+tests/tender/test_domain_claim_record.py ...........                     [ 79%]
+tests/tender/test_domain_claim_record_11.py ......                       [ 80%]
+tests/tender/test_domain_contract.py ................                    [ 82%]
+tests/tender/test_domain_dates_slice.py ...........                      [ 83%]
+tests/tender/test_domain_pipeline.py ...........                         [ 85%]
+tests/tender/test_domain_pyramid.py ..........                           [ 86%]
+tests/tender/test_domain_requirement_record.py .......................   [ 89%]
+tests/tender/test_domain_retrieval.py ........                           [ 90%]
+tests/tender/test_domain_routing.py .........                            [ 91%]
+tests/tender/test_domain_substrate.py ......                             [ 92%]
+tests/tender/test_domain_tagger.py ............                          [ 94%]
+tests/tender/test_t0_family.py ...............                           [ 95%]
+tests/sealed/test_extract_readers.py ......                              [ 96%]
+tests/test_kernels.py ..........F.......                                 [ 99%]
+tests/test_translate_extract.py ...s...                                  [100%]
+
+=================================== FAILURES ===================================
+_ TestRequiresResolution.test_every_requirement_resolves_to_exactly_one_kernel _
+
+self = <tests.test_kernels.TestRequiresResolution object at 0x7337b5243380>
+
+    def test_every_requirement_resolves_to_exactly_one_kernel(self):
+        """The invariant. Falsified by: an entry naming nothing, or two producers.
+    
+        Measured when this landed: 97 kernels, two requiring a capability, three
+        capabilities with two providers each and none of them required by anyone.
+        """
+        KernelRegistry.discover()
+        unresolved = []
+        for name in sorted(KernelRegistry._kernels):
+            for entry in KernelRegistry.get(name).requires:
+                try:
+                    KernelRegistry.resolve_requirement(entry)
+                except (KeyError, ValueError) as exc:
+                    unresolved.append(f"{name} requires {entry!r}: {exc}")
+>       assert not unresolved, "\n  ".join(["unresolvable requirements:"] + unresolved)
+E       AssertionError: unresolvable requirements:
+E           doc_final_report requires 'doc_summarize_tutored': "'doc_summarize_tutored' is neither a kernel name nor a capability any kernel provides. Available kernels: ast_scan, compliance, config_parse, coupling, dead_code, dependency, dns_enum, doc_cluster, doc_cluster_leiden, doc_cluster_reconcile, doc_compare, doc_concepts, doc_coverage, doc_extract, doc_final_report, doc_metadata, doc_pyramid, doc_quality, doc_report_assemble, doc_structure, doc_visualize, drift, entropy, explorer_census, explorer_profile, explorer_read, explorer_report, hotspots, maven_cve, maven_deps, maven_graph, md_apply_ops, md_chunk, md_consistency_scan, md_edit_plan, md_fingerprint_chunk, md_inline_notes_inject, md_inventory, md_numbering_control, md_protected_regions, md_pyramid, md_revert, md_review_report_assemble, md_structure, metrics, module_group, net_discover, partition, pentest_run, port_scan, pres_asset_catalog, pres_content_extract, pres_folder_scan, pres_layout_assign, pres_marp_export, pres_marp_render, pres_semantic_normalize, pres_slide_plan, report_assemble, risk, risk_matrix, risk_network, saqqara, saqqara_index, section_drift, section_executive, section_maven, section_overview, section_recommendations, section_security, section_spring, services, spring_wiring, ssl_analysis, stats_summary, summary_budgeted_recall, summary_build_graph, summary_capabilities, summary_collect, summary_consolidate, summary_drift, summary_extract_entities, summary_generate, summary_ingest, summary_redact, summary_report, summary_verify, tender_probe, timeline, translate_draft, translate_extract, translate_harmonize, translate_qa, translate_rebuild, translate_segment, volumetry, vuln_assess, web_scan"
+E           doc_final_report requires 'doc_func_extract': "'doc_func_extract' is neither a kernel name nor a capability any kernel provides. Available kernels: ast_scan, compliance, config_parse, coupling, dead_code, dependency, dns_enum, doc_cluster, doc_cluster_leiden, doc_cluster_reconcile, doc_compare, doc_concepts, doc_coverage, doc_extract, doc_final_report, doc_metadata, doc_pyramid, doc_quality, doc_report_assemble, doc_structure, doc_visualize, drift, entropy, explorer_census, explorer_profile, explorer_read, explorer_report, hotspots, maven_cve, maven_deps, maven_graph, md_apply_ops, md_chunk, md_consistency_scan, md_edit_plan, md_fingerprint_chunk, md_inline_notes_inject, md_inventory, md_numbering_control, md_protected_regions, md_pyramid, md_revert, md_review_report_assemble, md_structure, metrics, module_group, net_discover, partition, pentest_run, port_scan, pres_asset_catalog, pres_content_extract, pres_folder_scan, pres_layout_assign, pres_marp_export, pres_marp_render, pres_semantic_normalize, pres_slide_plan, report_assemble, risk, risk_matrix, risk_network, saqqara, saqqara_index, section_drift, section_executive, section_maven, section_overview, section_recommendations, section_security, section_spring, services, spring_wiring, ssl_analysis, stats_summary, summary_budgeted_recall, summary_build_graph, summary_capabilities, summary_collect, summary_consolidate, summary_drift, summary_extract_entities, summary_generate, summary_ingest, summary_redact, summary_report, summary_verify, tender_probe, timeline, translate_draft, translate_extract, translate_harmonize, translate_qa, translate_rebuild, translate_segment, volumetry, vuln_assess, web_scan"
+E       assert not ['doc_final_report requires \'doc_summarize_tutored\': "\'doc_summarize_tutored\' is neither a kernel name nor a capab...e_extract, translate_harmonize, translate_qa, translate_rebuild, translate_segment, volumetry, vuln_assess, web_scan"']
+
+tests/test_kernels.py:228: AssertionError
+=============================== warnings summary ===============================
+tests/tender/test_t0_family.py::test_t0_2_the_registry_orders_this_family_after_the_store
+tests/test_kernels.py::TestKernelRegistry::test_discover_kernels
+tests/test_kernels.py::TestKernelRegistry::test_get_kernel
+tests/test_kernels.py::TestKernelRegistry::test_list_category
+tests/test_kernels.py::TestKernelRegistry::test_list_stage
+tests/test_kernels.py::TestKernelRegistry::test_get_info
+tests/test_kernels.py::TestKernelRegistry::test_resolve_dependencies
+tests/test_kernels.py::TestASTScanKernel::test_ast_scan_on_small_project
+tests/test_kernels.py::TestASTScanKernel::test_ast_scan_summary
+  <worktree>/ragix_kernels/docs/doc_func_extract.py:45: SyntaxWarning: invalid escape sequence '\d'
+    spd_pattern: Regex to identify SPD files (default: r"SPD-\d+")
+
+tests/tender/test_t0_family.py::test_t0_2_the_registry_orders_this_family_after_the_store
+  <worktree>/ragix_kernels/summary/tests/test_mcp_tools.py:109: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/tender/test_t0_family.py::test_t0_2_the_registry_orders_this_family_after_the_store
+  <worktree>/ragix_kernels/summary/tests/test_mcp_tools.py:121: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/tender/test_t0_family.py::test_t0_2_the_registry_orders_this_family_after_the_store
+  <worktree>/ragix_kernels/summary/tests/test_mcp_tools.py:146: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/tender/test_t0_family.py::test_t0_2_the_registry_orders_this_family_after_the_store
+  <worktree>/ragix_kernels/summary/tests/test_mcp_tools.py:182: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/tender/test_t0_family.py::test_t0_2_the_registry_orders_this_family_after_the_store
+  <worktree>/ragix_kernels/summary/tests/test_mcp_tools.py:192: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/tender/test_t0_family.py::test_t0_2_the_registry_orders_this_family_after_the_store
+  <worktree>/ragix_kernels/summary/tests/test_mcp_tools.py:209: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/tender/test_t0_family.py::test_t0_2_the_registry_orders_this_family_after_the_store
+  <worktree>/ragix_kernels/summary/tests/test_mcp_tools.py:219: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/harvest/test_core_records.py:66: the store is not on this host
+SKIPPED [1] tests/harvest/test_core_records.py:72: the store is not on this host
+SKIPPED [1] tests/harvest/test_core_records.py:87: the store is not on this host
+SKIPPED [1] tests/harvest/test_core_records.py:97: the store is not on this host
+SKIPPED [1] tests/harvest/test_core_records.py:106: the store is not on this host
+SKIPPED [1] tests/harvest/test_core_workers.py:89: the store is not on this host
+SKIPPED [1] tests/harvest/test_core_workers.py:97: the store is not on this host
+SKIPPED [1] tests/harvest/test_core_workers.py:106: the store is not on this host
+SKIPPED [1] tests/harvest/test_core_workers.py:117: the store is not on this host
+SKIPPED [1] tests/harvest/test_descent.py:70: the store and row 26's vectors are local and gitignored
+SKIPPED [1] tests/harvest/test_descent.py:108: the store and row 26's vectors are local and gitignored
+SKIPPED [1] tests/harvest/test_family_stage.py:104: the store is not on this host
+SKIPPED [1] tests/harvest/test_family_stage.py:113: the store is not on this host
+SKIPPED [1] tests/harvest/test_family_stage.py:122: the store is not on this host
+SKIPPED [1] tests/harvest/test_family_stage.py:131: the store is not on this host
+SKIPPED [1] tests/harvest/test_family_stage.py:139: the store is not on this host
+SKIPPED [1] tests/harvest/test_family_stage.py:151: the store is not on this host
+SKIPPED [1] tests/harvest/test_family_stage.py:167: the store is not on this host
+SKIPPED [1] tests/harvest/test_graph_edges.py:45: the frozen store is local and gitignored
+SKIPPED [1] tests/harvest/test_graph_edges.py:61: the frozen store is local and gitignored
+SKIPPED [1] tests/harvest/test_graph_edges.py:70: the frozen store is local and gitignored
+SKIPPED [3] tests/harvest/test_pass1_truncation.py:52: core_abstracts.jsonl is not in this commit
+SKIPPED [1] tests/test_translate_extract.py:63: could not import 'pymupdf4llm': No module named 'pymupdf4llm'
+============ 1 failed, 747 passed, 25 skipped, 16 warnings in 4.38s ============
+ERROR conda.cli.main_run:execute(127): `conda run env PYTHONPATH=<worktree> PYTHONDONTWRITEBYTECODE=1 python -m pytest tests/harvest tests/tender tests/sealed/test_extract_readers.py tests/test_kernels.py tests/test_translate_extract.py -p no:cacheprovider -rsx` failed. (See above for error)
+

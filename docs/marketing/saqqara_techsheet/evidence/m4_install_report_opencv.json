@@ -1,0 +1,14 @@
+{
+ "install": [
+  {
+   "name": "opencv-python-headless",
+   "requested": true,
+   "sha256": "97c6e818c6f71c0cfa214e12293b1d0266d679c38f4e086de08357c8ac6ece0d",
+   "url": "https://files.pythonhosted.org/packages/3f/0e/0b98bd582582253f61c4506f9b465cf5a8aa7fa4f7237dd99e1b5151a159/opencv_python_headless-4.14.0.94-cp37-abi3-manylinux_2_28_aarch64.whl",
+   "version": "4.14.0.94"
+  }
+ ],
+ "note": "public edition: reduced to name, version, URL, sha256 and requested per item",
+ "pip_version": "25.0.1",
+ "version": "1"
+}

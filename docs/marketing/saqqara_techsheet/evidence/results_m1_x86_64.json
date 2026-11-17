@@ -1,0 +1,2703 @@
+{
+ "code": {
+  "digest": "ec3c65f45482030d1f86179191ad7eb010b24fb218bd024d79fe3fe756a40175",
+  "git": {
+   "dirty_ragix_kernels": false,
+   "head": "20fdf7ad0965aaff49529ef33798b4a7c92a31d4"
+  },
+  "python_files": 319
+ },
+ "host": {
+  "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+  "environment": "measurement environment (label set after the run, replacing the env name)",
+  "loadavg_at_end": [
+   3.7421875,
+   2.85302734375,
+   4.46875
+  ],
+  "loadavg_at_start": [
+   2.33984375,
+   2.3525390625,
+   4.53173828125
+  ],
+  "logical_cpus": 20,
+  "machine": "x86_64",
+  "platform": "Linux-6.8.0-149-generic-x86_64-with-glibc2.39",
+  "versions": {
+   "PIL": "12.3.0",
+   "docx": "1.2.0",
+   "numpy": "2.5.1",
+   "openpyxl": "3.1.5",
+   "pptx": "1.0.2",
+   "pymupdf": "1.28.0",
+   "pypdf": "6.17.0",
+   "pypdfium2": "5.12.1+pdfium152.0.7947.0",
+   "python": "3.12.13",
+   "sqlite": "3.53.3"
+  }
+ },
+ "inputs": [
+  {
+   "bytes": 2007073,
+   "id": "techsheet_pdf",
+   "origin": "public, tracked: the RAGIX tech sheet (A4)",
+   "path": "inputs/public/Adservio-RAGIXTechSheet.pdf",
+   "repo_path": "docs/marketing/ragix_techsheet/Adservio-RAGIXTechSheet.pdf",
+   "sha256": "2db618b40c1cfaf1753ca44092b62b1ea916d9eec909c22e36a17ac86be61e1e",
+   "synthetic": false
+  },
+  {
+   "bytes": 2676406,
+   "id": "slides_pdf",
+   "origin": "public, tracked: the RAGIX tech-sheet slides",
+   "path": "inputs/public/RAGIX-Tech-Sheet-Slides.pdf",
+   "repo_path": "docs/marketing/ragix_techsheet/ragix-tech-sheet/RAGIX-Tech-Sheet-Slides.pdf",
+   "sha256": "3bfbec1a541372e4fae0fb0d99326a245fe6a93aa5d5e497a308a096c80a5b0b",
+   "synthetic": false
+  },
+  {
+   "bytes": 1155159,
+   "id": "sovereign_pdf",
+   "origin": "public, tracked: Sovereign LLM operations (A4)",
+   "path": "inputs/public/SOVEREIGN_LLM_OPERATIONS.pdf",
+   "repo_path": "docs/SOVEREIGN_LLM_OPERATIONS.pdf",
+   "sha256": "785bba3a60b5bd3029f177b1abf222785bfea1e19536055ebb9f529515b44116",
+   "synthetic": false
+  },
+  {
+   "bytes": 8149,
+   "id": "saqqara_readme_md",
+   "origin": "public, tracked: the Saqqara README",
+   "path": "inputs/public/saqqara_README.md",
+   "repo_path": "ragix_kernels/saqqara/README.md",
+   "sha256": "ff98c31a22fdab3eca2b4e0d0d1bda7a183d5d696b026d95e783a226abecf049",
+   "synthetic": false
+  },
+  {
+   "bytes": 52678,
+   "id": "koas_saqqara_md",
+   "origin": "public, tracked: the Saqqara user reference",
+   "path": "inputs/public/KOAS_SAQQARA.md",
+   "repo_path": "docs/KOAS_SAQQARA.md",
+   "sha256": "24c384e1f8e1339a3635903e97ffa2437115cdacbcbe6d073f4c837f2f29ae1a",
+   "synthetic": false
+  },
+  {
+   "bytes": 36820,
+   "id": "twin_grid_docx",
+   "origin": "SYNTHETIC: tests/saqqara/generators.py:twin_grid_docx",
+   "path": "inputs/synthetic/twin_grid.docx",
+   "repo_path": null,
+   "sha256": "3227da995da39921f9f7d85dbae08269f43315316f08d1474e76e8361fa40320",
+   "synthetic": true
+  },
+  {
+   "bytes": 4967,
+   "id": "twin_grid_xlsx",
+   "origin": "SYNTHETIC: tests/saqqara/generators.py:twin_grid_xlsx",
+   "path": "inputs/synthetic/twin_grid.xlsx",
+   "repo_path": null,
+   "sha256": "7f3ddc3b496a6e04d7b2b8533f44288059b76291cde6e79c7f6f1b15bff54cd5",
+   "synthetic": true
+  },
+  {
+   "bytes": 28487,
+   "id": "twin_grid_pptx",
+   "origin": "SYNTHETIC: tests/saqqara/generators.py:twin_grid_pptx",
+   "path": "inputs/synthetic/twin_grid.pptx",
+   "repo_path": null,
+   "sha256": "36dd2788a17754632dd4bcd0a9b5819b4c5da8e5fe2ed33243449fea8446da89",
+   "synthetic": true
+  }
+ ],
+ "parts": {
+  "cli": {
+   "index": {
+    "data": {
+     "config": {
+      "chunker": {
+       "rollup_levels": 1,
+       "unit_max_chars": 1200,
+       "window_fallback_chars": 4000
+      },
+      "embedder": {
+       "api_key_ref": "",
+       "base_url": "",
+       "batch_size": 128,
+       "model": "",
+       "provider": "none"
+      },
+      "index": {
+       "backend": "numpy",
+       "use_gpu": false
+      },
+      "pdf": {
+       "line_join": false,
+       "text_reader": "pypdf"
+      },
+      "refine": {
+       "budgets": [],
+       "overlap_children": 0
+      },
+      "retrieval": {
+       "dense_k": 40,
+       "fusion": "rrf",
+       "lexical_k": 40,
+       "rrf_k": 60,
+       "top_k": 10
+      },
+      "source": {
+       "formats": [
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "md"
+       ],
+       "path": "./docs",
+       "promote_outline": false
+      },
+      "store": {
+       "corpus": "default",
+       "path": ".ragix/saqqara.db",
+       "provider": "sqlite"
+      },
+      "store_options": {
+       "rollup_without_window_overlap": false,
+       "table_cells": false
+      }
+     },
+     "documents": [
+      {
+       "chunks": 875,
+       "doc_id": "2db618b40c1cfaf1753ca44092b62b1ea916d9eec909c22e36a17ac86be61e1e",
+       "edges": 0,
+       "format": "pdf",
+       "level_0": 874,
+       "level_1": 1,
+       "objects": 0,
+       "path": "inputs/public/Adservio-RAGIXTechSheet.pdf",
+       "refused": 20
+      },
+      {
+       "chunks": 244,
+       "doc_id": "24c384e1f8e1339a3635903e97ffa2437115cdacbcbe6d073f4c837f2f29ae1a",
+       "edges": 0,
+       "format": "md",
+       "level_0": 203,
+       "level_1": 41,
+       "objects": 0,
+       "path": "inputs/public/KOAS_SAQQARA.md",
+       "refused": 1
+      },
+      {
+       "chunks": 0,
+       "doc_id": "3bfbec1a541372e4fae0fb0d99326a245fe6a93aa5d5e497a308a096c80a5b0b",
+       "edges": 0,
+       "format": "pdf",
+       "objects": 0,
+       "path": "inputs/public/RAGIX-Tech-Sheet-Slides.pdf",
+       "refused": 15
+      },
+      {
+       "chunks": 14935,
+       "doc_id": "785bba3a60b5bd3029f177b1abf222785bfea1e19536055ebb9f529515b44116",
+       "edges": 0,
+       "format": "pdf",
+       "level_0": 14818,
+       "level_1": 117,
+       "objects": 0,
+       "path": "inputs/public/SOVEREIGN_LLM_OPERATIONS.pdf",
+       "refused": 39
+      },
+      {
+       "chunks": 46,
+       "doc_id": "ff98c31a22fdab3eca2b4e0d0d1bda7a183d5d696b026d95e783a226abecf049",
+       "edges": 0,
+       "format": "md",
+       "level_0": 36,
+       "level_1": 10,
+       "objects": 0,
+       "path": "inputs/public/saqqara_README.md",
+       "refused": 1
+      },
+      {
+       "chunks": 2,
+       "doc_id": "3227da995da39921f9f7d85dbae08269f43315316f08d1474e76e8361fa40320",
+       "edges": 0,
+       "format": "docx",
+       "level_0": 1,
+       "level_1": 1,
+       "objects": 1,
+       "path": "inputs/synthetic/twin_grid.docx",
+       "refused": 12
+      },
+      {
+       "chunks": 2,
+       "doc_id": "36dd2788a17754632dd4bcd0a9b5819b4c5da8e5fe2ed33243449fea8446da89",
+       "edges": 0,
+       "format": "pptx",
+       "level_0": 1,
+       "level_1": 1,
+       "objects": 1,
+       "path": "inputs/synthetic/twin_grid.pptx",
+       "refused": 13
+      },
+      {
+       "chunks": 2,
+       "doc_id": "7f3ddc3b496a6e04d7b2b8533f44288059b76291cde6e79c7f6f1b15bff54cd5",
+       "edges": 0,
+       "format": "xlsx",
+       "level_0": 1,
+       "level_1": 1,
+       "objects": 1,
+       "path": "inputs/synthetic/twin_grid.xlsx",
+       "refused": 12
+      }
+     ],
+     "embedded": 0,
+     "embedder_refusals": [],
+     "refinement": null,
+     "refused": 0,
+     "skipped": 16106,
+     "status": {
+      "chunks": 16106,
+      "corpus": "default",
+      "dense": "disabled (no embedder)",
+      "documents": 8,
+      "drops": [],
+      "edges": 0,
+      "embedding_refusals": 0,
+      "embeddings": 0,
+      "embeddings_parked": 0,
+      "models": [],
+      "objects": 3,
+      "path": "work_m1/cli/ws/.ragix/saqqara.db",
+      "schema_version": 1,
+      "trashed": 0
+     }
+    },
+    "wall_s": 3.3039
+   },
+   "part_wall_s": 13.8271,
+   "run": {
+    "counts": {
+     "duplicate": 0,
+     "read": 8,
+     "refused": 1
+    },
+    "merkle_root": "e7c14b4fc29bfe08818357c62749ac2f078d1252ff27d9266256f98d968c0eb7",
+    "source_root": "8428e3c40ad260f01203b94a7e6c1265aeae3bc90e5c90cc7f57f94e77451996",
+    "wall_s": 9.236
+   },
+   "search": {
+    "merkle_root": {
+     "hits": 5,
+     "top": [
+      {
+       "dense_rank": null,
+       "final_rank": 1,
+       "kind": "paragraph",
+       "level": 0,
+       "lexical_rank": 1,
+       "node_ids": [
+        "17.273"
+       ],
+       "pages": [
+        18
+       ],
+       "source_path": "inputs/public/SOVEREIGN_LLM_OPERATIONS.pdf",
+       "text": "compute_inputs_merkle_root"
+      },
+      {
+       "dense_rank": null,
+       "final_rank": 2,
+       "kind": "heading",
+       "level": 0,
+       "lexical_rank": 2,
+       "node_ids": [
+        "17.3"
+       ],
+       "pages": [
+        18
+       ],
+       "source_path": "inputs/public/SOVEREIGN_LLM_OPERATIONS.pdf",
+       "text": "Merkle Root for Pyramidal Synthesis"
+      },
+      {
+       "dense_rank": null,
+       "final_rank": 3,
+       "kind": "paragraph",
+       "level": 0,
+       "lexical_rank": 3,
+       "node_ids": [
+        "17.69"
+       ],
+       "pages": [
+        18
+       ],
+       "source_path": "inputs/public/SOVEREIGN_LLM_OPERATIONS.pdf",
+       "text": "MERKLE ROOT FOR PYRAMIDAL SYNTHESIS"
+      },
+      {
+       "dense_rank": null,
+       "final_rank": 4,
+       "kind": "paragraph",
+       "level": 0,
+       "lexical_rank": 4,
+       "node_ids": [
+        "17.13"
+       ],
+       "pages": [
+        18
+       ],
+       "source_path": "inputs/public/SOVEREIGN_LLM_OPERATIONS.pdf",
+       "text": "-"
+      },
+      {
+       "dense_rank": null,
+       "final_rank": 5,
+       "kind": "paragraph",
+       "level": 0,
+       "lexical_rank": 5,
+       "node_ids": [
+        "17.28"
+       ],
+       "pages": [
+        18
+       ],
+       "source_path": "inputs/public/SOVEREIGN_LLM_OPERATIONS.pdf",
+       "text": ","
+      }
+     ],
+     "wall_s": 0.5527
+    },
+    "provenance": {
+     "hits": 5,
+     "top": [
+      {
+       "dense_rank": null,
+       "final_rank": 1,
+       "kind": "paragraph",
+       "level": 0,
+       "lexical_rank": 1,
+       "node_ids": [
+        "2.27"
+       ],
+       "pages": [
+        3
+       ],
+       "source_path": "inputs/public/Adservio-RAGIXTechSheet.pdf",
+       "text": "PROVENANCE"
+      },
+      {
+       "dense_rank": null,
+       "final_rank": 2,
+       "kind": "paragraph",
+       "level": 0,
+       "lexical_rank": 2,
+       "node_ids": [
+        "8.37"
+       ],
+       "pages": [
+        9
+       ],
+       "source_path": "inputs/public/Adservio-RAGIXTechSheet.pdf",
+       "text": "provenance"
+      },
+      {
+       "dense_rank": null,
+       "final_rank": 3,
+       "kind": "paragraph",
+       "level": 0,
+       "lexical_rank": 3,
+       "node_ids": [
+        "5.20"
+       ],
+       "pages": [
+        6
+       ],
+       "source_path": "inputs/public/Adservio-RAGIXTechSheet.pdf",
+       "text": "provenance graph"
+      },
+      {
+       "dense_rank": null,
+       "final_rank": 4,
+       "kind": "paragraph",
+       "level": 0,
+       "lexical_rank": 4,
+       "node_ids": [
+        "5.36"
+       ],
+       "pages": [
+        6
+       ],
+       "source_path": "inputs/public/Adservio-RAGIXTechSheet.pdf",
+       "text": "Provenance-constrained"
+      },
+      {
+       "dense_rank": null,
+       "final_rank": 5,
+       "kind": "heading",
+       "level": 0,
+       "lexical_rank": 5,
+       "node_ids": [
+        "31.0"
+       ],
+       "pages": [
+        32
+       ],
+       "source_path": "inputs/public/SOVEREIGN_LLM_OPERATIONS.pdf",
+       "text": "10.3 Provenance Tracking"
+      }
+     ],
+     "wall_s": 0.5597
+    }
+   }
+  },
+  "explorer": {
+   "files": [
+    {
+     "cells_missing_geometry": 0,
+     "digest_wall_s": 1.5864,
+     "drawings": 1434,
+     "explore_wall_s": 1.0624,
+     "extractor": "pymupdf 1.28.0",
+     "id": "techsheet_pdf",
+     "pages": 19,
+     "report_type": "Report",
+     "spans": 862,
+     "table_cells": 59,
+     "table_rows": [
+      5,
+      6,
+      4,
+      4,
+      4,
+      3,
+      1,
+      4,
+      8,
+      5
+     ],
+     "tables": 10,
+     "tables_per_page": {
+      "10": 1,
+      "12": 1,
+      "13": 2,
+      "14": 2,
+      "18": 1,
+      "19": 1,
+      "5": 1,
+      "8": 1
+     }
+    },
+    {
+     "cells_missing_geometry": 0,
+     "digest_wall_s": 0.9056,
+     "drawings": 0,
+     "explore_wall_s": 0.0048,
+     "extractor": "pymupdf 1.28.0",
+     "id": "slides_pdf",
+     "pages": 14,
+     "report_type": "Report",
+     "spans": 0,
+     "table_cells": 0,
+     "table_rows": [],
+     "tables": 0,
+     "tables_per_page": {}
+    },
+    {
+     "cells_missing_geometry": 0,
+     "digest_wall_s": 3.8904,
+     "drawings": 3737,
+     "explore_wall_s": 7.2124,
+     "extractor": "pymupdf 1.28.0",
+     "id": "sovereign_pdf",
+     "pages": 38,
+     "report_type": "Report",
+     "spans": 14214,
+     "table_cells": 796,
+     "table_rows": [
+      4,
+      3,
+      2,
+      3,
+      5,
+      6,
+      5,
+      5,
+      4,
+      6,
+      6,
+      4,
+      22,
+      11,
+      18,
+      5,
+      8,
+      2,
+      5,
+      8,
+      5,
+      4,
+      5,
+      9,
+      6,
+      5,
+      7,
+      3,
+      5,
+      3,
+      6,
+      5,
+      5,
+      8
+     ],
+     "tables": 34,
+     "tables_per_page": {
+      "1": 1,
+      "10": 1,
+      "11": 1,
+      "12": 2,
+      "13": 2,
+      "14": 2,
+      "17": 2,
+      "19": 2,
+      "2": 2,
+      "20": 1,
+      "21": 1,
+      "22": 1,
+      "23": 1,
+      "25": 1,
+      "27": 1,
+      "28": 1,
+      "3": 1,
+      "33": 1,
+      "35": 3,
+      "38": 1,
+      "4": 1,
+      "6": 2,
+      "8": 1,
+      "9": 2
+     }
+    }
+   ],
+   "part_wall_s": 15.054
+  },
+  "kernel": {
+   "files": [
+    {
+     "id": "techsheet_pdf",
+     "path": "inputs/public/Adservio-RAGIXTechSheet.pdf",
+     "readers": {
+      "pymupdf": {
+       "promote_outline": {
+        "headings": 35,
+        "inferred_headings": 35,
+        "merkle_root": "f6a69c3fe68dbafa16075e159be377011866516e7ef038d92cd9ffa1f7ef29ca",
+        "nodes": 917,
+        "wall_s": 1.2336
+       },
+       "roots_equal_across_runs": true,
+       "runs": [
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "9b7a7261c4202c90d5629fdc630729b38c1827b05f51b29dcf3e1a9ca34499b0",
+         "refusals": [],
+         "source_root": "2db618b40c1cfaf1753ca44092b62b1ea916d9eec909c22e36a17ac86be61e1e",
+         "summary": "1 document(s), 882 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root 9b7a7261c420.",
+         "tree": {
+          "builder": {
+           "attached": 1818,
+           "dropped": 0,
+           "nodes": 881,
+           "observations": 2699,
+           "reader": "pdf",
+           "reader_version": "0.8.0+pymupdf-1.28.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 0,
+          "image_placements": 4,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "page": 19,
+           "paragraph": 862
+          },
+          "nodes": 882,
+          "pages": 19,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "09d095a74c68cb3bd569233d86cae6ea5663d26cf4b458fd9fdb8ca8d2ab897b",
+          "reader_kernel_version": "0.8.0+pymupdf-1.28.0",
+          "sections_analyzer": {
+           "accepted": 49,
+           "baseline": {
+            "found": 38,
+            "ours": 49,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {},
+           "candidates": 73,
+           "channels": {
+            "pdf-numbered-heading": 49
+           },
+           "rejected": {
+            "orphan-number": 24,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 862,
+           "outside_page": 0
+          }
+         }
+        },
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "9b7a7261c4202c90d5629fdc630729b38c1827b05f51b29dcf3e1a9ca34499b0",
+         "refusals": [],
+         "source_root": "2db618b40c1cfaf1753ca44092b62b1ea916d9eec909c22e36a17ac86be61e1e",
+         "summary": "1 document(s), 882 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root 9b7a7261c420.",
+         "tree": {
+          "builder": {
+           "attached": 1818,
+           "dropped": 0,
+           "nodes": 881,
+           "observations": 2699,
+           "reader": "pdf",
+           "reader_version": "0.8.0+pymupdf-1.28.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 0,
+          "image_placements": 4,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "page": 19,
+           "paragraph": 862
+          },
+          "nodes": 882,
+          "pages": 19,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "09d095a74c68cb3bd569233d86cae6ea5663d26cf4b458fd9fdb8ca8d2ab897b",
+          "reader_kernel_version": "0.8.0+pymupdf-1.28.0",
+          "sections_analyzer": {
+           "accepted": 49,
+           "baseline": {
+            "found": 38,
+            "ours": 49,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {},
+           "candidates": 73,
+           "channels": {
+            "pdf-numbered-heading": 49
+           },
+           "rejected": {
+            "orphan-number": 24,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 862,
+           "outside_page": 0
+          }
+         }
+        }
+       ],
+       "wall_s": [
+        1.1318,
+        1.1009
+       ],
+       "wall_s_per_page": [
+        0.0596,
+        0.0579
+       ]
+      },
+      "pypdf": {
+       "promote_outline": {
+        "headings": 35,
+        "inferred_headings": 35,
+        "merkle_root": "1ec9f09c3af20f63f8b040e371f17a021670144e9538a45a04465617cb567a66",
+        "nodes": 929,
+        "wall_s": 2.0256
+       },
+       "roots_equal_across_runs": true,
+       "runs": [
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "33006994a33f03f979e42122bafaacaec8bcb5228a082f3d2ac46a3a4ff4d15d",
+         "refusals": [],
+         "source_root": "2db618b40c1cfaf1753ca44092b62b1ea916d9eec909c22e36a17ac86be61e1e",
+         "summary": "1 document(s), 894 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root 33006994a33f.",
+         "tree": {
+          "builder": {
+           "attached": 1818,
+           "dropped": 0,
+           "nodes": 893,
+           "observations": 2711,
+           "reader": "pdf",
+           "reader_version": "0.8.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 0,
+          "image_placements": 4,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "page": 19,
+           "paragraph": 874
+          },
+          "nodes": 894,
+          "pages": 19,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "69620571f75fb88787ee101f9094929060d8dc8ed2ba893bebb64bab0c3c45c7",
+          "reader_kernel_version": "0.8.0",
+          "sections_analyzer": {
+           "accepted": 49,
+           "baseline": {
+            "found": 38,
+            "ours": 49,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {},
+           "candidates": 73,
+           "channels": {
+            "pdf-numbered-heading": 49
+           },
+           "rejected": {
+            "orphan-number": 24,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 874,
+           "outside_page": 650
+          }
+         }
+        },
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "33006994a33f03f979e42122bafaacaec8bcb5228a082f3d2ac46a3a4ff4d15d",
+         "refusals": [],
+         "source_root": "2db618b40c1cfaf1753ca44092b62b1ea916d9eec909c22e36a17ac86be61e1e",
+         "summary": "1 document(s), 894 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root 33006994a33f.",
+         "tree": {
+          "builder": {
+           "attached": 1818,
+           "dropped": 0,
+           "nodes": 893,
+           "observations": 2711,
+           "reader": "pdf",
+           "reader_version": "0.8.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 0,
+          "image_placements": 4,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "page": 19,
+           "paragraph": 874
+          },
+          "nodes": 894,
+          "pages": 19,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "69620571f75fb88787ee101f9094929060d8dc8ed2ba893bebb64bab0c3c45c7",
+          "reader_kernel_version": "0.8.0",
+          "sections_analyzer": {
+           "accepted": 49,
+           "baseline": {
+            "found": 38,
+            "ours": 49,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {},
+           "candidates": 73,
+           "channels": {
+            "pdf-numbered-heading": 49
+           },
+           "rejected": {
+            "orphan-number": 24,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 874,
+           "outside_page": 650
+          }
+         }
+        }
+       ],
+       "wall_s": [
+        1.9439,
+        1.8983
+       ],
+       "wall_s_per_page": [
+        0.1023,
+        0.0999
+       ]
+      }
+     },
+     "synthetic": false
+    },
+    {
+     "id": "slides_pdf",
+     "path": "inputs/public/RAGIX-Tech-Sheet-Slides.pdf",
+     "readers": {
+      "pymupdf": {
+       "promote_outline": {
+        "headings": 0,
+        "inferred_headings": 0,
+        "merkle_root": "c9f190c800ae25e8429049f2e4a9d2e68a0399787d01f3ece34d44b67c5d3dc4",
+        "nodes": 15,
+        "wall_s": 0.0167
+       },
+       "roots_equal_across_runs": true,
+       "runs": [
+        {
+         "abstention_records": 14,
+         "abstentions": {
+          "saqqara.text_layer:no-text-layer": 14
+         },
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "c9f190c800ae25e8429049f2e4a9d2e68a0399787d01f3ece34d44b67c5d3dc4",
+         "refusals": [],
+         "source_root": "3bfbec1a541372e4fae0fb0d99326a245fe6a93aa5d5e497a308a096c80a5b0b",
+         "summary": "1 document(s), 15 nodes. Refused 0, duplicate 0. 14 abstention(s), 0 drop(s) counted. root c9f190c800ae.",
+         "tree": {
+          "builder": {
+           "attached": 0,
+           "dropped": 0,
+           "nodes": 14,
+           "observations": 14,
+           "reader": "pdf",
+           "reader_version": "0.8.0+pymupdf-1.28.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 0,
+          "image_placements": 14,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "page": 14
+          },
+          "nodes": 15,
+          "pages": 14,
+          "pages_without_text": 14,
+          "pathfree_tree_sha256": "e6557ed312116f67a07d581cae5c9df1fefa44571598b7a45d9e796af2357b40",
+          "reader_kernel_version": "0.8.0+pymupdf-1.28.0",
+          "sections_analyzer": {
+           "accepted": 0,
+           "baseline": {
+            "found": 0,
+            "ours": 0,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {
+            "format": "pdf",
+            "reason": "no-candidate-found"
+           },
+           "candidates": 0,
+           "channels": {},
+           "rejected": {
+            "orphan-number": 0,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 0,
+           "outside_page": 0
+          }
+         }
+        },
+        {
+         "abstention_records": 14,
+         "abstentions": {
+          "saqqara.text_layer:no-text-layer": 14
+         },
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "c9f190c800ae25e8429049f2e4a9d2e68a0399787d01f3ece34d44b67c5d3dc4",
+         "refusals": [],
+         "source_root": "3bfbec1a541372e4fae0fb0d99326a245fe6a93aa5d5e497a308a096c80a5b0b",
+         "summary": "1 document(s), 15 nodes. Refused 0, duplicate 0. 14 abstention(s), 0 drop(s) counted. root c9f190c800ae.",
+         "tree": {
+          "builder": {
+           "attached": 0,
+           "dropped": 0,
+           "nodes": 14,
+           "observations": 14,
+           "reader": "pdf",
+           "reader_version": "0.8.0+pymupdf-1.28.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 0,
+          "image_placements": 14,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "page": 14
+          },
+          "nodes": 15,
+          "pages": 14,
+          "pages_without_text": 14,
+          "pathfree_tree_sha256": "e6557ed312116f67a07d581cae5c9df1fefa44571598b7a45d9e796af2357b40",
+          "reader_kernel_version": "0.8.0+pymupdf-1.28.0",
+          "sections_analyzer": {
+           "accepted": 0,
+           "baseline": {
+            "found": 0,
+            "ours": 0,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {
+            "format": "pdf",
+            "reason": "no-candidate-found"
+           },
+           "candidates": 0,
+           "channels": {},
+           "rejected": {
+            "orphan-number": 0,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 0,
+           "outside_page": 0
+          }
+         }
+        }
+       ],
+       "wall_s": [
+        0.0182,
+        0.018
+       ],
+       "wall_s_per_page": [
+        0.0013,
+        0.0013
+       ]
+      },
+      "pypdf": {
+       "promote_outline": {
+        "headings": 0,
+        "inferred_headings": 0,
+        "merkle_root": "633156b3c6589d63bfdc51129a7cae2488b405632092088078fdc886cecc408c",
+        "nodes": 15,
+        "wall_s": 0.0166
+       },
+       "roots_equal_across_runs": true,
+       "runs": [
+        {
+         "abstention_records": 14,
+         "abstentions": {
+          "saqqara.text_layer:no-text-layer": 14
+         },
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "633156b3c6589d63bfdc51129a7cae2488b405632092088078fdc886cecc408c",
+         "refusals": [],
+         "source_root": "3bfbec1a541372e4fae0fb0d99326a245fe6a93aa5d5e497a308a096c80a5b0b",
+         "summary": "1 document(s), 15 nodes. Refused 0, duplicate 0. 14 abstention(s), 0 drop(s) counted. root 633156b3c658.",
+         "tree": {
+          "builder": {
+           "attached": 0,
+           "dropped": 0,
+           "nodes": 14,
+           "observations": 14,
+           "reader": "pdf",
+           "reader_version": "0.8.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 0,
+          "image_placements": 14,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "page": 14
+          },
+          "nodes": 15,
+          "pages": 14,
+          "pages_without_text": 14,
+          "pathfree_tree_sha256": "2c19e2d4006daa83b3593cce85482478b31e69dd31c5ecd93a1af373e481a2cb",
+          "reader_kernel_version": "0.8.0",
+          "sections_analyzer": {
+           "accepted": 0,
+           "baseline": {
+            "found": 0,
+            "ours": 0,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {
+            "format": "pdf",
+            "reason": "no-candidate-found"
+           },
+           "candidates": 0,
+           "channels": {},
+           "rejected": {
+            "orphan-number": 0,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 0,
+           "outside_page": 0
+          }
+         }
+        },
+        {
+         "abstention_records": 14,
+         "abstentions": {
+          "saqqara.text_layer:no-text-layer": 14
+         },
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "633156b3c6589d63bfdc51129a7cae2488b405632092088078fdc886cecc408c",
+         "refusals": [],
+         "source_root": "3bfbec1a541372e4fae0fb0d99326a245fe6a93aa5d5e497a308a096c80a5b0b",
+         "summary": "1 document(s), 15 nodes. Refused 0, duplicate 0. 14 abstention(s), 0 drop(s) counted. root 633156b3c658.",
+         "tree": {
+          "builder": {
+           "attached": 0,
+           "dropped": 0,
+           "nodes": 14,
+           "observations": 14,
+           "reader": "pdf",
+           "reader_version": "0.8.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 0,
+          "image_placements": 14,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "page": 14
+          },
+          "nodes": 15,
+          "pages": 14,
+          "pages_without_text": 14,
+          "pathfree_tree_sha256": "2c19e2d4006daa83b3593cce85482478b31e69dd31c5ecd93a1af373e481a2cb",
+          "reader_kernel_version": "0.8.0",
+          "sections_analyzer": {
+           "accepted": 0,
+           "baseline": {
+            "found": 0,
+            "ours": 0,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {
+            "format": "pdf",
+            "reason": "no-candidate-found"
+           },
+           "candidates": 0,
+           "channels": {},
+           "rejected": {
+            "orphan-number": 0,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 0,
+           "outside_page": 0
+          }
+         }
+        }
+       ],
+       "wall_s": [
+        0.0181,
+        0.0166
+       ],
+       "wall_s_per_page": [
+        0.0013,
+        0.0012
+       ]
+      }
+     },
+     "synthetic": false
+    },
+    {
+     "id": "sovereign_pdf",
+     "path": "inputs/public/SOVEREIGN_LLM_OPERATIONS.pdf",
+     "readers": {
+      "pymupdf": {
+       "promote_outline": {
+        "headings": 141,
+        "inferred_headings": 24,
+        "merkle_root": "c488685df707a4d4dc1cda9932d10caa9b7d3b10b24264390df99895b50dd4c2",
+        "nodes": 14394,
+        "wall_s": 4.128
+       },
+       "roots_equal_across_runs": true,
+       "runs": [
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "6f8aaf8acbdaca7d9bda72af6c83ee9a740732955eb7142916ff0f57120ac7e0",
+         "refusals": [],
+         "source_root": "785bba3a60b5bd3029f177b1abf222785bfea1e19536055ebb9f529515b44116",
+         "summary": "1 document(s), 14370 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root 6f8aaf8acbda.",
+         "tree": {
+          "builder": {
+           "attached": 5572,
+           "dropped": 0,
+           "nodes": 14369,
+           "observations": 19941,
+           "reader": "pdf",
+           "reader_version": "0.8.0+pymupdf-1.28.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 117,
+          "image_placements": 0,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "heading": 117,
+           "page": 38,
+           "paragraph": 14214
+          },
+          "nodes": 14370,
+          "pages": 38,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "fd0b7d7310d83c1537957f1a356b59cd0559b28156874b368091e0ce28ae797e",
+          "reader_kernel_version": "0.8.0+pymupdf-1.28.0",
+          "sections_analyzer": {
+           "accepted": 333,
+           "baseline": {
+            "found": 214,
+            "ours": 333,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {},
+           "candidates": 719,
+           "channels": {
+            "pdf-native-toc": 117,
+            "pdf-numbered-heading": 216
+           },
+           "rejected": {
+            "orphan-number": 51,
+            "page-furniture": 335,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 14214,
+           "outside_page": 0
+          }
+         }
+        },
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "6f8aaf8acbdaca7d9bda72af6c83ee9a740732955eb7142916ff0f57120ac7e0",
+         "refusals": [],
+         "source_root": "785bba3a60b5bd3029f177b1abf222785bfea1e19536055ebb9f529515b44116",
+         "summary": "1 document(s), 14370 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root 6f8aaf8acbda.",
+         "tree": {
+          "builder": {
+           "attached": 5572,
+           "dropped": 0,
+           "nodes": 14369,
+           "observations": 19941,
+           "reader": "pdf",
+           "reader_version": "0.8.0+pymupdf-1.28.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 117,
+          "image_placements": 0,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "heading": 117,
+           "page": 38,
+           "paragraph": 14214
+          },
+          "nodes": 14370,
+          "pages": 38,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "fd0b7d7310d83c1537957f1a356b59cd0559b28156874b368091e0ce28ae797e",
+          "reader_kernel_version": "0.8.0+pymupdf-1.28.0",
+          "sections_analyzer": {
+           "accepted": 333,
+           "baseline": {
+            "found": 214,
+            "ours": 333,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {},
+           "candidates": 719,
+           "channels": {
+            "pdf-native-toc": 117,
+            "pdf-numbered-heading": 216
+           },
+           "rejected": {
+            "orphan-number": 51,
+            "page-furniture": 335,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 14214,
+           "outside_page": 0
+          }
+         }
+        }
+       ],
+       "wall_s": [
+        4.5039,
+        3.9475
+       ],
+       "wall_s_per_page": [
+        0.1185,
+        0.1039
+       ]
+      },
+      "pypdf": {
+       "promote_outline": {
+        "headings": 141,
+        "inferred_headings": 24,
+        "merkle_root": "1553dfefc451fcafb6ea23ff872d2afc5b5a4726dedddfbbbedba173ffd71478",
+        "nodes": 14881,
+        "wall_s": 6.5256
+       },
+       "roots_equal_across_runs": true,
+       "runs": [
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "cad1473c6aea37f7f24fde32cc8243fa4d2a44a546d0375bc2e7892e347b3415",
+         "refusals": [],
+         "source_root": "785bba3a60b5bd3029f177b1abf222785bfea1e19536055ebb9f529515b44116",
+         "summary": "1 document(s), 14857 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root cad1473c6aea.",
+         "tree": {
+          "builder": {
+           "attached": 5572,
+           "dropped": 0,
+           "nodes": 14856,
+           "observations": 20428,
+           "reader": "pdf",
+           "reader_version": "0.8.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 117,
+          "image_placements": 0,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "heading": 117,
+           "page": 38,
+           "paragraph": 14701
+          },
+          "nodes": 14857,
+          "pages": 38,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "0db77886af11bca202b01a7ee8342c0739c0ebcf1013d42d3b32ffb214d2bb7c",
+          "reader_kernel_version": "0.8.0",
+          "sections_analyzer": {
+           "accepted": 370,
+           "baseline": {
+            "found": 214,
+            "ours": 370,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {},
+           "candidates": 719,
+           "channels": {
+            "pdf-native-toc": 117,
+            "pdf-numbered-heading": 253
+           },
+           "rejected": {
+            "orphan-number": 13,
+            "page-furniture": 336,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 14701,
+           "outside_page": 13068
+          }
+         }
+        },
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "cad1473c6aea37f7f24fde32cc8243fa4d2a44a546d0375bc2e7892e347b3415",
+         "refusals": [],
+         "source_root": "785bba3a60b5bd3029f177b1abf222785bfea1e19536055ebb9f529515b44116",
+         "summary": "1 document(s), 14857 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root cad1473c6aea.",
+         "tree": {
+          "builder": {
+           "attached": 5572,
+           "dropped": 0,
+           "nodes": 14856,
+           "observations": 20428,
+           "reader": "pdf",
+           "reader_version": "0.8.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 117,
+          "image_placements": 0,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "heading": 117,
+           "page": 38,
+           "paragraph": 14701
+          },
+          "nodes": 14857,
+          "pages": 38,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "0db77886af11bca202b01a7ee8342c0739c0ebcf1013d42d3b32ffb214d2bb7c",
+          "reader_kernel_version": "0.8.0",
+          "sections_analyzer": {
+           "accepted": 370,
+           "baseline": {
+            "found": 214,
+            "ours": 370,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {},
+           "candidates": 719,
+           "channels": {
+            "pdf-native-toc": 117,
+            "pdf-numbered-heading": 253
+           },
+           "rejected": {
+            "orphan-number": 13,
+            "page-furniture": 336,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 14701,
+           "outside_page": 13068
+          }
+         }
+        }
+       ],
+       "wall_s": [
+        5.736,
+        6.5785
+       ],
+       "wall_s_per_page": [
+        0.1509,
+        0.1731
+       ]
+      }
+     },
+     "synthetic": false
+    },
+    {
+     "id": "saqqara_readme_md",
+     "path": "inputs/public/saqqara_README.md",
+     "readers": {
+      "default": {
+       "promote_outline": {
+        "headings": 10,
+        "inferred_headings": 0,
+        "merkle_root": "9b7acc667ab770e5e6dd84fa68e31bf4b2adef016242b5408e0f5a022351922b",
+        "nodes": 37,
+        "wall_s": 0.0014
+       },
+       "roots_equal_across_runs": true,
+       "runs": [
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "9b7acc667ab770e5e6dd84fa68e31bf4b2adef016242b5408e0f5a022351922b",
+         "refusals": [],
+         "source_root": "ff98c31a22fdab3eca2b4e0d0d1bda7a183d5d696b026d95e783a226abecf049",
+         "summary": "1 document(s), 37 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root 9b7acc667ab7.",
+         "tree": {
+          "builder": {
+           "attached": 0,
+           "dropped": 0,
+           "nodes": 36,
+           "observations": 36,
+           "reader": "md",
+           "reader_version": "0.2.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 10,
+          "image_placements": 0,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "heading": 10,
+           "paragraph": 26
+          },
+          "nodes": 37,
+          "pages": 0,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "cb4717b6a3ac8671ccfe347e7a7460ce3571d1a59b0b1c049166cdb68a3fe9bb",
+          "reader_kernel_version": "0.2.0",
+          "sections_analyzer": {
+           "accepted": 0,
+           "baseline": {
+            "found": 10,
+            "ours": 0,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {
+            "format": "md",
+            "reason": "no-channel-for-format"
+           },
+           "candidates": 0,
+           "channels": {},
+           "rejected": {
+            "orphan-number": 0,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 0,
+           "outside_page": 0
+          }
+         }
+        },
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "9b7acc667ab770e5e6dd84fa68e31bf4b2adef016242b5408e0f5a022351922b",
+         "refusals": [],
+         "source_root": "ff98c31a22fdab3eca2b4e0d0d1bda7a183d5d696b026d95e783a226abecf049",
+         "summary": "1 document(s), 37 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root 9b7acc667ab7.",
+         "tree": {
+          "builder": {
+           "attached": 0,
+           "dropped": 0,
+           "nodes": 36,
+           "observations": 36,
+           "reader": "md",
+           "reader_version": "0.2.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 10,
+          "image_placements": 0,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "heading": 10,
+           "paragraph": 26
+          },
+          "nodes": 37,
+          "pages": 0,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "cb4717b6a3ac8671ccfe347e7a7460ce3571d1a59b0b1c049166cdb68a3fe9bb",
+          "reader_kernel_version": "0.2.0",
+          "sections_analyzer": {
+           "accepted": 0,
+           "baseline": {
+            "found": 10,
+            "ours": 0,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {
+            "format": "md",
+            "reason": "no-channel-for-format"
+           },
+           "candidates": 0,
+           "channels": {},
+           "rejected": {
+            "orphan-number": 0,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 0,
+           "outside_page": 0
+          }
+         }
+        }
+       ],
+       "wall_s": [
+        0.0018,
+        0.0015
+       ],
+       "wall_s_per_page": null
+      }
+     },
+     "synthetic": false
+    },
+    {
+     "id": "koas_saqqara_md",
+     "path": "inputs/public/KOAS_SAQQARA.md",
+     "readers": {
+      "default": {
+       "promote_outline": {
+        "headings": 41,
+        "inferred_headings": 0,
+        "merkle_root": "a71aed7b1c518fec174518a399ecf7c82408feb0d51311aea715a8e2dac450a8",
+        "nodes": 204,
+        "wall_s": 0.0065
+       },
+       "roots_equal_across_runs": true,
+       "runs": [
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "a71aed7b1c518fec174518a399ecf7c82408feb0d51311aea715a8e2dac450a8",
+         "refusals": [],
+         "source_root": "24c384e1f8e1339a3635903e97ffa2437115cdacbcbe6d073f4c837f2f29ae1a",
+         "summary": "1 document(s), 204 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root a71aed7b1c51.",
+         "tree": {
+          "builder": {
+           "attached": 0,
+           "dropped": 0,
+           "nodes": 203,
+           "observations": 203,
+           "reader": "md",
+           "reader_version": "0.2.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 41,
+          "image_placements": 0,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "heading": 41,
+           "paragraph": 162
+          },
+          "nodes": 204,
+          "pages": 0,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "e082671434f4461019aa29721eef210313c6956addd2cfa972dec67193ffa211",
+          "reader_kernel_version": "0.2.0",
+          "sections_analyzer": {
+           "accepted": 0,
+           "baseline": {
+            "found": 41,
+            "ours": 0,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {
+            "format": "md",
+            "reason": "no-channel-for-format"
+           },
+           "candidates": 0,
+           "channels": {},
+           "rejected": {
+            "orphan-number": 0,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 0,
+           "outside_page": 0
+          }
+         }
+        },
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "a71aed7b1c518fec174518a399ecf7c82408feb0d51311aea715a8e2dac450a8",
+         "refusals": [],
+         "source_root": "24c384e1f8e1339a3635903e97ffa2437115cdacbcbe6d073f4c837f2f29ae1a",
+         "summary": "1 document(s), 204 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root a71aed7b1c51.",
+         "tree": {
+          "builder": {
+           "attached": 0,
+           "dropped": 0,
+           "nodes": 203,
+           "observations": 203,
+           "reader": "md",
+           "reader_version": "0.2.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 41,
+          "image_placements": 0,
+          "inferred_headings": 0,
+          "kinds": {
+           "document": 1,
+           "heading": 41,
+           "paragraph": 162
+          },
+          "nodes": 204,
+          "pages": 0,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "e082671434f4461019aa29721eef210313c6956addd2cfa972dec67193ffa211",
+          "reader_kernel_version": "0.2.0",
+          "sections_analyzer": {
+           "accepted": 0,
+           "baseline": {
+            "found": 41,
+            "ours": 0,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {
+            "format": "md",
+            "reason": "no-channel-for-format"
+           },
+           "candidates": 0,
+           "channels": {},
+           "rejected": {
+            "orphan-number": 0,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [],
+          "text_anchors": {
+           "anchors": 0,
+           "outside_page": 0
+          }
+         }
+        }
+       ],
+       "wall_s": [
+        0.0062,
+        0.0064
+       ],
+       "wall_s_per_page": null
+      }
+     },
+     "synthetic": false
+    },
+    {
+     "id": "twin_grid_docx",
+     "path": "inputs/synthetic/twin_grid.docx",
+     "readers": {
+      "default": {
+       "promote_outline": {
+        "headings": 0,
+        "inferred_headings": 0,
+        "merkle_root": "d1e8b9260d70c525d6aed4176f4493b7a8b1d21a5a4df95544da0cf6f728611c",
+        "nodes": 13,
+        "wall_s": 0.0072
+       },
+       "roots_equal_across_runs": true,
+       "runs": [
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "d1e8b9260d70c525d6aed4176f4493b7a8b1d21a5a4df95544da0cf6f728611c",
+         "refusals": [],
+         "source_root": "3227da995da39921f9f7d85dbae08269f43315316f08d1474e76e8361fa40320",
+         "summary": "1 document(s), 13 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root d1e8b9260d70.",
+         "tree": {
+          "builder": {
+           "attached": 0,
+           "dropped": 0,
+           "nodes": 12,
+           "observations": 12,
+           "reader": "docx",
+           "reader_version": "0.8.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 1,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 1
+          },
+          "headings": 0,
+          "image_placements": 0,
+          "inferred_headings": 0,
+          "kinds": {
+           "cell": 11,
+           "document": 1,
+           "table": 1
+          },
+          "nodes": 13,
+          "pages": 0,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "0387f8dd2e37e1fc4de5238edfd0f322df4175b40938b2a2c5f8bc23689e7b9f",
+          "reader_kernel_version": "0.8.0",
+          "sections_analyzer": {
+           "accepted": 0,
+           "baseline": {
+            "found": 0,
+            "ours": 0,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {
+            "format": "docx",
+            "reason": "no-candidate-found"
+           },
+           "candidates": 0,
+           "channels": {},
+           "rejected": {
+            "orphan-number": 0,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [
+           {
+            "cell_nodes": 11,
+            "cols": 3,
+            "empty_cells": 1,
+            "origin": "read",
+            "rows": 4,
+            "type": "data-form"
+           }
+          ],
+          "text_anchors": {
+           "anchors": 0,
+           "outside_page": 0
+          }
+         }
+        },
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "d1e8b9260d70c525d6aed4176f4493b7a8b1d21a5a4df95544da0cf6f728611c",
+         "refusals": [],
+         "source_root": "3227da995da39921f9f7d85dbae08269f43315316f08d1474e76e8361fa40320",
+         "summary": "1 document(s), 13 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root d1e8b9260d70.",
+         "tree": {
+          "builder": {
+           "attached": 0,
+           "dropped": 0,
+           "nodes": 12,
+           "observations": 12,
+           "reader": "docx",
+           "reader_version": "0.8.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 1,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 1
+          },
+          "headings": 0,
+          "image_placements": 0,
+          "inferred_headings": 0,
+          "kinds": {
+           "cell": 11,
+           "document": 1,
+           "table": 1
+          },
+          "nodes": 13,
+          "pages": 0,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "0387f8dd2e37e1fc4de5238edfd0f322df4175b40938b2a2c5f8bc23689e7b9f",
+          "reader_kernel_version": "0.8.0",
+          "sections_analyzer": {
+           "accepted": 0,
+           "baseline": {
+            "found": 0,
+            "ours": 0,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {
+            "format": "docx",
+            "reason": "no-candidate-found"
+           },
+           "candidates": 0,
+           "channels": {},
+           "rejected": {
+            "orphan-number": 0,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [
+           {
+            "cell_nodes": 11,
+            "cols": 3,
+            "empty_cells": 1,
+            "origin": "read",
+            "rows": 4,
+            "type": "data-form"
+           }
+          ],
+          "text_anchors": {
+           "anchors": 0,
+           "outside_page": 0
+          }
+         }
+        }
+       ],
+       "wall_s": [
+        0.0326,
+        0.0073
+       ],
+       "wall_s_per_page": null
+      }
+     },
+     "synthetic": true
+    },
+    {
+     "id": "twin_grid_xlsx",
+     "path": "inputs/synthetic/twin_grid.xlsx",
+     "readers": {
+      "default": {
+       "promote_outline": {
+        "headings": 0,
+        "inferred_headings": 0,
+        "merkle_root": "77809574d33c07fde3bac2ac9a81f51ae98dad92e2b7eb0400f5ddd03d7b65d4",
+        "nodes": 13,
+        "wall_s": 0.0035
+       },
+       "roots_equal_across_runs": true,
+       "runs": [
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "77809574d33c07fde3bac2ac9a81f51ae98dad92e2b7eb0400f5ddd03d7b65d4",
+         "refusals": [],
+         "source_root": "7f3ddc3b496a6e04d7b2b8533f44288059b76291cde6e79c7f6f1b15bff54cd5",
+         "summary": "1 document(s), 13 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root 77809574d33c.",
+         "tree": {
+          "builder": {
+           "attached": 0,
+           "dropped": 0,
+           "nodes": 11,
+           "observations": 11,
+           "reader": "xlsx",
+           "reader_version": "0.7.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 0,
+          "image_placements": 0,
+          "inferred_headings": 0,
+          "kinds": {
+           "cell": 10,
+           "document": 1,
+           "section": 1,
+           "table": 1
+          },
+          "nodes": 13,
+          "pages": 0,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "44db16d75e1412e2870ccd1aca343ed735de9842e2ebd31c1915d260a7a7ee33",
+          "reader_kernel_version": "0.7.0",
+          "sections_analyzer": {
+           "accepted": 1,
+           "baseline": {
+            "found": 0,
+            "ours": 1,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {},
+           "candidates": 1,
+           "channels": {
+            "xlsx-sheet-name": 1
+           },
+           "rejected": {
+            "orphan-number": 0,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [
+           {
+            "cell_nodes": 10,
+            "cols": 3,
+            "empty_cells": 0,
+            "origin": "inferred",
+            "rows": 4,
+            "type": "table"
+           }
+          ],
+          "text_anchors": {
+           "anchors": 0,
+           "outside_page": 0
+          }
+         }
+        },
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "77809574d33c07fde3bac2ac9a81f51ae98dad92e2b7eb0400f5ddd03d7b65d4",
+         "refusals": [],
+         "source_root": "7f3ddc3b496a6e04d7b2b8533f44288059b76291cde6e79c7f6f1b15bff54cd5",
+         "summary": "1 document(s), 13 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root 77809574d33c.",
+         "tree": {
+          "builder": {
+           "attached": 0,
+           "dropped": 0,
+           "nodes": 11,
+           "observations": 11,
+           "reader": "xlsx",
+           "reader_version": "0.7.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 0,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 0
+          },
+          "headings": 0,
+          "image_placements": 0,
+          "inferred_headings": 0,
+          "kinds": {
+           "cell": 10,
+           "document": 1,
+           "section": 1,
+           "table": 1
+          },
+          "nodes": 13,
+          "pages": 0,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "44db16d75e1412e2870ccd1aca343ed735de9842e2ebd31c1915d260a7a7ee33",
+          "reader_kernel_version": "0.7.0",
+          "sections_analyzer": {
+           "accepted": 1,
+           "baseline": {
+            "found": 0,
+            "ours": 1,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {},
+           "candidates": 1,
+           "channels": {
+            "xlsx-sheet-name": 1
+           },
+           "rejected": {
+            "orphan-number": 0,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [
+           {
+            "cell_nodes": 10,
+            "cols": 3,
+            "empty_cells": 0,
+            "origin": "inferred",
+            "rows": 4,
+            "type": "table"
+           }
+          ],
+          "text_anchors": {
+           "anchors": 0,
+           "outside_page": 0
+          }
+         }
+        }
+       ],
+       "wall_s": [
+        0.0483,
+        0.0037
+       ],
+       "wall_s_per_page": null
+      }
+     },
+     "synthetic": true
+    },
+    {
+     "id": "twin_grid_pptx",
+     "path": "inputs/synthetic/twin_grid.pptx",
+     "readers": {
+      "default": {
+       "promote_outline": {
+        "headings": 0,
+        "inferred_headings": 0,
+        "merkle_root": "3ed22a9b211442ea14336a45fd76b6507ee97799b4a93ce9e22d673c67859aba",
+        "nodes": 14,
+        "wall_s": 0.0049
+       },
+       "roots_equal_across_runs": true,
+       "runs": [
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "3ed22a9b211442ea14336a45fd76b6507ee97799b4a93ce9e22d673c67859aba",
+         "refusals": [],
+         "source_root": "36dd2788a17754632dd4bcd0a9b5819b4c5da8e5fe2ed33243449fea8446da89",
+         "summary": "1 document(s), 14 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root 3ed22a9b2114.",
+         "tree": {
+          "builder": {
+           "attached": 0,
+           "dropped": 0,
+           "nodes": 13,
+           "observations": 13,
+           "reader": "pptx",
+           "reader_version": "0.5.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 1,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 1
+          },
+          "headings": 0,
+          "image_placements": 0,
+          "inferred_headings": 0,
+          "kinds": {
+           "cell": 11,
+           "document": 1,
+           "slide": 1,
+           "table": 1
+          },
+          "nodes": 14,
+          "pages": 1,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "b7bf79b1fb884629d80527b3c8e018ae72f2c12e6c657dfe252edcd1d01e082d",
+          "reader_kernel_version": "0.5.0",
+          "sections_analyzer": {
+           "accepted": 0,
+           "baseline": {
+            "found": 0,
+            "ours": 0,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {
+            "format": "pptx",
+            "reason": "no-candidate-found"
+           },
+           "candidates": 0,
+           "channels": {},
+           "rejected": {
+            "orphan-number": 0,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [
+           {
+            "cell_nodes": 11,
+            "cols": 3,
+            "empty_cells": 1,
+            "origin": "read",
+            "rows": 4,
+            "type": "data-form"
+           }
+          ],
+          "text_anchors": {
+           "anchors": 0,
+           "outside_page": 0
+          }
+         }
+        },
+        {
+         "abstention_records": 0,
+         "abstentions": {},
+         "counts": {
+          "duplicate": 0,
+          "read": 1,
+          "refused": 0
+         },
+         "merkle_root": "3ed22a9b211442ea14336a45fd76b6507ee97799b4a93ce9e22d673c67859aba",
+         "refusals": [],
+         "source_root": "36dd2788a17754632dd4bcd0a9b5819b4c5da8e5fe2ed33243449fea8446da89",
+         "summary": "1 document(s), 14 nodes. Refused 0, duplicate 0. 0 abstention(s), 0 drop(s) counted. root 3ed22a9b2114.",
+         "tree": {
+          "builder": {
+           "attached": 0,
+           "dropped": 0,
+           "nodes": 13,
+           "observations": 13,
+           "reader": "pptx",
+           "reader_version": "0.5.0"
+          },
+          "grid_tables": {
+           "by_type": {
+            "data-form": 1,
+            "layout": 0,
+            "table_uncertain": 0
+           },
+           "tables": 1
+          },
+          "headings": 0,
+          "image_placements": 0,
+          "inferred_headings": 0,
+          "kinds": {
+           "cell": 11,
+           "document": 1,
+           "slide": 1,
+           "table": 1
+          },
+          "nodes": 14,
+          "pages": 1,
+          "pages_without_text": 0,
+          "pathfree_tree_sha256": "b7bf79b1fb884629d80527b3c8e018ae72f2c12e6c657dfe252edcd1d01e082d",
+          "reader_kernel_version": "0.5.0",
+          "sections_analyzer": {
+           "accepted": 0,
+           "baseline": {
+            "found": 0,
+            "ours": 0,
+            "rule": "every styled heading is a section, nothing filtered"
+           },
+           "blind": {
+            "format": "pptx",
+            "reason": "no-candidate-found"
+           },
+           "candidates": 0,
+           "channels": {},
+           "rejected": {
+            "orphan-number": 0,
+            "page-furniture": 0,
+            "printed-contents": 0
+           }
+          },
+          "tables": [
+           {
+            "cell_nodes": 11,
+            "cols": 3,
+            "empty_cells": 1,
+            "origin": "read",
+            "rows": 4,
+            "type": "data-form"
+           }
+          ],
+          "text_anchors": {
+           "anchors": 0,
+           "outside_page": 0
+          }
+         }
+        }
+       ],
+       "wall_s": [
+        0.0343,
+        0.0045
+       ],
+       "wall_s_per_page": [
+        0.0343,
+        0.0045
+       ]
+      }
+     },
+     "synthetic": true
+    }
+   ],
+   "part_wall_s": 72.9491,
+   "path_test": {
+    "merkle_root_equal": false,
+    "moved": "work_m1/moved/renamed_copy.pdf",
+    "original": "inputs/public/Adservio-RAGIXTechSheet.pdf",
+    "pathfree_tree_equal": true,
+    "source_root_equal": true
+   },
+   "whole_set": {
+    "pymupdf": {
+     "roots_equal_across_runs": true,
+     "runs": [
+      {
+       "abstention_records": 14,
+       "abstentions": {
+        "saqqara.text_layer:no-text-layer": 14
+       },
+       "counts": {
+        "duplicate": 0,
+        "read": 8,
+        "refused": 1
+       },
+       "merkle_root": "63c2d5b7fd7ebadd526b5e036302351889499e89de9476a9cb9c310a77299c9d",
+       "nodes": 15548,
+       "refusals": [
+        {
+         "path": "inputs/MANIFEST.json",
+         "reason": "unsupported-format"
+        }
+       ],
+       "source_root": "8428e3c40ad260f01203b94a7e6c1265aeae3bc90e5c90cc7f57f94e77451996",
+       "summary": "8 document(s), 15548 nodes. Refused 1, duplicate 0. 14 abstention(s), 0 drop(s) counted. root 63c2d5b7fd7e.",
+       "wall_s": 5.1677
+      },
+      {
+       "abstention_records": 14,
+       "abstentions": {
+        "saqqara.text_layer:no-text-layer": 14
+       },
+       "counts": {
+        "duplicate": 0,
+        "read": 8,
+        "refused": 1
+       },
+       "merkle_root": "63c2d5b7fd7ebadd526b5e036302351889499e89de9476a9cb9c310a77299c9d",
+       "nodes": 15548,
+       "refusals": [
+        {
+         "path": "inputs/MANIFEST.json",
+         "reason": "unsupported-format"
+        }
+       ],
+       "source_root": "8428e3c40ad260f01203b94a7e6c1265aeae3bc90e5c90cc7f57f94e77451996",
+       "summary": "8 document(s), 15548 nodes. Refused 1, duplicate 0. 14 abstention(s), 0 drop(s) counted. root 63c2d5b7fd7e.",
+       "wall_s": 5.0941
+      }
+     ]
+    },
+    "pypdf": {
+     "roots_equal_across_runs": true,
+     "runs": [
+      {
+       "abstention_records": 14,
+       "abstentions": {
+        "saqqara.text_layer:no-text-layer": 14
+       },
+       "counts": {
+        "duplicate": 0,
+        "read": 8,
+        "refused": 1
+       },
+       "merkle_root": "e7c14b4fc29bfe08818357c62749ac2f078d1252ff27d9266256f98d968c0eb7",
+       "nodes": 16047,
+       "refusals": [
+        {
+         "path": "inputs/MANIFEST.json",
+         "reason": "unsupported-format"
+        }
+       ],
+       "source_root": "8428e3c40ad260f01203b94a7e6c1265aeae3bc90e5c90cc7f57f94e77451996",
+       "summary": "8 document(s), 16047 nodes. Refused 1, duplicate 0. 14 abstention(s), 0 drop(s) counted. root e7c14b4fc29b.",
+       "wall_s": 7.6008
+      },
+      {
+       "abstention_records": 14,
+       "abstentions": {
+        "saqqara.text_layer:no-text-layer": 14
+       },
+       "counts": {
+        "duplicate": 0,
+        "read": 8,
+        "refused": 1
+       },
+       "merkle_root": "e7c14b4fc29bfe08818357c62749ac2f078d1252ff27d9266256f98d968c0eb7",
+       "nodes": 16047,
+       "refusals": [
+        {
+         "path": "inputs/MANIFEST.json",
+         "reason": "unsupported-format"
+        }
+       ],
+       "source_root": "8428e3c40ad260f01203b94a7e6c1265aeae3bc90e5c90cc7f57f94e77451996",
+       "summary": "8 document(s), 16047 nodes. Refused 1, duplicate 0. 14 abstention(s), 0 drop(s) counted. root e7c14b4fc29b.",
+       "wall_s": 8.0801
+      }
+     ]
+    }
+   }
+  },
+  "objects": {
+   "files": [
+    {
+     "assets": 4,
+     "caption_binding": {
+      "abstained": {
+       "no-candidate-within-gap": 3
+      },
+      "analyzer": "saqqara.caption_binding",
+      "bound": 1,
+      "candidates": 1,
+      "figures": 4,
+      "version": "0.1.0"
+     },
+     "figures": 4,
+     "format_headings": {
+      "abstained": null,
+      "analyzer": "format_headings",
+      "body": 9.0,
+      "collapsed": 364,
+      "dropped": 0,
+      "lines": 510,
+      "observations": 874,
+      "promoted": 73,
+      "signal": "size",
+      "version": "0.1.0"
+     },
+     "heading_nodes_before_after": [
+      0,
+      73
+     ],
+     "id": "techsheet_pdf",
+     "read_wall_s": 2.2937,
+     "regions_wall_s": 1.0763,
+     "vector_region_nodes": 58,
+     "vector_regions": {
+      "clusters": 82,
+      "excluded": {
+       "page-furniture": 225
+      },
+      "grouped": 1593,
+      "marks": 1818,
+      "pages_examined": 19,
+      "promoted": 58,
+      "refused": {
+       "too-few-operators": 17,
+       "too-small": 7
+      },
+      "renderer": "pypdfium2 5.12.1+pdfium152.0.7947.0"
+     }
+    },
+    {
+     "assets": 14,
+     "caption_binding": {
+      "abstained": {
+       "no-candidate-within-gap": 14
+      },
+      "analyzer": "saqqara.caption_binding",
+      "bound": 0,
+      "candidates": 0,
+      "figures": 14,
+      "version": "0.1.0"
+     },
+     "figures": 14,
+     "format_headings": {
+      "abstained": {
+       "reason": "no-size-contrast",
+       "signals": {
+        "lines": 0
+       }
+      },
+      "analyzer": "format_headings",
+      "collapsed": 0,
+      "dropped": 0,
+      "lines": 0,
+      "observations": 0,
+      "promoted": 0,
+      "version": "0.1.0"
+     },
+     "heading_nodes_before_after": [
+      0,
+      0
+     ],
+     "id": "slides_pdf",
+     "read_wall_s": 0.2837,
+     "regions_wall_s": 0.0001,
+     "vector_region_nodes": 0,
+     "vector_regions": {
+      "clusters": 0,
+      "excluded": {},
+      "grouped": 0,
+      "marks": 0,
+      "pages_examined": 14,
+      "promoted": 0,
+      "refused": {},
+      "renderer": null
+     }
+    },
+    {
+     "assets": 0,
+     "caption_binding": {
+      "abstained": {},
+      "analyzer": "saqqara.caption_binding",
+      "bound": 0,
+      "candidates": 0,
+      "figures": 0,
+      "version": "0.1.0"
+     },
+     "figures": 0,
+     "format_headings": {
+      "abstained": {
+       "reason": "declared-outline",
+       "signals": {
+        "declared_headings": 117,
+        "would_have_promoted": 0
+       }
+      },
+      "analyzer": "format_headings",
+      "body": 9.5,
+      "collapsed": 12963,
+      "dropped": 0,
+      "lines": 1738,
+      "observations": 14701,
+      "promoted": 0,
+      "version": "0.1.0"
+     },
+     "heading_nodes_before_after": [
+      117,
+      117
+     ],
+     "id": "sovereign_pdf",
+     "read_wall_s": 5.3454,
+     "regions_wall_s": 0.1775,
+     "vector_region_nodes": 0,
+     "vector_regions": {
+      "clusters": 38,
+      "excluded": {},
+      "grouped": 5572,
+      "marks": 5572,
+      "pages_examined": 38,
+      "promoted": 0,
+      "refused": {
+       "region-spans-page": 38
+      },
+      "renderer": null
+     }
+    },
+    {
+     "assets": 0,
+     "figures": 0,
+     "id": "saqqara_readme_md",
+     "read_wall_s": 0.002
+    },
+    {
+     "assets": 0,
+     "figures": 0,
+     "id": "koas_saqqara_md",
+     "read_wall_s": 0.001
+    },
+    {
+     "assets": 0,
+     "figures": 0,
+     "id": "twin_grid_docx",
+     "read_wall_s": 0.0378
+    },
+    {
+     "assets": 0,
+     "figures": 0,
+     "id": "twin_grid_xlsx",
+     "read_wall_s": 0.0504
+    },
+    {
+     "assets": 0,
+     "figures": 0,
+     "id": "twin_grid_pptx",
+     "read_wall_s": 0.0808
+    }
+   ],
+   "part_wall_s": 10.1485
+  }
+ },
+ "runs": 2,
+ "schema": "saqqara-techsheet-bench/1"
+}

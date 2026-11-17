@@ -1,0 +1,20 @@
+== techsheet_pdf
+traces equal: True
+trees equal once the reader version is normalised
+== slides_pdf
+traces equal: True
+trees equal once the reader version is normalised
+== sovereign_pdf
+traces equal: True
+anchors moved: 10; nodes differing in anything else: 0
+page | text | font | size | dx | dy | dwidth
+1 | — | Type3 (7 0 R) | 9.49 | -2.09 | 0.67 | 2.08
+1 | — | Type3 (7 0 R) | 9.49 | -2.08 | -0.08 | 2.09
+1 | — | Type3 (7 0 R) | 9.49 | -2.09 | -0.08 | 2.09
+2 | with | Type3 (20 0 R) | 9.49 | -2.09 | -0.08 | 2.08
+2 | in kernel outputs | Type3 (20 0 R) | 9.49 | -2.09 | -0.08 | 2.09
+2 | — | Type3 (7 0 R) | 9.49 | -2.09 | -0.08 | 2.09
+3 | (explicit) | Type3 (20 0 R) | 9.49 | -2.08 | -0.08 | 2.08
+9 | ( | Type3 (7 0 R) | 9.49 | -2.09 | 0.67 | 2.1
+26 | — | Type3 (7 0 R) | 9.49 | -2.08 | -0.08 | 2.09
+26 | — | Type3 (7 0 R) | 9.49 | -2.09 | -0.08 | 2.09

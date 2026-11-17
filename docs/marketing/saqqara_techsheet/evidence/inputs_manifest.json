@@ -1,0 +1,78 @@
+{
+ "inputs": [
+  {
+   "bytes": 2007073,
+   "id": "techsheet_pdf",
+   "origin": "public, tracked: the RAGIX tech sheet (A4)",
+   "path": "inputs/public/Adservio-RAGIXTechSheet.pdf",
+   "repo_path": "docs/marketing/ragix_techsheet/Adservio-RAGIXTechSheet.pdf",
+   "sha256": "2db618b40c1cfaf1753ca44092b62b1ea916d9eec909c22e36a17ac86be61e1e",
+   "synthetic": false
+  },
+  {
+   "bytes": 2676406,
+   "id": "slides_pdf",
+   "origin": "public, tracked: the RAGIX tech-sheet slides",
+   "path": "inputs/public/RAGIX-Tech-Sheet-Slides.pdf",
+   "repo_path": "docs/marketing/ragix_techsheet/ragix-tech-sheet/RAGIX-Tech-Sheet-Slides.pdf",
+   "sha256": "3bfbec1a541372e4fae0fb0d99326a245fe6a93aa5d5e497a308a096c80a5b0b",
+   "synthetic": false
+  },
+  {
+   "bytes": 1155159,
+   "id": "sovereign_pdf",
+   "origin": "public, tracked: Sovereign LLM operations (A4)",
+   "path": "inputs/public/SOVEREIGN_LLM_OPERATIONS.pdf",
+   "repo_path": "docs/SOVEREIGN_LLM_OPERATIONS.pdf",
+   "sha256": "785bba3a60b5bd3029f177b1abf222785bfea1e19536055ebb9f529515b44116",
+   "synthetic": false
+  },
+  {
+   "bytes": 8149,
+   "id": "saqqara_readme_md",
+   "origin": "public, tracked: the Saqqara README",
+   "path": "inputs/public/saqqara_README.md",
+   "repo_path": "ragix_kernels/saqqara/README.md",
+   "sha256": "ff98c31a22fdab3eca2b4e0d0d1bda7a183d5d696b026d95e783a226abecf049",
+   "synthetic": false
+  },
+  {
+   "bytes": 52678,
+   "id": "koas_saqqara_md",
+   "origin": "public, tracked: the Saqqara user reference",
+   "path": "inputs/public/KOAS_SAQQARA.md",
+   "repo_path": "docs/KOAS_SAQQARA.md",
+   "sha256": "24c384e1f8e1339a3635903e97ffa2437115cdacbcbe6d073f4c837f2f29ae1a",
+   "synthetic": false
+  },
+  {
+   "bytes": 36820,
+   "id": "twin_grid_docx",
+   "origin": "SYNTHETIC: tests/saqqara/generators.py:twin_grid_docx",
+   "path": "inputs/synthetic/twin_grid.docx",
+   "repo_path": null,
+   "sha256": "3227da995da39921f9f7d85dbae08269f43315316f08d1474e76e8361fa40320",
+   "synthetic": true
+  },
+  {
+   "bytes": 4967,
+   "id": "twin_grid_xlsx",
+   "origin": "SYNTHETIC: tests/saqqara/generators.py:twin_grid_xlsx",
+   "path": "inputs/synthetic/twin_grid.xlsx",
+   "repo_path": null,
+   "sha256": "7f3ddc3b496a6e04d7b2b8533f44288059b76291cde6e79c7f6f1b15bff54cd5",
+   "synthetic": true
+  },
+  {
+   "bytes": 28487,
+   "id": "twin_grid_pptx",
+   "origin": "SYNTHETIC: tests/saqqara/generators.py:twin_grid_pptx",
+   "path": "inputs/synthetic/twin_grid.pptx",
+   "repo_path": null,
+   "sha256": "36dd2788a17754632dd4bcd0a9b5819b4c5da8e5fe2ed33243449fea8446da89",
+   "synthetic": true
+  }
+ ],
+ "repo_head": "20fdf7ad0965aaff49529ef33798b4a7c92a31d4",
+ "schema": "saqqara-techsheet-inputs/1"
+}

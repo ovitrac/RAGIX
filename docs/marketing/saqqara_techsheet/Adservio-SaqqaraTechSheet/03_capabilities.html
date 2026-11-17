@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3. The capability catalogue</title>
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;500;600;700;800&family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- PAGE 3A -->
+<div class="page content_page">
+
+  <div class="section_header">
+    <span class="section_label">SECTION 3</span>
+    <h1 class="section_title">3. The capability catalogue</h1>
+  </div>
+
+  <p class="body_text">Saqqara's work divides into five capabilities, performed in order on every document. Each one marks what it read and what it inferred, and each one counts what it could not handle. An organisation can stop after reading, or go all the way to a searchable store and a structured reading report.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-layers-01" aria-hidden="true"></i>Five capabilities, from bytes to a citeable tree</div>
+    <table class="summary_table">
+      <thead>
+        <tr><th><span>Capability</span></th><th><span>It lets you…</span></th><th><span>What is recorded</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Read</td><td>Open PDF, Word, Excel, PowerPoint and Markdown files, and legacy Word and Excel through a recorded conversion</td><td>Raw observations with their exact locators</td></tr>
+        <tr><td>Build</td><td>Turn those observations into one typed tree per document</td><td>Every observation as a node, an attachment or a counted drop</td></tr>
+        <tr><td>Recognise</td><td>Find tables, header bands, label columns, value islands and sections</td><td>Inferred structure with its confidence, or an abstention</td></tr>
+        <tr><td>Index &amp; search</td><td>Cut the trees into chunks, store them, and query them lexically and semantically</td><td>Hits carrying both lane ranks and their nodes</td></tr>
+        <tr><td>Explore</td><td>Profile a set of documents, read their fields and tables, and report</td><td>A replayable reading with privacy marks</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="subsection_title">3.1 Reading: one reader per format</h2>
+
+  <p class="body_text">Each reader records only what the file states, in the vocabulary of its format. None of them interprets.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-file-search" aria-hidden="true"></i>Readers and what they observe</div>
+    <table class="summary_table summary_table--small">
+      <thead>
+        <tr><th><span>Format</span></th><th><span>Library</span></th><th><span>What is read</span></th><th><span>Locator</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>PDF</td><td>pypdf; PyMuPDF opt-in for text</td><td>Text with position, font, size and width; declared outline; drawings; whether a page has a text layer</td><td>page, position</td></tr>
+        <tr><td>Word (.docx, .doc)</td><td>python-docx</td><td>Paragraphs and runs; tables in body, headers and nested flows, with merges; form fields; bold share and type size</td><td>paragraph, run, table, row, column</td></tr>
+        <tr><td>Excel (.xlsx, .xlsm, .xls)</td><td>openpyxl</td><td>Six facts per cell (type, bold, number format, locked, formula, merged); borders; sheet facts</td><td>sheet, cell, row, column, merged range</td></tr>
+        <tr><td>PowerPoint (.pptx)</td><td>python-pptx</td><td>One record per slide and per shape; speaker notes kept apart; tables as grids</td><td>slide, shape, row, column</td></tr>
+        <tr><td>Markdown</td><td>built in</td><td>One block per record with its starting line; front matter as metadata</td><td>line</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 3: The capability catalogue</span>
+    </div>
+    <span class="footer_page">8</span>
+  </div>
+</div>
+
+<!-- PAGE 3B -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">3.2 Recognising structure</h2>
+
+  <p class="body_text">After the tree is built, analyzers run in a fixed order. Each writes from a closed vocabulary, marks what it inferred, and abstains when its rules do not settle a case.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-grid-table" aria-hidden="true"></i>Analyzers, in the order a run applies them</div>
+    <table class="summary_table summary_table--small">
+      <thead>
+        <tr><th><span>Analyzer</span></th><th><span>What it recognises</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>tables</td><td>Segments spreadsheet blocks and types each one as a table, text or a list</td></tr>
+        <tr><td>grid tables</td><td>Types Word and PowerPoint tables as a data form, a layout grid or uncertain</td></tr>
+        <tr><td>header bands</td><td>Finds a table's title, header band, label columns, section rows and core, or abstains; three header rows at most by default</td></tr>
+        <tr><td>islands</td><td>Flags disconnected islands of values, without re-cutting the table</td></tr>
+        <tr><td>sections</td><td>Collects section names from eight reader channels, sets aside printed contents pages, orphan numbers and text repeated on three pages or more, and records each node's section ancestry</td></tr>
+        <tr><td>outline (opt-in)</td><td>Promotes a numbered line to a heading only when it is a legal next step in the document's outline</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="body_text">Two points of scope. In a PDF, a standard run builds pages and paragraphs, not tables: PDF tables are read by the Explorer's table views, through the opt-in PyMuPDF reader (Section 3.5). In Markdown, a pipe table is kept as one paragraph with its raw lines. Three further analyzers are available as a library and are not applied by a standard run: headings shown only by type size or weight, the binding of captions to figures, and the grouping of drawn regions.</p>
+
+  <h2 class="subsection_title">3.3 Figures, drawn regions and renderable regions</h2>
+
+  <p class="body_text">A document also shows things it does not say. With an asset store, the PDF reader records one figure per placement, keeps image bytes out of the tree in a store addressed by their hash, and counts what it skips. Drawn regions are identified by the hash of their drawing operators and extent, not by their pixels, and page furniture is excluded before grouping. Pages are rendered by pypdfium2 (Apache-2.0) at 150 dpi by default. <strong>Renderable regions</strong> give any line or cell its enclosing prose, table, list or figure as byte-identical JSON, with an optional PNG or JPEG image, within fixed size limits. A standard run does not yet produce figures, captions or drawn regions; this limit is stated in Saqqara's own documentation.</p>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 3: The capability catalogue</span>
+    </div>
+    <span class="footer_page">9</span>
+  </div>
+</div>
+
+<!-- PAGE 3C -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">3.4 Indexing and search</h2>
+
+  <p class="body_text">The index kernel cuts each tree into chunks, with one roll-up per section, and writes them beside their documents into one SQLite file. A chunk's identity is a digest of its document, its level, its nodes and its text, so it does not change when nothing it depends on changes.</p>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-text-font" aria-hidden="true"></i> Lexical lane</div>
+      <div class="detail_card_body">SQLite FTS5 with BM25 ranking, accents folded. Every query term is quoted; a query with no searchable term is refused with a reason rather than answered with noise.</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-chart-scatter" aria-hidden="true"></i> Dense lane, optional</div>
+      <div class="detail_card_body">Embeddings from the model the user configures (sentence-transformers, or Ollama on a host of their choice). With the default setting, no vector is written at all, not even a zero one, and the lane reports itself disabled.</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-git-merge" aria-hidden="true"></i> Fusion</div>
+      <div class="detail_card_body">The two lanes are fused by reciprocal rank (k = 60). Each hit keeps its rank in both lanes and its final rank, so a reader can see why it came first.</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-delete-put-back" aria-hidden="true"></i> Lifecycle</div>
+      <div class="detail_card_body">Documents can be moved to a trash, restored or purged. Texts the embedder rejects are isolated one by one and recorded in a table, never truncated silently.</div>
+    </div>
+  </div>
+
+  <h2 class="subsection_title">3.5 The document Explorer</h2>
+
+  <p class="body_text">The Explorer reads a declared set of documents in four kernels (census, profile, reading, report) and adds field-level instruments: boundary-aware text views, bounded label-value windows, physical table views with column reconstruction, the header and row-label context of every cell, quantities read from that exact context, native-cell grid views with their holes and conflicts, and a ledger of which source characters each view covers. Personal stamps found on pages are masked by default. Its report replays the reading first and refuses to publish if anything differs. An optional model-based classification of profiles exists outside Saqqara and is disabled by default.</p>
+
+  <h2 class="subsection_title">3.6 Everything that was not done is counted</h2>
+
+  <p class="body_text">A Saqqara run returns, beside the trees, a report of what it did not do: files refused, with the reason (unsupported format, unreadable file, converter unavailable); the abstention register; the drops of the builder and of each analyzer; the chunker's refusals; the embedder's refusals. The summary line of a run is computed from those registers, so it cannot claim more than was done.</p>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 3: The capability catalogue</span>
+    </div>
+    <span class="footer_page">10</span>
+  </div>
+</div>
+
+</body>
+</html>

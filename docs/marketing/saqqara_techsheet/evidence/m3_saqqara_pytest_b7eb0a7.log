@@ -1,0 +1,110 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.1.1, pluggy-1.6.0
+rootdir: <worktree>
+configfile: pyproject.toml
+plugins: anyio-4.15.1
+collected 1860 items
+
+tests/saqqara/test_content_ledger_v22.py .......................         [  1%]
+tests/saqqara/test_context_groups.py ................................... [  3%]
+................                                                         [  3%]
+tests/saqqara/test_explorer.py ......................................    [  6%]
+tests/saqqara/test_explorer_failures.py .........                        [  6%]
+tests/saqqara/test_explorer_native_rows_once.py ..                       [  6%]
+tests/saqqara/test_explorer_occurrences.py ...........                   [  7%]
+tests/saqqara/test_explorer_privacy.py ................................. [  8%]
+                                                                         [  8%]
+tests/saqqara/test_explorer_slice2.py .................................. [ 10%]
+........................................................................ [ 14%]
+...........................................                              [ 16%]
+tests/saqqara/test_explorer_slice4_fields.py ........................... [ 18%]
+...........................................................x............ [ 22%]
+........................................................................ [ 26%]
+........................................................................ [ 30%]
+........................................................................ [ 33%]
+................................................                         [ 36%]
+tests/saqqara/test_explorer_slice4_tables.py ........................... [ 37%]
+.                                                                        [ 38%]
+tests/saqqara/test_explorer_tables.py .................................. [ 39%]
+........................................................................ [ 43%]
+........................................................................ [ 47%]
+..........................................................               [ 50%]
+tests/saqqara/test_field_views.py .........                              [ 51%]
+tests/saqqara/test_field_views_mupdf.py ........                         [ 51%]
+tests/saqqara/test_grid_view.py ...............................          [ 53%]
+tests/saqqara/test_header_unit_context.py .........                      [ 53%]
+tests/saqqara/test_k0_spec.py .....................s..........           [ 55%]
+tests/saqqara/test_k1_model.py ......................................... [ 57%]
+.........................................                                [ 59%]
+tests/saqqara/test_k2_adapters.py ...................................... [ 61%]
+.............................                                            [ 63%]
+tests/saqqara/test_k2p_pdf.py ...........                                [ 64%]
+tests/saqqara/test_k2p_pdf_readers.py .............                      [ 64%]
+tests/saqqara/test_k3_analyzers.py ..................................... [ 66%]
+..........s..s.s...........................................              [ 69%]
+tests/saqqara/test_k3f_cross_format.py ..........................        [ 71%]
+tests/saqqara/test_k3g_services.py ..................................... [ 73%]
+....                                                                     [ 73%]
+tests/saqqara/test_k3hi_sections_outline.py ......................ss.... [ 75%]
+.....................                                                    [ 76%]
+tests/saqqara/test_k3j_builder.py ...................................... [ 78%]
+...                                                                      [ 78%]
+tests/saqqara/test_k3k_format_headings.py .............................. [ 80%]
+...............                                                          [ 80%]
+tests/saqqara/test_k4_envelope.py ...............................        [ 82%]
+tests/saqqara/test_k6_captions.py ...............                        [ 83%]
+tests/saqqara/test_k6_objects.py ....................................... [ 85%]
+......                                                                   [ 85%]
+tests/saqqara/test_k6_regions.py .....................................   [ 87%]
+tests/saqqara/test_k7_store.py ......................................... [ 89%]
+.............................................s.......................... [ 93%]
+.............................s...........s.......................        [ 97%]
+tests/saqqara/test_legacy_office.py ....................                 [ 98%]
+tests/saqqara/test_native_partial_end_rows.py .........                  [ 98%]
+tests/saqqara/test_region_table_refusals.py ..........                   [ 99%]
+tests/saqqara/test_renderable_region_adapters.py ............            [100%]
+
+=============================== warnings summary ===============================
+tests/saqqara/test_explorer.py::test_orchestrator_manifest_chain_and_cache
+  <worktree>/ragix_kernels/docs/doc_func_extract.py:45: SyntaxWarning: invalid escape sequence '\d'
+    spd_pattern: Regex to identify SPD files (default: r"SPD-\d+")
+
+tests/saqqara/test_explorer.py::test_orchestrator_manifest_chain_and_cache
+  <worktree>/ragix_kernels/summary/tests/test_mcp_tools.py:109: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/saqqara/test_explorer.py::test_orchestrator_manifest_chain_and_cache
+  <worktree>/ragix_kernels/summary/tests/test_mcp_tools.py:121: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/saqqara/test_explorer.py::test_orchestrator_manifest_chain_and_cache
+  <worktree>/ragix_kernels/summary/tests/test_mcp_tools.py:146: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/saqqara/test_explorer.py::test_orchestrator_manifest_chain_and_cache
+  <worktree>/ragix_kernels/summary/tests/test_mcp_tools.py:182: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/saqqara/test_explorer.py::test_orchestrator_manifest_chain_and_cache
+  <worktree>/ragix_kernels/summary/tests/test_mcp_tools.py:192: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/saqqara/test_explorer.py::test_orchestrator_manifest_chain_and_cache
+  <worktree>/ragix_kernels/summary/tests/test_mcp_tools.py:209: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+tests/saqqara/test_explorer.py::test_orchestrator_manifest_chain_and_cache
+  <worktree>/ragix_kernels/summary/tests/test_mcp_tools.py:219: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/saqqara/test_k0_spec.py:414: no .git/hooks in this checkout (packaged copy or CI export)
+SKIPPED [3] tests/saqqara/test_k3_analyzers.py:315: this fixture pins an abstention, not a split
+SKIPPED [2] tests/saqqara/test_k3hi_sections_outline.py:212: counted as a refusal, asserted in K3.43 and K3.42
+SKIPPED [1] tests/saqqara/test_k7_store.py:1099: live embedding test; set OLLAMA_LIVE=1 to run
+SKIPPED [1] tests/saqqara/test_k7_store.py:1934: live embedding test; set OLLAMA_LIVE=1 to run
+SKIPPED [1] tests/saqqara/test_k7_store.py:2253: live embedding test; set OLLAMA_LIVE=1 to run
+XFAIL tests/saqqara/test_explorer_slice4_fields.py::test_a9_role_word_lines_are_listed_never_read[mid] - two leading values derive a bound that closes the window (flagged); repair deferred
+====== 1850 passed, 9 skipped, 1 xfailed, 8 warnings in 85.31s (0:01:25) =======
+

@@ -1,0 +1,666 @@
+{
+ "by_host": {
+  "download-r2.pytorch.org": 172808949,
+  "files.pythonhosted.org": 169401382
+ },
+ "files": [
+  {
+   "bytes": 170748402,
+   "file": "torch-2.15.0+cpu-cp312-cp312-manylinux_2_28_aarch64.whl",
+   "host": "download-r2.pytorch.org",
+   "name": "torch",
+   "report": "install_report_torch_cpu.json",
+   "sha256": "75941d429aaf4450bcd364345d7677e2d54aad45b38fbfcb1c0552450a6e9c40",
+   "version": "2.15.0+cpu"
+  },
+  {
+   "bytes": 2060547,
+   "file": "torchvision-0.29.1+cpu-cp312-cp312-manylinux_2_28_aarch64.whl",
+   "host": "download-r2.pytorch.org",
+   "name": "torchvision",
+   "report": "install_report_torch_cpu.json",
+   "sha256": "3058f855e65089330ec987b8cac1ccf5e7a26cd475f8cab20597b5577ddc8767",
+   "version": "0.29.1+cpu"
+  },
+  {
+   "bytes": 1254921,
+   "file": "docling_slim-2.150.1-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "docling-slim",
+   "report": "install_report_pypi.json",
+   "sha256": "e62f17bb546208d3f6794c09bdae61a96ef698a5bbc05696f7fbfdbb02a0fa3a",
+   "version": "2.150.1"
+  },
+  {
+   "bytes": 218040,
+   "file": "filelock-4.2.10-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "filelock",
+   "report": "install_report_pypi.json",
+   "sha256": "9479aaeb4db20b5a53e3da28493edd24720b66b8a0b84030aa56ccdf243d6857",
+   "version": "4.2.10"
+  },
+  {
+   "bytes": 45571,
+   "file": "typing_extensions-4.16.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "typing_extensions",
+   "report": "install_report_pypi.json",
+   "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+   "version": "4.16.0"
+  },
+  {
+   "bytes": 876263,
+   "file": "setuptools-84.2.1-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "setuptools",
+   "report": "install_report_pypi.json",
+   "sha256": "ca140b45d5325a9478f880e351484f62fef15f336462e449ca0c03c873d589c2",
+   "version": "84.2.1"
+  },
+  {
+   "bytes": 6299353,
+   "file": "sympy-1.14.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "sympy",
+   "report": "install_report_pypi.json",
+   "sha256": "e091cc3e99d2141a0ba2847328f5479b05d94a6635cb96148ccb3f34671bd8f5",
+   "version": "1.14.0"
+  },
+  {
+   "bytes": 2142205,
+   "file": "networkx-3.7-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "networkx",
+   "report": "install_report_pypi.json",
+   "sha256": "e3fd2c13a7814cee3746340d8d7f8598a67f16a58bf47fb7f8793fab6efca1b0",
+   "version": "3.7"
+  },
+  {
+   "bytes": 134899,
+   "file": "jinja2-3.1.6-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "Jinja2",
+   "report": "install_report_pypi.json",
+   "sha256": "85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67",
+   "version": "3.1.6"
+  },
+  {
+   "bytes": 221738,
+   "file": "fsspec-2026.9.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "fsspec",
+   "report": "install_report_pypi.json",
+   "sha256": "8dd6e646e99ea382bd85f97a45e6b526a442d79423a7dc673f1e2756d05fcb5f",
+   "version": "2026.9.0"
+  },
+  {
+   "bytes": 15284117,
+   "file": "numpy-2.5.5-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "numpy",
+   "report": "install_report_pypi.json",
+   "sha256": "a0750f2156d53446caca85663d0b65d67214e1664b9050454a731ea1418d176a",
+   "version": "2.5.5"
+  },
+  {
+   "bytes": 6519309,
+   "file": "pillow-13.0.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "pillow",
+   "report": "install_report_pypi.json",
+   "sha256": "8bf295fe459343bc6093c8e5e0df60bfa189e0fcb775a22e2c2488fdeccc6c0d",
+   "version": "13.0.0"
+  },
+  {
+   "bytes": 389390,
+   "file": "accelerate-1.16.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "accelerate",
+   "report": "install_report_pypi.json",
+   "sha256": "180885b6d7b05a19dc2dd6f722c5ce930f615e81e9e5f79d3ca910ddb9e6859e",
+   "version": "1.16.0"
+  },
+  {
+   "bytes": 135082,
+   "file": "certifi-2026.10.23-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "certifi",
+   "report": "install_report_pypi.json",
+   "sha256": "e9b54de76e530bb6cf0ccd036787103acb58fd42ba930ea8bf948ddbaa2f61d1",
+   "version": "2026.10.23"
+  },
+  {
+   "bytes": 25604,
+   "file": "defusedxml-0.7.1-py2.py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "defusedxml",
+   "report": "install_report_pypi.json",
+   "sha256": "a352e7e428770286cc899e2542b6cdaedb2b4953ff269a210103ec58f6198a61",
+   "version": "0.7.1"
+  },
+  {
+   "bytes": 346772,
+   "file": "docling_core-2.107.1-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "docling-core",
+   "report": "install_report_pypi.json",
+   "sha256": "12c6af0736098b5e8a7546fdbbf2caf68c1a5e446734efcf6bccae27e184e073",
+   "version": "2.107.1"
+  },
+  {
+   "bytes": 69401,
+   "file": "docling_ibm_models-4.0.4-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "docling-ibm-models",
+   "report": "install_report_pypi.json",
+   "sha256": "5236a13d440135aa074e211981529424f7fd15acf7938c38431381e623430a3e",
+   "version": "4.0.4"
+  },
+  {
+   "bytes": 10619353,
+   "file": "docling_parse-7.26.0-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "docling-parse",
+   "report": "install_report_pypi.json",
+   "sha256": "b5e572666fabf22f90b36905e9525da0168589b8cce97db40ab9af1b81eaee0d",
+   "version": "7.26.0"
+  },
+  {
+   "bytes": 19970,
+   "file": "filetype-1.2.0-py2.py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "filetype",
+   "report": "install_report_pypi.json",
+   "sha256": "7ce71b6880181241cf7ac8697a2f1eb6a8bd9b429f7ad6d27b8db9ba5f1c2d25",
+   "version": "1.2.0"
+  },
+  {
+   "bytes": 846435,
+   "file": "huggingface_hub-1.33.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "huggingface_hub",
+   "report": "install_report_pypi.json",
+   "sha256": "04e434b06e100eddbce9a6e817d72693a7884b10a79bd67ab48080d5c07eb899",
+   "version": "1.33.0"
+  },
+  {
+   "bytes": 183050,
+   "file": "langcodes-3.5.1-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "langcodes",
+   "report": "install_report_pypi.json",
+   "sha256": "b6a9c25c603804e2d169165091d0cdb23934610524a21d226e4f463e8e958a72",
+   "version": "3.5.1"
+  },
+  {
+   "bytes": 47218,
+   "file": "marko-2.2.5-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "marko",
+   "report": "install_report_pypi.json",
+   "sha256": "26380a6b037b5b49cec3847ee3585ba66f6782a4b9aec0d1216b7194ec5871ee",
+   "version": "2.2.5"
+  },
+  {
+   "bytes": 24363,
+   "file": "markupsafe-3.0.4-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "MarkupSafe",
+   "report": "install_report_pypi.json",
+   "sha256": "6a45c3d514f2436064db00d7fc8778d888f0236ebfed649b53d13a59e69ad51b",
+   "version": "3.0.4"
+  },
+  {
+   "bytes": 536198,
+   "file": "mpmath-1.3.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "mpmath",
+   "report": "install_report_pypi.json",
+   "sha256": "a0b2b9fe80bbcd81a6647ff13108738cfb482d481d826cc0e02f5b35e5c88d2c",
+   "version": "1.3.0"
+  },
+  {
+   "bytes": 27082,
+   "file": "pluggy-1.7.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "pluggy",
+   "report": "install_report_pypi.json",
+   "sha256": "7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec",
+   "version": "1.7.0"
+  },
+  {
+   "bytes": 494071,
+   "file": "pydantic-2.14.3-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "pydantic",
+   "report": "install_report_pypi.json",
+   "sha256": "3f7b347782ab7e4cf4c798496ae3a82787d9f21ec12676a9c564355eeef8daa8",
+   "version": "2.14.3"
+  },
+  {
+   "bytes": 2125682,
+   "file": "pydantic_core-2.50.4-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "pydantic_core",
+   "report": "install_report_pypi.json",
+   "sha256": "16902a147b3da4840612164a5e67947104d63e978f7a57c395877a5e26690b9c",
+   "version": "2.50.4"
+  },
+  {
+   "bytes": 82679,
+   "file": "pydantic_settings-2.16.3-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "pydantic-settings",
+   "report": "install_report_pypi.json",
+   "sha256": "d1db16a2d34006323a1b42c0640898da58adfbad7ec30baaa9e2b18aafc08999",
+   "version": "2.16.3"
+  },
+  {
+   "bytes": 3887212,
+   "file": "pypdfium2-5.15.2-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "pypdfium2",
+   "report": "install_report_pypi.json",
+   "sha256": "dd46e93c0c3a73f6cea8489baff6d77a5d0759dd53fbbce0aeb49c91830176fc",
+   "version": "5.15.2"
+  },
+  {
+   "bytes": 73075,
+   "file": "requests-2.34.2-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "requests",
+   "report": "install_report_pypi.json",
+   "sha256": "2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0",
+   "version": "2.34.2"
+  },
+  {
+   "bytes": 459789,
+   "file": "rtree-1.4.1-py3-none-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "rtree",
+   "report": "install_report_pypi.json",
+   "sha256": "efa8c4496e31e9ad58ff6c7df89abceac7022d906cb64a3e18e4fceae6b77f65",
+   "version": "1.4.1"
+  },
+  {
+   "bytes": 34025113,
+   "file": "scipy-1.18.1-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "scipy",
+   "report": "install_report_pypi.json",
+   "sha256": "3c085faa2cfa879c5141df483f836f4d691045a078224a670fa570fa01612d89",
+   "version": "1.18.1"
+  },
+  {
+   "bytes": 80199,
+   "file": "tqdm-4.70.1-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "tqdm",
+   "report": "install_report_pypi.json",
+   "sha256": "c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73",
+   "version": "4.70.1"
+  },
+  {
+   "bytes": 13427,
+   "file": "annotated_types-0.8.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "annotated-types",
+   "report": "install_report_pypi.json",
+   "sha256": "f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0",
+   "version": "0.8.0"
+  },
+  {
+   "bytes": 246730,
+   "file": "charset_normalizer-3.5.2-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "charset-normalizer",
+   "report": "install_report_pypi.json",
+   "sha256": "b91363207bd9dc966a691e959bb47f64b30f7ac4b072be9968b366982f7db77c",
+   "version": "3.5.2"
+  },
+  {
+   "bytes": 126163,
+   "file": "click-8.5.1-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "click",
+   "report": "install_report_pypi.json",
+   "sha256": "8bb5376d2006950386f8c6427613334a2acadc5f559cb80e638d00b4df957e37",
+   "version": "8.5.1"
+  },
+  {
+   "bytes": 94831,
+   "file": "doclang-0.9.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "doclang",
+   "report": "install_report_pypi.json",
+   "sha256": "86e8fafa09946389e16218d9b4fb40e161fa02dc965d72be1b9785e2eeea1f4a",
+   "version": "0.9.0"
+  },
+  {
+   "bytes": 4069340,
+   "file": "hf_xet-1.8.0-cp38-abi3-manylinux_2_28_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "hf-xet",
+   "report": "install_report_pypi.json",
+   "sha256": "8800e3444770f2c630b361bc6d5c6ebb770b7830646cf632fbb79d0e5bbc9e7f",
+   "version": "1.8.0"
+  },
+  {
+   "bytes": 73517,
+   "file": "httpx-0.28.1-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "httpx",
+   "report": "install_report_pypi.json",
+   "sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+   "version": "0.28.1"
+  },
+  {
+   "bytes": 78784,
+   "file": "httpcore-1.0.9-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "httpcore",
+   "report": "install_report_pypi.json",
+   "sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+   "version": "1.0.9"
+  },
+  {
+   "bytes": 69583,
+   "file": "idna-3.20-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "idna",
+   "report": "install_report_pypi.json",
+   "sha256": "ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c",
+   "version": "3.20"
+  },
+  {
+   "bytes": 9425,
+   "file": "jsonref-1.1.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "jsonref",
+   "report": "install_report_pypi.json",
+   "sha256": "590dc7773df6c21cbf948b5dac07a72a251db28b0238ceecce0a2abfa8ec30a9",
+   "version": "1.1.0"
+  },
+  {
+   "bytes": 90630,
+   "file": "jsonschema-4.26.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "jsonschema",
+   "report": "install_report_pypi.json",
+   "sha256": "d489f15263b8d200f8387e64b4c3a75f06629559fb73deb8fdfb525f2dab50ce",
+   "version": "4.26.0"
+  },
+  {
+   "bytes": 79159,
+   "file": "latex2mathml-3.81.1-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "latex2mathml",
+   "report": "install_report_pypi.json",
+   "sha256": "c337668441b71c819b6733905a8058ba9a9d767bae11a0c5fdacb3aff31361bd",
+   "version": "3.81.1"
+  },
+  {
+   "bytes": 129956,
+   "file": "packaging-26.3-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "packaging",
+   "report": "install_report_pypi.json",
+   "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c",
+   "version": "26.3"
+  },
+  {
+   "bytes": 11494640,
+   "file": "pandas-3.1.1-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "pandas",
+   "report": "install_report_pypi.json",
+   "sha256": "0f628bb9a4681695da1dcc04efef86bc8c67095300d8da928b9886259cb0dada",
+   "version": "3.1.1"
+  },
+  {
+   "bytes": 23266,
+   "file": "python_dotenv-1.2.4-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "python-dotenv",
+   "report": "install_report_pypi.json",
+   "sha256": "42269a8a5b3fd54ffa6f3d84b18abed50064717576b4ecf03dc4a55d8aa04fdc",
+   "version": "1.2.4"
+  },
+  {
+   "bytes": 775116,
+   "file": "pyyaml-6.0.3-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "PyYAML",
+   "report": "install_report_pypi.json",
+   "sha256": "9149cad251584d5fb4981be1ecde53a1ca46c891a79788c0df828d2f166bda28",
+   "version": "6.0.3"
+  },
+  {
+   "bytes": 502844,
+   "file": "safetensors-0.8.0-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "safetensors",
+   "report": "install_report_pypi.json",
+   "sha256": "7a46e5ff292c356d6991e60942ba7f79817682d3a2cef0702136448cb9c4d235",
+   "version": "0.8.0"
+  },
+  {
+   "bytes": 39814,
+   "file": "tabulate-0.10.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "tabulate",
+   "report": "install_report_pypi.json",
+   "sha256": "f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3",
+   "version": "0.10.0"
+  },
+  {
+   "bytes": 13336114,
+   "file": "transformers-5.23.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "transformers",
+   "report": "install_report_pypi.json",
+   "sha256": "018e82fd07490ad5bb58414f65e31576033dc7f36bed10c574843f69b90991bf",
+   "version": "5.23.0"
+  },
+  {
+   "bytes": 123312,
+   "file": "typer-0.27.3-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "typer",
+   "report": "install_report_pypi.json",
+   "sha256": "e50022f28b82a86313e54501317a1db64bf8f8d036ff8cfe5ca7e47675454aff",
+   "version": "0.27.3"
+  },
+  {
+   "bytes": 14874,
+   "file": "typing_inspection-0.4.5-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "typing-inspection",
+   "report": "install_report_pypi.json",
+   "sha256": "bc210535442b39e1bf2805e0c7a17dfd6a4ace760c84c7f7d16245d23a6b1c39",
+   "version": "0.4.5"
+  },
+  {
+   "bytes": 135717,
+   "file": "urllib3-2.8.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "urllib3",
+   "report": "install_report_pypi.json",
+   "sha256": "0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3",
+   "version": "2.8.0"
+  },
+  {
+   "bytes": 156997,
+   "file": "psutil-7.2.2-cp36-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "psutil",
+   "report": "install_report_pypi.json",
+   "sha256": "b0726cecd84f9474419d67252add4ac0cd9811b04d61123054b9fb6f57df6e9e",
+   "version": "7.2.2"
+  },
+  {
+   "bytes": 5293,
+   "file": "annotated_doc-0.0.6-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "annotated-doc",
+   "report": "install_report_pypi.json",
+   "sha256": "361ca0950cc7082f53fa69e9328409f40a62c61e57e0a47e1825a08078a58a53",
+   "version": "0.0.6"
+  },
+  {
+   "bytes": 67548,
+   "file": "attrs-26.1.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "attrs",
+   "report": "install_report_pypi.json",
+   "sha256": "c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309",
+   "version": "26.1.0"
+  },
+  {
+   "bytes": 18437,
+   "file": "jsonschema_specifications-2025.9.1-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "jsonschema-specifications",
+   "report": "install_report_pypi.json",
+   "sha256": "98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe",
+   "version": "2025.9.1"
+  },
+  {
+   "bytes": 5011915,
+   "file": "lxml-6.1.3-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "lxml",
+   "report": "install_report_pypi.json",
+   "sha256": "b37772102d44bb6628186accca3a121b1fa3a6b3d97518a8c29a5229ca4c0d0a",
+   "version": "6.1.3"
+  },
+  {
+   "bytes": 92853,
+   "file": "python_dateutil-4.0.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "python-dateutil",
+   "report": "install_report_pypi.json",
+   "sha256": "a5e246f79eb80475e691bf93862cead98decd8a498cf53ba0516fcdc0f50dc1c",
+   "version": "4.0.0"
+  },
+  {
+   "bytes": 26766,
+   "file": "referencing-0.37.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "referencing",
+   "report": "install_report_pypi.json",
+   "sha256": "381329a9f99628c9069361716891d34ad94af76e461dcb0335825aecc7692231",
+   "version": "0.37.0"
+  },
+  {
+   "bytes": 805139,
+   "file": "regex-2026.11.15-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "regex",
+   "report": "install_report_pypi.json",
+   "sha256": "ce6afc332face9c5978dccf74c9bbee095d43b9794bc256f5acec1565c3e3fde",
+   "version": "2026.11.15"
+  },
+  {
+   "bytes": 310654,
+   "file": "rich-15.0.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "rich",
+   "report": "install_report_pypi.json",
+   "sha256": "33bd4ef74232fb73fe9279a257718407f169c09b78a87ad3d296f548e27de0bb",
+   "version": "15.0.0"
+  },
+  {
+   "bytes": 373053,
+   "file": "rpds_py-2026.9.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "rpds-py",
+   "report": "install_report_pypi.json",
+   "sha256": "2693b2728bbcc48d09a981a356954b0c47c53ff25b545856f28a889ea619f69a",
+   "version": "2026.9.1"
+  },
+  {
+   "bytes": 9755,
+   "file": "shellingham-1.5.4-py2.py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "shellingham",
+   "report": "install_report_pypi.json",
+   "sha256": "7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686",
+   "version": "1.5.4"
+  },
+  {
+   "bytes": 3519944,
+   "file": "tokenizers-0.23.3-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "tokenizers",
+   "report": "install_report_pypi.json",
+   "sha256": "ec82e80e65a862275b97c3d90b7a523df8d9519ee48aeb4e9625b2cc909274e0",
+   "version": "0.23.3"
+  },
+  {
+   "bytes": 134521,
+   "file": "anyio-4.16.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "anyio",
+   "report": "install_report_pypi.json",
+   "sha256": "c66ae634e0b8228396b801741beb3294326d4b6102f7bba4041c0dfb58c29026",
+   "version": "4.16.0"
+  },
+  {
+   "bytes": 37515,
+   "file": "h11-0.16.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "h11",
+   "report": "install_report_pypi.json",
+   "sha256": "63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86",
+   "version": "0.16.0"
+  },
+  {
+   "bytes": 96951,
+   "file": "markdown_it_py-4.3.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "markdown-it-py",
+   "report": "install_report_pypi.json",
+   "sha256": "7aa1511a46c39138de78d9eba92ce47e63124d8003fc98b3a351909e04239efa",
+   "version": "4.3.0"
+  },
+  {
+   "bytes": 1250147,
+   "file": "pygments-2.21.0-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "Pygments",
+   "report": "install_report_pypi.json",
+   "sha256": "2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9",
+   "version": "2.21.0"
+  },
+  {
+   "bytes": 348210,
+   "file": "tzdata-2026.6-py2.py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "tzdata",
+   "report": "install_report_pypi.json",
+   "sha256": "0a10eec6e13ef16b627fabed9a5f2ba61a62b1c67f327305f4e7e412a70b4aec",
+   "version": "2026.6"
+  },
+  {
+   "bytes": 9979,
+   "file": "mdurl-0.1.2-py3-none-any.whl",
+   "host": "files.pythonhosted.org",
+   "name": "mdurl",
+   "report": "install_report_pypi.json",
+   "sha256": "84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8",
+   "version": "0.1.2"
+  },
+  {
+   "bytes": 38104309,
+   "file": "opencv_python_headless-4.14.0.94-cp37-abi3-manylinux_2_28_aarch64.whl",
+   "host": "files.pythonhosted.org",
+   "name": "opencv-python-headless",
+   "report": "install_report_opencv.json",
+   "sha256": "97c6e818c6f71c0cfa214e12293b1d0266d679c38f4e086de08357c8ac6ece0d",
+   "version": "4.14.0.94"
+  }
+ ],
+ "total_bytes": 342210331
+}

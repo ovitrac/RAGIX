@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2. What makes Saqqara unique</title>
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;500;600;700;800&family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- PAGE 2A -->
+<div class="page content_page">
+
+  <div class="section_header">
+    <span class="section_label">SECTION 2</span>
+    <h1 class="section_title">2. What makes Saqqara unique</h1>
+  </div>
+
+  <p class="body_text">Many libraries convert documents to text or Markdown. Saqqara is distinguished by five design choices that hold together. Four of them are written as propositions in its specification and checked by its tests. The fifth, the absence of any language model, is a design rule: it is stated in the documentation and can be read in the dependencies. The table summarises the five; the pages that follow explain each in turn.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-star" aria-hidden="true"></i>The five differentiators at a glance</div>
+    <table class="summary_table">
+      <thead>
+        <tr><th><span>Differentiator</span></th><th><span>What it means</span></th><th><span>Value</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Provenance on every node</td><td>Page and position, cell, paragraph, slide or line, plus the reader and its version</td><td>Every statement can be traced to its exact source</td></tr>
+        <tr><td>Rules that abstain</td><td>Ordered rules over closed vocabularies; undecided cases are recorded, not filled in</td><td>No silent error presented as structure</td></tr>
+        <tr><td>No model inside</td><td>Reading and structure are computed; the only model is an optional embedder</td><td>Runs anywhere, sovereign, nothing to host</td></tr>
+        <tr><td>One tree for every format</td><td>Five native formats, plus legacy Word and Excel through a recorded conversion</td><td>One citation scheme for a mixed corpus</td></tr>
+        <tr><td>Reproducible and accounted</td><td>Canonical JSON, stable root hashes, every observation a node or a counted drop</td><td>A reading can be replayed and audited</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="subsection_title">2.1 Provenance on every node</h2>
+
+  <p class="body_text">A Saqqara node never exists without its provenance: a node with an empty locator chain is refused at construction. The chain goes from the broadest unit to the narrowest, in the vocabulary of each format: <em>page, then position</em> for a PDF; <em>sheet, then cell, row, column and merged range</em> for a spreadsheet; <em>paragraph, run or table cell</em> for Word; <em>slide, then shape</em> for PowerPoint; <em>line</em> for Markdown. Each node also names the code that read it and its version, and can carry the hash of the source file. Within a built tree, a locator chain is a unique address, so a citation points to one node and only one.</p>
+
+  <div class="callout">
+    <div class="callout_header">
+      <span><i class="hgi-stroke hgi-checkmark-circle-02" aria-hidden="true"></i>WHY IT MATTERS</span>
+    </div>
+    <div class="callout_body">
+      <p>Search results, summaries and reports built on Saqqara inherit those addresses. A reviewer who questions a figure in a report can open the exact cell it came from, in the exact file, read by a known version of the code.</p>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 2: What makes Saqqara unique</span>
+    </div>
+    <span class="footer_page">5</span>
+  </div>
+</div>
+
+<!-- PAGE 2B -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">2.2 Rules that abstain rather than guess</h2>
+
+  <p class="body_text">Structure is recognised by analyzers that apply ordered rules and write only from closed vocabularies. Each one records whether a node was <em>read</em> (confidence 1.0) or <em>inferred</em> (below 1.0). When the evidence does not settle a case, the analyzer abstains, and the run's abstention register records the document, the analyzer, the place, the reason and the signals observed. A few examples from the specification:</p>
+
+  <ul class="bullet_list">
+    <li>Header bands of a table are recognised only when they are laminar; overlapping merged headers produce no band at all, and a band deeper than the configured cap is reported with the depth found.</li>
+    <li>A caption is bound to a figure by rules at stated confidence levels; two candidates at the same distance give an abstention, never a tie-break.</li>
+    <li>A lattice of drawn lines is not a table: it is routed as a table image at confidence 0.5, never promoted to rows and cells.</li>
+    <li>A page without a text layer is recorded as unread, never as empty; a document set in one uniform type size gets no promoted headings.</li>
+  </ul>
+
+  <h2 class="subsection_title">2.3 No language model inside</h2>
+
+  <p class="body_text">Reading, building and analysis are computation, start to finish. The only model Saqqara can call is the embedding model a user configures for the dense search lane, and with the default setting <code>provider: none</code> nothing is embedded and nothing leaves the machine. There is no network call except to that configured embedder, secrets are passed by reference, and the Explorer chain is tested under a socket guard that fails any network access. The practical consequence is simple: Saqqara runs on a laptop, a server or an air-gapped host, with no model to host, license or update.</p>
+
+  <h2 class="subsection_title">2.4 One tree for every format</h2>
+
+  <p class="body_text">PDF, Word, Excel, PowerPoint and Markdown each have their own reader, but all of them produce the same node kinds through one builder, and the per-format differences are declared as data rather than scattered through code. Legacy <code>.doc</code> and <code>.xls</code> files are converted by LibreOffice, run headless without a shell, with a fresh profile, macro security at its strictest level, links not updated, and fixed size and time limits. The conversion is recorded in the provenance with the hashes of both files and the converter's version; Saqqara does not claim that the converted layout is identical to the original.</p>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 2: What makes Saqqara unique</span>
+    </div>
+    <span class="footer_page">6</span>
+  </div>
+</div>
+
+<!-- PAGE 2C -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">2.5 Reproducible and accounted for</h2>
+
+  <p class="body_text">Every reading can be replayed and every input can be reconciled with the output. The builder guarantees that each observation read from a file ends as exactly one node, one attachment or one counted drop, and the three totals add up to what was read. Trees serialise to canonical JSON, whose round trip is byte-identical. A run returns two roots, and the difference between them is deliberate.</p>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-tree-01" aria-hidden="true"></i> merkle_root, over the trees</div>
+      <div class="detail_card_body">A Merkle root over the canonical JSON of every tree. A rerun on the same files at the same paths gives the same root, so a claim about a document can name the exact reading it was made from. Trees record their source path, so this root follows the path too.</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-fingerprint-scan" aria-hidden="true"></i> source_root, over the bytes</div>
+      <div class="detail_card_body">A root over the hashes of the source files, with their paths left out. Moving a document does not change what it says, so the root stays; editing one changes it.</div>
+    </div>
+  </div>
+
+  <p class="body_text">The core of these properties is set out in 154 propositions, each carried by a test. Another 34 extend the specification to boundary-aware field views (4), the Explorer (25) and legacy Office conversion (5). The specification also publishes its two known gaps. H1: the spreadsheet library drops an image it cannot decode while loading, so such a picture is neither read nor counted. H2: text drawn inside a PDF form object, such as the running header of a browser-printed page, is read twice and partly misplaced; body text is not affected. Each gap is documented with its cost and the route to closing it, rather than left for a user to discover.</p>
+
+  <div class="callout">
+    <div class="callout_header">
+      <span><i class="hgi-stroke hgi-quote-down" aria-hidden="true"></i>THE NET EFFECT</span>
+    </div>
+    <div class="callout_body">
+      <p>A document read by Saqqara comes with its own audit trail: what was read and where, what was refused and why, where the reader declined to decide, and two hashes that let anyone check, later and elsewhere, that the reading is the same one.</p>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 2: What makes Saqqara unique</span>
+    </div>
+    <span class="footer_page">7</span>
+  </div>
+</div>
+
+</body>
+</html>

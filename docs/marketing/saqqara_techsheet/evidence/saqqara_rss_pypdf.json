@@ -1,0 +1,52 @@
+{
+ "files": [
+  {
+   "id": "techsheet_pdf",
+   "loadavg_1min_at_end": 5.13,
+   "merkle_root": "84d3d0d95a02c45627117cad475dd3867d632a84d7d7f6ecdbcd433133432416",
+   "peak_rss_kib": 79944,
+   "reader": "pypdf",
+   "wall_s": 1.4552
+  },
+  {
+   "id": "slides_pdf",
+   "loadavg_1min_at_end": 5.13,
+   "merkle_root": "971d0d72f1045d4fbb0d8bfc91679f44cb489c9e62d1c865eceefb2a36b29147",
+   "peak_rss_kib": 73932,
+   "reader": "pypdf",
+   "wall_s": 0.0376
+  },
+  {
+   "id": "sovereign_pdf",
+   "loadavg_1min_at_end": 4.88,
+   "merkle_root": "fff8b5e98e895370f779011e69b8120904f82a472417880f4707bf67dac9134c",
+   "peak_rss_kib": 172856,
+   "reader": "pypdf",
+   "wall_s": 4.0922
+  },
+  {
+   "id": "saqqara_readme_md",
+   "loadavg_1min_at_end": 4.88,
+   "merkle_root": "9b7acc667ab770e5e6dd84fa68e31bf4b2adef016242b5408e0f5a022351922b",
+   "peak_rss_kib": 59668,
+   "reader": "pypdf",
+   "wall_s": 0.0013
+  },
+  {
+   "id": "koas_saqqara_md",
+   "loadavg_1min_at_end": 4.88,
+   "merkle_root": "a71aed7b1c518fec174518a399ecf7c82408feb0d51311aea715a8e2dac450a8",
+   "peak_rss_kib": 60712,
+   "reader": "pypdf",
+   "wall_s": 0.0052
+  },
+  {
+   "id": "qalgo_pdf",
+   "loadavg_1min_at_end": 4.88,
+   "merkle_root": "62121dd8452e964fdfe6332fde8cf0606cd1ff786fc72e87e33917e3245097f9",
+   "peak_rss_kib": 71192,
+   "reader": "pypdf",
+   "wall_s": 0.4029
+  }
+ ]
+}

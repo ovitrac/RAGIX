@@ -1,0 +1,36 @@
+== techsheet_pdf, pypdf reader: 20fdf7a → d859c87 (pinned env), versions ignored
+traces equal: True
+anchors moved: 874; nodes differing in anything else: 0; nodes with a different number of children: 0
+page | text | font | size | dx | dy | dwidth
+1 | RAGIX |  | 31.5 | -17.54 | 478.13 | 0.0
+1 | Sovereign document & cod |  | 9.75 | -17.54 | 429.13 | (None, None)
+1 | large heterogeneous corp |  | 9.75 | -17.54 | 385.38 | 0.0
+1 | CAPABILITY TECH SHEET FO |  | 7.5 | -17.54 | 262.88 | 0.0
+1 | PREPARED BY |  | 7.5 | -17.54 | -550.87 | 0.0
+== techsheet_pdf, pymupdf reader: 20fdf7a → d859c87 (pinned env), versions ignored
+traces equal: True
+trees equal once versions are normalised
+== slides_pdf, pypdf reader: 20fdf7a → d859c87 (pinned env), versions ignored
+traces equal: True
+trees equal once versions are normalised
+== slides_pdf, pymupdf reader: 20fdf7a → d859c87 (pinned env), versions ignored
+traces equal: True
+trees equal once versions are normalised
+== sovereign_pdf, pypdf reader: 20fdf7a → d859c87 (pinned env), versions ignored
+traces equal: True
+anchors moved: 14663; nodes differing in anything else: 0; nodes with a different number of children: 0
+page | text | font | size | dx | dy | dwidth
+1 | S |  | 8.07 | 24.35 | -206.37 | 0.0
+1 | t |  | 8.07 | 22.83 | -206.37 | 0.0
+1 | a |  | 8.07 | 21.71 | -206.37 | 0.0
+1 | tus |  | 8.07 | 20.25 | -206.37 | 0.0
+1 | M |  | 8.07 | 222.34 | 363.63 | 0.0
+== sovereign_pdf, pymupdf reader: 20fdf7a → d859c87 (pinned env), versions ignored
+traces equal: True
+trees equal once versions are normalised
+== qalgo_pdf, pypdf reader: 20fdf7a → d859c87 (pinned env), versions ignored
+traces equal: True
+trees equal once versions are normalised
+== qalgo_pdf, pymupdf reader: 20fdf7a → d859c87 (pinned env), versions ignored
+traces equal: True
+trees equal once versions are normalised
