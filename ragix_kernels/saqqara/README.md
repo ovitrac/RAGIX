@@ -103,16 +103,17 @@ saqqara/
 │                  outline, chains, and the library-only format_headings, caption_binding,
 │                  vector_regions
 ├── render/        the renderer port, the default renderer, the opt-in one, the licence guard
-├── kernels/       saqqara_run (stage 1) and saqqara_index (stage 2)  <- the only Kernel subclasses
+├── kernels/       saqqara_run (stage 1), saqqara_index (stage 2), explorer (four kernels)  <- the only Kernel subclasses
 ├── store/         records, chunker, feed, embeddings, refinement, retrieval, configuration, sqlite
 ├── cli/           saqqaractl: run, status, index, search
 └── mcp/           the four MCP tools
 ```
 
-Exactly two modules define a `Kernel` subclass, `kernels/saqqara_run.py` and
-`kernels/saqqara_index.py`, and the K0.3 gate pins that list. The registry discovers kernels by
-walking this package, so a third would register as an independent kernel, and adding one amends
-the pin.
+Exactly three modules define a `Kernel` subclass: `kernels/saqqara_run.py` and
+`kernels/saqqara_index.py` one each, and `kernels/explorer.py` the four Explorer kernels (census,
+profile, read, report). The K0.3 gate pins those six classes. The registry discovers kernels by
+walking this package, so any other subclass would register as an independent kernel, and adding
+one amends the pin.
 
 ## Tests
 

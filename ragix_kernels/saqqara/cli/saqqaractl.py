@@ -11,9 +11,13 @@ Usage:
     python -m ragix_kernels.saqqara.cli.saqqaractl run ./documents -w ./work
     python -m ragix_kernels.saqqara.cli.saqqaractl run ./documents --formats .docx,.xlsx
     python -m ragix_kernels.saqqara.cli.saqqaractl status ./work
+    python -m ragix_kernels.saqqara.cli.saqqaractl index ./work
+    python -m ragix_kernels.saqqara.cli.saqqaractl search ./work "merkle root" -k 5
 
-The two commands mirror the MCP surface exactly (koas_saqqara_run /
-koas_saqqara_status): same configuration keys, same stored result, same roots. A
+The four commands mirror the MCP surface (koas_saqqara_run, koas_saqqara_status,
+koas_saqqara_index, koas_saqqara_search): the same kernels with the same configuration
+keys, so run and status give the same stored result and the same roots, and search
+returns the same hits for the same query on the same store (K7.16). A
 CLI that answered differently from the tool would be a second implementation of
 the envelope, and the first divergence would show up as a citation nobody could
 reproduce.

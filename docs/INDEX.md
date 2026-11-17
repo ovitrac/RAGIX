@@ -51,7 +51,7 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
     │  KOAS_ACTIVITY   (centralized activity logging)    │
     │  KOAS_MEMORY_MCP (17 tools — episodic memory)      │
     │  KOAS_MEMORY_ARCHITECTURE (core memory design)     │
-    │  KOAS_SAQQARA    (2 kernels — document substrate)   │
+    │  KOAS_SAQQARA    (6 kernels — document substrate)   │
     │  + audit (27), security (11), translate (6) in KOAS.md         │
     └────────────────────────────────────────────────────┘
 ```
@@ -158,7 +158,7 @@ RAGIX is a **sovereign AI development assistant** that combines local LLM reason
   - extract → segment → draft → qa → harmonize → rebuild over a SQLite TM
   - Protected spans (⟦P####⟧), glossary, generative-kernel reproducibility
 
-- **[KOAS_SAQQARA.md](KOAS_SAQQARA.md)** — Document substrate (2 kernels): typed trees with provenance
+- **[KOAS_SAQQARA.md](KOAS_SAQQARA.md)** — Document substrate (6 kernels: reading, indexing and the four Explorer kernels): typed trees with provenance
   - pdf, docx, xlsx, pptx, md read into one tree each; the abstention register; two roots
   - One SQLite store: FTS5 and dense lanes fused by rank, every hit citing its nodes
 
