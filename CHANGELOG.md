@@ -6,7 +6,29 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
-## Unreleased — saqqara: a converted file's bridge survives the analyzers (LO.3)
+## v0.75.0 — Saqqara Document Substrate, Explorer, Translate & Tender (2026-11-17)
+
+> Three kernel families join KOAS after 0.74.0: Translate, Saqqara (the document substrate) and
+> Tender. The registry counts **101 kernels in 9 families** (88 in 6 at 0.74.0; 88 + 6 + 6 + 1).
+> None of the three had an entry of its own when it landed; they are recorded here, with the
+> Saqqara changes that followed its first release.
+
+### Highlights
+
+- **Saqqara** (`ragix_kernels/saqqara/`, first landed 2026-08-27): PDF, Word, Excel, PowerPoint and
+  Markdown read into one typed tree with provenance on every node, without any language model; a
+  one-file SQLite store with a lexical lane and an optional dense lane; 6 kernels (`saqqara`,
+  `saqqara_index`, and the four `explorer_*` kernels added 2026-09-16); MCP tools and `saqqaractl`.
+  Specification `ragix_kernels/saqqara/SPEC.md`; user guide `docs/KOAS_SAQQARA.md`.
+- **Translate** (`ragix_kernels/translate/`, landed 2026-06-28): six stage kernels over a SQLite
+  translation memory, English to French; language pairs and MCP/CLI exposure pending
+  (`docs/KOAS_TRANSLATE.md`).
+- **Tender** (`ragix_kernels/tender/`, landed 2026-08-30): works over a store built by Saqqara and
+  never writes to it; one kernel today, `tender_probe` (`docs/KOAS_TENDER.md`).
+- **Versions brought in line:** `ragix_core/version.py` said 0.73.0 while `pyproject.toml` said
+  0.74.0; both now say 0.75.0.
+
+### saqqara: a converted file's bridge survives the analyzers (LO.3)
 
 - A spreadsheet block read from a converted `.xls` lost its `ConversionLocator` and the original
   file's hash: `tables` built the block's chain from its own range alone. It now keeps the section's
@@ -21,7 +43,7 @@ All notable changes to the **RAGIX** project will be documented here.
   fixture of the suite, the trees after the standard pipeline, after `outline` (version string
   aside) and after `format_headings` are byte-identical before and after this change.
 
-## Unreleased — saqqara requires pypdf>=6.17.0; developer reference 2.0; tech sheet v1 fixes
+### saqqara requires pypdf>=6.17.0; developer reference 2.0; tech sheet v1 fixes
 
 - The `saqqara` extra now requires `pypdf>=6.17.0` (was `>=4.0.0`). The K2.26 placement relies on the
   order in which pypdf calls the reader: under pypdf 6.13.3 a run that opens a new text object on the
@@ -33,7 +55,7 @@ All notable changes to the **RAGIX** project will be documented here.
 - RAGIX tech sheet v1: page 10 no longer clipped, the `.lifecycle` styles defined, two icon names
   that do not exist replaced; PDF, standalone HTML and slides PDF regenerated.
 
-## Unreleased — docs: the Saqqara tech sheet, and statements brought in line with the code
+### docs: the Saqqara tech sheet, and statements brought in line with the code
 
 - The Saqqara tech sheet, `docs/marketing/saqqara_techsheet/`: a 21-page dossier and its PDF, a
   12-slide deck and its PDF (text kept as text), and the measurement record behind every figure,
@@ -47,7 +69,7 @@ All notable changes to the **RAGIX** project will be documented here.
   `all` includes. The default install is unchanged.
 - `docs/INDEX.md` gains a Tech Sheets section linking the RAGIX and Saqqara sheets.
 
-## Unreleased — pdf: a run is placed on the page, not in text space
+### pdf: a run is placed on the page, not in text space
 
 - The default PDF reader now reports where a run of type starts **on the page**: the
   text matrix in force when the run's first string was shown, composed with the page
@@ -71,7 +93,7 @@ All notable changes to the **RAGIX** project will be documented here.
   form XObject (here, the running header and footer) is read twice, and placed and sized
   without the form's matrices.
 
-## Unreleased — regions: a table nested in another table's cell is refused
+### regions: a table nested in another table's cell is refused
 
 - A table lying inside another table's cell box whose text is all carried by one
   cell of that table (a ruled grid inside a page frame) is refused as
@@ -80,7 +102,7 @@ All notable changes to the **RAGIX** project will be documented here.
   text spans several cells of the other, tables of equal box, tables reaching
   outside the other and tables with no text are unchanged.
 
-## Unreleased — tables: native rows lacking end cells are kept
+### tables: native rows lacking end cells are kept
 
 - A native table row that lacks cells at its ends, where the source draws none
   (a blank corner, a band row with no label cell), no longer refuses the whole
@@ -89,7 +111,7 @@ All notable changes to the **RAGIX** project will be documented here.
   intersection (K9.24, X24). Refusals for off-grid partial rows, tables with no
   full-width row and gaps between cells are unchanged; all-full-width tables keep
   their bands.
-## Unreleased — regions: a table's source lines are claimed by their spans
+### regions: a table's source lines are claimed by their spans
 
 - A source line whose every span is a table cell's text is now that table's
   `SOURCE_LINE_ALIAS` even when its box lies across the table's cell box, so the
@@ -97,7 +119,7 @@ All notable changes to the **RAGIX** project will be documented here.
   line only partly made of cell text keeps its region and is flagged
   `LINE_PARTLY_IN_TABLE_CELLS`; nothing is dropped (K9.23, X23).
 
-## Unreleased — explorer: native table rows read once per table
+### explorer: native table rows read once per table
 
 - `digest_pdf` reads PyMuPDF's `Table.rows` once per table instead of once per
   cell and per span test; the property re-sorts and rebuilds every row on each
@@ -105,7 +127,7 @@ All notable changes to the **RAGIX** project will be documented here.
   (52 and 11 pages, 30 and 11 native tables) `digest_pdf` went from 13.6 s to
   6.1 s and from 10.2 s to 3.2 s, with byte-identical digests.
 
-## Unreleased — source context independent of table structure
+### source context independent of table structure
 
 - Added pure `context_groups` and `cell_inventory` functions for native table
   observations refused by the canonical region reader. Groups retain source ids
@@ -125,7 +147,7 @@ All notable changes to the **RAGIX** project will be documented here.
 - Furniture exclusion applies the same declared whitespace normalisation while
   requiring every non-whitespace character to occur only in furniture lines.
 
-## Unreleased — native-cell connectivity view
+### native-cell connectivity view
 
 - Added the pure `grid_view` API for native table observations. It preserves
   every cell once, builds half-open elementary tiles from observed rectangles,

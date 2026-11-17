@@ -2,7 +2,7 @@
   <img src="assets/ragix-logo.png" alt="RAGIX Logo" height="128"><br>
 </p>
 
-# RAGIX v0.74.0
+# RAGIX v0.75.0
 
 *(Retrieval-Augmented Generative Interactive eXecution Agent)*
 
@@ -15,8 +15,8 @@
 
 ---
 
-**Version:** 0.74.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Updated:** 2026-06-24 | **Codebase:** 500K+ LOC analyzed in production
+**Version:** 0.75.0 | **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+**Updated:** 2026-11-17 | **Codebase:** 500K+ LOC analyzed in production
 
 ---
 
@@ -33,7 +33,7 @@
 
 ### Production-Ready Architecture: KOAS
 
-**KOAS** (Kernel-Orchestrated Audit System) is the computational core — **94 registered deterministic kernels** across 7 families (registry-authoritative via `ragix_kernels/registry.py`):
+**KOAS** (Kernel-Orchestrated Audit System) is the computational core — **101 registered kernels** across 9 families (registry-authoritative via `ragix_kernels/registry.py`):
 
 | Family | Kernels | Purpose |
 |--------|---------|---------|
@@ -43,14 +43,16 @@
 | **reviewer** | 13 | Traceable Markdown review: chunk-level edits with selective revert |
 | **security** | 11 | Infrastructure: network discovery, vulnerability assessment, compliance |
 | **summary** | 12 | Multi-document summarization: Graph-RAG, secrecy tiers, drift detection |
-| **translate** | 6 | EN→FR scientific translation: extract → segment → draft → qa → harmonize → rebuild (newest; see below) |
+| **translate** | 6 | EN→FR scientific translation: extract → segment → draft → qa → harmonize → rebuild (see below) |
+| **saqqara** | 6 | Document substrate: PDF, Word, Excel, PowerPoint and Markdown read into one typed tree with provenance, without any language model; one-file store, lexical and optional dense lanes; the document Explorer ([docs/KOAS_SAQQARA.md](docs/KOAS_SAQQARA.md)) |
+| **tender** | 1 | Structured response preparation over a Saqqara store, which it never writes to (`tender_probe`; [docs/KOAS_TENDER.md](docs/KOAS_TENDER.md)) |
 
-The **`translate`** family (KOAS-Translate) is newly landed and verified byte-for-byte against the original translation pipeline; generalization (language pairs, MCP/CLI) is pending (P3); a planned cross-family codec consolidation was dropped after audit (see design doc) — see [docs/developer/TRANSLATE_KERNELS_DESIGN.md](docs/developer/TRANSLATE_KERNELS_DESIGN.md).
+The **`translate`** family (KOAS-Translate) is verified byte-for-byte against the original translation pipeline; generalization (language pairs, MCP/CLI) is pending (P3); a planned cross-family codec consolidation was dropped after audit (see design doc) — see [docs/developer/TRANSLATE_KERNELS_DESIGN.md](docs/developer/TRANSLATE_KERNELS_DESIGN.md).
 
 In addition, the **RAGIX-Sealed** subsystem contributes **9** confidential-document kernels (inventory/analysis over placeholderized content — see below), kept in a separate registry.
 
 **Architectural guarantee — two kernel classes:**
-- **Compute kernels** (audit, security, most of docs/summary): fully deterministic — **no LLM in the numeric path**, no hallucinated numbers (same input → same output).
+- **Compute kernels** (audit, security, saqqara, tender, most of docs/summary): fully deterministic — **no LLM in the numeric path**, no hallucinated numbers (same input → same output).
 - **Generative kernels** (reviewer, summary authoring, translate): the LLM produces *content*, so they guarantee **reproducibility** instead — greedy decoding (temperature 0), pinned model digests, and a recorded `prompt_version`. Metrics are still computed deterministically, never by the LLM.
 
 ### Multi-Model Reasoning
@@ -413,7 +415,7 @@ Production-ready RAG for document processing (tenders, CVs, reports).
 
 | Document | Description |
 |----------|-------------|
-| [docs/KOAS.md](docs/KOAS.md) | KOAS philosophy and architecture (7 families, 94 kernels) |
+| [docs/KOAS.md](docs/KOAS.md) | KOAS philosophy and architecture (9 families, 101 kernels) |
 | [docs/KOAS_DOCS.md](docs/KOAS_DOCS.md) | Document summarization system (16 kernels) |
 | [docs/KOAS_SUMMARY.md](docs/KOAS_SUMMARY.md) | Multi-document summarization with Graph-RAG (12 kernels) |
 | [docs/KOAS_PRESENTER.md](docs/KOAS_PRESENTER.md) | Slide deck generation from documents (8 kernels) |
@@ -697,13 +699,16 @@ RAGIX/
 │   ├── rag_project/     # Project RAG (ChromaDB, knowledge graph)
 │   ├── ast_*.py         # AST analysis (Java, Python)
 │   └── llm_backends.py  # Sovereign/Cloud LLM abstraction
-├── ragix_kernels/       # KOAS kernels (160+ files, 94 kernels)
+├── ragix_kernels/       # KOAS kernels (160+ files, 101 kernels)
 │   ├── audit/           # Code audit (27 kernels)
 │   ├── docs/            # Document analysis (16 kernels)
 │   ├── presenter/       # Slide generation (8 kernels)
 │   ├── reviewer/        # Markdown review (13 kernels)
 │   ├── security/        # Security scanning (11 kernels)
 │   ├── summary/         # Multi-document summarization (12 kernels)
+│   ├── translate/       # EN→FR scientific translation (6 kernels)
+│   ├── saqqara/         # Document substrate and Explorer (6 kernels)
+│   ├── tender/          # Response preparation over a Saqqara store (1 kernel)
 │   ├── shared/          # Shared kernel utilities (md_renumber, md_toc)
 │   ├── activity.py      # Centralized activity logging
 │   ├── merkle.py        # SHA256 Merkle provenance
@@ -744,12 +749,16 @@ pytest tests/ --cov=ragix_core --cov-report=html
 
 See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 
-**Latest: v0.74.0** (2026-06-24)
-- **RAGIX-Pentest**: rootless, containerized security-hardening lab — scope allow-list (fail-safe), engagement isolation via `PENTEST_DATA_DIR`, audited runs (defensive, authorized use only)
-- **RAGIX-Sealed** (v0.73.0): confidential-document subsystem — sealed vault (AES-256-GCM + AAD), warm→cooled pipeline, 9 sealed kernels, human-authorized re-identification
-- **Presenter v2.2**: 25-transform MARP pipeline — accent directives (`<!-- accent: COLOR -->`), click-to-zoom lightbox, markdown-level image centering (HTML + PDF)
+**Latest: v0.75.0** (2026-11-17)
+- **Saqqara**: document substrate — PDF, Word, Excel, PowerPoint and Markdown read into one typed tree with provenance on every node, without any language model; one-file store with lexical and optional dense lanes; 6 kernels including the document Explorer; the `saqqara` extra requires `pypdf>=6.17.0`
+- **KOAS-Translate**: six stage kernels over a translation memory, English to French
+- **KOAS-Tender**: response preparation over a Saqqara store, which it never writes to (one kernel, `tender_probe`)
+- **Tech sheets**: RAGIX (v2) and Saqqara, dossier and deck each, in [docs/marketing/](docs/marketing/)
 
 **Recent highlights:**
+- v0.74.0: RAGIX-Pentest — rootless, containerized security-hardening lab (scope allow-list, engagement isolation, audited runs; defensive, authorized use only)
+- v0.73.0: RAGIX-Sealed — confidential-document subsystem (sealed vault AES-256-GCM + AAD, warm→cooled pipeline, 9 sealed kernels)
+- v0.72.0: Presenter v2.2 — 25-transform MARP pipeline, accent directives, click-to-zoom lightbox
 - v0.71.0: Presenter v2.1 (24 transforms, layout directives), Maven graph staircase fix, KOAS_PRESENTER docs v2.1.0
 - v0.70.0: Claude Code integration — installer, safety hooks, audit logging, component manifest
 - v0.69.0: Bounded recall-answer loop, fixed-point convergence, text similarity

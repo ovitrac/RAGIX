@@ -3,7 +3,7 @@
 **Retrieval-Augmented Generative Interactive eXecution Agent**
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
-**Version:** 0.74.0
+**Version:** 0.75.0
 **Updated:** 2026-09-10
 
 ---
@@ -389,6 +389,7 @@ Documentation follows these principles:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.75.0 | 2026-11-17 | RAGIX 0.75.0; RAGIX tech sheet v2 |
 | 0.74.0 | 2026-11-17 | Added the Tech Sheets section (RAGIX, Saqqara); saqqara counted at 6 kernels |
 | 0.74.0 | 2026-09-10 | Added KOAS_SAQQARA (user) and KOAS_SAQQARA_DEV (developer) for the saqqara document substrate |
 | 0.74.0 | 2026-06-24 | Added security/pentest nav (SECURITY_KERNELS_GUIDE, PENTEST_CONTAINER_GUIDE); kernel counts refreshed to 88 (registry-authoritative) |

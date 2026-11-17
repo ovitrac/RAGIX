@@ -140,7 +140,7 @@
 
   <h2 class="subsection_title subsection_title--flush">2.5 Provenance from first read to final word</h2>
 
-  <p class="body_text">Trust in an analysis depends on being able to retrace it. In RAGIX, every action — each shell command, each document edit, each model call — is appended to a tamper-evident ledger secured by a SHA-256 hash chain. Each entry references the previous one, so any later alteration is detectable. Outputs carry the hashes of their inputs, which means any finding can be followed back through the analysis to the exact source passage it came from.</p>
+  <p class="body_text">Trust in an analysis depends on being able to retrace it. In RAGIX, every action — each shell command, each document edit, each model call — is appended to a tamper-evident ledger secured by a SHA-256 hash chain. Each entry references the previous one, so any later alteration is detectable. Outputs carry the hashes of their inputs, which means any finding can be followed back through the analysis to the exact source passage it came from. The chain starts at the first read: Saqqara, the document substrate, keeps on every node it builds the page and position, cell, paragraph, slide or line it came from (Section 3.7).</p>
 
   <p class="intro_sentence">This end-to-end provenance underpins three concrete guarantees.</p>
 

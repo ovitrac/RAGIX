@@ -18,10 +18,10 @@
     <h1 class="section_title">3. The capability catalogue</h1>
   </div>
 
-  <p class="body_text">RAGIX organises its work into six families of deterministic kernels. Each family is a coherent business capability — best understood as a verb the platform performs on your corpus. They share a common engine and a common audit trail, so an organisation that adopts one family can extend to the others without changing its tooling or its governance.</p>
+  <p class="body_text">RAGIX organises its work into nine families of kernels, 101 registered kernels in all. Each family is a coherent business capability — best understood as a verb the platform performs on your corpus. They share a common engine and a common audit trail, so an organisation that adopts one family can extend to the others without changing its tooling or its governance.</p>
 
   <div class="summary_card">
-    <div class="summary_card_header"><i class="hgi-stroke hgi-grid" aria-hidden="true"></i>Six families, six business capabilities</div>
+    <div class="summary_card_header"><i class="hgi-stroke hgi-grid" aria-hidden="true"></i>Nine families, nine business capabilities</div>
     <table class="summary_table">
       <thead>
         <tr>
@@ -61,11 +61,28 @@
           <td><strong>Scan</strong> for vulnerabilities and compliance gaps</td>
           <td>Dependencies, secrets, configuration</td>
         </tr>
+        <tr>
+          <td>Saqqara</td>
+          <td><strong>Read &amp; cite</strong> documents into one typed tree, without any language model</td>
+          <td>PDF, Word, Excel, PowerPoint and Markdown</td>
+        </tr>
+        <tr>
+          <td>Translate</td>
+          <td><strong>Translate</strong> long documents with their structure intact</td>
+          <td>English → French technical and scientific texts</td>
+        </tr>
+        <tr>
+          <td>Tender</td>
+          <td><strong>Prepare</strong> responses from a document store</td>
+          <td>Documents read and stored by Saqqara</td>
+        </tr>
       </tbody>
     </table>
   </div>
 
-  <p class="body_text">Translation and multilingual restitution are not a separate family but a property of the engine: because documents are reduced to structured, citeable units before any prose is generated, the same content can be rendered and summarised in another language — French and English are used routinely in production — with the source meaning preserved and traceable.</p>
+  <p class="body_text">The counts are read from the platform's kernel registry, not from a plan: Audit 27, Docs 17, Reviewer 13, Summary 12, Security 11, Presenter 8, Saqqara 6, Translate 6 and Tender 1. Two subsystems sit beside the registry: <strong>RAGIX-Sealed</strong>, for confidential documents, with nine kernels of its own (Section 3.10), and the <strong>RAGIX-Pentest</strong> hardening lab (Section 3.6).</p>
+
+
 
   <h2 class="subsection_title">3.1 One pipeline, three stages</h2>
 
@@ -79,7 +96,7 @@
     <span class="lifecycle_step"><strong>3. Reporting</strong> — synthesise &amp; render</span>
   </div>
 
-  <p class="body_text">Collection and analysis are almost entirely deterministic; language models enter only at the reporting stage, and even there their output is checked. Independent kernels within a stage run in parallel, which is why a 60,000-line codebase can be fully analysed in a handful of seconds.</p>
+  <p class="body_text">Collection and analysis are almost entirely deterministic; language models enter only at the reporting stage, and even there their output is checked. The generative families are the exception: in Reviewer, Translate and the authoring part of Summary the model writes content, so they guarantee reproducibility instead (greedy decoding, a pinned model, a recorded prompt version). Independent kernels within a stage run in parallel, which is why a 60,000-line codebase can be fully analysed in a handful of seconds.</p>
 
   <div class="page_footer">
     <div class="footer_left">
@@ -227,11 +244,123 @@
 <!-- PAGE 10B -->
 <div class="page content_page">
 
-  <h2 class="subsection_title subsection_title--flush">3.6 Guarding the perimeter: the Security family</h2>
+  <h2 class="subsection_title subsection_title--flush">3.6 Guarding the perimeter: Security and the Pentest lab</h2>
 
   <p class="body_text">The Security family scans dependencies, configuration and source for known vulnerabilities, exposed secrets and compliance gaps, and maps findings to recognised control frameworks. Because it runs locally like every other family, it can be applied to material that could never be uploaded to an external scanning service.</p>
 
-  <h2 class="subsection_title">3.7 How you operate it</h2>
+  <p class="body_text">Since version 0.74 it is complemented by <strong>RAGIX-Pentest</strong>, a rootless, containerised lab for the defensive assessment of systems you own or are explicitly authorised to test. The kernels measure a posture; the lab is where a weakness is reproduced and its remedy checked. The repository ships the framework only, never engagement data.</p>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-shield-key" aria-hidden="true"></i> Security kernels — measure</div>
+      <div class="detail_card_body">
+        <ul class="bullet_list">
+          <li>11 kernels: discovery, vulnerability assessment, compliance</li>
+          <li>Run on the host, inside your perimeter</li>
+          <li>Findings mapped to control frameworks</li>
+        </ul>
+      </div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-shield-01" aria-hidden="true"></i> Pentest lab — validate &amp; remediate</div>
+      <div class="detail_card_body">
+        <ul class="bullet_list">
+          <li>Tools in a pinned container image, no host privilege</li>
+          <li>A scope allow-list refuses any target not listed; an empty list refuses all</li>
+          <li>Every run appended to the engagement's audit trail</li>
+          <li>Engagement data kept outside the engine's tree</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout_simple">
+    <div class="callout_simple_content">
+      <p><i class="hgi-stroke hgi-information-circle" aria-hidden="true"></i>Authorised defensive use only. The scope gate is a safety aid; it does not replace a written authorisation to test.</p>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 3: The capability catalogue</span>
+    </div>
+    <span class="footer_page">8</span>
+  </div>
+</div>
+
+<!-- PAGE 10C -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">3.7 Reading documents: Saqqara, the document substrate</h2>
+
+  <p class="body_text">Saqqara is the part of RAGIX that reads documents. It turns PDF, Word, Excel, PowerPoint and Markdown files into one kind of object, a typed tree, and keeps on every node the exact place it came from: the page and position, the cell, the paragraph, the slide or the line. It recognises sections, tables, header bands and label columns by ordered, tested rules, and <strong>no language model runs anywhere in it</strong>. The trees are stored in a single SQLite file and searched on a lexical lane and, when an embedding model is configured, on a dense lane; every hit leads back to the nodes it came from.</p>
+
+  <div class="kpi_row">
+    <div class="kpi_item">
+      <span class="kpi_value">0</span>
+      <span class="kpi_label">Language-model calls</span>
+    </div>
+    <div class="kpi_item">
+      <span class="kpi_value">5</span>
+      <span class="kpi_label">Formats read natively</span>
+    </div>
+    <div class="kpi_item">
+      <span class="kpi_value">6</span>
+      <span class="kpi_label">Kernels</span>
+    </div>
+    <div class="kpi_item">
+      <span class="kpi_value">154</span>
+      <span class="kpi_label">Propositions, each tested</span>
+    </div>
+  </div>
+
+  <p class="body_text">Saqqara is a family like the others, with the same kernel contract, registry, orchestrator and MCP server, and it is the substrate under the families that need exact citations. Its <strong>document Explorer</strong>, four kernels, takes a census of a corpus, profiles it, reads its tables and reports what it found, with the sources of every line. The Harvest library builds those reading reports from Saqqara's readings.</p>
+
+  <h2 class="subsection_title">3.8 Preparing responses: the Tender family</h2>
+
+  <p class="body_text">Tender works over a store that Saqqara built. It never builds a store, never reads a source file and never writes to what it reads, the last checked on the database file's hash across a run. It holds one kernel today, a probe; the kernels that recover the questions a document asks and draft only from evidence selected first are to come.</p>
+
+  <div class="callout_simple">
+    <div class="callout_simple_content">
+      <p><i class="hgi-stroke hgi-file-02" aria-hidden="true"></i>Saqqara has its own tech sheet, a dossier and a deck, with measurements on public documents and a comparison with Docling: <strong>docs/marketing/saqqara_techsheet/</strong> in the RAGIX repository.</p>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">RAGIX Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 3: The capability catalogue</span>
+    </div>
+    <span class="footer_page">8</span>
+  </div>
+</div>
+
+<!-- PAGE 10D -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">3.9 Translating: the Translate family</h2>
+
+  <p class="body_text">KOAS-Translate translates long technical and scientific documents, currently from English to French, in six stage kernels: extract, segment, draft, quality check, harmonise and rebuild. Equations, code, citations, URLs and Markdown structure are carried verbatim, and a translation memory makes a long run resumable. Inference is local. Because the model writes the translation, the family guarantees reproducibility (greedy decoding, a pinned model digest, a recorded prompt version) rather than bit-exact output. Other language pairs, and access from the command line and MCP, are pending.</p>
+
+  <h2 class="subsection_title">3.10 Confidential documents: RAGIX-Sealed</h2>
+
+  <p class="body_text">RAGIX-Sealed lets local kernels inventory, analyse and report on a confidential corpus <strong>without any raw content reaching a language model</strong>. Its boundary lies between the human and the model, not between the human and the system: the authorised operator sees everything, and no model ever does. The original is sealed (AES-256-GCM, bound to its case, document, policy and state), sensitive values are replaced by role-aware placeholders, the result is leak-scanned, and only this cooled content is indexed and reasoned over. Re-identification is a human path, authorised and audited, and never feeds a model.</p>
+
+  <div class="callout">
+    <div class="callout_header">
+      <span><i class="hgi-stroke hgi-shield-key" aria-hidden="true"></i>STATUS: DRAFT v0.1</span>
+    </div>
+    <div class="callout_body">
+      <p>The roadmap of RAGIX-Sealed is implemented and tested, including a red-team suite that sweeps seeded canary secrets across every public surface. Named-entity recognition, durable persistence and signed, expiring authorisations remain to be built before production use.</p>
+    </div>
+  </div>
+
+  <h2 class="subsection_title">3.11 How you operate it</h2>
 
   <p class="body_text">The same capabilities are reachable through whichever interface suits the user, all backed by the identical kernels and the identical audit trail.</p>
 
@@ -257,7 +386,7 @@
       <span class="footer_sep">|</span>
       <span class="footer_chapter">Section 3: The capability catalogue</span>
     </div>
-    <span class="footer_page">10</span>
+    <span class="footer_page">8</span>
   </div>
 </div>
 
