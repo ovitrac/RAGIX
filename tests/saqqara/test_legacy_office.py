@@ -25,7 +25,8 @@ from ragix_kernels.saqqara.adapters import (
 from ragix_kernels.saqqara.assets import AssetStore
 from ragix_kernels.saqqara.builder import build_tree
 from ragix_kernels.saqqara.kernels.saqqara_run import SaqqaraKernel
-from ragix_kernels.saqqara.model import Tree
+from ragix_kernels.saqqara.analyzers import OutlineAnalyzer, pipeline
+from ragix_kernels.saqqara.model import ConversionLocator, Tree
 
 
 def native(path):
@@ -120,6 +121,71 @@ def test_conversion_uses_native_reader_and_bridges_provenance(
             adapter.version,
         )
 
+
+
+def _numbered_outline(path):
+    """A word-processing derivative whose numbered lines the outline pass promotes."""
+    from docx import Document
+
+    doc = Document()
+    for line in ("1. Scope", "Body of the scope.", "1.1 Purpose", "Body.", "1.2 Field", "Body.",
+                 "2. Requirements", "Body.", "2.1 Temperature", "Body."):
+        doc.add_paragraph(line)
+    doc.save(path)
+    return path
+
+
+def _one_table(path):
+    """A spreadsheet derivative whose sheet the tables pass turns into one block."""
+    from openpyxl import Workbook
+
+    book = Workbook()
+    sheet = book.active
+    sheet.title = "Synthetic"
+    for row in (["Name", "Value"], ["Length", 23], ["Width", 17]):
+        sheet.append(row)
+    book.save(path)
+    return path
+
+
+@pytest.mark.parametrize("suffix,target,make,filter_name", [
+    (".doc", "docx", _numbered_outline, "MS Word 2007 XML"),
+    (".xls", "xlsx", _one_table, "Calc MS Excel 2007 XML"),
+])
+def test_conversion_bridge_survives_the_analyzers(tmp_path, suffix, target, make, filter_name):
+    """LO.3 holds for the nodes the analyzers add, not only for the ones the reader made.
+
+    The derivative is read as the native reader reads it, and every observation is given the
+    bridge a conversion would give it, so no converter is needed. Falsified by: an analyzer
+    that builds a node's chain from its own locator alone (a spreadsheet block lost the bridge
+    and the original's hash this way), or that leaves `source_sha256` behind (promoted headings).
+    """
+    derived = make(tmp_path / ("derived." + target))
+    original = hashlib.sha256(b"synthetic legacy " + suffix.encode()).hexdigest()
+    bridge = ConversionLocator(
+        input_format=suffix[1:],
+        output_format=target,
+        source_sha256=original,
+        derived_sha256=hashlib.sha256(derived.read_bytes()).hexdigest(),
+        converter="LibreOffice",
+        converter_version="test-build",
+        filter_name=filter_name,
+        artifact_retained=True,
+        rule="office-conversion/1",
+    )
+    records = [replace(r, conversion=bridge) for r in read_path(derived)]
+    source = tmp_path / ("source" + suffix)
+    tree = build_tree(records, str(source), target, target, adapter_for(derived).version).tree
+    tree, _traces = pipeline(tree)
+    tree = OutlineAnalyzer().run(tree).tree
+
+    nodes = list(tree.walk())
+    inferred = [node for node in nodes if node.origin == "inferred"]
+    assert inferred, "the fixture must make an analyzer infer a node, or the test proves nothing"
+    for node in nodes:
+        assert node.provenance.chain[0] == bridge, (node.kind, node.provenance.kernel)
+        assert node.provenance.source_sha256 == original, (node.kind, node.provenance.kernel)
+        assert node.provenance.leaf.format != "conversion", (node.kind, node.provenance.kernel)
 
 @pytest.mark.parametrize("suffix", [".doc", ".xls"])
 def test_missing_libreoffice_is_a_counted_refusal(tmp_path, monkeypatch, suffix):

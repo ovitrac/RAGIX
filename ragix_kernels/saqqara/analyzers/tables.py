@@ -56,7 +56,7 @@ class TablesAnalyzer(Analyzer):
     """Find the blocks on each sheet, and say what each one is."""
 
     name = "tables"
-    version = "0.1.0"
+    version = "0.2.0"
 
     def run(self, tree) -> AnalyzerResult:
         trace: dict[str, Any] = {
@@ -284,9 +284,13 @@ class TablesAnalyzer(Analyzer):
             provenance=Provenance(
                 source_path=section.provenance.source_path,
                 source_format="xlsx",
-                chain=(locator,),
+                # The section's chain down to its sheet, with the block's range in place of the
+                # sheet: whatever precedes the native coordinate (a converted file's bridge,
+                # LO.3) is kept, and the original's hash with it.
+                chain=section.provenance.chain[:-1] + (locator,),
                 kernel=section.provenance.kernel,
                 kernel_version=section.provenance.kernel_version,
+                source_sha256=section.provenance.source_sha256,
             ),
             # A block was recognised, not read: it says so, and its confidence
             # says how far the rules got (K1.4).

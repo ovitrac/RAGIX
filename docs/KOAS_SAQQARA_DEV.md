@@ -202,7 +202,7 @@ kernels (§3.4) or from `cli/explorer.py`. The module documents `EXPLORER.md`, `
   normalises them, `TREE_ABSTENTION_SOURCES` adds records the reader left in the tree
   (`saqqara.text_layer`), and `count_reported` counts the declared report shapes. Carries K3.17 and
   K4.3.
-- **`analyzers/tables.py`** — `tables`, version 0.1.0: the segmentation cascade on spreadsheets.
+- **`analyzers/tables.py`** — `tables`, version 0.2.0: the segmentation cascade on spreadsheets.
   S0 a declared table object bounds a block; S1 connected regions of occupied positions; S2 a drawn
   box bridges its own blanks; S3 typing by ordered rules `T1-declared-table-object` to
   `T6-single-cell`. It adds one node per block (kind `table`, `paragraph` or `list`), puts a
@@ -229,7 +229,7 @@ kernels (§3.4) or from `cli/explorer.py`. The module documents `EXPLORER.md`, `
   `caption-binding`), runs every candidate through `GAUNTLET` (`G1-printed-contents`,
   `G2-orphan-number`, `G3-page-furniture`, with `FURNITURE_PAGES` = 3), and writes a
   `section_ancestry` fact on each node. It adds no node. Carries K3.40–K3.48.
-- **`analyzers/outline.py`** — `outline`, version 0.1.0, opt-in: a numbered label promotes to an
+- **`analyzers/outline.py`** — `outline`, version 0.2.0, opt-in: a numbered label promotes to an
   inferred `heading` node beneath its paragraph only where it takes a legal step in an outline walk;
   a chain shorter than `MIN_CHAIN` = 3 abstains; a flat chain promotes only when every one of its
   lines is at least 90 % bold (`BOLD_DOMINANT` = 0.9, read from the `bold_frac` fact). Unpromoted labels are counted under `OUTLINE_DROPS`. Carries K3.49–K3.53.
@@ -1243,29 +1243,24 @@ Parametrisation makes the collected count larger than the sum of functions.
     the output file.
 15. **The connection is not shared across threads.** `SqliteDocumentStore` opens one `sqlite3`
     connection with the module's defaults.
-16. **A spreadsheet block loses the conversion bridge.** `analyzers/tables.py` builds each block's
-    provenance with the chain `(locator,)` and no `source_sha256`, so a `table`, `paragraph` or
-    `list` block read from a converted `.xls` drops its `ConversionLocator`, while the nodes the
-    reader produced keep it. SPEC LO.3 says every derived node keeps the bridge; its test does not
-    reach blocks.
-17. **K2.26 relies on pypdf's call order.** Under pypdf 6.13.3 one construct, a run that opens a new
+16. **K2.26 relies on pypdf's call order.** Under pypdf 6.13.3 one construct, a run that opens a new
     text object on the previous run's baseline, was misplaced (§10.3); under 6.17.0 it is exact, so
     the `saqqara` extra requires `pypdf>=6.17.0`. Continuous integration installs the newest pypdf
     and runs the K2.26 test, so a release that changes the call order shows as a failing gate.
-18. **Text inside a form XObject is read twice (H2).** Once run by run in the form's own space and
+17. **Text inside a form XObject is read twice (H2).** Once run by run in the form's own space and
     once whole under the outer matrices, with sizes and widths missing the form's scale: the
     running header and footer of a browser-printed PDF are duplicated and misplaced.
-19. **A non-default PDF reader is a different reader.** Its trees carry the version
+18. **A non-default PDF reader is a different reader.** Its trees carry the version
     `0.9.0+pymupdf-<version>` and/or `.line-join`, so their roots differ from the default reader's.
     The PyMuPDF reader replaces the text records only; outline, pages, pictures and drawings are
     still read by pypdf.
-20. **A text-extraction failure reads as a page without text.** An exception from pypdf's
+19. **A text-extraction failure reads as a page without text.** An exception from pypdf's
     `extract_text` leaves the page empty, so it is reported `has_text: false`, `needs_ocr: true` and
     listed as `no-text-layer`; an exception from `MuPdfTextReader.placements` instead makes the whole
     file `unreadable-file`. A malformed outline, and an outline entry with no title, are dropped
     without a count.
-21. **Legacy Office input writes to the workspace.** A `.doc` or `.xls` among the inputs makes the
+20. **Legacy Office input writes to the workspace.** A `.doc` or `.xls` among the inputs makes the
     run create `assets/office-conversions/`; without LibreOffice the file is refused as
     `converter-unavailable`.
-22. **The Explorer's PDF path is PyMuPDF only.** `digest_pdf` always reads through
+21. **The Explorer's PDF path is PyMuPDF only.** `digest_pdf` always reads through
     `MuPdfTextReader`, and the `explorer` extra pins `pymupdf==1.27.2.2` for reproducible geometry.
