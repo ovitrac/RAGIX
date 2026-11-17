@@ -1,0 +1,7 @@
+# M4: the two PyTorch CPU wheels of the Docling environment on the ARM64 workstation (aarch64, CPython 3.12.13).
+# Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+# From the PyTorch CPU index, pinned by sha256 (as listed in https://download.pytorch.org/whl/cpu/), installed with
+#   pip install --no-deps --require-hashes --index-url https://download.pytorch.org/whl/cpu -r m4_requirements_torch_cpu.txt
+# Their own dependencies come from PyPI in the second step (EVIDENCE.md §11).
+torch==2.15.0+cpu --hash=sha256:75941d429aaf4450bcd364345d7677e2d54aad45b38fbfcb1c0552450a6e9c40
+torchvision==0.29.1+cpu --hash=sha256:3058f855e65089330ec987b8cac1ccf5e7a26cd475f8cab20597b5577ddc8767

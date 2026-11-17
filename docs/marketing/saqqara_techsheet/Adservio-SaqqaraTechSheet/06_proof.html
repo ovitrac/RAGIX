@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>6. Proof</title>
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;500;600;700;800&family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- PAGE 6A -->
+<div class="page content_page">
+
+  <div class="section_header">
+    <span class="section_label">SECTION 6</span>
+    <h1 class="section_title">6. Proof &mdash; measured on public documents</h1>
+  </div>
+
+  <p class="body_text">Every figure in this section was measured on files published in the RAGIX repository, so anyone can repeat it: the RAGIX tech sheet (PDF, 19 pages), its slide deck exported to PDF (14 pages with no text layer), a 38-page guide to sovereign LLM operations, the Saqqara README and the Saqqara user reference (Markdown). Each file was read twice, on an x86-64 laptop and on an ARM64 workstation, with the reader code of commit <code>b7eb0a7</code>.</p>
+
+  <div class="kpi_row">
+    <div class="kpi_item">
+      <span class="kpi_value">0</span>
+      <span class="kpi_label">Measured figures that differ between x86-64 and ARM64</span>
+    </div>
+    <div class="kpi_item">
+      <span class="kpi_value">1&nbsp;850</span>
+      <span class="kpi_label">Tests passed at b7eb0a7</span>
+    </div>
+    <div class="kpi_item">
+      <span class="kpi_value">14</span>
+      <span class="kpi_label">Pages without text, recorded as unread</span>
+    </div>
+    <div class="kpi_item">
+      <span class="kpi_value">650&nbsp;&rarr;&nbsp;0</span>
+      <span class="kpi_label">Text anchors off the page, fixed while measuring</span>
+    </div>
+  </div>
+
+  <h2 class="subsection_title">6.1 Same bytes, same reading</h2>
+
+  <ul class="bullet_list">
+    <li><strong>Run after run.</strong> Each file read twice gave the same <code>merkle_root</code> over its trees and the same <code>source_root</code> over its bytes, file by file and for the whole set. The command line gave the same root as the kernel called from Python.</li>
+    <li><strong>Machine after machine.</strong> With the same code and the same bytes, an x86-64 laptop and an ARM64 workstation agreed on every root, node count, table, abstention, drawn region, caption binding, index count and search hit, rank included. Only the names of the working folders differed. This held before the fix of section 6.4 and after it.</li>
+    <li><strong>Library version.</strong> Moving the opt-in PyMuPDF reader from 1.28.0 to 1.27.2.2 changed the reader version recorded in each tree, which the root follows, and moved 10 of 14&nbsp;214 text anchors of the operations guide by about 2 pt. Nothing else changed, the Explorer's tables included.</li>
+    <li><strong>What each root covers.</strong> The same bytes copied under another name gave the same <code>source_root</code> and, once the recorded path is set aside, the same tree, but a different <code>merkle_root</code>: a tree records where it was read from.</li>
+  </ul>
+
+  <h2 class="subsection_title">6.2 What a standard run produced</h2>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-file-search" aria-hidden="true"></i>Default reader, five public files</div>
+    <table class="summary_table summary_table--small">
+      <thead>
+        <tr><th><span>File</span></th><th><span>Pages</span></th><th><span>Nodes</span></th><th><span>Headings</span></th><th><span>Abstentions</span></th><th><span>Tables (Explorer)</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Tech sheet, PDF</td><td>19</td><td>894</td><td>none declared; 35 by the opt-in outline pass</td><td>0</td><td>10 tables, 59 cells</td></tr>
+        <tr><td>Slide deck, PDF</td><td>14</td><td>15</td><td>none</td><td>14, no text layer</td><td>none</td></tr>
+        <tr><td>Operations guide, PDF</td><td>38</td><td>14&nbsp;857</td><td>117 declared; 24 more by the outline pass</td><td>0</td><td>34 tables, 796 cells</td></tr>
+        <tr><td>Saqqara README, Markdown</td><td>&ndash;</td><td>37</td><td>10 declared</td><td>0</td><td>1 pipe table kept as text</td></tr>
+        <tr><td>User reference, Markdown</td><td>&ndash;</td><td>204</td><td>41 declared</td><td>0</td><td>32 pipe tables kept as text</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="body_text">Offered a file it cannot read, here the inputs manifest, a run refuses it as <code>unsupported-format</code> and counts the refusal in its result.</p>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 6: Proof</span>
+    </div>
+    <span class="footer_page">15</span>
+  </div>
+</div>
+
+<!-- PAGE 6B -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">6.3 Abstain rather than guess</h2>
+
+  <p class="body_text">The first case below is part of every run; the other three come from analyzers used as a library.</p>
+
+  <ul class="bullet_list">
+    <li><strong>No text layer.</strong> The 14 pages of the slide export carry pictures only. Saqqara records one <code>no-text-layer</code> abstention per page, with the signals it read, and invents no text.</li>
+    <li><strong>Captions.</strong> Of the 4 pictures of the tech sheet, the caption pass binds 1 and abstains on 3, each with its reason, <code>no-candidate-within-gap</code>.</li>
+    <li><strong>Drawn regions.</strong> On the tech sheet, 1&nbsp;818 drawing marks form 82 clusters: 58 become regions, 24 are refused (17 with too few operators, 7 too small) and 225 marks are set aside as page furniture. On the operations guide, every one of the 38 clusters spans its page and is refused as <code>region-spans-page</code>.</li>
+    <li><strong>Headings by size.</strong> The operations guide declares its own outline, so the size pass abstains as <code>declared-outline</code> and records the 77 lines it would have promoted.</li>
+  </ul>
+
+  <h2 class="subsection_title">6.4 Found and fixed while measuring</h2>
+
+  <div class="callout">
+    <div class="callout_header">
+      <span><i class="hgi-stroke hgi-search-02" aria-hidden="true"></i>A DEFECT FOUND BY THIS SHEET&rsquo;S OWN MEASUREMENTS</span>
+    </div>
+    <div class="callout_body">
+      <p>The first measurements showed that the default PDF reader placed text where the text matrix alone puts it, without the page transformation: on the two browser-printed PDFs, 650 of 874 and 13&nbsp;068 of 14&nbsp;701 text anchors lay outside their page. A new proposition, K2.26, now states where a run of text starts, and a test that scales and flips a page holds the reader to it. After the fix (RAGIX pull request #42): 0 of 874, and 76 of 14&nbsp;701. The 76 are the running header and footer, drawn inside form objects; that remaining case is published in the specification as the known gap H2. Re-measured, only text coordinates moved, with what the size pass derives from them: the headings it promotes on the tech sheet (73 to 66) and, on the operations guide where it abstains, the 77 lines it would have promoted (0 before). Sections, abstentions, caption binding, tables, index counts and search results stayed the same, on both machines.</p>
+    </div>
+  </div>
+
+  <h2 class="subsection_title">6.5 The test suite</h2>
+
+  <p class="body_text">At commit <code>b7eb0a7</code>, the Saqqara tests give 1&nbsp;850 passed, 9 skipped and 1 expected failure; two of the passing tests are the fix&rsquo;s own. The skips are three live embedding tests that need a running model server, fixtures that pin an abstention rather than a split, refusals asserted elsewhere, and a check that needs the repository&rsquo;s hooks. The expected failure states a defect measured on the frozen reader, so the suite cannot pass silently once it is fixed.</p>
+
+  <h2 class="subsection_title">6.6 What these measurements do not show</h2>
+
+  <ul class="bullet_list">
+    <li>No table, from Saqqara or from Docling, has been checked against the pages by eye: the counts are observations, not a score.</li>
+    <li>The Word, Excel and PowerPoint readers are covered here by the test suite only. The repository holds no public Office file, and the public samples for this sheet are still to be chosen.</li>
+    <li>The machines were shared with other work. The times in section 5.1 compare with each other; they are not a benchmark.</li>
+    <li>There is no OCR. Text inside PDF form objects (H2) and undecodable spreadsheet images (H1) remain open, and are published as such.</li>
+  </ul>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 6: Proof</span>
+    </div>
+    <span class="footer_page">16</span>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,169 @@
+{
+ "packages": {
+  "certifi": {
+   "bytes": 135082,
+   "file": "certifi-2026.10.23-py3-none-any.whl",
+   "license": "MPL-2.0",
+   "required_by": "certifi>=2023.5.7",
+   "sha256": "e9b54de76e530bb6cf0ccd036787103acb58fd42ba930ea8bf948ddbaa2f61d1",
+   "url": "https://files.pythonhosted.org/packages/32/d1/a3652fe2c19134d0d15922177821d863cbd7e842d53a21bbe7e8e3a1b5ac/certifi-2026.10.23-py3-none-any.whl",
+   "version": "2026.10.23"
+  },
+  "charset-normalizer": {
+   "bytes": 68872,
+   "file": "charset_normalizer-3.5.2-py3-none-any.whl",
+   "license": "MIT",
+   "required_by": "charset_normalizer<4,>=2",
+   "sha256": "b6b751274acb69d77b3323d6b7dbaa3c7fdfc1eb829b7eb61d262f32e1af9685",
+   "url": "https://files.pythonhosted.org/packages/fc/ad/d07d7862a62ffa6d79d68074d14823243dd235a77c45262acbf6adeb28bf/charset_normalizer-3.5.2-py3-none-any.whl",
+   "version": "3.5.2"
+  },
+  "et-xmlfile": {
+   "bytes": 18059,
+   "file": "et_xmlfile-2.0.0-py3-none-any.whl",
+   "license": "MIT",
+   "required_by": "et-xmlfile",
+   "sha256": "7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa",
+   "url": "https://files.pythonhosted.org/packages/c1/8b/5fe2cc11fee489817272089c4203e679c63b570a5aaeb18d852ae3cbba6a/et_xmlfile-2.0.0-py3-none-any.whl",
+   "version": "2.0.0"
+  },
+  "idna": {
+   "bytes": 69583,
+   "file": "idna-3.20-py3-none-any.whl",
+   "license": "BSD-3-Clause",
+   "required_by": "idna<4,>=2.5",
+   "sha256": "ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c",
+   "url": "https://files.pythonhosted.org/packages/58/a2/bb081bab032533a855d44de1d56f8e8426114ff1ba5d1f07a438a0a654f8/idna-3.20-py3-none-any.whl",
+   "version": "3.20"
+  },
+  "lxml": {
+   "bytes": 4939696,
+   "file": "lxml-6.1.3-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
+   "license": "BSD-3-Clause",
+   "required_by": "lxml>=3.1.0",
+   "sha256": "f683dc6300317700025e41d89a43e0276692ded16113a3c43eab704d605c58e5",
+   "url": "https://files.pythonhosted.org/packages/1e/1c/722e88883173097a1a375153e3c2447eba3060d0231522cf6596e99f4195/lxml-6.1.3-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
+   "version": "6.1.3"
+  },
+  "numpy": {
+   "bytes": 15284117,
+   "file": "numpy-2.5.5-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+   "license": "BSD-3-Clause AND 0BSD AND MIT AND Zlib A",
+   "required_by": "numpy>=1.24.0",
+   "sha256": "a0750f2156d53446caca85663d0b65d67214e1664b9050454a731ea1418d176a",
+   "url": "https://files.pythonhosted.org/packages/c2/22/82184e9a5b50a4a298e9f8fe0bd8cfc483672dbfea8a3b57c78e2376b139/numpy-2.5.5-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+   "version": "2.5.5"
+  },
+  "openpyxl": {
+   "bytes": 250910,
+   "file": "openpyxl-3.1.5-py2.py3-none-any.whl",
+   "license": "MIT",
+   "required_by": "openpyxl>=3.1.0",
+   "sha256": "5282c12b107bffeef825f4617dc029afaf41d0ea60823bbb665ef3079dc79de2",
+   "url": "https://files.pythonhosted.org/packages/c0/da/977ded879c29cbd04de313843e76868e6e13408a94ed6b987245dc7c8506/openpyxl-3.1.5-py2.py3-none-any.whl",
+   "version": "3.1.5"
+  },
+  "pillow": {
+   "bytes": 6519309,
+   "file": "pillow-13.0.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+   "license": "MIT-CMU",
+   "required_by": "Pillow>=3.3.2",
+   "sha256": "8bf295fe459343bc6093c8e5e0df60bfa189e0fcb775a22e2c2488fdeccc6c0d",
+   "url": "https://files.pythonhosted.org/packages/3b/bb/9e30e8ed18c20800ee327a12107d5249ad8dc444867b3adfcc21654e3c71/pillow-13.0.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+   "version": "13.0.0"
+  },
+  "pymupdf": {
+   "bytes": 24318817,
+   "file": "pymupdf-1.27.2.2-cp310-abi3-manylinux_2_28_aarch64.whl",
+   "license": "Dual Licensed - GNU AFFERO GPL 3.0 or Ar",
+   "required_by": "pymupdf==1.27.2.2",
+   "sha256": "c5e3d54922db1c7da844f1208ac1db05704770988752311f81dd36694ae0a07b",
+   "url": "https://files.pythonhosted.org/packages/42/be/984f0d6343935b5dd30afaed6be04fc753146bf55709e63ef28bf9ef7497/pymupdf-1.27.2.2-cp310-abi3-manylinux_2_28_aarch64.whl",
+   "version": "1.27.2.2"
+  },
+  "pypdf": {
+   "bytes": 418698,
+   "file": "pypdf-7.1.0-py3-none-any.whl",
+   "license": "BSD-3-Clause",
+   "required_by": "pypdf>=4.0.0",
+   "sha256": "47cca6b24bdcf4c4d65b5f7b8b972535c61710a061261e737688777cfd9a7bfb",
+   "url": "https://files.pythonhosted.org/packages/ed/4c/d19f91b743c8579b67e3d8b001e095745dec5bb13a9b4b9eadc235a85d9e/pypdf-7.1.0-py3-none-any.whl",
+   "version": "7.1.0"
+  },
+  "pypdfium2": {
+   "bytes": 3887212,
+   "file": "pypdfium2-5.15.2-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+   "license": "BSD-3-Clause, Apache-2.0, dependency lic",
+   "required_by": "pypdfium2>=4.0.0",
+   "sha256": "dd46e93c0c3a73f6cea8489baff6d77a5d0759dd53fbbce0aeb49c91830176fc",
+   "url": "https://files.pythonhosted.org/packages/03/1f/7a18e64c50049dce8512239bcdb9f8469d0a0c352dd42ae85b6b01d143f8/pypdfium2-5.15.2-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+   "version": "5.15.2"
+  },
+  "python-docx": {
+   "bytes": 252987,
+   "file": "python_docx-1.2.0-py3-none-any.whl",
+   "license": "MIT",
+   "required_by": "python-docx>=1.0.0",
+   "sha256": "3fd478f3250fbbbfd3b94fe1e985955737c145627498896a8a6bf81f4baf66c7",
+   "url": "https://files.pythonhosted.org/packages/d0/00/1e03a4989fa5795da308cd774f05b704ace555a70f9bf9d3be057b680bcf/python_docx-1.2.0-py3-none-any.whl",
+   "version": "1.2.0"
+  },
+  "python-pptx": {
+   "bytes": 472788,
+   "file": "python_pptx-1.0.2-py3-none-any.whl",
+   "license": "MIT",
+   "required_by": "python-pptx>=0.6.21",
+   "sha256": "160838e0b8565a8b1f67947675886e9fea18aa5e795db7ae531606d68e785cba",
+   "url": "https://files.pythonhosted.org/packages/d9/4f/00be2196329ebbff56ce564aa94efb0fbc828d00de250b1980de1a34ab49/python_pptx-1.0.2-py3-none-any.whl",
+   "version": "1.0.2"
+  },
+  "pyyaml": {
+   "bytes": 775116,
+   "file": "pyyaml-6.0.3-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl",
+   "license": "MIT",
+   "required_by": "pyyaml>=6.0",
+   "sha256": "9149cad251584d5fb4981be1ecde53a1ca46c891a79788c0df828d2f166bda28",
+   "url": "https://files.pythonhosted.org/packages/ed/23/7a778b6bd0b9a8039df8b1b1d80e2e2ad78aa04171592c8a5c43a56a6af4/pyyaml-6.0.3-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl",
+   "version": "6.0.3"
+  },
+  "requests": {
+   "bytes": 73075,
+   "file": "requests-2.34.2-py3-none-any.whl",
+   "license": "Apache-2.0",
+   "required_by": "requests>=2.31.0",
+   "sha256": "2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0",
+   "url": "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl",
+   "version": "2.34.2"
+  },
+  "typing-extensions": {
+   "bytes": 45571,
+   "file": "typing_extensions-4.16.0-py3-none-any.whl",
+   "license": "PSF-2.0",
+   "required_by": "typing_extensions>=4.9.0",
+   "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+   "url": "https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl",
+   "version": "4.16.0"
+  },
+  "urllib3": {
+   "bytes": 135717,
+   "file": "urllib3-2.8.0-py3-none-any.whl",
+   "license": "MIT",
+   "required_by": "urllib3<3,>=1.26",
+   "sha256": "0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3",
+   "url": "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl",
+   "version": "2.8.0"
+  },
+  "xlsxwriter": {
+   "bytes": 180583,
+   "file": "xlsxwriter-3.3.1-py3-none-any.whl",
+   "license": "BSD-2-Clause",
+   "required_by": "XlsxWriter>=0.5.7",
+   "sha256": "8e2c89e59d733fe59e112317218c64fbbc276d90a8c144ebd6f7fa15e7ab184a",
+   "url": "https://files.pythonhosted.org/packages/88/eb/1e6af9959a567901a7e7c7cef2e75883e487df223ed67f9a8977ff863bd8/xlsxwriter-3.3.1-py3-none-any.whl",
+   "version": "3.3.1"
+  }
+ },
+ "platform": "manylinux aarch64",
+ "python": "3.12.13",
+ "total_bytes": 57846192
+}

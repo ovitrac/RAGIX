@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>7. Maturity, openness &amp; stack</title>
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;500;600;700;800&family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- PAGE 7A -->
+<div class="page content_page">
+
+  <div class="section_header">
+    <span class="section_label">SECTION 7</span>
+    <h1 class="section_title">7. Maturity, openness &amp; stack</h1>
+  </div>
+
+  <p class="body_text">Saqqara ships inside RAGIX 0.74 and is described here at commit <code>b7eb0a7</code>. It is open source under the MIT licence, published on GitHub with its specification, its tests and its documentation, so its behaviour can be checked line by line rather than taken on trust. Its maturity is stated layer by layer, against the specification.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-check-list" aria-hidden="true"></i>Maturity by layer</div>
+    <table class="summary_table summary_table--small">
+      <thead>
+        <tr><th><span>Layer</span></th><th><span>Status</span></th><th><span>Note</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Nodes, provenance, canonical JSON</td><td>Gated</td><td>10 propositions, each with a test</td></tr>
+        <tr><td>Readers: PDF, Word, Excel, PowerPoint, Markdown</td><td>Gated</td><td>26 propositions, each with a test</td></tr>
+        <tr><td>Builder and structure analyzers</td><td>Gated</td><td>73 propositions, each with a test</td></tr>
+        <tr><td>Run envelope, roots and registers</td><td>Gated</td><td>3 propositions, each with a test</td></tr>
+        <tr><td>Figures, captions, drawn regions, rendering</td><td>Gated as a library</td><td>20 propositions; not yet produced by a standard run</td></tr>
+        <tr><td>Store and hybrid search</td><td>Gated</td><td>22 propositions, each with a test</td></tr>
+        <tr><td>Field views and the document Explorer</td><td>Specified and tested</td><td>29 propositions; replay digests equal on x86-64 and ARM64</td></tr>
+        <tr><td>Legacy Word and Excel</td><td>Specified and tested</td><td>5 propositions; needs LibreOffice on the host</td></tr>
+        <tr><td>Optical character recognition</td><td>Not provided</td><td>A page without a text layer is recorded as unread</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="subsection_title">7.1 What Saqqara does not do yet</h2>
+
+  <p class="body_text">The user documentation lists its limits rather than leaving them to be found. The main ones:</p>
+  <ul class="bullet_list">
+    <li>PDF text carries a placement point, not a bounding box, and one printed line can become several nodes.</li>
+    <li>Without the opt-in outline analyzer, heading nodes come only from a PDF's declared outline: a PDF without one, and every Word and PowerPoint file, gets no heading nodes.</li>
+    <li>A standard run produces no figures, captions or drawn regions; these analyzers are used as a library.</li>
+    <li>A standard run builds no table nodes from a PDF; PDF tables come from the Explorer through the opt-in PyMuPDF reader. Markdown pipe tables are kept as raw text.</li>
+    <li>There is no OCR: scanned pages are reported as unread, never as empty.</li>
+    <li>A spreadsheet image that the Excel library cannot decode is neither read nor counted (known gap H1).</li>
+    <li>Text drawn inside a PDF form object, such as the running header of a browser-printed page, is read twice and partly misplaced (known gap H2).</li>
+  </ul>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 7: Maturity, openness &amp; stack</span>
+    </div>
+    <span class="footer_page">19</span>
+  </div>
+</div>
+
+<!-- PAGE 7B -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">7.2 A sovereign, open stack</h2>
+
+  <p class="body_text">Every component can run inside a private perimeter, on ordinary hardware, with no external service. The default install carries MIT, BSD and Apache licences only; the components under other terms are optional and named.</p>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-package" aria-hidden="true"></i> Default install</div>
+      <div class="detail_card_body">Python; pypdf (BSD-3-Clause); pypdfium2 (Apache-2.0 / BSD-3-Clause); python-docx, python-pptx, openpyxl (MIT); odfpy (offered under Apache-2.0); numpy (BSD); SQLite with FTS5.</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-puzzle" aria-hidden="true"></i> Optional, by name</div>
+      <div class="detail_card_body">PyMuPDF (AGPL-3.0 or commercial) as an alternative reader and renderer; an embedding model through sentence-transformers or Ollama; LibreOffice, as an external program, for legacy <code>.doc</code> and <code>.xls</code> only.</div>
+    </div>
+  </div>
+
+  <h2 class="subsection_title">7.3 In summary</h2>
+
+  <p class="body_text">Saqqara gives RAGIX, and every product built on it, one way to read documents: exactly, with a citation on every node, by tested rules that abstain when they cannot decide, without any language model, and with two hashes that make a reading replayable and checkable. It is open source, specified and tested, and its limits are published.</p>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-location-01" aria-hidden="true"></i> Exact</div>
+      <div class="detail_card_body">Page, cell, paragraph, slide or line on every node, and the version of the code that read it.</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-unavailable" aria-hidden="true"></i> Honest</div>
+      <div class="detail_card_body">Refusals, abstentions and drops are counted and returned with the reading.</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-shield-01" aria-hidden="true"></i> Sovereign</div>
+      <div class="detail_card_body">No model to host, no network call by default, permissive licences in the default install.</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-layers-01" aria-hidden="true"></i> Integrated</div>
+      <div class="detail_card_body">Six RAGIX kernels, four interfaces, and the tender and harvest families built on top.</div>
+    </div>
+  </div>
+
+  <h2 class="subsection_title">7.4 Contact</h2>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-mail-01" aria-hidden="true"></i>Adservio Innovation Lab</div>
+    <table class="summary_table summary_table--small">
+      <thead>
+        <tr><th><span>Channel</span></th><th><span>Detail</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Contact</td><td>Olivier Vitrac, PhD, HDR — Head of Innovation Lab</td></tr>
+        <tr><td>Email</td><td>olivier.vitrac@adservio.fr</td></tr>
+        <tr><td>Address</td><td>Adservio · Tour Franklin, 100-101 Terrasse Boieldieu, 92800 Puteaux — La Défense</td></tr>
+        <tr><td>Source</td><td>github.com/ovitrac/RAGIX · <code>ragix_kernels/saqqara</code></td></tr>
+        <tr><td>Documentation</td><td><code>docs/KOAS_SAQQARA.md</code> (users), <code>docs/KOAS_SAQQARA_DEV.md</code> (developers), <code>ragix_kernels/saqqara/SPEC.md</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 7: Maturity, openness &amp; stack</span>
+    </div>
+    <span class="footer_page">20</span>
+  </div>
+</div>
+
+</body>
+</html>

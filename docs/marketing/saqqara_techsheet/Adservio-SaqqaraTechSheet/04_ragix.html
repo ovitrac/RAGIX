@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>4. Saqqara inside RAGIX</title>
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;500;600;700;800&family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- PAGE 4A -->
+<div class="page content_page">
+
+  <div class="section_header">
+    <span class="section_label">SECTION 4</span>
+    <h1 class="section_title">4. Saqqara inside RAGIX</h1>
+  </div>
+
+  <p class="body_text">Saqqara is not a separate product bolted onto RAGIX. It is a family of RAGIX kernels: the same kernel contract, registry and orchestrator, the same MCP server and the same run envelope as every other family of the platform. It is also the substrate that RAGIX's document families stand on. The <strong>tender</strong> family queries the store Saqqara builds, and the <strong>harvest</strong> family reports over the readings it makes. A document read once by Saqqara is available, with its citations, to every consumer above it.</p>
+
+  <p class="body_text">The figure shows the four layers a request crosses. Every interface reaches the same kernels; the engine chains them by what each one declares it needs; Saqqara reads and indexes without any language model; and the families above consume what it provides.</p>
+
+  <svg viewBox="0 0 596 504" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Saqqara inside RAGIX: four interfaces reach the RAGIX registry and orchestrator, which chain the six Saqqara kernels; the tender and harvest families consume the store and the readings.">
+    <defs>
+      <pattern id="dots_s4" width="4" height="4" patternUnits="userSpaceOnUse">
+        <circle cx="2" cy="2" r="0.6" fill="#9ca3af"/>
+      </pattern>
+      <pattern id="dots_blue_s4" width="6" height="6" patternUnits="userSpaceOnUse">
+        <circle cx="3" cy="3" r="0.8" fill="#bfdbfe"/>
+      </pattern>
+      <pattern id="legend_dots_s4" width="8" height="8" patternUnits="userSpaceOnUse">
+        <circle cx="4" cy="4" r="0.8" fill="#bfdbfe"/>
+      </pattern>
+      <filter id="txt_bg_s4" x="-0.05" y="-0.1" width="1.1" height="1.3">
+        <feFlood flood-color="white" result="bg"/>
+        <feMerge><feMergeNode in="bg"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <marker id="arr_s4" viewBox="0 0 8 6" refX="8" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L8,3 L0,6 Z" fill="#000000"/>
+      </marker>
+      <marker id="arr_blue_s4" viewBox="0 0 8 6" refX="8" refY="3" markerWidth="7" markerHeight="5" orient="auto-start-reverse">
+        <path d="M0,0 L8,3 L0,6 Z" fill="#2563eb"/>
+      </marker>
+      <clipPath id="logo_clip_s4">
+        <path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/>
+        <path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/>
+      </clipPath>
+      <pattern id="logo_dots_s4" width="12" height="12" patternUnits="userSpaceOnUse">
+        <circle cx="6" cy="6" r="4.5" fill="#9ca3af"/>
+      </pattern>
+    </defs>
+
+    <rect x="0" y="0" width="596" height="504" rx="4" ry="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+    <path d="M0,0 H120 V20 Q120,28 112,28 H0 Z" fill="white" stroke="#e2e8f0" stroke-width="1"/>
+    <text x="12" y="18" font-family="Menlo, monospace" font-size="9" font-weight="600" fill="#000000">INTEGRATION</text>
+    <g transform="translate(549,11) scale(0.17)">
+      <rect x="0" y="0" width="208" height="209" fill="url(#logo_dots_s4)" clip-path="url(#logo_clip_s4)"/>
+    </g>
+
+    <g transform="translate(0,40)">
+      <!-- Layer 1 : interfaces -->
+      <rect x="20" y="0" width="556" height="62" rx="4" ry="4" fill="white" stroke="#e2e8f0" stroke-width="1.25"/>
+      <text x="36" y="16" font-family="Menlo, monospace" font-size="10" font-weight="600" fill="#000000" letter-spacing="0.05em">INTERFACES — ONE SET OF KERNELS</text>
+      <g font-family="Menlo, monospace" font-size="9" font-weight="500" fill="#000000" text-anchor="middle">
+        <rect x="36" y="26" width="124" height="28" rx="10" ry="10" fill="white" stroke="#e2e8f0" stroke-width="1"/>
+        <rect x="36" y="26" width="124" height="28" rx="10" ry="10" fill="url(#dots_s4)" fill-opacity="0.3"/>
+        <text x="98" y="40" dominant-baseline="central" filter="url(#txt_bg_s4)">MCP · 4 TOOLS</text>
+        <rect x="172" y="26" width="124" height="28" rx="10" ry="10" fill="white" stroke="#e2e8f0" stroke-width="1"/>
+        <rect x="172" y="26" width="124" height="28" rx="10" ry="10" fill="url(#dots_s4)" fill-opacity="0.3"/>
+        <text x="234" y="40" dominant-baseline="central" filter="url(#txt_bg_s4)">SAQQARACTL CLI</text>
+        <rect x="308" y="26" width="124" height="28" rx="10" ry="10" fill="white" stroke="#e2e8f0" stroke-width="1"/>
+        <rect x="308" y="26" width="124" height="28" rx="10" ry="10" fill="url(#dots_s4)" fill-opacity="0.3"/>
+        <text x="370" y="40" dominant-baseline="central" filter="url(#txt_bg_s4)">PYTHON API</text>
+        <rect x="444" y="26" width="124" height="28" rx="10" ry="10" fill="white" stroke="#e2e8f0" stroke-width="1"/>
+        <rect x="444" y="26" width="124" height="28" rx="10" ry="10" fill="url(#dots_s4)" fill-opacity="0.3"/>
+        <text x="506" y="40" dominant-baseline="central" filter="url(#txt_bg_s4)">RAGIX-KOAS</text>
+      </g>
+
+      <line x1="298" y1="62" x2="298" y2="88" stroke="#e2e8f0" stroke-width="1.25" marker-end="url(#arr_s4)"/>
+      <text x="312" y="79" font-family="Menlo, monospace" font-size="8" font-style="italic" fill="#9ca3af">a kernel is called by name</text>
+
+      <!-- Layer 2 : KOAS engine -->
+      <rect x="20" y="92" width="556" height="62" rx="4" ry="4" fill="white" stroke="#e2e8f0" stroke-width="1.25"/>
+      <text x="36" y="108" font-family="Menlo, monospace" font-size="10" font-weight="600" fill="#000000" letter-spacing="0.05em">RAGIX KOAS ENGINE — ONE CONTRACT FOR EVERY FAMILY</text>
+      <g font-family="Menlo, monospace" font-size="9" font-weight="500" fill="#000000" text-anchor="middle">
+        <rect x="36" y="118" width="260" height="28" rx="10" ry="10" fill="white" stroke="#e2e8f0" stroke-width="1"/>
+        <rect x="36" y="118" width="260" height="28" rx="10" ry="10" fill="url(#dots_s4)" fill-opacity="0.3"/>
+        <text x="166" y="132" dominant-baseline="central" filter="url(#txt_bg_s4)">REGISTRY · NEEDS BY NAME OR CAPABILITY</text>
+        <rect x="308" y="118" width="260" height="28" rx="10" ry="10" fill="white" stroke="#e2e8f0" stroke-width="1"/>
+        <rect x="308" y="118" width="260" height="28" rx="10" ry="10" fill="url(#dots_s4)" fill-opacity="0.3"/>
+        <text x="438" y="132" dominant-baseline="central" filter="url(#txt_bg_s4)">ORCHESTRATOR · ORDERS, RECORDS PROVIDER</text>
+      </g>
+
+      <line x1="298" y1="154" x2="298" y2="180" stroke="#e2e8f0" stroke-width="1.25" marker-end="url(#arr_s4)"/>
+      <text x="312" y="171" font-family="Menlo, monospace" font-size="8" font-style="italic" fill="#9ca3af">each kernel receives what it declared</text>
+
+      <!-- Layer 3 : Saqqara kernels -->
+      <rect x="20" y="184" width="556" height="124" rx="4" ry="4" fill="#eff6ff" stroke="#dbeafe" stroke-width="1.25"/>
+      <rect x="20" y="184" width="556" height="124" rx="4" ry="4" fill="url(#dots_blue_s4)"/>
+      <text x="36" y="200" font-family="Menlo, monospace" font-size="10" font-weight="600" fill="#2563eb" letter-spacing="0.05em">SAQQARA KERNELS — NO LANGUAGE MODEL</text>
+      <g font-family="Menlo, monospace" font-size="9" font-weight="500" fill="#2563eb" text-anchor="middle">
+        <rect x="36" y="210" width="220" height="28" rx="8" ry="8" fill="white" stroke="#dbeafe" stroke-width="1"/>
+        <text x="146" y="224" dominant-baseline="central">STAGE 1 · saqqara</text>
+        <rect x="348" y="210" width="220" height="28" rx="8" ry="8" fill="white" stroke="#dbeafe" stroke-width="1"/>
+        <text x="458" y="224" dominant-baseline="central">STAGE 2 · saqqara_index</text>
+        <line x1="256" y1="224" x2="346" y2="224" stroke="#2563eb" stroke-width="1" marker-end="url(#arr_blue_s4)"/>
+        <text x="301" y="217" font-size="7" font-style="italic">document_tree</text>
+      </g>
+      <g font-family="Menlo, monospace" font-size="7.5" fill="#1e40af">
+        <text x="36" y="250">→ typed trees · traces · merkle_root</text>
+        <text x="348" y="250">→ document_store (one SQLite file)</text>
+      </g>
+      <g font-family="Menlo, monospace" font-size="8.5" font-weight="500" fill="#2563eb" text-anchor="middle">
+        <rect x="36" y="266" width="118" height="28" rx="8" ry="8" fill="white" stroke="#dbeafe" stroke-width="1"/>
+        <text x="95" y="280" dominant-baseline="central">explorer_census</text>
+        <rect x="172" y="266" width="118" height="28" rx="8" ry="8" fill="white" stroke="#dbeafe" stroke-width="1"/>
+        <text x="231" y="280" dominant-baseline="central">explorer_profile</text>
+        <rect x="308" y="266" width="118" height="28" rx="8" ry="8" fill="white" stroke="#dbeafe" stroke-width="1"/>
+        <text x="367" y="280" dominant-baseline="central">explorer_read</text>
+        <rect x="444" y="266" width="118" height="28" rx="8" ry="8" fill="white" stroke="#dbeafe" stroke-width="1"/>
+        <text x="503" y="280" dominant-baseline="central">explorer_report</text>
+        <line x1="154" y1="280" x2="170" y2="280" stroke="#2563eb" stroke-width="1" marker-end="url(#arr_blue_s4)"/>
+        <line x1="290" y1="280" x2="306" y2="280" stroke="#2563eb" stroke-width="1" marker-end="url(#arr_blue_s4)"/>
+        <line x1="426" y1="280" x2="442" y2="280" stroke="#2563eb" stroke-width="1" marker-end="url(#arr_blue_s4)"/>
+      </g>
+
+      <line x1="298" y1="308" x2="298" y2="334" stroke="#e2e8f0" stroke-width="1.25" marker-end="url(#arr_s4)"/>
+      <text x="312" y="325" font-family="Menlo, monospace" font-size="8" font-style="italic" fill="#9ca3af">store and readings, every node citeable</text>
+
+      <!-- Layer 4 : consumers -->
+      <rect x="20" y="338" width="556" height="62" rx="4" ry="4" fill="white" stroke="#e2e8f0" stroke-width="1.25"/>
+      <text x="36" y="354" font-family="Menlo, monospace" font-size="10" font-weight="600" fill="#000000" letter-spacing="0.05em">RAGIX FAMILIES BUILT ON IT</text>
+      <g font-family="Menlo, monospace" font-size="9" font-weight="500" fill="#000000" text-anchor="middle">
+        <rect x="36" y="364" width="260" height="28" rx="10" ry="10" fill="white" stroke="#e2e8f0" stroke-width="1"/>
+        <rect x="36" y="364" width="260" height="28" rx="10" ry="10" fill="url(#dots_s4)" fill-opacity="0.3"/>
+        <text x="166" y="378" dominant-baseline="central" filter="url(#txt_bg_s4)">TENDER · PROBES OVER THE STORE</text>
+        <rect x="308" y="364" width="260" height="28" rx="10" ry="10" fill="white" stroke="#e2e8f0" stroke-width="1"/>
+        <rect x="308" y="364" width="260" height="28" rx="10" ry="10" fill="url(#dots_s4)" fill-opacity="0.3"/>
+        <text x="438" y="378" dominant-baseline="central" filter="url(#txt_bg_s4)">HARVEST · REPORTS OVER READINGS</text>
+      </g>
+    </g>
+
+    <!-- legend -->
+    <rect x="24" y="452" width="548" height="40" rx="8" ry="8" fill="#f0f7ff" stroke="#dbeafe" stroke-width="1"/>
+    <rect x="24" y="452" width="548" height="40" rx="8" ry="8" fill="url(#legend_dots_s4)"/>
+    <rect x="30" y="456" width="536" height="32" rx="4" ry="4" fill="white" fill-opacity="0.85"/>
+    <text x="44" y="472" font-family="Menlo, monospace" font-size="8" font-weight="600" fill="#1e40af" letter-spacing="0.05em" dominant-baseline="central">LEGEND</text>
+    <text x="100" y="466" font-family="Menlo, monospace" font-size="7" fill="#1e40af" dominant-baseline="central">Grey = RAGIX platform · Blue = Saqqara kernels · Arrows = declared dependencies</text>
+    <text x="100" y="478" font-family="Menlo, monospace" font-size="7" fill="#1e40af" dominant-baseline="central">Shared services used: kernel envelope, Merkle roots, embedder port, vector index</text>
+  </svg>
+  <p class="fig_caption"><strong>Figure 1</strong> : Saqqara inside RAGIX — one kernel contract, four interfaces, six model-free kernels, and the families that consume their output.</p>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 4: Saqqara inside RAGIX</span>
+    </div>
+    <span class="footer_page">11</span>
+  </div>
+</div>
+
+<!-- PAGE 4B -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">4.1 Six kernels, one contract</h2>
+
+  <p class="body_text">Every RAGIX kernel declares a name, a stage, what it <em>requires</em> and what it <em>provides</em>, and implements one computation. The platform's kernel base runs it inside a common envelope: it validates the inputs, writes the output file, produces a summary and records which dependencies were resolved. Saqqara contributes six kernels to that contract.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-layers-01" aria-hidden="true"></i>The Saqqara kernels at commit b7eb0a7</div>
+    <table class="summary_table summary_table--small">
+      <thead>
+        <tr><th><span>Kernel</span></th><th><span>Stage</span></th><th><span>Requires &rarr; provides</span></th><th><span>What it computes</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>saqqara</code></td><td>1</td><td>&mdash; &rarr; <code>document_tree</code>, <code>traces</code>, <code>merkle_root</code></td><td>Reads documents into typed trees with provenance and recognises their structure</td></tr>
+        <tr><td><code>saqqara_index</code></td><td>2</td><td><code>document_tree</code> &rarr; <code>document_store</code></td><td>Chunks the trees into one hybrid store and embeds what is missing</td></tr>
+        <tr><td><code>explorer_census</code></td><td>1</td><td>&mdash; &rarr; <code>document_census</code></td><td>Inventories a declared set of documents</td></tr>
+        <tr><td><code>explorer_profile</code></td><td>2</td><td>census &rarr; <code>document_profiles</code></td><td>Derives each document's profile</td></tr>
+        <tr><td><code>explorer_read</code></td><td>2</td><td>profile &rarr; <code>document_readings</code></td><td>Reads each document according to its profile</td></tr>
+        <tr><td><code>explorer_report</code></td><td>3</td><td>read &rarr; <code>document_reading_report</code></td><td>Replays the reading, refuses on any mismatch, then builds the report</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="subsection_title">4.2 Chained by what they declare</h2>
+
+  <p class="body_text">The registry discovers every kernel in the RAGIX package tree. It resolves a requirement first as a kernel name, then as a capability that exactly one kernel provides: two providers for the same capability is an error, never a silent choice. The orchestrator then orders the kernels by their declared needs, hands each one its producer's output, and writes down which kernel served each requirement. In the words of the code: <em>"the day a second kernel provides <code>document_tree</code>, the record says which one served this run."</em></p>
+
+  <div class="callout">
+    <div class="callout_header">
+      <span><i class="hgi-stroke hgi-checkmark-circle-02" aria-hidden="true"></i>WHY IT MATTERS</span>
+    </div>
+    <div class="callout_body">
+      <p>A reader can be replaced, or a second one added, without touching anything that consumes its output — and every run states which one was used. Provenance does not stop at the page and the cell: it extends to the software that read them.</p>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 4: Saqqara inside RAGIX</span>
+    </div>
+    <span class="footer_page">12</span>
+  </div>
+</div>
+
+<!-- PAGE 4C -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">4.3 Four doors, one answer</h2>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-ai-network" aria-hidden="true"></i> MCP, for AI orchestration</div>
+      <div class="detail_card_body">The RAGIX MCP server registers four tools at start-up: <code>koas_saqqara_run</code>, <code>_status</code>, <code>_index</code> and <code>_search</code>. If their registration fails, the failure is logged and the server starts without them.</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-command-line" aria-hidden="true"></i> Command line, for automation</div>
+      <div class="detail_card_body"><code>saqqaractl run | status | index | search</code>, each with a <code>--json</code> output for scripts and pipelines. The command line and MCP return the same hits for the same query on the same store, a property the test suite checks (K7.16).</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-source-code" aria-hidden="true"></i> Python, for products</div>
+      <div class="detail_card_body"><code>SaqqaraKernel().run(KernelInput(workspace, config))</code> returns the same envelope as any RAGIX kernel: data, summary, output file and the resolved dependencies.</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-workflow-square-10" aria-hidden="true"></i> The orchestrator, for chains</div>
+      <div class="detail_card_body"><code>ragix-koas</code> runs Saqqara stage by stage with the other families, from reading to indexing to the probes and reports that consume the store.</div>
+    </div>
+  </div>
+
+  <h2 class="subsection_title">4.4 The families built on it</h2>
+
+  <p class="body_text">Two RAGIX families are defined as work over what Saqqara produces. The <strong>tender</strong> family runs its probes over a document store built by Saqqara: its probe kernel requires <code>document_store</code>, and its one way to obtain a tree is Saqqara's reader and analyzers. It adds its own fusion weights, boosts and filters on top of Saqqara's retriever, without copying it. The <strong>harvest</strong> library builds the Explorer's reports from its readings, field views, census and privacy marks; the Explorer's last kernel calls it. Each family carries its own tests: 141 test functions for tender, among them one that checks that adding the family moves none of Saqqara's pinned lists, and 301 for harvest.</p>
+
+  <h2 class="subsection_title">4.5 Install and licence boundary</h2>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-license" aria-hidden="true"></i>What each install option brings</div>
+    <table class="summary_table summary_table--small">
+      <thead>
+        <tr><th><span>Option</span></th><th><span>Brings</span></th><th><span>Licence position</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>ragix[saqqara]</code></td><td>pypdf, pypdfium2, numpy, and the Office readers python-docx, python-pptx, openpyxl, odfpy</td><td>The default. MIT, BSD and Apache licences only; pypdfium2 is the default renderer because its licence imposes nothing on an MIT deployment</td></tr>
+        <tr><td><code>ragix[saqqara-mupdf]</code></td><td>PyMuPDF, as an alternative reader and renderer</td><td>AGPL-3.0 or commercial. Opt-in; the code refuses to import it outside its two named adapters</td></tr>
+        <tr><td><code>ragix[explorer]</code></td><td>PyMuPDF at one pinned version</td><td>Reproducible Explorer geometry; same licence position as above</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="body_text">One point to know when installing everything: the <code>all</code> option includes <code>translate</code>, which brings PyMuPDF. A deployment that must stay free of AGPL code installs <code>ragix[saqqara]</code>, not <code>ragix[all]</code>.</p>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 4: Saqqara inside RAGIX</span>
+    </div>
+    <span class="footer_page">13</span>
+  </div>
+</div>
+
+<!-- PAGE 4D -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">4.6 How a product builds on Saqqara</h2>
+
+  <p class="body_text">Adservio's own document products use Saqqara through a small set of rules, and the same pattern serves any product built on RAGIX.</p>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-pin" aria-hidden="true"></i> Pin one commit</div>
+      <div class="detail_card_body">Install RAGIX from an exact commit, not from a working tree, and refuse to start on a mismatch. The reading a product relies on is then the reading the tests certified.</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-database" aria-hidden="true"></i> Keep your records beside the store</div>
+      <div class="detail_card_body">Store the product's own records in a separate database, keyed by Saqqara's immutable identifiers: the source hash, the document and the node. Saqqara's store is read, never rewritten.</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-refresh" aria-hidden="true"></i> Invalidate on change</div>
+      <div class="detail_card_body">A document's identity in the store is the hash of its bytes, and a run's <code>source_root</code> covers those hashes without the paths. When a source is edited, both change, and every record derived from it is set aside until it is recomputed. When a file is only moved, neither changes.</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-artificial-intelligence-04" aria-hidden="true"></i> Put the model above, not inside</div>
+      <div class="detail_card_body">Saqqara stays free of language models. A product that uses a model gives it bounded excerpts that carry Saqqara's citations, so every answer leads back to a node of the tree.</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <div class="callout_header">
+      <span><i class="hgi-stroke hgi-quote-down" aria-hidden="true"></i>THE NET EFFECT</span>
+    </div>
+    <div class="callout_body">
+      <p>A document is read once, by tested code, at a known version, and every RAGIX family and every product above it cites the same nodes. The reading is shared; the interpretation stays with each consumer.</p>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 4: Saqqara inside RAGIX</span>
+    </div>
+    <span class="footer_page">14</span>
+  </div>
+</div>
+
+</body>
+</html>

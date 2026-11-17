@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5. Saqqara and Docling</title>
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;500;600;700;800&family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- PAGE 5A -->
+<div class="page content_page">
+
+  <div class="section_header">
+    <span class="section_label">SECTION 5</span>
+    <h1 class="section_title">5. Saqqara and Docling</h1>
+  </div>
+
+  <p class="body_text">Docling, started at IBM Research Zurich and now hosted by the LF AI &amp; Data Foundation, is the best-known open-source document converter for generative AI. Docling and Saqqara answer the same question, how to turn documents into material a retrieval system can use, from opposite directions. <strong>Docling predicts</strong> the layout of each page and the structure of each table with trained vision models. <strong>Saqqara reads</strong> what the file itself records and recognises structure with written rules. Both run locally and both are MIT-licensed.</p>
+
+  <p class="body_text">The table compares them on the points that matter to a reader who must cite and replay. Saqqara's column comes from its code and specification at commit <code>b7eb0a7</code>; Docling's from its public documentation and technical report, at version 2.150.1.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-justice-scale-01" aria-hidden="true"></i>Two approaches, compared</div>
+    <table class="summary_table summary_table--small">
+      <thead>
+        <tr><th><span>Point</span></th><th><span>Saqqara</span></th><th><span>Docling</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Method</td><td>Reads the file's own records; recognises structure by ordered rules</td><td>Predicts layout with a model derived from RT-DETR, retrained on DocLayNet and other datasets; table structure with TableFormer</td></tr>
+        <tr><td>Models in the reading</td><td>None; an embedding model only for the optional dense search lane</td><td>Layout and table models by default; optional OCR engines, vision-language models and speech recognition</td></tr>
+        <tr><td>Formats</td><td>PDF, Word, Excel, PowerPoint, Markdown; legacy .doc and .xls via LibreOffice</td><td>PDF, Word, PowerPoint, Excel, HTML, EPUB, images, audio, LaTeX, e-mail and more</td></tr>
+        <tr><td>Tables in PDFs</td><td>Read by the Explorer's table views, through the opt-in PyMuPDF reader; a standard run keeps pages and paragraphs</td><td>Predicted by TableFormer in the default PDF pipeline</td></tr>
+        <tr><td>Scanned pages</td><td>Not read: recorded as unread</td><td>Read with OCR (several engines)</td></tr>
+        <tr><td>Citation</td><td>A locator chain on every node: page and position, sheet and cell, paragraph and run, slide and shape, line; plus the reader's version</td><td>Page and bounding box on each item where available, with character spans</td></tr>
+        <tr><td>Uncertainty</td><td>Each node read or inferred; every undecided case in an abstention register, with place and reason</td><td>Confidence grades per page and per document (layout, OCR and parse scores)</td></tr>
+        <tr><td>Replay</td><td>Canonical JSON; byte-identical builds; a Merkle root over the trees</td><td>See the measurements on the next page</td></tr>
+        <tr><td>Output and integrations</td><td>Typed trees; SQLite store with lexical and dense search; RAGIX kernels, MCP, command line</td><td>A lossless JSON document, Markdown, HTML, DocTags; chunkers; LangChain, LlamaIndex, Crew AI and Haystack; an MCP server</td></tr>
+        <tr><td>Licences</td><td>MIT; default dependencies MIT, BSD and Apache</td><td>MIT code; models under their own licences, shown on their cards as CDLA-Permissive-2.0 and Apache-2.0</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 5: Saqqara and Docling</span>
+    </div>
+    <span class="footer_page">15</span>
+  </div>
+</div>
+
+<!-- PAGE 5B -->
+<div class="page content_page">
+
+  <h2 class="subsection_title subsection_title--flush">5.1 Measured side by side</h2>
+
+  <p class="body_text">Both tools read the same public files twice on one ARM64 machine, CPU only. Docling read each file in its own process; Saqqara read all files in one process, and its memory was measured in a separate run per file. Docling 2.150.1 ran its standard PDF pipeline with OCR off, TableFormer in its default accurate mode and 4 threads. Saqqara ran at commit <code>b7eb0a7</code>: a standard run with its default reader, plus the Explorer's digest for PDF tables. The two PDFs below are the RAGIX tech sheet (19 pages) and a 38-page guide to sovereign LLM operations, both published in the RAGIX repository.</p>
+
+  <div class="summary_card">
+    <div class="summary_card_header"><i class="hgi-stroke hgi-analytics-01" aria-hidden="true"></i>Two public PDFs, both tools, two runs each</div>
+    <table class="summary_table summary_table--small">
+      <thead>
+        <tr><th><span>Measure</span></th><th><span>Saqqara, 19 p.</span></th><th><span>Docling, 19 p.</span></th><th><span>Saqqara, 38 p.</span></th><th><span>Docling, 38 p.</span></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Seconds per page, reading</td><td>0.080&ndash;0.081</td><td>0.52&ndash;0.53</td><td>0.12&ndash;0.13</td><td>0.63&ndash;0.69</td></tr>
+        <tr><td>Seconds per page, PDF tables</td><td>+0.06 (Explorer digest, one run)</td><td>included above</td><td>+0.07 (Explorer digest, one run)</td><td>included above</td></tr>
+        <tr><td>Model load per process</td><td>none</td><td>1.6&ndash;1.7 s</td><td>none</td><td>1.7 s</td></tr>
+        <tr><td>Peak memory per process</td><td>78.1 MiB</td><td>2.15 GiB</td><td>168.8 MiB</td><td>2.46 GiB</td></tr>
+        <tr><td>Tables &middot; cells</td><td>10 &middot; 59</td><td>7 &middot; 125</td><td>34 &middot; 796</td><td>30 &middot; 775</td></tr>
+        <tr><td>Headings</td><td>none declared; 35 by the opt-in outline pass</td><td>80 section headers</td><td>117 declared; 24 more by the outline pass</td><td>162 section headers</td></tr>
+        <tr><td>Location of each item</td><td colspan="2">Saqqara: page, anchor and font size of every text run, and its width where the reader records one. Docling: page, box and character span on 247 of 247 items</td><td colspan="2">Same forms; Docling: 709 of 709 items</td></tr>
+        <tr><td>Same output twice</td><td>Roots equal</td><td>JSON byte-identical</td><td>Roots equal</td><td>JSON byte-identical</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="body_text"><strong>What the rows do not say.</strong> The two tools do not produce the same objects. A Saqqara paragraph is one run of text as the file draws it; a Docling item is a region its layout model found on the rendered page. Saqqara's PDF tables are PyMuPDF's observations of the grids drawn in the file, with a box for every cell; Docling's are TableFormer's predictions inside the table regions it detected. No table from either tool has been checked against the pages by eye, so a higher count is not shown to be a better reading. The machine was shared with other jobs, so the times compare with each other, not with another machine. Docling's speed here, 1.45&ndash;1.92 pages per second, lies within the 0.60&ndash;2.18 that its technical report gives at 4 threads with OCR off (arXiv:2408.09869).</p>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 5: Saqqara and Docling</span>
+    </div>
+    <span class="footer_page">15</span>
+  </div>
+</div>
+
+<!-- PAGE 5C -->
+<div class="page content_page">
+
+  <p class="body_text"><strong>More threads.</strong> In Docling&rsquo;s technical report, 16 threads were faster than 4. Here, at 20 threads, Docling was slower (1.77&ndash;1.84 and 3.78&ndash;4.01 seconds per page); the cause was not diagnosed. Its two exports then differed for every PDF, from each other and from the 4-thread export: only box coordinates moved, by at most 0.000412 pt (those of pictures and tables, and in one comparison nine of text boxes), and every count stayed equal. Saqqara's roots were also equal across two architectures.</p>
+
+  <p class="body_text"><strong>Pages without text, and Markdown.</strong> On a 14-page slide export that has no text layer, neither tool reads text without OCR: Saqqara records one abstention per page, and its library's figure pass finds the 14 pictures; Docling reports 27 pictures and four tables with no rows, and grades the pages &ldquo;fair&rdquo;. On two Markdown files, Docling types the pipe tables (1 and 32) and the code blocks, which Saqqara's Markdown reader keeps as paragraphs; Docling's Markdown items carried no location (0 of 149 and 0 of 1&nbsp;750), while each Saqqara heading and paragraph cites its line. Runs and files: <code>evidence/EVIDENCE.md</code> &sect;11.</p>
+
+  <h2 class="subsection_title">5.2 When to use which</h2>
+
+  <div class="card_grid card_grid--2">
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-image-01" aria-hidden="true"></i> Docling is the better fit when…</div>
+      <div class="detail_card_body">pages are scanned or photographed; the corpus includes HTML, EPUB, images or audio; reading order must be recovered from complex visual layouts; and the goal is clean Markdown or JSON for a retrieval framework it already plugs into.</div>
+    </div>
+    <div class="detail_card">
+      <div class="detail_card_header"><i class="hgi-stroke hgi-location-01" aria-hidden="true"></i> Saqqara is the better fit when…</div>
+      <div class="detail_card_body">every statement must be cited to its page, cell or line; uncertain structure must be flagged rather than predicted; a reading must be replayable and its hash checked later; spreadsheets matter cell by cell; and no model may be hosted or updated.</div>
+    </div>
+  </div>
+
+  <h2 class="subsection_title">5.3 Using both</h2>
+
+  <p class="body_text">The two are complementary rather than exclusive. A page that Saqqara records as unread, because it has no text layer, is exactly the page an OCR pipeline such as Docling's can read. A deployment can route those pages to Docling and keep Saqqara for everything with a text layer, provided each reading keeps the citation of the tool that produced it. RAGIX does not wire Docling in today; this is a pattern, not a feature.</p>
+
+  <div class="callout">
+    <div class="callout_header">
+      <span><i class="hgi-stroke hgi-quote-down" aria-hidden="true"></i>THE ONE-LINE MESSAGE</span>
+    </div>
+    <div class="callout_body">
+      <p>Docling is built to see a page the way a person does; Saqqara is built to state, exactly and repeatably, what a file records, and to say so when it cannot decide.</p>
+    </div>
+  </div>
+
+  <div class="page_footer">
+    <div class="footer_left">
+      <svg class="footer_logo_svg" viewBox="0 0 208 209" xmlns="http://www.w3.org/2000/svg"><path d="M104 96C92.9583 96 84 104.958 84 116C84 127.042 92.9583 136 104 136C115.042 136 124 127.042 124 116C124 104.958 115.042 96 104 96Z"/><path d="M104 0C46.5855 0 0 46.8094 0 104.5C0 162.191 46.5855 209 104 209C161.415 209 208 162.191 208 104.5C208 46.8094 161.415 0 104 0ZM158.963 173.688L147.725 169.376C119.733 158.495 88.4715 158.495 60.4794 169.376L49.2417 173.688C44.7466 175.33 40.2515 171.019 41.8861 166.502L92.3536 27.7161C96.4401 16.6297 111.969 16.6297 115.851 27.7161L166.318 166.502C167.749 171.019 163.458 175.33 158.963 173.688Z"/></svg>
+      <span class="footer_title">Saqqara Tech Sheet</span>
+      <span class="footer_sep">|</span>
+      <span class="footer_chapter">Section 5: Saqqara and Docling</span>
+    </div>
+    <span class="footer_page">16</span>
+  </div>
+</div>
+
+</body>
+</html>

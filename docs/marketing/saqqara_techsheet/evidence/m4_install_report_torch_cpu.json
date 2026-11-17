@@ -1,0 +1,21 @@
+{
+ "install": [
+  {
+   "name": "torch",
+   "requested": true,
+   "sha256": "75941d429aaf4450bcd364345d7677e2d54aad45b38fbfcb1c0552450a6e9c40",
+   "url": "https://download-r2.pytorch.org/whl/cpu/torch-2.15.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl",
+   "version": "2.15.0+cpu"
+  },
+  {
+   "name": "torchvision",
+   "requested": true,
+   "sha256": "3058f855e65089330ec987b8cac1ccf5e7a26cd475f8cab20597b5577ddc8767",
+   "url": "https://download-r2.pytorch.org/whl/cpu/torchvision-0.29.1%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl",
+   "version": "0.29.1+cpu"
+  }
+ ],
+ "note": "public edition: reduced to name, version, URL, sha256 and requested per item",
+ "pip_version": "25.0.1",
+ "version": "1"
+}

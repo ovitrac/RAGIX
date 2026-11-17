@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 11 — Maturity</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="../library/slide-common.css">
+  <style>
+    .card-outer { background: #f3f4f6; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-radius: 12px; padding: 6px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+    .card-header { display: flex; align-items: center; gap: 8px; padding: 6px 6px 2px; }
+    .icon-box { width: 28px; height: 28px; border-radius: 8px; border: 1px solid #e5e7eb; background: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .icon-box i { font-size: 15px; line-height: 1; }
+    .icon-box.blue i { color: #0D62FB; } .icon-box.indigo i { color: #4338CA; } .icon-box.cyan i { color: #3CBEFA; }
+    .card-title { font-size: 16px; font-weight: 600; color: #000000; line-height: 1.25; }
+    .card-inner { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; justify-content: center; flex: 1; min-height: 0; overflow: hidden; font-size: 13.5px; color: #374151; line-height: 1.5; }
+    .card-inner strong { color: #000000; font-weight: 600; }
+    .card-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
+    .card-list li { font-size: 15px; color: #374151; line-height: 1.45; padding: 10px 0 10px 18px; position: relative; border-bottom: 1px solid #f3f4f6; }
+    .card-list li:last-child { border-bottom: none; }
+    .card-list li::before { content: ""; position: absolute; left: 0; top: 18px; width: 6px; height: 6px; border-radius: 50%; background: #0D62FB; }
+    .card-list.indigo li::before { background: #4338CA; }
+    .card-list strong { color: #000000; font-weight: 600; }
+    .card-list code, .card-inner code, td code { font-family: ui-monospace, monospace; font-size: 0.92em; color: #111827; }
+    .msg-bar { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px; padding: 11px 16px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #111827; flex-shrink: 0; line-height: 1.4; }
+    .msg-bar i { color: #0D62FB; font-size: 18px; flex-shrink: 0; }
+    .msg-bar strong { font-weight: 600; }
+    .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; flex: 1; min-height: 0; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; flex-shrink: 0; }
+    .kpi-card { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+    .kpi-content { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 10px; display: flex; flex-direction: column; gap: 6px; text-align: center; justify-content: center; flex: 1; }
+    .kpi-value { font-size: 34px; font-weight: 700; color: #000000; line-height: 1; }
+    .kpi-desc { font-size: 12px; color: #6b7280; line-height: 1.35; }
+    .slide-table { width: 100%; border-collapse: collapse; }
+    .slide-table th { padding: 8px 12px; font-weight: 600; font-size: 12px; text-align: left; background: #ffffff; color: #000000; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; }
+    .slide-table td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-weight: 400; color: #374151; font-size: 14.5px; vertical-align: top; text-align: left; line-height: 1.4; }
+    .slide-table td:first-child { font-weight: 600; color: #000000; }
+    :focus-visible { outline: 2px solid #0D62FB; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="diagram-outer">
+      <div class="diagram-header">
+        <h1>Maturity, limits and openness</h1>
+        <p class="subtitle">Stated layer by layer against the specification, limits included</p>
+      </div>
+
+      <div class="slide-body">
+        <div class="grid-2col">
+          <div class="card-outer">
+            <div class="card-header">
+              <span class="icon-box blue"><i class="hgi-stroke hgi-check-list" aria-hidden="true"></i></span>
+              <span class="card-title">Maturity by layer</span>
+            </div>
+            <div class="card-inner">
+            <table class="slide-table">
+              <tbody>
+              <tr><td>Nodes, provenance, canonical JSON</td><td>Gated &middot; 10 propositions</td></tr>
+              <tr><td>Readers: PDF, Word, Excel, PowerPoint, Markdown</td><td>Gated &middot; 26</td></tr>
+              <tr><td>Builder and structure analyzers</td><td>Gated &middot; 73</td></tr>
+              <tr><td>Run envelope, roots and registers</td><td>Gated &middot; 3</td></tr>
+              <tr><td>Figures, captions, drawn regions</td><td>Gated as a library &middot; 20</td></tr>
+              <tr><td>Store and hybrid search</td><td>Gated &middot; 22</td></tr>
+              <tr><td>Field views and the Explorer</td><td>Specified and tested &middot; 29</td></tr>
+              <tr><td>Legacy Word and Excel</td><td>Specified and tested &middot; 5</td></tr>
+              </tbody>
+            </table>
+            </div>
+          </div>
+          <div class="card-outer">
+            <div class="card-header">
+              <span class="icon-box indigo"><i class="hgi-stroke hgi-unavailable" aria-hidden="true"></i></span>
+              <span class="card-title">What it does not do yet</span>
+            </div>
+            <div class="card-inner">
+              <ul class="card-list indigo">
+                <li>PDF text carries a placement point, not a box; one printed line can become several nodes.</li>
+                <li>A standard run builds no PDF tables (the Explorer reads them) and no figures, captions or drawn regions.</li>
+                <li>Markdown pipe tables are kept as raw text.</li>
+                <li>No OCR: scanned pages are reported as unread, never as empty.</li>
+                <li>Known gaps H1 (undecodable spreadsheet images) and H2 (text in PDF form objects).</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="msg-bar"><i class="hgi-stroke hgi-license" aria-hidden="true"></i><span><strong>Open and sovereign.</strong> MIT, on GitHub with its specification and tests. The default install carries MIT, BSD and Apache licences only; PyMuPDF (AGPL-3.0 or commercial), an embedding model and LibreOffice are optional, by name.</span></div>
+      </div>
+    </div>
+
+    <div class="footer-line"></div>
+    <div class="slide-footer">
+      <div class="footer-message">“Limits are listed rather than left to be found”</div>
+      <span class="footer-page">11 / 12</span>
+    </div>
+  </div>
+
+  <script src="../library/slide-common.js"></script>
+</body>
+</html>

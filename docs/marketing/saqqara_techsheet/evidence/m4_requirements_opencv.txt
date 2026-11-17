@@ -1,0 +1,4 @@
+# M4: OpenCV for TableFormer (docling-ibm-models declares it as its optional "opencv-python-headless" extra,
+# >=4.6.0.66,<5). Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
+#   pip install --no-deps --require-hashes --index-url https://pypi.org/simple -r m4_requirements_opencv.txt
+opencv-python-headless==4.14.0.94 --hash=sha256:97c6e818c6f71c0cfa214e12293b1d0266d679c38f4e086de08357c8ac6ece0d --hash=sha256:29714d7716dbfddf9fec20ffb878765e94ccaecd7d3ebd6750877420296e2dc5

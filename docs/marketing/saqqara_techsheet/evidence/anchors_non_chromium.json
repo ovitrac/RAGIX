@@ -1,0 +1,28 @@
+{
+ "files": [
+  {
+   "path": "docs/archive/The_Q_algorithm_a_search_strategy_for_a.pdf",
+   "pdfinfo": {
+    "Creator": "",
+    "Page size": "490 x 742 pts",
+    "Pages": "19",
+    "Producer": "GPL Ghostscript 9.10"
+   },
+   "readers": {
+    "pymupdf": {
+     "anchors": 1167,
+     "outside_page": 0,
+     "pages": 19,
+     "wall_s": 0.3237
+    },
+    "pypdf": {
+     "anchors": 1035,
+     "outside_page": 0,
+     "pages": 19,
+     "wall_s": 0.4686
+    }
+   },
+   "sha256": "1bc9f5fbb580e65803e322a3752bac46c8fa4e076926f6af9da0aeaef13d814d"
+  }
+ ]
+}

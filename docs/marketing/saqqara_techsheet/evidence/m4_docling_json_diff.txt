@@ -1,0 +1,24 @@
+techsheet_pdf: counted measures equal across 4 runs: True
+  T20_run1 vs T20_run2: 43 differing values; max |delta| 8.772625724873251e-05; every path: [('/pictures[]/prov[]/bbox/l', 10), ('/pictures[]/prov[]/bbox/r', 7), ('/pictures[]/prov[]/bbox/b', 7), ('/pictures[]/prov[]/bbox/t', 6), ('/tables[]/prov[]/bbox/b', 4), ('/tables[]/prov[]/bbox/t', 4), ('/tables[]/prov[]/bbox/l', 3), ('/tables[]/prov[]/bbox/r', 2)]
+  T20_run1 vs T4_run1: 37 differing values; max |delta| 6.102696158905019e-05; every path: [('/pictures[]/prov[]/bbox/l', 11), ('/pictures[]/prov[]/bbox/r', 6), ('/pictures[]/prov[]/bbox/t', 6), ('/pictures[]/prov[]/bbox/b', 4), ('/tables[]/prov[]/bbox/l', 4), ('/tables[]/prov[]/bbox/r', 2), ('/tables[]/prov[]/bbox/b', 2), ('/tables[]/prov[]/bbox/t', 2)]
+  T20_run1 vs T4_run2: 37 differing values; max |delta| 6.102696158905019e-05; every path: [('/pictures[]/prov[]/bbox/l', 11), ('/pictures[]/prov[]/bbox/r', 6), ('/pictures[]/prov[]/bbox/t', 6), ('/pictures[]/prov[]/bbox/b', 4), ('/tables[]/prov[]/bbox/l', 4), ('/tables[]/prov[]/bbox/r', 2), ('/tables[]/prov[]/bbox/b', 2), ('/tables[]/prov[]/bbox/t', 2)]
+slides_pdf: counted measures equal across 4 runs: True
+  T20_run1 vs T20_run2: 20 differing values; max |delta| 0.00034332275390625; every path: [('/pictures[]/prov[]/bbox/l', 7), ('/pictures[]/prov[]/bbox/t', 4), ('/pictures[]/prov[]/bbox/r', 3), ('/pictures[]/prov[]/bbox/b', 2), ('/tables[]/prov[]/bbox/b', 1), ('/tables[]/prov[]/bbox/l', 1), ('/tables[]/prov[]/bbox/r', 1), ('/tables[]/prov[]/bbox/t', 1)]
+  T20_run1 vs T4_run1: 41 differing values; max |delta| 0.0004119873046875; every path: [('/pictures[]/prov[]/bbox/l', 12), ('/pictures[]/prov[]/bbox/r', 9), ('/pictures[]/prov[]/bbox/b', 6), ('/pictures[]/prov[]/bbox/t', 5), ('/tables[]/prov[]/bbox/l', 3), ('/tables[]/prov[]/bbox/t', 3), ('/tables[]/prov[]/bbox/b', 2), ('/tables[]/prov[]/bbox/r', 1)]
+  T20_run1 vs T4_run2: 41 differing values; max |delta| 0.0004119873046875; every path: [('/pictures[]/prov[]/bbox/l', 12), ('/pictures[]/prov[]/bbox/r', 9), ('/pictures[]/prov[]/bbox/b', 6), ('/pictures[]/prov[]/bbox/t', 5), ('/tables[]/prov[]/bbox/l', 3), ('/tables[]/prov[]/bbox/t', 3), ('/tables[]/prov[]/bbox/b', 2), ('/tables[]/prov[]/bbox/r', 1)]
+sovereign_pdf: counted measures equal across 4 runs: True
+  T20_run1 vs T20_run2: 100 differing values; max |delta| 9.154044238357528e-05; every path: [('/tables[]/prov[]/bbox/l', 15), ('/pictures[]/prov[]/bbox/t', 14), ('/tables[]/prov[]/bbox/r', 14), ('/pictures[]/prov[]/bbox/b', 13), ('/tables[]/prov[]/bbox/b', 10), ('/tables[]/prov[]/bbox/t', 9), ('/pictures[]/prov[]/bbox/l', 8), ('/pictures[]/prov[]/bbox/r', 8), ('/texts[]/prov[]/bbox/l', 5), ('/texts[]/prov[]/bbox/r', 3), ('/texts[]/prov[]/bbox/t', 1)]
+  T20_run1 vs T4_run1: 90 differing values; max |delta| 0.0001220529359216016; every path: [('/pictures[]/prov[]/bbox/l', 14), ('/pictures[]/prov[]/bbox/r', 13), ('/pictures[]/prov[]/bbox/t', 13), ('/tables[]/prov[]/bbox/l', 13), ('/pictures[]/prov[]/bbox/b', 12), ('/tables[]/prov[]/bbox/r', 11), ('/tables[]/prov[]/bbox/b', 7), ('/tables[]/prov[]/bbox/t', 7)]
+  T20_run1 vs T4_run2: 90 differing values; max |delta| 0.0001220529359216016; every path: [('/pictures[]/prov[]/bbox/l', 14), ('/pictures[]/prov[]/bbox/r', 13), ('/pictures[]/prov[]/bbox/t', 13), ('/tables[]/prov[]/bbox/l', 13), ('/pictures[]/prov[]/bbox/b', 12), ('/tables[]/prov[]/bbox/r', 11), ('/tables[]/prov[]/bbox/b', 7), ('/tables[]/prov[]/bbox/t', 7)]
+qalgo_pdf: counted measures equal across 4 runs: True
+  T20_run1 vs T20_run2: 6 differing values; max |delta| 7.2479248046875e-05; every path: [('/pictures[]/prov[]/bbox/b', 1), ('/pictures[]/prov[]/bbox/t', 1), ('/tables[]/prov[]/bbox/b', 1), ('/tables[]/prov[]/bbox/t', 1), ('/tables[]/prov[]/bbox/l', 1), ('/tables[]/prov[]/bbox/r', 1)]
+  T20_run1 vs T4_run1: 8 differing values; max |delta| 4.1961669921875e-05; every path: [('/tables[]/prov[]/bbox/l', 2), ('/tables[]/prov[]/bbox/r', 2), ('/tables[]/prov[]/bbox/t', 2), ('/pictures[]/prov[]/bbox/t', 1), ('/tables[]/prov[]/bbox/b', 1)]
+  T20_run1 vs T4_run2: 8 differing values; max |delta| 4.1961669921875e-05; every path: [('/tables[]/prov[]/bbox/l', 2), ('/tables[]/prov[]/bbox/r', 2), ('/tables[]/prov[]/bbox/t', 2), ('/pictures[]/prov[]/bbox/t', 1), ('/tables[]/prov[]/bbox/b', 1)]
+saqqara_readme_md: counted measures equal across 4 runs: True
+  T20_run1 vs T20_run2: 0 differing values; max |delta| –; every path: []
+  T20_run1 vs T4_run1: 0 differing values; max |delta| –; every path: []
+  T20_run1 vs T4_run2: 0 differing values; max |delta| –; every path: []
+koas_saqqara_md: counted measures equal across 4 runs: True
+  T20_run1 vs T20_run2: 0 differing values; max |delta| –; every path: []
+  T20_run1 vs T4_run1: 0 differing values; max |delta| –; every path: []
+  T20_run1 vs T4_run2: 0 differing values; max |delta| –; every path: []
