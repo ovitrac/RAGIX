@@ -505,6 +505,7 @@ class FormatHeadingsAnalyzer(Analyzer):
                 chain=source.provenance.chain,
                 kernel="saqqara.format_headings",
                 kernel_version=FormatHeadingsAnalyzer.version,
+                source_sha256=source.provenance.source_sha256,
             ),
             origin="inferred",
             confidence=confidence,

@@ -371,6 +371,7 @@ class VectorRegionAnalyzer(Analyzer):
                     chain=page.provenance.chain,
                     kernel=self.name,
                     kernel_version=self.version,
+                    source_sha256=page.provenance.source_sha256,
                 ),
                 origin="inferred",
                 confidence=confidence,

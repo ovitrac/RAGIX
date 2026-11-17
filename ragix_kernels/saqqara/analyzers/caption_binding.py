@@ -283,6 +283,7 @@ class CaptionBindingAnalyzer(Analyzer):
                     chain=source.provenance.chain,
                     kernel=self.name,
                     kernel_version=self.version,
+                    source_sha256=source.provenance.source_sha256,
                 ),
                 origin="inferred",
                 confidence=candidate.confidence,

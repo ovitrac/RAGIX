@@ -6,6 +6,21 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## Unreleased — saqqara: a converted file's bridge survives the analyzers (LO.3)
+
+- A spreadsheet block read from a converted `.xls` lost its `ConversionLocator` and the original
+  file's hash: `tables` built the block's chain from its own range alone. It now keeps the section's
+  chain down to the sheet, with the block's range in place of the sheet, and the original's
+  `source_sha256`. `tables` moves to 0.2.0.
+- A heading the opt-in `outline` pass promotes in a converted `.doc` kept the bridge but not the
+  original's hash; it now inherits it. `outline` moves to 0.2.0, which its promoted headings record.
+- `caption_binding`, `vector_regions` and `format_headings` inherit the hash the same way. They read
+  PDFs, which are never converted, so their output does not change and their versions stay.
+- New test `test_conversion_bridge_survives_the_analyzers`, named in SPEC LO.3: it fails on the
+  previous analyzers (the block, the promoted headings) and needs no converter. On every unconverted
+  fixture of the suite, the trees after the standard pipeline, after `outline` (version string
+  aside) and after `format_headings` are byte-identical before and after this change.
+
 ## Unreleased — saqqara requires pypdf>=6.17.0; developer reference 2.0; tech sheet v1 fixes
 
 - The `saqqara` extra now requires `pypdf>=6.17.0` (was `>=4.0.0`). The K2.26 placement relies on the

@@ -141,7 +141,7 @@ class OutlineAnalyzer(Analyzer):
     """Promote typed labels to headings where the walk supports it."""
 
     name = "outline"
-    version = "0.1.0"
+    version = "0.2.0"
 
     def run(self, tree) -> AnalyzerResult:
         candidates = []
@@ -234,6 +234,7 @@ class OutlineAnalyzer(Analyzer):
                 chain=source.provenance.chain,
                 kernel="saqqara.outline",
                 kernel_version=OutlineAnalyzer.version,
+                source_sha256=source.provenance.source_sha256,
             ),
             origin="inferred",
             confidence=0.9 if descends else 0.7,
