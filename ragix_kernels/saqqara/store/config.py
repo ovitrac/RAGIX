@@ -35,7 +35,12 @@ DEFAULTS_PATH = Path(__file__).with_name("defaults.yaml")
 def _load_yaml(text: str) -> dict[str, Any]:
     import yaml
 
-    data = yaml.safe_load(text)
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as error:
+        # One error type out of load_config, so a caller can refuse a bad
+        # configuration without knowing which parser read it.
+        raise ValueError(f"not a YAML configuration: {error}") from error
     if data is None:
         return {}
     if not isinstance(data, dict):
@@ -170,5 +175,11 @@ def load_config(user: Optional[dict[str, Any] | str | Path] = None,
     backend = data["index"]["backend"]
     if backend not in ("numpy", "faiss"):
         raise ValueError(f"index.backend must be 'numpy' or 'faiss', not {backend!r}")
+    # Each store option switches one behaviour on. A value cast with bool() reads
+    # the string "false" as on, so anything but a boolean is refused here.
+    for key, value in data["store_options"].items():
+        if not isinstance(value, bool):
+            raise ValueError(
+                f"store_options.{key} must be true or false, not {value!r}")
 
     return StoreConfig(data)

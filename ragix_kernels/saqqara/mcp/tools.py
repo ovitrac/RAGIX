@@ -17,6 +17,7 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
@@ -245,11 +246,14 @@ def register_saqqara_tools(mcp_server) -> None:
 
             args = argparse.Namespace(workspace=workspace, query=query, config=config or None,
                                       top_k=k, json=True, verbose=False)
-            buffer = io.StringIO()
-            with contextlib.redirect_stdout(buffer):
+            buffer, errors = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(errors):
                 code = cmd_search(args)
             if code != 0:
-                return {"error": f"search failed with code {code}"}
+                # cmd_search states why on stderr; keep that reason in the error.
+                reason = re.sub(r"\x1b\[[0-9;]*m", "", errors.getvalue()).strip()
+                return {"error": f"search failed with code {code}"
+                                 + (f": {reason}" if reason else "")}
             return {"hits": _json.loads(buffer.getvalue() or "[]")}
         except Exception as e:
             return {"error": str(e)}

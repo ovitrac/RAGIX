@@ -6,6 +6,22 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## Unreleased — saqqara: search reads the embedder options as index does; store options are booleans
+
+- `search` (and the MCP tool `koas_saqqara_search`, which runs it) built its embedder from the
+  provider and model only, so `embedder.base_url` and `embedder.batch_size` reached `index` and not
+  `search`: a query could be embedded by another server than the vectors it was ranked against. Both
+  now build it through one helper, `store/embed.py` `embedder_options`.
+- `search` refuses a configuration it cannot load with exit code 2 and the reason on stderr, instead
+  of a traceback; the MCP tool keeps that reason in its `error`.
+- `load_config` refuses a `store_options` value that is not a boolean, naming its key: the index
+  kernel cast them with `bool()`, so the string `"false"` read as on. A file that does not parse as
+  YAML is refused with the same `ValueError`.
+- `docs/KOAS_SAQQARA.md` 2.2 and `docs/KOAS_SAQQARA_DEV.md` 2.1 drop the three behaviours from their
+  §11 lists. Tests: `tests/saqqara/test_search_config.py` (15).
+
+---
+
 ## v0.75.0 — Saqqara Document Substrate, Explorer, Translate & Tender (2026-11-17)
 
 > Three kernel families join KOAS after 0.74.0: Translate, Saqqara (the document substrate) and

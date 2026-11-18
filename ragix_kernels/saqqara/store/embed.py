@@ -20,11 +20,11 @@ The status line says `dense: disabled (no embedder)` so nobody has to infer it.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Mapping, Optional
 
 from .records import ChunkRecord, EmbeddingRecord, EmbeddingRefusalRecord
 
-__all__ = ["PROVIDERS", "EmbedPlan", "build_embedder", "embed_missing"]
+__all__ = ["PROVIDERS", "EmbedPlan", "build_embedder", "embed_missing", "embedder_options"]
 
 #: The providers a configuration may name. `none` is a provider, not the absence
 #: of one: choosing to run without embeddings is a decision, and it is recorded.
@@ -61,6 +61,17 @@ class EmbedPlan:
         return {"disabled": self.disabled, "embedded": self.embedded,
                 "model": self.model, "refusals": list(self.refusals),
                 "refused": self.refused, "skipped": self.skipped}
+
+
+def embedder_options(section: Mapping[str, Any]) -> dict[str, Any]:
+    """The backend options an `embedder` section sets: `base_url` and `batch_size`.
+
+    Each is passed only when set (truthy), so an empty `base_url` leaves the core
+    layer's default server and a `batch_size` of 0 leaves the backend's default.
+    The index kernel and `search` both build their embedder with these options, so
+    a query is embedded by the same server, in the same batches, as the store.
+    """
+    return {key: section[key] for key in ("base_url", "batch_size") if section.get(key)}
 
 
 def build_embedder(provider: str, model: str = "", **options: Any):
