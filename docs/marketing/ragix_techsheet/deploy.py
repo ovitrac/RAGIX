@@ -6,7 +6,7 @@ Author: Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 
 Produces, under this directory:
   - RAGIX-Tech-Sheet-Document.html      single-file A4 dossier  (CSS + images + fonts + icons embedded)
-  - RAGIX-Tech-Sheet-Presentation.html  single-file 14-slide deck (each slide isolated in an iframe; fonts/icons embedded once)
+  - RAGIX-Tech-Sheet-Presentation.html  single-file 15-slide deck (each slide isolated in an iframe; fonts/icons embedded once)
   - RAGIX-Tech-Sheet-bundle.zip         the two HTML files + a short README
 
 Fonts/icons are fetched once from their CDNs and cached in .fontcache/ so the
@@ -31,7 +31,7 @@ SLIDE_ORDER = [
     "slide-01-couverture.html", "slide-01b-sommaire.html", "slide-02-defi.html",
     "slide-03-plateforme.html", "slide-04-differenciateurs.html",
     "slide-05-faits-documents.html", "slide-06-generation-pipeline.html",
-    "slide-07-capacites.html", "slide-08-raisonnement.html", "slide-09-souverain.html",
+    "slide-07-capacites.html", "slide-07b-saqqara.html", "slide-08-raisonnement.html", "slide-09-souverain.html",
     "slide-10-preuve.html", "slide-11-cas.html", "slide-12-forge.html",
     "slide-13-cloture.html",
 ]
@@ -202,7 +202,7 @@ def prepare_slide(fname, google_css):
 
 # ----------------------------------------------------------------------------- build the presentation (single file, iframe-isolated self-contained slides)
 def build_presentation():
-    print(" • Presentation (14-slide deck)")
+    print(" • Presentation (15-slide deck)")
     raws = [open(os.path.join(PROJ, "slides", f), encoding="utf-8").read() for f in SLIDE_ORDER]
     g = extract_google_href(raws[0], "Instrument")
     used = text_unicodes(*raws)

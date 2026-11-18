@@ -83,13 +83,13 @@ for (let i = 0; i < allPages.length; i++) {
 
 // {{TOC_ENTRIES}} — adapter ce tableau au rapport
 const tocEntries = [
-  { label: '1. RAGIX in one minute &mdash; the problem we solve', marker: 'SECTION 1</span>' },
-  { label: '2. What makes RAGIX unique &mdash; five differentiators', marker: 'SECTION 2</span>' },
-  { label: '3. The capability catalogue &mdash; six kernel families', marker: 'SECTION 3</span>' },
-  { label: '4. Orchestratable by an AI &mdash; sovereignly, with proof', marker: 'SECTION 4</span>' },
-  { label: '5. Proof at scale &mdash; field case studies', marker: 'SECTION 5</span>' },
-  { label: '6. Operating an advanced engineering forge', marker: 'SECTION 6</span>' },
-  { label: '7. Maturity, openness &amp; technology stack', marker: 'SECTION 7</span>' },
+  { label: 'RAGIX in one minute &mdash; the problem we solve', marker: 'SECTION 1</span>' },
+  { label: 'What makes RAGIX unique &mdash; five differentiators', marker: 'SECTION 2</span>' },
+  { label: 'The capability catalogue &mdash; nine kernel families', marker: 'SECTION 3</span>' },
+  { label: 'Orchestratable by an AI &mdash; sovereignly, with proof', marker: 'SECTION 4</span>' },
+  { label: 'Proof at scale &mdash; field case studies', marker: 'SECTION 5</span>' },
+  { label: 'Operating an advanced engineering forge', marker: 'SECTION 6</span>' },
+  { label: 'Maturity, openness &amp; technology stack', marker: 'SECTION 7</span>' },
 ];
 
 const sectionPages = {};
