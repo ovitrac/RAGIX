@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 11 — Two doors: Python and MCP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css">
+  <link rel="stylesheet" href="../library/slide-common.css">
+  <style>
+    .intro-card { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 11px 16px; font-size: 14px; color: #374151; line-height: 1.5; flex-shrink: 0; }
+    .intro-card strong { color: #000; font-weight: 600; }
+    .row { display: flex; gap: 16px; align-items: stretch; min-height: 0; flex: 1; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; flex: 1; min-height: 0; }
+    .card-outer { flex: 1; background: #f3f4f6; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-radius: 12px; padding: 6px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+    .card-header { display: flex; align-items: center; gap: 8px; padding: 6px 6px 2px; }
+    .icon-box { width: 28px; height: 28px; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .icon-box i { font-size: 15px; line-height: 1; color: #0D62FB; }
+    .card-title { font-size: 16px; font-weight: 600; color: #000; line-height: 1.25; }
+    .card-inner { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 11px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; overflow: hidden; }
+    .card-desc { font-size: 13px; color: #4b5563; line-height: 1.5; }
+    .card-desc strong { color: #000; font-weight: 600; }
+    ul.pts { margin: 0; padding-left: 18px; font-size: 13px; color: #4b5563; line-height: 1.55; }
+    ul.pts li { margin: 2px 0; }
+    code, .mono { font-family: 'JetBrains Mono', Menlo, monospace; font-size: 12px; color: #1e3a8a; }
+    pre.code { margin: 0; font-family: 'JetBrains Mono', Menlo, monospace; font-size: 12.5px; line-height: 1.5; color: #111827; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; white-space: pre; overflow: hidden; }
+    pre.code .k { color: #4338CA; font-weight: 600; }
+    pre.code .c { color: #6b7280; }
+    table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.t th { text-align: left; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: #6b7280; font-weight: 600; padding: 7px 10px; border-bottom: 1px solid #e5e7eb; }
+    table.t td { padding: 8px 10px; border-bottom: 1px solid #eef0f3; color: #374151; vertical-align: top; line-height: 1.4; }
+    table.t td:first-child { color: #000; font-weight: 600; white-space: nowrap; }
+    .flow { display: flex; align-items: stretch; gap: 0; flex-shrink: 0; }
+    .step { flex: 1; background: #fff; border: 1px solid #dbeafe; border-radius: 10px; padding: 10px 12px; }
+    .step b { display: block; font-size: 14px; color: #0D62FB; margin-bottom: 4px; }
+    .step span { font-size: 12.5px; color: #4b5563; line-height: 1.45; display: block; }
+    .arrow { width: 28px; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 18px; flex-shrink: 0; }
+    .lane { display: flex; gap: 10px; align-items: center; }
+    .lane .lbl { width: 120px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; font-weight: 600; flex-shrink: 0; }
+    .chip { font-family: 'JetBrains Mono', Menlo, monospace; font-size: 12.5px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; border-radius: 999px; padding: 5px 12px; }
+    .chip.asked { background: #0D62FB; color: #fff; border-color: #0D62FB; }
+    .note { font-size: 12.5px; color: #6b7280; line-height: 1.5; }
+    .big { font-family: 'Instrument Serif', serif; font-size: 40px; color: #0D62FB; line-height: 1; }
+    .kpis { display: flex; gap: 14px; flex-shrink: 0; }
+    .kpi { flex: 1; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 14px; }
+    .kpi .lab { font-size: 12px; color: #6b7280; margin-top: 4px; }
+    .cover { display: flex; flex-direction: column; justify-content: center; height: 100%; padding: 0 70px; background: radial-gradient(1200px 600px at 85% 20%, #dbeafe 0%, #ffffff 60%); }
+    .cover h1 { font-family: 'Instrument Serif', serif; font-size: 76px; font-weight: 400; margin: 0 0 10px; color: #000; }
+    .cover p.sub { font-size: 22px; color: #374151; max-width: 900px; line-height: 1.4; margin: 0 0 34px; }
+    .cover p.koas { font-size: 15px; color: #4b5563; margin: -18px 0 30px; }
+    .cover p.koas strong { color: #0D62FB; font-weight: 600; }
+    .cover .meta { display: flex; gap: 12px; flex-wrap: wrap; }
+    .cover .meta span { font-size: 13px; color: #1e40af; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 999px; padding: 6px 14px; }
+    .cover .by { position: absolute; bottom: 40px; left: 70px; font-size: 13px; color: #6b7280; }
+    :focus-visible { outline: 2px solid #0D62FB; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="diagram-outer">
+      <div class="diagram-header">
+        <h1>Two doors: Python and MCP</h1>
+        <p class="subtitle">One call per intent through MCP; full composition through Python</p>
+      </div>
+
+      <div class="slide-body">
+        <div class="row">
+          <div class="card-outer" style="flex:1.3">
+            <div class="card-header"><span class="icon-box"><i class="hgi-stroke hgi-source-code" aria-hidden="true"></i></span><span class="card-title">Python: beyond one call</span></div>
+            <div class="card-inner"><pre class="code"><span class="k">from</span> ragix_kernels.registry <span class="k">import</span> KernelRegistry
+KernelRegistry.discover()
+for name <span class="k">in</span> KernelRegistry.resolve_dependencies([<span class="c">"hotspots"</span>]):
+    out = KernelRegistry.get(name)().run(KernelInput(ws, cfg, deps))
+    <span class="k">if</span> out.success: deps[name] = out.output_file
+    <span class="k">else</span>: <span class="k">break</span>                  <span class="c"># inspect, branch, retry</span></pre><div class="card-desc">A coding agent writes this kind of loop: compose kernels, inspect envelopes, branch on results, retry, combine families. Illustrative; the orchestrator does the same with a manifest.</div></div>
+          </div>
+          <div class="card-outer">
+            <div class="card-header"><span class="icon-box"><i class="hgi-stroke hgi-plug-socket" aria-hidden="true"></i></span><span class="card-title">MCP: one call per intent</span></div>
+            <div class="card-inner"><ul class="pts"><li>30 <code>koas_*</code> tools: <code>koas_init</code>, <code>koas_run</code>, <code>koas_status</code>, <code>koas_summary</code>, plus family tools (audit, security, Saqqara, Tender, Translate)</li><li>18 <code>memory_*</code> tools for the shared memory</li><li>Any MCP client can drive the kernels; results come back as summaries and metrics</li></ul></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-line"></div>
+    <div class="slide-footer">
+      <div class="footer-message">"MCP to reach the kernels; Python to compose them"</div>
+      <span class="footer-page">11 / 18</span>
+    </div>
+  </div>
+
+  <script src="../library/slide-common.js"></script>
+</body>
+</html>

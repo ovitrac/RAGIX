@@ -7,6 +7,10 @@
 **Date:** 2026-02-13
 **RAGIX Version:** 0.66+
 
+> The concept for a technical audience, as of RAGIX 0.75: the replayable deck
+> [Agent-Operated Kernels](marketing/koas_kernels/Agent-Operated-Kernels.pdf)
+> ([single-file player](marketing/koas_kernels/Agent-Operated-Kernels.html)).
+
 ---
 
 ## Table of Contents

@@ -1,0 +1,74 @@
+[
+ {
+  "file": "slide-01-cover.html",
+  "notes": "Agent-operated kernels: validated programs whose operator is a language model, not a person. This deck explains the concept as it is built in RAGIX, under the name KOAS, for Kernel-Orchestrated Audit System. Code audit was the original intent, and the name kept it; the concept itself is not limited to audit. Every claim points to the code."
+ },
+ {
+  "file": "slide-02-gap.html",
+  "notes": "Three gaps. Models are fluent but not exact. Tools, including MCP tools, are atomic calls with no declared dependencies and no provenance. And whenever tools must be combined, someone writes glue code, or the model improvises the pipeline in prose, step by step, with the data going through its prompt."
+ },
+ {
+  "file": "slide-03-definition.html",
+  "notes": "A word on the name first. KOAS stands for Kernel-Orchestrated Audit System, because code audit was the original intent. The concept outgrew it: the same contract now serves document reading, review, translation, presentation, security and response preparation. Then the definition, in six properties. Validated: a state-of-the-art method defended by tests. Deterministic where it computes, reproducible where it writes. A declared, machine-readable contract. Model-facing: a compact summary for the agent, the full data in a file. Composable with no glue code. And traceable, output by output."
+ },
+ {
+  "file": "slide-04-not.html",
+  "notes": "Where the concept sits. It is not an operating-system, GPU or Jupyter kernel. It is more than a tool call: it declares dependencies and returns a provenance. MCP is one of its doors, not its definition. Unlike an agent workflow, nobody writes the pipeline. And unlike a library, it is designed for a model operator."
+ },
+ {
+  "file": "slide-05-anatomy.html",
+  "notes": "The whole contract fits on one slide. A kernel declares six attributes and implements two methods: compute, which does the work, and summarize, which writes the compact text the model reads. Its input names a workspace, a configuration and the outputs of the kernels it requires. Every run returns the same envelope, with the kernel version, an input hash, timing and the dependencies actually used."
+ },
+ {
+  "file": "slide-06-classes.html",
+  "notes": "Two classes. Compute kernels contain no model at all in their numeric path, so they are tested like ordinary software. Generative kernels use a local model to write, so they promise reproducibility instead of bit-exactness: greedy decoding, a pinned model digest and a recorded prompt version, with calls cached for replay."
+ },
+ {
+  "file": "slide-07-roles.html",
+  "notes": "Roles are separated. The agent states an intent: which results it wants. The orchestrator turns that into a pipeline and distributes the work. Kernels compute and write their results to files. The agent then reads summaries and metrics, interprets them and decides the next step. The model never needs the corpus in its prompt, never writes glue code, and never computes a number itself."
+ },
+ {
+  "file": "slide-08-pipeline.html",
+  "notes": "A real example. The agent asks for hotspots, dead code and coupling, and names nothing else. The registry resolves the closure from the declared requirements: ast_scan first, then dependency and metrics, which run concurrently, then the three requested kernels, again concurrently. Nobody wrote this pipeline."
+ },
+ {
+  "file": "slide-09-cooperation.html",
+  "notes": "Cooperation without glue code. Kernels never call each other: they meet in the workspace, through the files they declare. A new kernel joins by declaring what it requires and provides; the registry discovers it and the orchestrator chains it, with no change to existing kernels. Cached outputs make reuse free."
+ },
+ {
+  "file": "slide-10-concurrent.html",
+  "notes": "Cooperation is the key, and it runs concurrently. Whatever the dependency graph allows runs at the same time in a worker pool, and since each kernel only writes its own output, there are no locks to manage. Information is shared through declared outputs within a run, through a memory store across runs, and through summaries for the agent. Every concurrent result stays individually traceable."
+ },
+ {
+  "file": "slide-11-doors.html",
+  "notes": "Two doors. Through MCP, any client reaches the kernels with one call per intent: thirty koas tools and eighteen memory tools. Through Python, a coding agent goes further: it composes kernels, inspects each envelope, branches and retries, and combines families in ways no fixed tool list anticipates."
+ },
+ {
+  "file": "slide-12-sensitive.html",
+  "notes": "Sensitive data. Every result is emitted at a declared level: internal, external, orchestrator or compliance. At the orchestrator level an external agent gets metrics only, never text, so it can drive the analysis without reading the documents. For confidential corpora, RAGIX-Sealed, still a draft, seals the originals and only lets placeholdered, leak-scanned content reach any model."
+ },
+ {
+  "file": "slide-13-audit.html",
+  "notes": "Everything can be audited. Each output carries its kernel version, input hash and dependencies. Each run leaves an audit trail and a Merkle root over its inputs, computed in canonical order. Each model call records its endpoint and is cached for replay. A result can be re-run or read back from the record."
+ },
+ {
+  "file": "slide-14-scale.html",
+  "notes": "Where it stands. RAGIX 0.75 registers 101 kernels in nine families, with forty-eight MCP tools, and nine more kernels in RAGIX-Sealed. Every one of them follows the same contract."
+ },
+ {
+  "file": "slide-15-gs.html",
+  "notes": "Agent-operated kernels are not only a RAGIX idea. Generative Simulation applies the same principle to science: simulation engines built or wrapped so that a generative model can drive them directly, without retraining. The model does not hold the physics; it controls, audits and refines simulations through external kernels."
+ },
+ {
+  "file": "slide-16-science.html",
+  "notes": "The scientific kernels. SFPPy for food-contact compliance, Pizza cubed for multiscale molecular dynamics with LAMMPS, Radigen for oxidation kinetics, sig2dna for analytical signals, SFPPylite to run SFPPy in a browser, and GS-Hub for the agents. Each is a validated method behind an interface a model can drive, and each is public."
+ },
+ {
+  "file": "slide-17-next.html",
+  "notes": "Next steps. Several agents dispatching kernels on one shared workspace. Intents expressed closer to the goal, by querying what kernels provide. And the validation gate used by Saqqara extended to every family. The code is open: base, registry and orchestrator are the three files to read first."
+ },
+ {
+  "file": "slide-18-links.html",
+  "notes": "All the links. RAGIX and its KOAS kernels, Generative Simulation and GS-Hub, and the scientific kernels: SFPPy and SFPPylite, Pizza cubed, Radigen and sig2dna. Every one is public."
+ }
+]

@@ -218,6 +218,11 @@ Overviews for decision-makers, each with its sources, a self-contained build and
   substrate, its place in RAGIX, a measured comparison with Docling, and the evidence behind every
   figure ([marketing/saqqara_techsheet/evidence/](marketing/saqqara_techsheet/evidence/));
   [slides](marketing/saqqara_techsheet/saqqara-tech-sheet/Saqqara-Tech-Sheet-Slides.pdf)
+- **[Agent-operated kernels](marketing/koas_kernels/Agent-Operated-Kernels.pdf)** — the KOAS kernel
+  concept for a technical audience (18 slides): the contract, pipelines derived from declarations,
+  concurrent cooperation, sensitive data, audit, and the scientific kernels of Generative Simulation;
+  a replayable single-file player with autoplay and speaker notes,
+  [Agent-Operated-Kernels.html](marketing/koas_kernels/Agent-Operated-Kernels.html)
 
 ## Document Relationships
 
@@ -389,6 +394,7 @@ Documentation follows these principles:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.75.0 | 2026-11-18 | Added the agent-operated kernels deck to the Tech Sheets section |
 | 0.75.0 | 2026-11-17 | RAGIX 0.75.0; RAGIX tech sheet v2 |
 | 0.74.0 | 2026-11-17 | Added the Tech Sheets section (RAGIX, Saqqara); saqqara counted at 6 kernels |
 | 0.74.0 | 2026-09-10 | Added KOAS_SAQQARA (user) and KOAS_SAQQARA_DEV (developer) for the saqqara document substrate |

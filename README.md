@@ -753,7 +753,7 @@ See [CHANGELOG.md](CHANGELOG.md) for complete version history.
 - **Saqqara**: document substrate — PDF, Word, Excel, PowerPoint and Markdown read into one typed tree with provenance on every node, without any language model; one-file store with lexical and optional dense lanes; 6 kernels including the document Explorer; the `saqqara` extra requires `pypdf>=6.17.0`
 - **KOAS-Translate**: six stage kernels over a translation memory, English to French
 - **KOAS-Tender**: response preparation over a Saqqara store, which it never writes to (one kernel, `tender_probe`)
-- **Tech sheets**: RAGIX (v2) and Saqqara, dossier and deck each, in [docs/marketing/](docs/marketing/)
+- **Tech sheets**: RAGIX (v2) and Saqqara, dossier and deck each, in [docs/marketing/](docs/marketing/); a replayable deck on the agent-operated kernel concept, [docs/marketing/koas_kernels/](docs/marketing/koas_kernels/)
 
 **Recent highlights:**
 - v0.74.0: RAGIX-Pentest — rootless, containerized security-hardening lab (scope allow-list, engagement isolation, audited runs; defensive, authorized use only)
