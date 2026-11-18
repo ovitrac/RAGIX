@@ -6,6 +6,20 @@ All notable changes to the **RAGIX** project will be documented here.
 
 ---
 
+## Unreleased — docs: the agent-operated kernels deck
+
+- `docs/marketing/koas_kernels/`: an 18-slide technical deck on the KOAS kernel concept — validated
+  programs operated by a language model, declared contracts, pipelines derived by the orchestrator,
+  concurrent cooperation, output levels, audit — and on the scientific kernels of Generative
+  Simulation (SFPPy, Pizza³, Radigen, sig2dna, SFPPylite, GS-Hub), with links to every repository.
+  `make_deck.py` generates the slides and their speaker notes; `deploy.py` builds the single-file
+  player `Agent-Operated-Kernels.html` (autoplay with loop, notes, fullscreen); PDF beside it.
+- RAGIX tech sheet: a new §2.6 on agent-operated kernels, KOAS's original meaning and Generative
+  Simulation, and the deck in the §7.3 table; PDF and standalone HTML rebuilt (24 pages).
+- `docs/INDEX.md`, `README.md` and `docs/KOAS.md` point to the deck.
+
+---
+
 ## Unreleased — saqqara: search reads the embedder options as index does; store options are booleans
 
 - `search` (and the MCP tool `koas_saqqara_search`, which runs it) built its embedder from the

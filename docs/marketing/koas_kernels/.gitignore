@@ -1,0 +1,8 @@
+# Agent-operated kernels deck: commit the generator (make_deck.py), the slides, the
+# single-file player and the PDF; everything below is regenerable or heavy.
+.fontcache/
+__pycache__/
+*.pyc
+node_modules/
+*.zip
+.cloak-session-audit.jsonl

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mode présentateur</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Work Sans', sans-serif;
+      background: #0a0d14;
+      color: #e8eaf0;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #presenter {
+      display: grid;
+      grid-template-columns: var(--col-left, 3fr) 6px var(--col-right, 2fr);
+      grid-template-rows: auto 1fr;
+      height: 100vh;
+      gap: 12px 0;
+      padding: 12px;
+    }
+
+    /* Splitter */
+    #splitter {
+      grid-row: 2;
+      grid-column: 2;
+      width: 6px;
+      cursor: col-resize;
+      background: transparent;
+      position: relative;
+      z-index: 5;
+    }
+
+    #splitter::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 4px;
+      height: 40px;
+      background: #2a3040;
+      border-radius: 2px;
+      transition: background 0.15s, height 0.15s;
+    }
+
+    #splitter:hover::after {
+      background: #4d8eff;
+      height: 60px;
+    }
+
+    #splitter.dragging::after {
+      background: #4d8eff;
+      height: 80px;
+    }
+
+    /* Toolbar */
+    #toolbar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 20px;
+      background: #151a24;
+      border-radius: 10px;
+    }
+
+    #toolbar button {
+      background: #1c2130;
+      border: none;
+      color: #e8eaf0;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #toolbar button:hover { background: #2a3040; }
+
+    #toolbar button.primary {
+      background: #4d8eff;
+      color: #fff;
+    }
+
+    #toolbar button.primary:hover { background: #3a7be8; }
+
+    #toolbar button.danger {
+      background: #dc2626;
+      color: #fff;
+    }
+
+    #toolbar button.danger:hover { background: #b91c1c; }
+
+    .nav-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #slide-counter {
+      font-size: 18px;
+      font-weight: 600;
+      min-width: 70px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .spacer { flex: 1; }
+
+    #timer {
+      font-size: 28px;
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+      color: #7b8398;
+      padding: 0 12px;
+    }
+
+    /* Slide actuelle */
+    #current-wrapper {
+      grid-column: 1;
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #current-wrapper iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1280px;
+      height: 720px;
+      border: none;
+      transform-origin: top left;
+    }
+    #current-wrapper.lamp-active iframe {
+      pointer-events: none;
+    }
+
+    /* Panneau droit */
+    #right-panel {
+      grid-column: 3;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      min-height: 0;
+    }
+
+    /* Slide suivante */
+    #next-wrapper {
+      height: var(--next-height, 40%);
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    /* Splitter horizontal */
+    #splitter-h {
+      height: 6px;
+      cursor: row-resize;
+      background: transparent;
+      position: relative;
+      z-index: 5;
+      flex-shrink: 0;
+    }
+
+    #splitter-h::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px;
+      height: 4px;
+      background: #2a3040;
+      border-radius: 2px;
+      transition: background 0.15s, width 0.15s;
+    }
+
+    #splitter-h:hover::after {
+      background: #4d8eff;
+      width: 60px;
+    }
+
+    #splitter-h.dragging::after {
+      background: #4d8eff;
+      width: 80px;
+    }
+
+    #next-label {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #7b8398;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      z-index: 2;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    #next-wrapper iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1280px;
+      height: 720px;
+      border: none;
+      transform-origin: top left;
+      pointer-events: none;
+    }
+
+    #end-label {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 16px;
+      color: #5a6178;
+    }
+
+    /* Notes */
+    #notes-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    #notes-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #7b8398;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding-bottom: 6px;
+    }
+
+    #notes-area {
+      flex: 1;
+      background: #151a24;
+      border: none;
+      border-radius: 10px;
+      color: #e8eaf0;
+      font-family: 'Work Sans', sans-serif;
+      font-size: 18px;
+      line-height: 1.7;
+      padding: 16px 20px;
+      resize: none;
+      outline: none;
+    }
+
+    #notes-area::placeholder { color: #5a6178; }
+    #notes-area:focus { box-shadow: inset 0 0 0 2px #4d8eff; }
+
+    /* Lampe */
+    #lamp-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+      border-radius: 10px;
+    }
+
+    #current-wrapper.lamp-active { cursor: none; }
+
+    #toolbar button.active {
+      background: #f5c542;
+      color: #0a0d14;
+    }
+
+    #toolbar button.active:hover {
+      background: #d4a72e;
+    }
+
+    #toolbar button.active-laser {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    #toolbar button.active-laser:hover {
+      background: #dc2626;
+    }
+
+    #laser-dot-local {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 10px 5px rgba(239,68,68,0.5), 0 0 24px 10px rgba(239,68,68,0.25);
+      z-index: 10;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Raccourcis */
+    #shortcuts {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      padding: 4px 0;
+    }
+
+    .shortcut {
+      font-size: 11px;
+      color: #5a6178;
+    }
+
+    .shortcut kbd {
+      background: #1c2130;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: inherit;
+      font-size: 11px;
+      color: #7b8398;
+    }
+  </style>
+</head>
+<body>
+  <div id="presenter">
+    <div id="toolbar">
+      <div class="nav-group">
+        <button id="btn-prev">&#9664;</button>
+        <div id="slide-counter">1 / 10</div>
+        <button id="btn-next">&#9654;</button>
+      </div>
+      <button id="btn-present" class="primary">Présenter</button>
+      <button id="btn-fullscreen">Plein écran audience</button>
+      <button id="btn-fullscreen-self">Plein écran</button>
+      <button id="btn-lamp">Lampe (Z)</button>
+      <button id="btn-laser">Laser (A)</button>
+      <div class="spacer"></div>
+      <div id="timer">00:00:00</div>
+      <button id="btn-reset">RAZ</button>
+      <button id="btn-exit" class="danger">Quitter</button>
+    </div>
+
+    <div id="current-wrapper">
+      <iframe id="current-frame"></iframe>
+    </div>
+
+    <div id="splitter"></div>
+
+    <div id="right-panel">
+      <div id="next-wrapper">
+        <div id="next-label">Suivante</div>
+        <div id="end-label" style="display:none;">Fin</div>
+        <iframe id="next-frame"></iframe>
+      </div>
+      <div id="splitter-h"></div>
+      <div id="notes-panel">
+        <div id="notes-label">Notes</div>
+        <textarea id="notes-area" placeholder="Tapez vos notes pour cette slide..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // Configuration — modifier ces variables pour chaque presentation
+  var slide_files = [
+    '../slides/slide-01-couverture.html',
+    '../slides/slide-01b-sommaire.html',
+    '../slides/slide-02-defi.html',
+    '../slides/slide-03-plateforme.html',
+    '../slides/slide-04-differenciateurs.html',
+    '../slides/slide-05-faits-documents.html',
+    '../slides/slide-06-generation-pipeline.html',
+    '../slides/slide-07-capacites.html',
+    '../slides/slide-08-raisonnement.html',
+    '../slides/slide-09-souverain.html',
+    '../slides/slide-10-preuve.html',
+    '../slides/slide-11-cas.html',
+    '../slides/slide-12-forge.html',
+    '../slides/slide-13-cloture.html'
+  ];
+  var PRESENTER_CHANNEL = 'slide_presenter';
+  var PRESENTER_NOTES_PREFIX = 'presenter_notes_';
+  // Notes par defaut (optionnel) :
+  // var SLIDE_NOTES = { 'slide-01-couverture.html': 'Note par defaut...' };
+  </script>
+  <script src="presenter.js"></script>
+</body>
+</html>
