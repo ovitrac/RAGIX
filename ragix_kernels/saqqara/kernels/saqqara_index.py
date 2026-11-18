@@ -23,7 +23,7 @@ from typing import Any, Dict, List
 from ragix_kernels.base import Kernel, KernelInput
 
 from ..store.config import load_config
-from ..store.embed import build_embedder, embed_missing
+from ..store.embed import build_embedder, embed_missing, embedder_options
 from ..store.refine import refine_store
 from ..store.feed import feed_result, feed_tree
 from ..store.ports import build_store
@@ -92,13 +92,8 @@ class SaqqaraIndexKernel(Kernel):
         embedder_section = config.section("embedder")
         provider = embedder_section.get("provider", "none")
         model_name = embedder_section.get("model", "") or provider
-        embedder = build_embedder(
-            provider, model=embedder_section.get("model", ""),
-            **({"base_url": embedder_section["base_url"]}
-               if embedder_section.get("base_url") else {}),
-            **({"batch_size": embedder_section["batch_size"]}
-               if embedder_section.get("batch_size") else {}),
-        )
+        embedder = build_embedder(provider, model=embedder_section.get("model", ""),
+                                  **embedder_options(embedder_section))
 
         documents, embedded, skipped = [], 0, 0
         refusals: list[Dict[str, Any]] = []

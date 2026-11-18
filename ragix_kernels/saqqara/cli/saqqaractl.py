@@ -249,11 +249,15 @@ def _hit_payload(hit, tree) -> Dict[str, Any]:
 
 def cmd_search(args) -> int:
     from ragix_kernels.saqqara.store.config import load_config
-    from ragix_kernels.saqqara.store.embed import build_embedder
+    from ragix_kernels.saqqara.store.embed import build_embedder, embedder_options
     from ragix_kernels.saqqara.store.ports import build_store
     from ragix_kernels.saqqara.store.retrieve import Retriever
 
-    config = load_config(args.config or None)
+    try:
+        config = load_config(args.config or None)
+    except (ValueError, OSError) as error:
+        print(_red(f"configuration refused: {error}"), file=sys.stderr)
+        return 2
     store_section = config.section("store")
     path = Path(store_section.get("path", ".ragix/saqqara.db"))
     if not path.is_absolute():
@@ -266,7 +270,11 @@ def cmd_search(args) -> int:
     embedder_section = config.section("embedder")
     provider = embedder_section.get("provider", "none")
     model = embedder_section.get("model", "") or provider
-    embedder = build_embedder(provider, model=embedder_section.get("model", ""))
+    # The same server and batch size as the index kernel (embedder_options), or a
+    # query vector could come from another server than the vectors it is ranked
+    # against.
+    embedder = build_embedder(provider, model=embedder_section.get("model", ""),
+                              **embedder_options(embedder_section))
     vector = embedder.embed_batch([args.query])[0] if embedder else None
 
     retrieval = config.section("retrieval")

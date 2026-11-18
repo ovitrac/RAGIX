@@ -2,9 +2,10 @@
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 
-**Version:** 2.0 (2026-11-17) — describes RAGIX 0.74.0 at commit `3cb2ad6`. Version 1.0 described
-`75b0fe1`; since then the package gained legacy Office input, a PDF text-reader port and the document
-Explorer (four kernels), which this version documents.
+**Version:** 2.1 (2026-11-18) — describes RAGIX 0.75.0: `search` builds its embedder with the index
+kernel's options, and the loader refuses a non-boolean store option (§7, §11). Version 2.0 described
+`3cb2ad6` (RAGIX 0.74.0), version 1.0 `75b0fe1`; 2.0 added legacy Office input, a PDF text-reader port
+and the document Explorer (four kernels).
 
 **Audience:** developers. Installing, running and querying are in the user page,
 [KOAS_SAQQARA.md](KOAS_SAQQARA.md); this page does not repeat them. Paths are relative to the
@@ -806,9 +807,10 @@ Explorer's PDF intake constructs `MuPdfTextReader` through the exempt adapter, s
 already-parsed mapping), then merges `overrides` given as dotted keys. `_merge` refuses a key the
 defaults do not declare, naming its dotted path and the keys known at that level, and refuses a
 value where the defaults hold a mapping, or the reverse. Then `embedder.provider` must be in
-`PROVIDERS` and `index.backend` must be `numpy` or `faiss`. No other value is checked at load:
-`pdf.*` values are refused only by the stage-1 reader (§8.9), and `store_options.*` values are cast
-with `bool()`, so the string `"false"` reads as on. The loaded object's `to_dict` never holds
+`PROVIDERS`, `index.backend` must be `numpy` or `faiss`, and every `store_options.*` value must be a
+boolean: any other value, the string `"false"` included, is refused with its dotted key rather than
+read as on. A file that does not parse as YAML is refused with the same `ValueError`. No other value
+is checked at load: `pdf.*` values are refused only by the stage-1 reader (§8.9). The loaded object's `to_dict` never holds
 a resolved secret. `resolve_secret` reads `env:NAME` or `file:/path#Label` at the moment of use and
 raises on every unresolvable form.
 
@@ -823,7 +825,7 @@ raises on every unresolvable form.
 | `store_options.rollup_without_window_overlap` | `kernels/saqqara_index.py` into `store/chunker.py` `chunk_tree`; refused together with `refine.budgets` |
 | `refine.budgets`, `refine.overlap_children` | `kernels/saqqara_index.py` (which also refuses budgets together with `store_options.rollup_without_window_overlap`), then `store/refine.py`; with no embedder the passes are skipped and `refinement` is `None` |
 | `embedder.provider`, `embedder.model` | `kernels/saqqara_index.py`, `cmd_search`, both through `build_embedder` |
-| `embedder.base_url`, `embedder.batch_size` | `kernels/saqqara_index.py` only, and only when truthy (`batch_size: 0` falls back to 32 rather than being refused); `search` embeds its query at `http://localhost:11434` with batch size 32 whatever these say (§11) |
+| `embedder.base_url`, `embedder.batch_size` | `kernels/saqqara_index.py` and `cmd_search`, both through `store/embed.py` `embedder_options`, each only when truthy (`batch_size: 0` falls back to 32 rather than being refused) |
 | `embedder.api_key_ref` | `StoreConfig.api_key()`, which nothing calls |
 | `index.backend` | `cmd_search`, into `Retriever` |
 | `index.use_gpu` | none |
@@ -1226,41 +1228,39 @@ Parametrisation makes the collected count larger than the sum of functions.
 7. **`Hit.from_dict` drops `part`.** `to_dict` writes it; the reverse does not read it back.
 8. **`store.search()` uses the numpy index.** `SqliteDocumentStore.search` builds its `Retriever`
    with the default backend whatever `index.backend` says; only `cmd_search` passes the backend.
-9. **`cmd_search` does not pass `base_url` or `batch_size`** to `build_embedder`, and does not catch
-   `load_config` errors.
-10. **The `outline` entry of `analyzers` is accepted and ignored.** `compute` admits its name and
+9. **The `outline` entry of `analyzers` is accepted and ignored.** `compute` admits its name and
     constructs `OutlineAnalyzer()` without options.
-11. **`READABLE` in `kernels/saqqara_run.py` is not used.** The kernel offers every file to the
+10. **`READABLE` in `kernels/saqqara_run.py` is not used.** The kernel offers every file to the
     readers; the tuple now lists `.doc` and `.xls` too.
-12. **`koas_saqqara_status` does not read the abstention register.** It collects `abstentions` from
+11. **`koas_saqqara_status` does not read the abstention register.** It collects `abstentions` from
     each trace's own `abstentions` key, which only `header_bands` writes, so `grid_tables`
     abstentions and those recorded in the tree are missing from its list. The complete register is
     `report.abstentions` in the same result.
-13. **The drop trace and lexical refusals are per process.** `drops` and `lexical_refusals` are
+12. **The drop trace and lexical refusals are per process.** `drops` and `lexical_refusals` are
     lists on the store object, not tables.
-14. **Output files carry wall-clock time.** The envelope's `_meta` and the store's `indexed_at` and
+13. **Output files carry wall-clock time.** The envelope's `_meta` and the store's `indexed_at` and
     `refused_at` are times of writing; K4.1 measures reproducibility on the tree and its root, not on
     the output file.
-15. **The connection is not shared across threads.** `SqliteDocumentStore` opens one `sqlite3`
+14. **The connection is not shared across threads.** `SqliteDocumentStore` opens one `sqlite3`
     connection with the module's defaults.
-16. **K2.26 relies on pypdf's call order.** Under pypdf 6.13.3 one construct, a run that opens a new
+15. **K2.26 relies on pypdf's call order.** Under pypdf 6.13.3 one construct, a run that opens a new
     text object on the previous run's baseline, was misplaced (§10.3); under 6.17.0 it is exact, so
     the `saqqara` extra requires `pypdf>=6.17.0`. Continuous integration installs the newest pypdf
     and runs the K2.26 test, so a release that changes the call order shows as a failing gate.
-17. **Text inside a form XObject is read twice (H2).** Once run by run in the form's own space and
+16. **Text inside a form XObject is read twice (H2).** Once run by run in the form's own space and
     once whole under the outer matrices, with sizes and widths missing the form's scale: the
     running header and footer of a browser-printed PDF are duplicated and misplaced.
-18. **A non-default PDF reader is a different reader.** Its trees carry the version
+17. **A non-default PDF reader is a different reader.** Its trees carry the version
     `0.9.0+pymupdf-<version>` and/or `.line-join`, so their roots differ from the default reader's.
     The PyMuPDF reader replaces the text records only; outline, pages, pictures and drawings are
     still read by pypdf.
-19. **A text-extraction failure reads as a page without text.** An exception from pypdf's
+18. **A text-extraction failure reads as a page without text.** An exception from pypdf's
     `extract_text` leaves the page empty, so it is reported `has_text: false`, `needs_ocr: true` and
     listed as `no-text-layer`; an exception from `MuPdfTextReader.placements` instead makes the whole
     file `unreadable-file`. A malformed outline, and an outline entry with no title, are dropped
     without a count.
-20. **Legacy Office input writes to the workspace.** A `.doc` or `.xls` among the inputs makes the
+19. **Legacy Office input writes to the workspace.** A `.doc` or `.xls` among the inputs makes the
     run create `assets/office-conversions/`; without LibreOffice the file is refused as
     `converter-unavailable`.
-21. **The Explorer's PDF path is PyMuPDF only.** `digest_pdf` always reads through
+20. **The Explorer's PDF path is PyMuPDF only.** `digest_pdf` always reads through
     `MuPdfTextReader`, and the `explorer` extra pins `pymupdf==1.27.2.2` for reproducible geometry.

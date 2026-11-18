@@ -2,8 +2,10 @@
 
 **Author:** Olivier Vitrac, PhD, HDR | olivier.vitrac@adservio.fr | Adservio
 
-**Version:** 2.1 (2026-11-17) — describes RAGIX 0.74.0, written at commit `75b0fe1`; the reader versions
-(§3) and the licence note (§14) are checked against commit `b7eb0a7`
+**Version:** 2.2 (2026-11-18) — describes RAGIX 0.75.0: `search` reads `embedder.base_url` and
+`embedder.batch_size` as `index` does, and refuses a bad configuration with exit code 2 (§11, §12).
+Version 2.1 was written at commit `75b0fe1`, with the reader versions (§3) and the licence note (§14)
+checked against commit `b7eb0a7`
 
 **Audience:** users. Modules, schema, records, refusal code paths and extension points are in the
 developer reference, [KOAS_SAQQARA_DEV.md](KOAS_SAQQARA_DEV.md).
@@ -837,18 +839,13 @@ These are raised, and a kernel run reports them as `success: false` with the mes
    calls it.
 8. **The store's corpus label.** `store.corpus` is reported by the store's status. Documents written
    by the index kernel are recorded under the corpus `default`.
-9. **`search` ignores `embedder.base_url` and `embedder.batch_size`.** It builds its embedder from
-   the provider and model only, so an `ollama` server at another address is reached by `index` and
-   not by `search`.
-10. **Options accepted and not used.** `-v` on `index` and `search` has no effect. The name `outline`
+9. **Options accepted and not used.** `-v` on `index` and `search` has no effect. The name `outline`
     is accepted under `analyzers`, and its options are not passed to it.
-11. **`--formats` compares exact suffixes.** Give each extension with its dot, in lower case.
-12. **`search` does not catch configuration errors.** An unknown key in `-c` ends `search` with a
-    Python traceback; `index` reports the same error as a failed run.
-13. **Output files carry wall-clock time.** The envelope stamps `_meta.timestamp` and
+10. **`--formats` compares exact suffixes.** Give each extension with its dot, in lower case.
+11. **Output files carry wall-clock time.** The envelope stamps `_meta.timestamp` and
     `execution_time_ms`, and vectors and refusals carry their time of writing. Reproducibility is
     stated on the trees and the roots, which carry none.
-14. **The envelope truncates a summary line over 500 characters** and records a warning.
+12. **The envelope truncates a summary line over 500 characters** and records a warning.
 
 ---
 
@@ -871,16 +868,16 @@ the defaults, or loading refuses it with its path. This file configures `index` 
 | `refine.overlap_children` | `0` | `index` | overlap between consecutive windows, counted in children |
 | `embedder.provider` | `none` | `index`, `search` | `none`, `sentence-transformers`, `ollama` or `dummy`; `dummy` is the core layer's test backend |
 | `embedder.model` | `""` | `index`, `search` | the model; empty uses the backend's default and records the provider's name |
-| `embedder.base_url` | `""` | `index` | the Ollama server; empty uses the core layer's default |
+| `embedder.base_url` | `""` | `index`, `search` | the Ollama server; empty uses the core layer's default |
 | `embedder.api_key_ref` | `""` | `StoreConfig.api_key()` | a secret by reference; no embedder uses it (§11) |
-| `embedder.batch_size` | `128` | `index` | texts per HTTP request for `ollama`; `1` sends one text per request |
+| `embedder.batch_size` | `128` | `index`, `search` | texts per HTTP request for `ollama`; `1` sends one text per request |
 | `index.backend` | `numpy` | `search` | `numpy` or `faiss` |
 | `index.use_gpu` | `false` | nothing | declared, not read |
 | `chunker.unit_max_chars` | `1200` | `index` | a level-0 text over this is flagged `oversize` |
 | `chunker.rollup_levels` | `1` | `index` | `0` switches level-1 roll-ups off |
 | `chunker.window_fallback_chars` | `4000` | `index` | a single node over this is cut into windows |
-| `store_options.table_cells` | `false` | `index` | also stores each table's cells in `objects.cells_json` — `node_id`, `row`, `col`, `merged`, `text` per cell, in the grid vocabulary of the header bands (K7.11) |
-| `store_options.rollup_without_window_overlap` | `false` | `index` | a roll-up holds a windowed node's text once instead of repeating the windows' overlap at each seam (K7.4); refused together with `refine.budgets` |
+| `store_options.table_cells` | `false` | `index` | `true` or `false`, any other value refused; also stores each table's cells in `objects.cells_json` — `node_id`, `row`, `col`, `merged`, `text` per cell, in the grid vocabulary of the header bands (K7.11) |
+| `store_options.rollup_without_window_overlap` | `false` | `index` | `true` or `false`, any other value refused; a roll-up holds a windowed node's text once instead of repeating the windows' overlap at each seam (K7.4); refused together with `refine.budgets` |
 | `retrieval.fusion` | `rrf` | nothing | declared, not read; fusion is always reciprocal rank |
 | `retrieval.rrf_k` | `60` | `search` | the fusion constant |
 | `retrieval.dense_k` | `40` | `search` | texts asked of the dense lane before fusion |
